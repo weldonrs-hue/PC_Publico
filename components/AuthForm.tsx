@@ -1,5 +1,5 @@
 'use client';
-
+// Force rebuild
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, ArrowRight, UserPlus, LogIn, AlertCircle, CheckCircle2 } from 'lucide-react';

@@ -1,5 +1,5 @@
 'use client';
-
+// Force rebuild
 import { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, School, Calendar, Layers, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
