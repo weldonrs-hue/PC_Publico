@@ -128,14 +128,14 @@ export default function Home() {
       />
       
       <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-20 landscape:lg:ml-64 portrait:mb-16">
-        <div className="p-4 md:p-8 space-y-4 md:space-y-8 max-w-7xl mx-auto w-full">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-6xl mx-auto w-full">
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}
               <div className="flex justify-between items-end">
-                <div className="border-2 border-blue-400 p-4 md:p-6 rounded-sm w-full md:w-fit bg-white/50">
-                  <h2 className="text-2xl md:text-4xl font-bold text-gray-900">Olá, {personalData?.nome || user.usuario}!</h2>
-                  <p className="text-xs md:text-base text-gray-500 mt-1">Bem-vindo ao painel de programações do circuito</p>
+                <div className="border-2 border-blue-400 p-3 md:p-4 rounded-sm w-full md:w-fit bg-white/50">
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Olá, {personalData?.nome || user.usuario}!</h2>
+                  <p className="text-[10px] md:text-sm text-gray-500 mt-0.5">Bem-vindo ao painel de programações do circuito</p>
                 </div>
               </div>
 
