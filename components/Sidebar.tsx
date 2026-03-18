@@ -73,7 +73,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
     <aside className="
       fixed z-50 bg-[#512da8] text-white transition-all duration-500 ease-in-out
       portrait:bottom-0 portrait:left-0 portrait:right-0 portrait:h-16 portrait:flex-row portrait:w-full
-      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-20 landscape:lg:w-64 landscape:flex-col
+      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-20 landscape:lg:w-56 landscape:flex-col
       flex overflow-y-auto landscape:custom-scrollbar
     ">
       {/* Logo Section */}

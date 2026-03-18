@@ -127,8 +127,8 @@ export default function Home() {
         }}
       />
       
-      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-20 landscape:lg:ml-64 portrait:mb-16">
-        <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-6xl mx-auto w-full">
+      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-20 landscape:lg:ml-56 portrait:mb-16">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-5xl mx-auto w-full">
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}
