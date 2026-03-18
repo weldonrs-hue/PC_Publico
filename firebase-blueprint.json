@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "personal_data": {
+      "title": "Personal Data",
+      "description": "Personal information of the circuit overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user" },
+        "nome": { "type": "string" },
+        "nomeEsposa": { "type": "string" },
+        "endereco": { "type": "string" },
+        "cidade": { "type": "string" },
+        "cep": { "type": "string" },
+        "uf": { "type": "string" },
+        "circuito": { "type": "string" },
+        "emailJwpub": { "type": "string" },
+        "emailPessoal": { "type": "string" },
+        "telefoneCircuito": { "type": "string" },
+        "telefonePessoal": { "type": "string" }
+      },
+      "required": ["userId", "nome"]
+    },
+    "congregation": {
+      "title": "Congregation",
+      "description": "Details of a congregation in the circuit",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "numero": { "type": "string" },
+        "parte": { "type": "string" },
+        "endereco": { "type": "string" },
+        "coordenador": { "type": "string" },
+        "telefone": { "type": "string" },
+        "cidade": { "type": "string" },
+        "cep": { "type": "string" },
+        "estado": { "type": "string" },
+        "grupos": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "nome", "numero"]
+    },
+    "substitute": {
+      "title": "Substitute",
+      "description": "Details of a substitute overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "congregacaoId": { "type": "string" },
+        "congregacaoNome": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" }
+      },
+      "required": ["userId", "nome", "congregacaoId"]
+    }
+  },
+  "firestore": {
+    "/personal_data/{dataId}": {
+      "schema": "personal_data",
+      "description": "Collection of personal data for overseers"
+    },
+    "/congregations/{congId}": {
+      "schema": "congregation",
+      "description": "Collection of congregations"
+    },
+    "/substitutes/{subId}": {
+      "schema": "substitute",
+      "description": "Collection of substitute overseers"
+    }
+  }
+}
