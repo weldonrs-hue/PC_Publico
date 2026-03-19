@@ -27,7 +27,8 @@ import {
   getDocs, 
   setDoc, 
   doc, 
-  limit 
+  limit,
+  getDoc
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { formatBRPhone, formatCEP, formatCircuito } from '@/utils/formatters';
@@ -59,13 +60,26 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   useEffect(() => {
     const fetchPersonalData = async () => {
       try {
-        const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
-        const querySnapshot = await getDocs(q);
+        // Try to get by userId as doc ID first
+        const docRef = doc(db, 'personal_data', userId);
+        const docSnap = await getDoc(docRef);
         
-        if (!querySnapshot.empty) {
-          const docData = querySnapshot.docs[0].data() as any;
+        if (docSnap.exists()) {
+          const docData = docSnap.data() as any;
           setInitialData(docData);
           setFormData(docData);
+        } else {
+          // Fallback: search by userId field
+          const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const docData = querySnapshot.docs[0].data() as any;
+            setInitialData(docData);
+            setFormData(docData);
+            // Migrate to use userId as doc ID for future efficiency
+            await setDoc(doc(db, 'personal_data', userId), { ...docData, userId });
+          }
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, 'personal_data');
@@ -115,18 +129,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     if (e) e.preventDefault();
     
     try {
-      // Use userId as document ID or a specific ID if we have one
-      // For simplicity, we'll use a query to find existing or create new
-      const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
-      const querySnapshot = await getDocs(q);
-      
-      let docRef;
-      if (!querySnapshot.empty) {
-        docRef = doc(db, 'personal_data', querySnapshot.docs[0].id);
-      } else {
-        docRef = doc(collection(db, 'personal_data'));
-      }
-
+      // Use userId as document ID
+      const docRef = doc(db, 'personal_data', userId);
       await setDoc(docRef, { ...formData, userId });
       setInitialData(formData);
       onSave();

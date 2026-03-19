@@ -44,7 +44,10 @@ export default function Home() {
           let role = 'user';
           
           if (!userDoc.exists()) {
-            const isAdminEmail = firebaseUser.email === 'weldonrs@gmail.com' || firebaseUser.email === '2283701@progcir.app';
+            const isAdminEmail = 
+              firebaseUser.email === 'weldonrs@gmail.com' || 
+              firebaseUser.email === '2283701@progcir.app' ||
+              firebaseUser.email === '2283701@progcir.com';
             role = isAdminEmail ? 'admin' : 'user';
             await setDoc(userDocRef, {
               email: firebaseUser.email,
@@ -83,13 +86,62 @@ export default function Home() {
     if (!user) return;
 
     const fetchData = async () => {
+      // Wait for auth.currentUser to be available (up to 5 seconds)
+      let attempts = 0;
+      while (!auth.currentUser && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      if (!auth.currentUser) {
+        console.error('fetchData: auth.currentUser is null after waiting. User state:', user);
+        return;
+      }
+
+      const activeUid = auth.currentUser.uid;
+      const activeEmail = auth.currentUser.email;
+      console.log(`fetchData: Iniciando busca para UID: ${activeUid}, Email: ${activeEmail}`);
+
+      // Test permissions with a simple query before proceeding
       try {
-        // Fetch Personal Data
-        const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', user.id), limit(1));
-        const pdSnapshot = await getDocs(pdQuery);
+        console.log('fetchData: Testando permissões de leitura...');
+        const testQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+        await getDocs(testQuery);
+        console.log('fetchData: Teste de permissões OK');
+      } catch (error) {
+        console.error('fetchData: Falha no teste de permissões:', error);
+        handleFirestoreError(error, OperationType.GET, 'permission_test');
+        return;
+      }
+
+      try {
+        // Fetch Personal Data - Try by activeUid as doc ID first
+        let pdData = null;
+        try {
+          const pdDocRef = doc(db, 'personal_data', activeUid);
+          const pdDoc = await getDoc(pdDocRef);
+          if (pdDoc.exists()) {
+            pdData = pdDoc.data();
+            console.log('fetchData: Personal data found by UID doc ID');
+          } else {
+            console.log('fetchData: Personal data NOT found by UID doc ID, searching by userId field...');
+            // Fallback: search by userId field
+            const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+            const pdSnapshot = await getDocs(pdQuery);
+            if (!pdSnapshot.empty) {
+              pdData = pdSnapshot.docs[0].data();
+              console.log('fetchData: Personal data found by userId field. Migrating...');
+              // Migrate this doc to use activeUid as ID
+              await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao buscar personal_data:', error);
+          handleFirestoreError(error, OperationType.GET, 'personal_data_fetch');
+          return;
+        }
         
-        if (!pdSnapshot.empty) {
-          const pdData = pdSnapshot.docs[0].data();
+        if (pdData) {
           setPersonalData(pdData);
           if (pdData.numeroPessoal) {
             setUser((prev: any) => ({ ...prev, usuario: pdData.numeroPessoal }));
@@ -98,70 +150,89 @@ export default function Home() {
           // MIGRATION LOGIC: Check if there's data for this username/number under a different UID
           const username = user.usuario;
           if (username && /^\d+$/.test(username)) {
-            console.log('Iniciando busca por dados antigos para:', username);
+            console.log('fetchData: Iniciando busca por dados antigos para:', username);
             
             // 1. Try to find by numeroPessoal first
-            let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
-            let migrationSnapshot = await getDocs(migrationQuery);
+            let migrationSnapshot;
+            try {
+              let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
+              migrationSnapshot = await getDocs(migrationQuery);
+            } catch (error) {
+              console.warn('fetchData: Erro na busca de migração por numeroPessoal:', error);
+              // Don't fail the whole thing, just continue
+            }
+
             let oldUserId = null;
             let oldData = null;
-            let oldDocId = null;
 
-            if (!migrationSnapshot.empty) {
-              const doc = migrationSnapshot.docs[0];
-              oldData = doc.data();
+            if (migrationSnapshot && !migrationSnapshot.empty) {
+              const docSnap = migrationSnapshot.docs[0];
+              oldData = docSnap.data();
               oldUserId = oldData.userId;
-              oldDocId = doc.id;
+              console.log('fetchData: Dados antigos encontrados por numeroPessoal. Old UID:', oldUserId);
             } else {
               // 2. Try to find by old email domain (@progcir.com) in users collection
               const oldEmail = `${username}@progcir.com`;
-              const userQuery = query(collection(db, 'users'), where('email', '==', oldEmail), limit(1));
-              const userSnapshot = await getDocs(userQuery);
+              let userSnapshot;
+              try {
+                const userQuery = query(collection(db, 'users'), where('email', '==', oldEmail), limit(1));
+                userSnapshot = await getDocs(userQuery);
+              } catch (error) {
+                console.warn('fetchData: Erro na busca de migração por email antigo:', error);
+              }
               
-              if (!userSnapshot.empty) {
+              if (userSnapshot && !userSnapshot.empty) {
                 oldUserId = userSnapshot.docs[0].id;
+                console.log('fetchData: Old UID found in users collection:', oldUserId);
                 // Now find the personal_data for this oldUserId
-                const pdOldQuery = query(collection(db, 'personal_data'), where('userId', '==', oldUserId), limit(1));
-                const pdOldSnapshot = await getDocs(pdOldQuery);
-                if (!pdOldSnapshot.empty) {
-                  const doc = pdOldSnapshot.docs[0];
-                  oldData = doc.data();
-                  oldDocId = doc.id;
+                try {
+                  const pdOldQuery = query(collection(db, 'personal_data'), where('userId', '==', oldUserId), limit(1));
+                  const pdOldSnapshot = await getDocs(pdOldQuery);
+                  if (!pdOldSnapshot.empty) {
+                    const docSnap = pdOldSnapshot.docs[0];
+                    oldData = docSnap.data();
+                  }
+                } catch (error) {
+                  console.warn('fetchData: Erro ao buscar personal_data antigo:', error);
                 }
               }
             }
             
-            if (oldUserId && oldUserId !== user.id) {
-              console.log('Dados antigos encontrados para o UID:', oldUserId);
+            if (oldUserId && oldUserId !== activeUid) {
+              console.log('fetchData: Migrando dados do UID antigo:', oldUserId, 'para o novo:', activeUid);
               
-              // Update personal_data if found
-              if (oldDocId && oldData) {
-                await setDoc(doc(db, 'personal_data', oldDocId), {
+              if (oldData) {
+                const migratedData = {
                   ...oldData,
-                  userId: user.id,
-                  numeroPessoal: username // Ensure this is set for future lookups
-                });
-                setPersonalData({ ...oldData, userId: user.id, numeroPessoal: username });
+                  userId: activeUid,
+                  numeroPessoal: username
+                };
+                await setDoc(doc(db, 'personal_data', activeUid), migratedData);
+                setPersonalData(migratedData);
               }
               
               // Migrate other collections
               const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries'];
               for (const collName of collectionsToMigrate) {
-                const q = query(collection(db, collName), where('userId', '==', oldUserId));
-                const snapshot = await getDocs(q);
-                console.log(`Migrando ${snapshot.size} documentos de ${collName}`);
-                for (const d of snapshot.docs) {
-                  await setDoc(doc(db, collName, d.id), {
-                    ...d.data(),
-                    userId: user.id
-                  });
+                try {
+                  const q = query(collection(db, collName), where('userId', '==', oldUserId));
+                  const snapshot = await getDocs(q);
+                  if (!snapshot.empty) {
+                    console.log(`fetchData: Migrando ${snapshot.size} documentos de ${collName}`);
+                    for (const d of snapshot.docs) {
+                      await setDoc(doc(db, collName, d.id), {
+                        ...d.data(),
+                        userId: activeUid
+                      });
+                    }
+                  }
+                } catch (error) {
+                  console.error(`fetchData: Erro ao migrar coleção ${collName}:`, error);
                 }
               }
               
-              // Optional: Update the old user record to prevent re-migration or just leave it
-              console.log('Migração concluída com sucesso');
-              
-              // Refresh stats after migration
+              console.log('fetchData: Migração concluída');
+              // Re-fetch everything to be sure
               fetchData(); 
               return;
             }
@@ -169,8 +240,14 @@ export default function Home() {
         }
 
         // Fetch Congregations for stats
-        const congQuery = query(collection(db, 'congregations'), where('userId', '==', user.id));
-        const congSnapshot = await getDocs(congQuery);
+        let congSnapshot;
+        try {
+          const congQuery = query(collection(db, 'congregations'), where('userId', '==', activeUid));
+          congSnapshot = await getDocs(congQuery);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, 'congregations_fetch');
+          return;
+        }
         let congregations = congSnapshot.size;
         let groups = 0;
         congSnapshot.docs.forEach((doc) => {
@@ -181,13 +258,19 @@ export default function Home() {
         });
 
         // Fetch Substitutes for stats
-        const subQuery = query(collection(db, 'substitutes'), where('userId', '==', user.id));
-        const subSnapshot = await getDocs(subQuery);
+        let subSnapshot;
+        try {
+          const subQuery = query(collection(db, 'substitutes'), where('userId', '==', activeUid));
+          subSnapshot = await getDocs(subQuery);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, 'substitutes_fetch');
+          return;
+        }
         let substitutes = subSnapshot.size;
 
         setCongStats({ congregations, groups, substitutes });
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'dashboard_data');
+        console.error('Error in fetchData overall:', error);
       }
     };
 

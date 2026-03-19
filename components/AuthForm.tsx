@@ -48,11 +48,29 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
     }
 
     const formattedUsuario = formData.usuario;
-    const email = `${formattedUsuario}@progcir.app`;
+    const emailApp = `${formattedUsuario}@progcir.app`;
+    const emailCom = `${formattedUsuario}@progcir.com`;
 
     try {
       if (isLogin) {
-        const userCredential = await signInWithEmailAndPassword(auth, email, formData.senha);
+        let userCredential;
+        try {
+          // Try with the new domain first
+          userCredential = await signInWithEmailAndPassword(auth, emailApp, formData.senha);
+        } catch (err: any) {
+          // If it fails with user not found or invalid credential, try the old domain
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/user-disabled') {
+            try {
+              userCredential = await signInWithEmailAndPassword(auth, emailCom, formData.senha);
+            } catch (secondErr: any) {
+              // If both fail, throw the second error (or the first one)
+              throw secondErr;
+            }
+          } else {
+            throw err;
+          }
+        }
+
         onLoginSuccess({
           id: userCredential.user.uid,
           usuario: formattedUsuario,
@@ -62,7 +80,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
         if (formData.senha !== formData.confirmarSenha) {
           throw new Error('As senhas não coincidem');
         }
-        const userCredential = await createUserWithEmailAndPassword(auth, email, formData.senha);
+        // Always create new accounts with the .app domain
+        const userCredential = await createUserWithEmailAndPassword(auth, emailApp, formData.senha);
         await updateProfile(userCredential.user, { displayName: formattedUsuario });
         
         setSuccess('Usuário criado com sucesso');

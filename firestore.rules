@@ -1,176 +1,125 @@
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: personal_data
-// Document ID: auto-generated
-// Fields:
-//   - userId: string (required) - The ID of the user
-//   - nome: string (required)
-//   - nomeEsposa: string
-//   - endereco: string
-//   - cidade: string
-//   - cep: string
-//   - uf: string
-//   - circuito: string
-//   - emailJwpub: string
-//   - emailPessoal: string
-//   - telefoneCircuito: string
-//   - telefonePessoal: string
-//
-// Collection: congregations
-// Document ID: auto-generated
-// Fields:
-//   - userId: string (required)
-//   - nome: string (required)
-//   - numero: string (required)
-//   - parte: string
-//   - endereco: string
-//   - coordenador: string
-//   - telefone: string
-//   - cidade: string
-//   - cep: string
-//   - estado: string
-//   - grupos: list (strings)
-//
-// Collection: substitutes
-// Document ID: auto-generated
-// Fields:
-//   - userId: string (required)
-//   - nome: string (required)
-//   - congregacaoId: string (required)
-//   - congregacaoNome: string
-//   - cidade: string
-//   - estado: string
-//
-// Collection: itineraries
-// Document ID: auto-generated
-// Fields:
-//   - userId: string (required)
-//   - semana: string (required)
-//   - dataEvento: string
-//   - evento: string
-//   - observacoes: string
-//   - escritorioNotificado: bool
-//   - congregacaoNotificada: bool
-//   - ordem: int (required)
-//
-// ===============================================================
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.userId;
-    }
-
     function isAdmin() {
+      return isAuthenticated() && 
+             'email' in request.auth.token && 
+             (request.auth.token.email == "weldonrs@gmail.com" ||
+              request.auth.token.email == "2283701@progcir.app" ||
+              request.auth.token.email == "2283701@progcir.com");
+    }
+
+    function getUsername() {
+      return isAuthenticated() && 'email' in request.auth.token ? 
+             request.auth.token.email.split("@")[0] : "";
+    }
+
+    // Check if the current user owns the data
+    function isOwner(userId) {
       return isAuthenticated() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-        (request.auth.token.email == "weldonrs@gmail.com" && request.auth.token.email_verified == true) ||
-        (request.auth.token.email == "2283701@progcir.app")
+        request.auth.uid == userId || 
+        isAdmin() ||
+        // Migration support: check if the userId belongs to the same person (same email prefix)
+        (exists(/databases/$(database)/documents/users/$(userId)) && 
+         get(/databases/$(database)/documents/users/$(userId)).data.get('email', '').split("@")[0] == getUsername()) ||
+        (exists(/databases/$(database)/documents/personal_data/$(userId)) && 
+         get(/databases/$(database)/documents/personal_data/$(userId)).data.get('numeroPessoal', '') == getUsername())
       );
     }
 
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function isValidString(field, maxLen) {
-      return request.resource.data[field] is string && request.resource.data[field].size() <= maxLen;
-    }
-
-    // ===============================================================
     // Domain Validators
-    // ===============================================================
-
     function isValidPersonalData(data) {
-      return hasRequiredFields(['userId', 'nome']) &&
-             data.userId == request.auth.uid &&
-             data.nome is string && data.nome.size() > 0 && data.nome.size() < 100;
+      return data.userId is string && 
+             data.nome is string && data.nome.size() > 0;
     }
 
     function isValidCongregation(data) {
-      return hasRequiredFields(['userId', 'nome', 'numero']) &&
-             data.userId == request.auth.uid &&
-             data.nome is string && data.nome.size() > 0 && data.nome.size() < 100 &&
-             data.numero is string && data.numero.size() > 0 && data.numero.size() < 20;
+      return data.userId is string && 
+             data.nome is string && data.nome.size() > 0 &&
+             data.numero is string;
     }
 
-    function isValidSubstitute(data) {
-      return hasRequiredFields(['userId', 'nome', 'congregacaoId']) &&
-             data.userId == request.auth.uid &&
-             data.nome is string && data.nome.size() > 0 && data.nome.size() < 100 &&
-             data.congregacaoId is string && data.congregacaoId.size() > 0;
-    }
-
-    function isValidItinerary(data) {
-      return hasRequiredFields(['userId', 'semana', 'ordem']) &&
-             data.userId == request.auth.uid &&
-             data.semana is string && data.semana.size() > 0 &&
-             (data.ordem is int || data.ordem is number);
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
+    // Rules for collections
     match /personal_data/{dataId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && isValidPersonalData(request.resource.data);
-      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidPersonalData(request.resource.data);
-      allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+      allow read, write: if isAuthenticated() && (dataId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) || 
+        (resource != null && resource.data.get('numeroPessoal', '') == getUsername())
+      );
+      allow create: if isAuthenticated() && isValidPersonalData(request.resource.data) && 
+                    (dataId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isValidPersonalData(request.resource.data) && 
+                    (dataId == request.auth.uid || 
+                     (resource != null && resource.data.get('userId', '') == request.auth.uid) || 
+                     (resource != null && resource.data.get('numeroPessoal', '') == getUsername()) || 
+                     isAdmin()) &&
+                    (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (
+        dataId == request.auth.uid ||
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) || 
+        isAdmin()
+      );
     }
 
     match /congregations/{congId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && isValidCongregation(request.resource.data);
-      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidCongregation(request.resource.data);
-      allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+      allow read, write: if isAuthenticated() && (
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) || 
+        isAdmin() ||
+        (resource != null && isOwner(resource.data.userId))
+      );
+      allow create: if isAuthenticated() && isValidCongregation(request.resource.data) && 
+                    (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isValidCongregation(request.resource.data) && 
+                    (resource.data.userId == request.auth.uid || isAdmin() || isOwner(resource.data.userId)) &&
+                    (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOwner(resource.data.userId));
     }
 
     match /substitutes/{subId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && isValidSubstitute(request.resource.data);
-      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidSubstitute(request.resource.data);
-      allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+      allow read, write: if isAuthenticated() && (
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) || 
+        isAdmin() ||
+        (resource != null && isOwner(resource.data.userId))
+      );
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || isAdmin() || isOwner(resource.data.userId)) &&
+                    (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOwner(resource.data.userId));
     }
 
     match /itineraries/{itId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && isValidItinerary(request.resource.data);
-      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidItinerary(request.resource.data);
-      allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+      allow read, write: if isAuthenticated() && (
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) || 
+        isAdmin() ||
+        (resource != null && isOwner(resource.data.userId))
+      );
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || isAdmin() || isOwner(resource.data.userId)) &&
+                    (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin() || isOwner(resource.data.userId));
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAuthenticated() && (request.auth.uid == userId && request.resource.data.role == 'user') || isAdmin();
-      allow update: if isAuthenticated() && isAdmin();
-      allow delete: if isAuthenticated() && isAdmin();
+      allow read, write: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isAdmin() ||
+        (resource != null && resource.data.get('email', '') == request.auth.token.get('email', '')) ||
+        (resource != null && resource.data.get('email', '') == getUsername() + "@progcir.com")
+      );
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
     }
 
-    // Default deny
     match /{path=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
   }
 }
