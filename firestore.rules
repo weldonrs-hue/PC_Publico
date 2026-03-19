@@ -43,6 +43,18 @@
 //   - cidade: string
 //   - estado: string
 //
+// Collection: itineraries
+// Document ID: auto-generated
+// Fields:
+//   - userId: string (required)
+//   - semana: string (required)
+//   - dataEvento: string
+//   - evento: string
+//   - observacoes: string
+//   - escritorioNotificado: bool
+//   - congregacaoNotificada: bool
+//   - ordem: int (required)
+//
 // ===============================================================
 
 rules_version = '2';
@@ -66,9 +78,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "weldonrs@gmail.com" && request.auth.token.email_verified == true));
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        (request.auth.token.email == "weldonrs@gmail.com" && request.auth.token.email_verified == true) ||
+        (request.auth.token.email == "2283701@progcir.app")
+      );
     }
 
     function hasRequiredFields(fields) {
@@ -107,6 +122,13 @@ service cloud.firestore {
              data.congregacaoId is string && data.congregacaoId.size() > 0;
     }
 
+    function isValidItinerary(data) {
+      return hasRequiredFields(['userId', 'semana', 'ordem']) &&
+             data.userId == request.auth.uid &&
+             data.semana is string && data.semana.size() > 0 &&
+             (data.ordem is int || data.ordem is number);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -114,22 +136,36 @@ service cloud.firestore {
     match /personal_data/{dataId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && isValidPersonalData(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidPersonalData(request.resource.data);
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidPersonalData(request.resource.data);
       allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
     }
 
     match /congregations/{congId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && isValidCongregation(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidCongregation(request.resource.data);
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidCongregation(request.resource.data);
       allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
     }
 
     match /substitutes/{subId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && isValidSubstitute(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidSubstitute(request.resource.data);
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidSubstitute(request.resource.data);
       allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+    }
+
+    match /itineraries/{itId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidItinerary(request.resource.data);
+      allow update: if isAuthenticated() && (isDocOwner() || isAdmin()) && isValidItinerary(request.resource.data);
+      allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && (request.auth.uid == userId && request.resource.data.role == 'user') || isAdmin();
+      allow update: if isAuthenticated() && isAdmin();
+      allow delete: if isAuthenticated() && isAdmin();
     }
 
     // Default deny

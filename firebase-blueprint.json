@@ -6,6 +6,7 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string", "description": "The ID of the user" },
+        "numeroPessoal": { "type": "string", "description": "The personal identification number" },
         "nome": { "type": "string" },
         "nomeEsposa": { "type": "string" },
         "endereco": { "type": "string" },
@@ -52,6 +53,32 @@
         "estado": { "type": "string" }
       },
       "required": ["userId", "nome", "congregacaoId"]
+    },
+    "itinerary": {
+      "title": "Itinerary",
+      "description": "Itinerary of the circuit overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "semana": { "type": "string" },
+        "dataEvento": { "type": "string" },
+        "evento": { "type": "string" },
+        "observacoes": { "type": "string" },
+        "escritorioNotificado": { "type": "boolean" },
+        "congregacaoNotificada": { "type": "boolean" },
+        "ordem": { "type": "integer" }
+      },
+      "required": ["userId", "semana", "ordem"]
+    },
+    "user": {
+      "title": "User",
+      "description": "User profile and roles",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      },
+      "required": ["email", "role"]
     }
   },
   "firestore": {
@@ -66,6 +93,14 @@
     "/substitutes/{subId}": {
       "schema": "substitute",
       "description": "Collection of substitute overseers"
+    },
+    "/itineraries/{itId}": {
+      "schema": "itinerary",
+      "description": "Collection of itineraries"
+    },
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Collection of user profiles"
     }
   }
 }

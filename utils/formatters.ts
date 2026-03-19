@@ -21,13 +21,22 @@ export const formatCEP = (value: string): string => {
 };
 
 /**
- * Formata Circuito (AAA-000)
- * Assume que os 3 primeiros são letras e os 3 últimos são números
+ * Formata Circuito (LL-NNN ou LLL-NN)
+ * LL-NNN (ex: AB-123) ou LLL-NN (ex: ABC-12)
  */
 export const formatCircuito = (value: string): string => {
-  let cleaned = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  let cleaned = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 5);
+  
+  if (cleaned.length <= 2) return cleaned;
+  
+  // Se o terceiro caractere for um número, o formato é LL-NNN
+  if (/[0-9]/.test(cleaned[2])) {
+    return `${cleaned.slice(0, 2)}-${cleaned.slice(2)}`;
+  }
+  
+  // Se o terceiro caractere for uma letra, o formato é LLL-NN (ou pelo menos começa com 3 letras)
   if (cleaned.length <= 3) return cleaned;
-  return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}`;
+  return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
 };
 
 /**

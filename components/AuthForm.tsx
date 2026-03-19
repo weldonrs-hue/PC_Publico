@@ -28,7 +28,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.name === 'usuario' ? e.target.value.toUpperCase() : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
     setError('');
   };
 
@@ -38,21 +39,23 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
     setError('');
     setSuccess('');
 
-    // Validate that usuario is a number
-    if (!/^\d+$/.test(formData.usuario)) {
-      setError('O nome de usuário deve ser apenas números (seu número pessoal)');
+    // Validate username format: numeric personal number (7 digits)
+    const usernameRegex = /^\d{7}$/;
+    if (!usernameRegex.test(formData.usuario)) {
+      setError('Formato inválido. Use seu número pessoal de 7 dígitos (ex: 2283701)');
       setLoading(false);
       return;
     }
 
-    const email = `${formData.usuario}@progcir.com`;
+    const formattedUsuario = formData.usuario;
+    const email = `${formattedUsuario}@progcir.app`;
 
     try {
       if (isLogin) {
         const userCredential = await signInWithEmailAndPassword(auth, email, formData.senha);
         onLoginSuccess({
           id: userCredential.user.uid,
-          usuario: formData.usuario,
+          usuario: formattedUsuario,
           email: userCredential.user.email
         });
       } else {
@@ -60,7 +63,7 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
           throw new Error('As senhas não coincidem');
         }
         const userCredential = await createUserWithEmailAndPassword(auth, email, formData.senha);
-        await updateProfile(userCredential.user, { displayName: formData.usuario });
+        await updateProfile(userCredential.user, { displayName: formattedUsuario });
         
         setSuccess('Usuário criado com sucesso');
         setIsLogin(true);
@@ -103,13 +106,13 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
             </motion.div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">Acesso ao Sistema ProgCir</h1>
             <p className="text-gray-500 text-xs mt-1.5">
-              {isLogin ? 'Entre com seu número pessoal para continuar' : 'Use seu número pessoal como nome de usuário'}
+              {isLogin ? 'Entre com sua identificação para continuar' : 'Use seu número pessoal de 7 dígitos'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Número Pessoal (Usuário)</label>
+              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Identificação (Usuário)</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -118,8 +121,6 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
                   value={formData.usuario}
                   onChange={handleChange}
                   placeholder="Ex: 2283701"
-                  pattern="[0-9]*"
-                  inputMode="numeric"
                   className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#6c40bd] focus:border-transparent transition-all outline-none text-sm text-gray-700"
                   required
                 />

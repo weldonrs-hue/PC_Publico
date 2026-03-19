@@ -1,7 +1,7 @@
 'use client';
 // Force rebuild
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, School, Calendar, Layers, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User } from 'lucide-react';
+import { LayoutDashboard, School, Calendar, Layers, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 
@@ -9,7 +9,6 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
   { icon: School, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
-  { icon: UserCheck, label: 'Substitutos', view: 'substitutes' },
   { icon: Layers, label: 'Diversos', view: 'misc' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
@@ -129,10 +128,10 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
               `}
             >
               <item.icon size={20} className="flex-shrink-0" />
-              <span className="font-sans hidden lg:landscape:block text-[10px] landscape:text-base">
+              <span className="font-sans lg:block hidden text-[10px] landscape:text-base">
                 {item.label}
               </span>
-              <span className="portrait:block landscape:hidden text-[9px] font-bold mt-1 truncate w-full text-center">
+              <span className="portrait:block lg:hidden landscape:hidden text-[9px] font-bold mt-1 truncate w-full text-center">
                 {item.label}
               </span>
             </Link>
@@ -171,45 +170,53 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
 
       {/* Support Section - Replacing Documentation with Logout */}
       <div className="mt-auto landscape:flex portrait:hidden flex-col">
-        {currentView !== 'dashboard' && (
-          <div className="px-4 lg:px-6 mb-4">
-            <button 
-              onClick={onBack}
-              className="w-full border border-white/20 p-2 flex items-center justify-center lg:justify-start gap-2 transition-colors group hover:bg-white/10 text-xs font-bold rounded-lg"
-            >
-              <ChevronLeft size={16} />
-              <span className="hidden lg:block">Voltar ao Painel</span>
-            </button>
-          </div>
-        )}
-
         <div className="bg-[#4527a0] p-4 lg:p-6 border-t border-white/10">
-          <div className="hidden lg:block mb-4">
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">VIAJANTE</p>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-white">
-                <User size={16} />
+          <div className="hidden lg:block mb-6">
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-3">VIAJANTE</p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white shadow-inner">
+                <User size={20} />
               </div>
               <div className="overflow-hidden">
                 <p className="text-sm font-bold text-white truncate">
-                  {user?.usuario}
+                  {user?.usuario || '2283701'}
                 </p>
-                {user?.usuario === '2283701' && (
-                  <p className="text-[9px] font-bold text-amber-400 uppercase tracking-tighter">Administrador</p>
+                <p className="text-[10px] text-white/50 truncate mb-1">
+                  {(user?.usuario || '2283701')}@progcir.app
+                </p>
+                {(user?.role === 'admin' || user?.usuario === '2283701' || user?.email === 'weldonrs@gmail.com') && (
+                  <div className="flex items-center gap-1">
+                    <UserCheck size={10} className="text-amber-400" />
+                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-tight">Administrador</p>
+                  </div>
                 )}
               </div>
             </div>
           </div>
           
-          <button 
-            onClick={onLogout}
-            className="flex items-center justify-center lg:justify-start gap-3 text-white hover:text-white/80 transition-colors w-full group"
-          >
-            <div className="w-8 h-8 flex items-center justify-center">
-              <LogOut size={20} />
-            </div>
-            <span className="font-bold text-sm hidden lg:block">Sair do Sistema</span>
-          </button>
+          <div className="space-y-1">
+            <button 
+              onClick={onLogout}
+              className="flex items-center justify-center lg:justify-start gap-3 text-white/70 hover:text-white hover:bg-white/5 transition-all w-full group p-2 rounded-lg"
+            >
+              <div className="w-5 h-5 flex items-center justify-center">
+                <LogOut size={18} />
+              </div>
+              <span className="font-bold text-xs hidden lg:block">Sair do Sistema</span>
+            </button>
+
+            {currentView !== 'dashboard' && (
+              <button 
+                onClick={onBack}
+                className="flex items-center justify-center lg:justify-start gap-3 text-white/70 hover:text-white hover:bg-white/5 transition-all w-full group p-2 rounded-lg mt-2 border border-white/10"
+              >
+                <div className="w-5 h-5 flex items-center justify-center">
+                  <ChevronLeft size={18} />
+                </div>
+                <span className="font-bold text-xs hidden lg:block">Voltar ao Painel</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </aside>

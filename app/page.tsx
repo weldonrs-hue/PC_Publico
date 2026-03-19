@@ -8,6 +8,7 @@ import AuthForm from '@/components/AuthForm';
 import PersonalDataView from '@/components/PersonalDataView';
 import CongregationsView from '@/components/CongregationsView';
 import SubstitutesView from '@/components/SubstitutesView';
+import ItinerariesView from '@/components/ItinerariesView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -15,7 +16,10 @@ import {
   query, 
   where, 
   getDocs, 
-  limit 
+  limit,
+  getDoc,
+  setDoc,
+  doc
 } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -25,19 +29,48 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries'>('dashboard');
   const [personalData, setPersonalData] = useState<any>(null);
   const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0 });
 
   useEffect(() => {
     // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setUser({
-          id: firebaseUser.uid,
-          usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
-          email: firebaseUser.email
-        });
+        // Ensure user document exists in Firestore
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          let role = 'user';
+          
+          if (!userDoc.exists()) {
+            const isAdminEmail = firebaseUser.email === 'weldonrs@gmail.com' || firebaseUser.email === '2283701@progcir.app';
+            role = isAdminEmail ? 'admin' : 'user';
+            await setDoc(userDocRef, {
+              email: firebaseUser.email,
+              role: role
+            });
+          } else {
+            role = userDoc.data().role || 'user';
+          }
+
+          const userData = {
+            id: firebaseUser.uid,
+            usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+            email: firebaseUser.email,
+            role: role
+          };
+          setUser(userData);
+        } catch (error) {
+          console.error('Error ensuring user profile:', error);
+          const userData = {
+            id: firebaseUser.uid,
+            usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+            email: firebaseUser.email,
+            role: 'user'
+          };
+          setUser(userData);
+        }
       } else {
         setUser(null);
       }
@@ -54,8 +87,85 @@ export default function Home() {
         // Fetch Personal Data
         const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', user.id), limit(1));
         const pdSnapshot = await getDocs(pdQuery);
+        
         if (!pdSnapshot.empty) {
-          setPersonalData(pdSnapshot.docs[0].data());
+          const pdData = pdSnapshot.docs[0].data();
+          setPersonalData(pdData);
+          if (pdData.numeroPessoal) {
+            setUser((prev: any) => ({ ...prev, usuario: pdData.numeroPessoal }));
+          }
+        } else {
+          // MIGRATION LOGIC: Check if there's data for this username/number under a different UID
+          const username = user.usuario;
+          if (username && /^\d+$/.test(username)) {
+            console.log('Iniciando busca por dados antigos para:', username);
+            
+            // 1. Try to find by numeroPessoal first
+            let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
+            let migrationSnapshot = await getDocs(migrationQuery);
+            let oldUserId = null;
+            let oldData = null;
+            let oldDocId = null;
+
+            if (!migrationSnapshot.empty) {
+              const doc = migrationSnapshot.docs[0];
+              oldData = doc.data();
+              oldUserId = oldData.userId;
+              oldDocId = doc.id;
+            } else {
+              // 2. Try to find by old email domain (@progcir.com) in users collection
+              const oldEmail = `${username}@progcir.com`;
+              const userQuery = query(collection(db, 'users'), where('email', '==', oldEmail), limit(1));
+              const userSnapshot = await getDocs(userQuery);
+              
+              if (!userSnapshot.empty) {
+                oldUserId = userSnapshot.docs[0].id;
+                // Now find the personal_data for this oldUserId
+                const pdOldQuery = query(collection(db, 'personal_data'), where('userId', '==', oldUserId), limit(1));
+                const pdOldSnapshot = await getDocs(pdOldQuery);
+                if (!pdOldSnapshot.empty) {
+                  const doc = pdOldSnapshot.docs[0];
+                  oldData = doc.data();
+                  oldDocId = doc.id;
+                }
+              }
+            }
+            
+            if (oldUserId && oldUserId !== user.id) {
+              console.log('Dados antigos encontrados para o UID:', oldUserId);
+              
+              // Update personal_data if found
+              if (oldDocId && oldData) {
+                await setDoc(doc(db, 'personal_data', oldDocId), {
+                  ...oldData,
+                  userId: user.id,
+                  numeroPessoal: username // Ensure this is set for future lookups
+                });
+                setPersonalData({ ...oldData, userId: user.id, numeroPessoal: username });
+              }
+              
+              // Migrate other collections
+              const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries'];
+              for (const collName of collectionsToMigrate) {
+                const q = query(collection(db, collName), where('userId', '==', oldUserId));
+                const snapshot = await getDocs(q);
+                console.log(`Migrando ${snapshot.size} documentos de ${collName}`);
+                for (const d of snapshot.docs) {
+                  await setDoc(doc(db, collName, d.id), {
+                    ...d.data(),
+                    userId: user.id
+                  });
+                }
+              }
+              
+              // Optional: Update the old user record to prevent re-migration or just leave it
+              console.log('Migração concluída com sucesso');
+              
+              // Refresh stats after migration
+              fetchData(); 
+              return;
+            }
+          }
         }
 
         // Fetch Congregations for stats
@@ -109,6 +219,8 @@ export default function Home() {
       setCurrentView('congregations');
     } else if (title === 'Substitutos') {
       setCurrentView('substitutes');
+    } else if (title === 'Itinerários') {
+      setCurrentView('itineraries');
     }
   };
 
@@ -121,7 +233,7 @@ export default function Home() {
         currentView={currentView}
         onBack={() => setCurrentView('dashboard')}
         onViewChange={(view) => {
-          if (['dashboard', 'congregations', 'personal_data', 'substitutes'].includes(view)) {
+          if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries'].includes(view)) {
             setCurrentView(view);
           }
         }}
@@ -178,6 +290,13 @@ export default function Home() {
 
           {currentView === 'substitutes' && (
             <SubstitutesView 
+              userId={user.id}
+              onBack={() => setCurrentView('dashboard')} 
+            />
+          )}
+
+          {currentView === 'itineraries' && (
+            <ItinerariesView 
               userId={user.id}
               onBack={() => setCurrentView('dashboard')} 
             />

@@ -30,6 +30,7 @@ import {
   limit 
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { formatBRPhone, formatCEP, formatCircuito } from '@/utils/formatters';
 
 interface PersonalDataViewProps {
   userId: string;
@@ -39,6 +40,7 @@ interface PersonalDataViewProps {
 
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
   const [initialData, setInitialData] = useState({
+    numeroPessoal: '',
     nome: '',
     nomeEsposa: '',
     endereco: '',
@@ -85,19 +87,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     } else {
       onBack();
     }
-  };
-
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 2) return numbers;
-    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-  };
-
-  const formatCEP = (value: string) => {
-    const numbers = value.replace(/\D/g, '').slice(0, 8);
-    if (numbers.length <= 5) return numbers;
-    return `${numbers.slice(0, 5)}-${numbers.slice(5)}`;
   };
 
   const handleCepSearch = async () => {
@@ -180,8 +169,19 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-            {/* Row 1: Names */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Row 1: Personal Number and Names */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-1 space-y-2">
+                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
+                  <Hash size={14} /> Número Pessoal
+                </label>
+                <input 
+                  value={formData.numeroPessoal}
+                  onChange={(e) => setFormData({...formData, numeroPessoal: e.target.value})}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                  placeholder="Ex: 2283701"
+                />
+              </div>
               <div className="md:col-span-2 space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
                   <User size={14} /> Nome Completo
@@ -273,10 +273,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 </label>
                 <input 
                   value={formData.circuito}
-                  onChange={(e) => setFormData({...formData, circuito: e.target.value})}
+                  onChange={(e) => setFormData({...formData, circuito: formatCircuito(e.target.value)})}
                   maxLength={6}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all text-center"
-                  placeholder="XX-000"
+                  placeholder="AB-123"
                 />
               </div>
             </div>
@@ -317,7 +317,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   </label>
                   <input 
                     value={formData.telefoneCircuito}
-                    onChange={(e) => setFormData({...formData, telefoneCircuito: formatPhone(e.target.value)})}
+                    onChange={(e) => setFormData({...formData, telefoneCircuito: formatBRPhone(e.target.value)})}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
                     placeholder="(00) 00000-0000"
                     maxLength={15}
@@ -329,7 +329,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   </label>
                   <input 
                     value={formData.telefonePessoal}
-                    onChange={(e) => setFormData({...formData, telefonePessoal: formatPhone(e.target.value)})}
+                    onChange={(e) => setFormData({...formData, telefonePessoal: formatBRPhone(e.target.value)})}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
                     placeholder="(00) 00000-0000"
                     maxLength={15}

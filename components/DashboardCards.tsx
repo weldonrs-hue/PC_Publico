@@ -32,7 +32,6 @@ const cards = [
     title: 'Estatísticas',
     color: '#03A9F4',
     icon: BarChart3,
-    action: '(Visualizar)',
     content: 'Congregações contabilizadas:',
   },
 ];
@@ -78,11 +77,6 @@ export default function DashboardCards({
                   </div>
                 ) : (
                   <div className="space-y-0.5">
-                    {card.action && (
-                      <p className="text-right text-[9px] md:text-xs font-bold mb-0.5 md:mb-1" style={{ color: card.color }}>
-                        {card.action}
-                      </p>
-                    )}
                     <p className="text-[9px] md:text-xs text-black font-medium">
                       {card.content} <span className="font-normal">{card.title === 'Substitutos' ? substituteCount : ''}</span>
                     </p>
