@@ -344,28 +344,29 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
   const { canPrev, canNext } = useMemo(() => {
     if (itineraries.length === 0) return { canPrev: false, canNext: false };
     
-    // Find min and max dates in itineraries
-    let minDate: Date | null = null;
-    let maxDate: Date | null = null;
-    
+    // Find min and max dates in itineraries using a more robust approach
+    const dates: Date[] = [];
     itineraries.forEach(item => {
       try {
         const [d, m, y] = item.semana.split('/').map(Number);
-        const date = new Date(y, m - 1, d);
-        if (!minDate || date < minDate) minDate = date;
-        if (!maxDate || date > maxDate) maxDate = date;
+        if (d && m && y) {
+          dates.push(new Date(y, m - 1, d));
+        }
       } catch (e) {}
     });
     
-    if (!minDate || !maxDate) return { canPrev: false, canNext: false };
+    if (dates.length === 0) return { canPrev: false, canNext: false };
+    
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
     
     const viewFirstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
     const minFirstOfMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
     const maxFirstOfMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
     
     return {
-      canPrev: viewFirstOfMonth > minFirstOfMonth,
-      canNext: viewFirstOfMonth < maxFirstOfMonth
+      canPrev: viewFirstOfMonth.getTime() > minFirstOfMonth.getTime(),
+      canNext: viewFirstOfMonth.getTime() < maxFirstOfMonth.getTime()
     };
   }, [itineraries, viewDate]);
 
