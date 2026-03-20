@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Map, 
   ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Save,
   Loader2,
   CheckCircle2,
@@ -103,8 +106,14 @@ const OUTROS_EVENTOS = [
 
 export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps) {
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
+  const [originalItineraries, setOriginalItineraries] = useState<string>('[]');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
+  const [viewDate, setViewDate] = useState(new Date());
+  const [initializing, setInitializing] = useState(false);
+  
+  const hasUnsavedChanges = JSON.stringify(itineraries) !== originalItineraries;
   
   // Data for selects
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -188,28 +197,6 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
     fetchAuxiliaryData();
   }, [fetchAuxiliaryData]);
 
-  const generateMondays = () => {
-    const dates: string[] = [];
-    const now = new Date();
-    // Start from the first day of the current month
-    const date = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    // Find the first Monday of the month
-    while (date.getDay() !== 1) {
-      date.setDate(date.getDate() + 1);
-    }
-    
-    // Generate 27 Mondays
-    for (let i = 0; i < 27; i++) {
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      dates.push(`${day}/${month}/${year}`);
-      date.setDate(date.getDate() + 7);
-    }
-    return dates;
-  };
-
   const isCurrentWeek = (semanaStr: string) => {
     const [day, month, year] = semanaStr.split('/').map(Number);
     const mondayDate = new Date(year, month - 1, day);
@@ -220,43 +207,53 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
     return now >= mondayDate && now < nextMonday;
   };
 
-  const initializeItineraries = useCallback(async () => {
+  const initializeItineraries = useCallback(async (existingItems: ItineraryItem[]) => {
+    if (initializing) return;
     try {
+      setInitializing(true);
       const batch = writeBatch(db);
-      const newItems: ItineraryItem[] = [];
-      const mondays = generateMondays();
       
-      for (let i = 0; i < 27; i++) {
-        const newDocRef = doc(collection(db, 'itineraries'));
-        const item: ItineraryItem = {
-          semana: mondays[i],
-          dataEvento: '',
-          evento: '',
-          observacoes: '',
-          escritorioNotificado: false,
-          congregacaoNotificada: false,
-          ordem: i + 1
-        };
-        batch.set(newDocRef, { ...item, userId });
-        newItems.push({ ...item, id: newDocRef.id });
+      const startDateStr = '01/09/2025';
+      const [day, month, year] = startDateStr.split('/').map(Number);
+      const date = new Date(year, month - 1, day);
+      
+      const existingSemanas = new Set(existingItems.map(item => item.semana));
+      let addedCount = 0;
+      
+      // Generate 156 Mondays (3 years)
+      for (let i = 0; i < 156; i++) {
+        const d = String(date.getDate()).padStart(2, '0');
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const y = date.getFullYear();
+        const semanaStr = `${d}/${m}/${y}`;
+        
+        if (!existingSemanas.has(semanaStr)) {
+          const newDocRef = doc(collection(db, 'itineraries'));
+          const item: ItineraryItem = {
+            semana: semanaStr,
+            dataEvento: '',
+            evento: '',
+            observacoes: '',
+            escritorioNotificado: false,
+            congregacaoNotificada: false,
+            ordem: i + 1
+          };
+          batch.set(newDocRef, { ...item, userId });
+          addedCount++;
+        }
+        
+        date.setDate(date.getDate() + 7);
       }
       
-      await batch.commit();
-      setItineraries(newItems);
+      if (addedCount > 0) {
+        await batch.commit();
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'itineraries_init');
     } finally {
-      setLoading(false);
+      setInitializing(false);
     }
-  }, [userId]);
-
-  const handleRegenerateDates = () => {
-    const mondays = generateMondays();
-    setItineraries(prev => prev.map((item, i) => ({
-      ...item,
-      semana: mondays[i] || item.semana
-    })));
-  };
+  }, [userId, initializing]);
 
   useEffect(() => {
     const q = query(
@@ -265,33 +262,45 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (snapshot.empty) {
-        // Initialize 27 rows if none exist
-        initializeItineraries();
-      } else {
-        const items = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as ItineraryItem[];
-        // Sort by ordem and then by id for stable ordering of multiple events in a week
-        items.sort((a, b) => {
-          if (a.ordem !== b.ordem) return a.ordem - b.ordem;
-          return (a.id || '').localeCompare(b.id || '');
-        });
-        
-        // Check if we need to fix the week dates (old format "Semana X")
-        const needsFix = items.some(item => item.semana.includes('Semana'));
-        if (needsFix) {
-          const mondays = generateMondays();
-          const fixedItems = items.map((item, i) => ({
-            ...item,
-            semana: mondays[i] || item.semana
-          }));
-          setItineraries(fixedItems);
-        } else {
-          setItineraries(items);
+      const items = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ItineraryItem[];
+      
+      // Sort by date (semana is DD/MM/YYYY)
+      items.sort((a, b) => {
+        try {
+          const [da, ma, ya] = a.semana.split('/').map(Number);
+          const [db, mb, yb] = b.semana.split('/').map(Number);
+          
+          if (!da || !ma || !ya || !db || !mb || !yb) {
+             return (a.semana || '').localeCompare(b.semana || '');
+          }
+          
+          const dateA = new Date(ya, ma - 1, da).getTime();
+          const dateB = new Date(yb, mb - 1, db).getTime();
+          
+          if (dateA !== dateB) return dateA - dateB;
+        } catch (e) {
+          return (a.semana || '').localeCompare(b.semana || '');
         }
-        setLoading(false);
+        
+        // If same week (multiple events), use ordem or id as fallback
+        if (a.ordem !== b.ordem) return a.ordem - b.ordem;
+        return (a.id || '').localeCompare(b.id || '');
+      });
+      
+      setItineraries(items);
+      // Only set original if it's the first load or if we want to sync with server
+      if (originalItineraries === '[]') {
+        setOriginalItineraries(JSON.stringify(items));
+      }
+      setLoading(false);
+
+      // Check if we need to initialize or backfill
+      const hasStartDate = items.some(item => item.semana === '01/09/2025');
+      if (!hasStartDate && !initializing) {
+        initializeItineraries(items);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'itineraries');
@@ -299,7 +308,80 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
     });
 
     return () => unsubscribe();
-  }, [userId, initializeItineraries]);
+  }, [userId, originalItineraries, initializeItineraries, initializing]);
+
+  const filteredItineraries = useMemo(() => {
+    try {
+      // First Monday of the viewed month
+      const firstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+      const firstMonday = new Date(firstOfMonth);
+      while (firstMonday.getDay() !== 1) {
+        firstMonday.setDate(firstMonday.getDate() + 1);
+      }
+      firstMonday.setHours(0, 0, 0, 0);
+
+      // Find the first item that is on or after firstMonday
+      const startIndex = itineraries.findIndex(item => {
+        const [d, m, y] = item.semana.split('/').map(Number);
+        const itemDate = new Date(y, m - 1, d);
+        itemDate.setHours(0, 0, 0, 0);
+        return itemDate >= firstMonday;
+      });
+
+      if (startIndex === -1) {
+        // If we can't find a starting point, just show the first 27
+        return itineraries.slice(0, 27);
+      }
+      
+      return itineraries.slice(startIndex, startIndex + 27);
+    } catch (e) {
+      return itineraries.slice(0, 27);
+    }
+  }, [itineraries, viewDate]);
+
+  const currentMonthLabel = `${viewDate.toLocaleDateString('pt-BR', { month: 'long' })} ${viewDate.getFullYear()}`;
+
+  const { canPrev, canNext } = useMemo(() => {
+    if (itineraries.length === 0) return { canPrev: false, canNext: false };
+    
+    // Find min and max dates in itineraries
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+    
+    itineraries.forEach(item => {
+      try {
+        const [d, m, y] = item.semana.split('/').map(Number);
+        const date = new Date(y, m - 1, d);
+        if (!minDate || date < minDate) minDate = date;
+        if (!maxDate || date > maxDate) maxDate = date;
+      } catch (e) {}
+    });
+    
+    if (!minDate || !maxDate) return { canPrev: false, canNext: false };
+    
+    const viewFirstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+    const minFirstOfMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const maxFirstOfMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    
+    return {
+      canPrev: viewFirstOfMonth > minFirstOfMonth,
+      canNext: viewFirstOfMonth < maxFirstOfMonth
+    };
+  }, [itineraries, viewDate]);
+
+  const handlePrevMonth = () => {
+    if (!canPrev) return;
+    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    if (!canNext) return;
+    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleToday = () => {
+    setViewDate(new Date());
+  };
 
   const handleChange = (id: string, field: keyof ItineraryItem, value: any) => {
     setItineraries(prev => prev.map(item => 
@@ -319,6 +401,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
         }
       });
       await batch.commit();
+      setOriginalItineraries(JSON.stringify(itineraries));
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'itineraries_save');
     } finally {
@@ -512,11 +595,19 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
     }
   };
 
+  const handleBack = () => {
+    if (hasUnsavedChanges) {
+      setShowExitConfirmation(true);
+    } else {
+      onBack();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between print:hidden">
         <button 
-          onClick={onBack}
+          onClick={handleBack}
           className="flex items-center gap-2 text-[#512da8] font-bold hover:underline transition-all"
         >
           <ChevronLeft size={20} />
@@ -533,10 +624,42 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
       >
-        <div className="bg-[#512da8] p-4 text-white flex justify-between items-center print:hidden">
-          <h3 className="font-bold flex items-center gap-2">
-            Tabela de Itinerários
-          </h3>
+        <div className="bg-[#512da8] p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+          <div className="flex items-center gap-4">
+            <h3 className="font-bold flex items-center gap-2 whitespace-nowrap">
+              Tabela de Itinerários
+            </h3>
+            
+            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
+              <button 
+                onClick={handleToday}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/20 transition-colors uppercase"
+              >
+                Hoje
+              </button>
+              <div className="w-px h-4 bg-white/20 mx-1" />
+              <button 
+                onClick={handlePrevMonth}
+                disabled={!canPrev}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Mês Anterior"
+              >
+                <ChevronsLeft size={18} />
+              </button>
+              <span className="px-2 text-sm font-medium min-w-[140px] text-center capitalize">
+                {currentMonthLabel}
+              </span>
+              <button 
+                onClick={handleNextMonth}
+                disabled={!canNext}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Próximo Mês"
+              >
+                <ChevronsRight size={18} />
+              </button>
+            </div>
+          </div>
+
           <div className="flex gap-2 print:hidden">
             <button 
               onClick={handlePrint}
@@ -546,14 +669,8 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
               Imprimir
             </button>
             <button 
-              onClick={handleRegenerateDates}
-              className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
-            >
-              Gerar Datas (Segundas)
-            </button>
-            <button 
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || !hasUnsavedChanges}
               className="bg-white text-[#512da8] px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -570,77 +687,83 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
           <div className="overflow-x-auto pb-8">
             <div className="w-full max-w-full bg-white print:w-[210mm] print:mx-auto print:p-[10mm] print:shadow-none">
               <h1 className="hidden print:block text-2xl font-bold text-center mb-6">Tabela de Itinerários</h1>
-              <table className="w-full text-left border-collapse border border-gray-200">
+              <table className="w-full text-left border-collapse border border-gray-300">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="p-2 text-[10px] font-bold text-white uppercase tracking-wider border-r border-white/10 w-24 bg-[#673ab7] text-center">Semana</th>
-                    <th className="p-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-r border-gray-200 w-40">Data do Evento</th>
-                    <th className="p-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-r border-gray-200">Evento</th>
-                    <th className="p-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-r border-gray-200">Observações</th>
-                    <th className="p-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-r border-gray-200 w-24 text-center">Escritório Notificado</th>
-                    <th className="p-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider w-24 text-center">Congregação Notificada</th>
+                  <tr className="bg-gray-100 border-b border-gray-300">
+                    <th className="p-3 text-xs font-bold text-white uppercase tracking-wider border-r border-white/20 w-24 bg-[#512da8] text-center">Semana</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-40">Data do Evento</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Evento</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Observações</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-24 text-center">Escritório Notificado</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider w-24 text-center">Congregação Notificada</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {itineraries.map((item) => {
+                  {filteredItineraries.map((item) => {
                     const current = isCurrentWeek(item.semana);
                     return (
                       <tr 
                         key={item.id} 
                         onDoubleClick={() => handleRowDoubleClick(item)}
-                        className={`border-b border-gray-100 transition-colors cursor-pointer select-none ${current ? 'bg-amber-50/50' : 'hover:bg-gray-50/50'}`}
+                        className={`border-b border-gray-300 transition-colors cursor-pointer select-none ${current ? 'bg-amber-100/40' : 'hover:bg-gray-50'}`}
                       >
-                        <td className={`p-1 border-r border-gray-100 ${current ? 'bg-amber-100/30' : ''}`}>
+                        <td className={`p-2 border-r border-gray-300 ${current ? 'bg-amber-200/30' : ''}`}>
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`text-sm font-bold text-center p-1 rounded ${current ? 'text-[#512da8]' : 'text-gray-700'}`}>
+                            <span className={`text-sm font-black text-center p-1 rounded ${current ? 'text-[#512da8]' : 'text-gray-900'}`}>
                               {item.semana}
                             </span>
                             {current && (
-                              <span className="text-[8px] font-bold bg-[#512da8] text-white px-1 rounded uppercase tracking-tighter print:hidden">
+                              <span className="text-[9px] font-black bg-[#512da8] text-white px-1.5 py-0.5 rounded uppercase tracking-wider print:hidden">
                                 HOJE
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="p-1 border-r border-gray-100">
-                          <div className="text-sm text-gray-600 p-1">
+                        <td className="p-2 border-r border-gray-300">
+                          <div className="text-sm text-gray-900 font-medium p-1">
                             {item.dataEvento || '-'}
                           </div>
                         </td>
-                        <td className="p-1 border-r border-gray-100">
-                          <div className="text-sm text-gray-600 p-1 break-words max-w-[200px]">
-                            {item.evento || <span className="text-gray-300 italic">Vazio...</span>}
+                        <td className="p-2 border-r border-gray-300">
+                          <div className="text-sm text-gray-900 p-1 break-words max-w-[200px]">
+                            {item.evento || <span className="text-gray-400 italic">Vazio...</span>}
                           </div>
                         </td>
-                        <td className="p-1 border-r border-gray-100">
-                          <div className="text-sm text-gray-600 p-1 break-words max-w-[300px]">
+                        <td className="p-2 border-r border-gray-300">
+                          <div className="text-sm text-gray-900 p-1 break-words max-w-[300px]">
                             {item.substituto && (
-                              <span className="font-bold text-indigo-600">Substituto: {item.substituto}</span>
+                              <span className="font-bold text-indigo-700">Substituto: {item.substituto}</span>
                             )}
                             {item.substituto && item.observacoes ? ' - ' : ''}
-                            {item.observacoes || (!item.substituto && <span className="text-gray-300 italic">-</span>)}
+                            {item.observacoes || (!item.substituto && <span className="text-gray-400 italic">-</span>)}
                           </div>
                         </td>
-                        <td className="p-1 border-r border-gray-100 text-center">
+                        <td className="p-2 border-r border-gray-300 text-center">
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (!item.evento?.trim()) return;
                               handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
                             }}
-                            className={`transition-colors ${item.escritorioNotificado ? 'text-green-500' : 'text-gray-300'}`}
+                            disabled={!item.evento?.trim()}
+                            className={`transition-colors ${!item.evento?.trim() ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.escritorioNotificado ? 'text-green-600' : 'text-gray-400'}`}
+                            title={!item.evento?.trim() ? "Preencha o evento primeiro" : ""}
                           >
-                            {item.escritorioNotificado ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                            {item.escritorioNotificado ? <CheckCircle2 size={22} /> : <Circle size={22} />}
                           </button>
                         </td>
-                        <td className="p-1 text-center">
+                        <td className="p-2 text-center">
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (!item.evento?.trim()) return;
                               handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
                             }}
-                            className={`transition-colors ${item.congregacaoNotificada ? 'text-green-500' : 'text-gray-300'}`}
+                            disabled={!item.evento?.trim()}
+                            className={`transition-colors ${!item.evento?.trim() ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
+                            title={!item.evento?.trim() ? "Preencha o evento primeiro" : ""}
                           >
-                            {item.congregacaoNotificada ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                            {item.congregacaoNotificada ? <CheckCircle2 size={22} /> : <Circle size={22} />}
                           </button>
                         </td>
                       </tr>
@@ -652,6 +775,55 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
           </div>
         )}
       </motion.div>
+
+      {/* Exit Confirmation Modal */}
+      <AnimatePresence>
+        {showExitConfirmation && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="p-6 text-center space-y-4">
+                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                  <Info size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-gray-900">Alterações não salvas</h3>
+                  <p className="text-gray-600">
+                    Você tem alterações que ainda não foram salvas. Deseja salvar antes de sair ou descartar as mudanças?
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 pt-2">
+                  <button 
+                    onClick={async () => {
+                      await handleSave();
+                      onBack();
+                    }}
+                    className="w-full py-3 rounded-xl font-bold bg-[#512da8] text-white hover:bg-[#4527a0] transition-all flex items-center justify-center gap-2"
+                  >
+                    <Save size={18} /> Salvar e Sair
+                  </button>
+                  <button 
+                    onClick={onBack}
+                    className="w-full py-3 rounded-xl font-bold text-red-600 hover:bg-red-50 transition-all"
+                  >
+                    Descartar e Sair
+                  </button>
+                  <button 
+                    onClick={() => setShowExitConfirmation(false)}
+                    className="w-full py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
+                  >
+                    Continuar Editando
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Modals */}
       <AnimatePresence>
@@ -736,7 +908,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                      <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                         Tipo de Evento:
                       </label>
                       <select 
@@ -759,7 +931,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                           }
                           setEditFormData({ ...editFormData, ...updates });
                         }}
-                        className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all bg-white"
+                        className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
                       >
                         {TIPOS_EVENTO.map(t => (
                           <option key={t} value={t}>{t}</option>
@@ -769,14 +941,14 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                           Data inicial:
                         </label>
                         <div className="relative">
                           <select 
                             value={editFormData.dataInicialDia}
                             onChange={(e) => setEditFormData({ ...editFormData, dataInicialDia: e.target.value })}
-                            className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-10"
+                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-10 text-gray-900 font-medium"
                           >
                             {DIAS_SEMANA.map(d => (
                               <option key={d} value={d}>{d}</option>
@@ -789,14 +961,14 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                           Data de término:
                         </label>
                         <div className="relative">
                           <select 
                             value={editFormData.dataTerminoDia}
                             onChange={(e) => setEditFormData({ ...editFormData, dataTerminoDia: e.target.value })}
-                            className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-10"
+                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-10 text-gray-900 font-medium"
                           >
                             {DIAS_SEMANA.map(d => (
                               <option key={d} value={d}>{d}</option>
@@ -812,7 +984,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                     {/* Conditional Fields based on Event Type */}
                     {editFormData.evento === 'Visita a Grupo' && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                           Grupo:
                         </label>
                         <select 
@@ -827,7 +999,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                               congregacao: cong ? cong.nome : ''
                             });
                           }}
-                          className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all bg-white"
+                          className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
                         >
                           <option value="">Selecione um grupo...</option>
                           {congregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome }))).map((g, idx) => (
@@ -839,7 +1011,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
 
                     {editFormData.evento === 'Outros Eventos' && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                           Evento:
                         </label>
                         <div className="relative">
@@ -848,7 +1020,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                             value={editFormData.outroEvento}
                             onChange={(e) => setEditFormData({ ...editFormData, outroEvento: e.target.value })}
                             placeholder="Digite ou selecione um evento..."
-                            className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all bg-white"
+                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
                           />
                           <datalist id="outros-eventos-list">
                             {OUTROS_EVENTOS.map((oe, idx) => (
@@ -861,13 +1033,13 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
 
                     {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Recebendo visita de pastoreio') && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                           Congregação:
                         </label>
                         <select 
                           value={editFormData.congregacao}
                           onChange={(e) => setEditFormData({ ...editFormData, congregacao: e.target.value })}
-                          className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all bg-white"
+                          className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
                         >
                           <option value="">Selecione uma congregação...</option>
                           {congregations.map(c => (
@@ -879,7 +1051,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
 
                     {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Visita a Grupo') && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                           Substituto (se aplicável):
                         </label>
                         <div className="relative">
@@ -888,7 +1060,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                             value={editFormData.substituto}
                             onChange={(e) => setEditFormData({ ...editFormData, substituto: e.target.value })}
                             placeholder="Digite ou selecione um substituto..."
-                            className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all bg-white"
+                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
                           />
                           <datalist id="substitutes-list">
                             {substitutes.map(s => (
@@ -900,7 +1072,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                     )}
 
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                      <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
                         COMENTÁRIOS
                       </label>
                       <textarea 
@@ -908,7 +1080,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                         onChange={(e) => setEditFormData({ ...editFormData, observacoes: e.target.value })}
                         placeholder="..."
                         rows={3}
-                        className="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-[#512da8] outline-none transition-all resize-none bg-[#f0f0f5]"
+                        className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all resize-none bg-white text-gray-900 font-medium"
                       />
                     </div>
 
