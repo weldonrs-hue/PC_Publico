@@ -756,12 +756,15 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!item.evento?.trim()) return;
+                              const isCongregation = item.tipoEvento === 'Visita a Congregação' || 
+                                                   item.tipoEvento === 'Visita a Grupo' ||
+                                                   (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - ')));
+                              if (!item.evento?.trim() || !isCongregation) return;
                               handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
                             }}
-                            disabled={!item.evento?.trim()}
-                            className={`transition-colors ${!item.evento?.trim() ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
-                            title={!item.evento?.trim() ? "Preencha o evento primeiro" : ""}
+                            disabled={!item.evento?.trim() || !(item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo' || (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - '))))}
+                            className={`transition-colors ${(!item.evento?.trim() || !(item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo' || (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - '))))) ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
+                            title={!item.evento?.trim() ? "Preencha o evento primeiro" : (!(item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo' || (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - ')))) ? "Apenas para visitas a congregação/grupo" : "")}
                           >
                             {item.congregacaoNotificada ? <CheckCircle2 size={22} /> : <Circle size={22} />}
                           </button>
