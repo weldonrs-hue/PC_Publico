@@ -1,6 +1,7 @@
 'use client';
 // Force rebuild
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Sidebar from '@/components/Sidebar';
 import DashboardCards from '@/components/DashboardCards';
 import SecondarySection from '@/components/SecondarySection';
@@ -19,7 +20,8 @@ import {
   limit,
   getDoc,
   setDoc,
-  doc
+  doc,
+  onSnapshot
 } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -37,11 +39,12 @@ export default function Home() {
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Ensure user document exists in Firestore
-        try {
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
+        // Ensure user document exists in Firestore and listen for changes
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        
+        const unsubUser = onSnapshot(userDocRef, async (userDoc) => {
           let role = 'user';
+          let photoURL = null;
           
           if (!userDoc.exists()) {
             const isAdminEmail = 
@@ -51,29 +54,29 @@ export default function Home() {
             role = isAdminEmail ? 'admin' : 'user';
             await setDoc(userDocRef, {
               email: firebaseUser.email,
-              role: role
+              role: role,
+              photoURL: null
             });
           } else {
-            role = userDoc.data().role || 'user';
+            const data = userDoc.data();
+            role = data.role || 'user';
+            photoURL = data.photoURL || null;
           }
 
           const userData = {
             id: firebaseUser.uid,
             usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
             email: firebaseUser.email,
-            role: role
+            role: role,
+            photoURL: photoURL
           };
           setUser(userData);
-        } catch (error) {
-          console.error('Error ensuring user profile:', error);
-          const userData = {
-            id: firebaseUser.uid,
-            usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
-            email: firebaseUser.email,
-            role: 'user'
-          };
-          setUser(userData);
-        }
+        }, (error) => {
+          console.error('Error listening to user profile:', error);
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+        });
+
+        return () => unsubUser();
       } else {
         setUser(null);
       }
@@ -327,10 +330,23 @@ export default function Home() {
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}
-              <div className="flex justify-between items-end">
-                <div className="border-2 border-blue-400 p-3 md:p-4 rounded-sm w-full md:w-fit bg-white/50">
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Olá, {personalData?.nome || user.usuario}!</h2>
-                  <p className="text-[10px] md:text-sm text-gray-500 mt-0.5">Bem-vindo ao painel de programações do circuito</p>
+              <div className="flex justify-between items-center gap-4">
+                <div className="border-2 border-blue-400 p-3 md:p-4 rounded-sm flex-1 md:flex-initial bg-white/50 flex items-center gap-4">
+                  {user?.photoURL && (
+                    <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
+                      <Image 
+                        src={user.photoURL} 
+                        alt="Profile" 
+                        fill 
+                        className="object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">Olá, {personalData?.nome || user.usuario}!</h2>
+                    <p className="text-[10px] md:text-sm text-gray-500 mt-0.5">Bem-vindo ao painel de programações do circuito</p>
+                  </div>
                 </div>
               </div>
 

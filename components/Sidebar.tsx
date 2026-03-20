@@ -1,9 +1,14 @@
 'use client';
 // Force rebuild
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, School, Calendar, Layers, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map } from 'lucide-react';
+import { LayoutDashboard, School, Calendar, Layers, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
+import ImageCropper from './ImageCropper';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import Image from 'next/image';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
@@ -24,8 +29,39 @@ interface SidebarProps {
 
 export default function Sidebar({ onLogout, user, personalData, currentView, onBack, onViewChange }: SidebarProps) {
   const navRef = useRef<HTMLElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setImageToCrop(reader.result as string);
+      });
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleCropComplete = async (croppedImage: string) => {
+    if (!user?.id) return;
+    
+    setIsUploading(true);
+    try {
+      const userDocRef = doc(db, 'users', user.id);
+      await updateDoc(userDocRef, {
+        photoURL: croppedImage
+      });
+      setImageToCrop(null);
+    } catch (error) {
+      console.error('Error updating profile photo:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.id}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Determine if an item is active. For now, 'Circuito' is active for dashboard, congregations, and personal_data
   const isActive = (itemView: string) => {
@@ -111,6 +147,32 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
             portrait:overflow-x-auto portrait:scrollbar-hide portrait:gap-1
           "
         >
+          {/* Avatar for Portrait */}
+          <div 
+            className="portrait:flex landscape:hidden relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white shadow-inner cursor-pointer group/avatar-portrait overflow-hidden flex-shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {user?.photoURL ? (
+              <Image 
+                src={user.photoURL} 
+                alt="Profile" 
+                fill 
+                className="object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <User size={20} />
+            )}
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar-portrait:opacity-100 transition-opacity">
+              <Camera size={14} className="text-white" />
+            </div>
+            {isUploading && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+
           {navItems.map((item) => (
             <Link
               key={item.label}
@@ -174,9 +236,37 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           <div className="hidden lg:block mb-6">
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-3">VIAJANTE</p>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white shadow-inner">
-                <User size={20} />
+              <div 
+                className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white shadow-inner cursor-pointer group/avatar overflow-hidden"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {user?.photoURL ? (
+                  <Image 
+                    src={user.photoURL} 
+                    alt="Profile" 
+                    fill 
+                    className="object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <User size={20} />
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                  <Camera size={14} className="text-white" />
+                </div>
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleImageSelect} 
+                accept="image/*" 
+                className="hidden" 
+              />
               <div className="overflow-hidden">
                 <p className="text-sm font-bold text-white truncate">
                   {user?.usuario || '2283701'}
@@ -219,6 +309,13 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           </div>
         </div>
       </div>
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop} 
+          onCropComplete={handleCropComplete} 
+          onCancel={() => setImageToCrop(null)} 
+        />
+      )}
     </aside>
   );
 }

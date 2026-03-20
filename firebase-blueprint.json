@@ -63,10 +63,17 @@
         "semana": { "type": "string" },
         "dataEvento": { "type": "string" },
         "evento": { "type": "string" },
+        "tipoEvento": { "type": "string" },
         "observacoes": { "type": "string" },
         "escritorioNotificado": { "type": "boolean" },
         "congregacaoNotificada": { "type": "boolean" },
-        "ordem": { "type": "integer" }
+        "ordem": { "type": "integer" },
+        "dataInicialDia": { "type": "string" },
+        "dataTerminoDia": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "substituto": { "type": "string" },
+        "grupo": { "type": "string" },
+        "outroEvento": { "type": "string" }
       },
       "required": ["userId", "semana", "ordem"]
     },
@@ -76,7 +83,8 @@
       "type": "object",
       "properties": {
         "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "user"] }
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "photoURL": { "type": "string", "description": "Base64 encoded profile picture" }
       },
       "required": ["email", "role"]
     }
