@@ -50,7 +50,7 @@ export default function DashboardCards({
   substituteCount = 0
 }: DashboardCardsProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {cards.map((card, index) => (
         <motion.div
           key={card.title}
@@ -58,28 +58,26 @@ export default function DashboardCards({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
           onClick={() => onCardClick?.(card.title)}
-          className="flex bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer h-full"
+          className="flex bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer h-24 border border-gray-100 group"
         >
-          <div className="w-2 md:w-3" style={{ backgroundColor: card.color }}></div>
-          <div className="flex-1 p-3 md:p-4 flex items-start">
-            <div className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0 flex items-center justify-center rounded-lg bg-gray-50">
-              <card.icon size={24} className="md:w-6 md:h-6" style={{ color: card.color }} />
+          <div className="w-4 h-full flex-shrink-0" style={{ backgroundColor: card.color }}></div>
+          <div className="flex-1 flex items-center px-6 gap-6">
+            <div className="group-hover:scale-110 transition-transform flex-shrink-0" style={{ color: card.color }}>
+              <card.icon size={32} />
             </div>
-            <div className="ml-2 md:ml-3 flex-1">
-              <h4 className="font-bold text-right text-[10px] md:text-sm uppercase leading-tight" style={{ color: card.color }}>
+            <div className="text-left flex flex-col justify-center overflow-hidden">
+              <div className="font-extrabold text-sm leading-tight tracking-wider uppercase truncate" style={{ color: card.color }}>
                 {card.title}
-              </h4>
-              <div className="mt-1 md:mt-2">
+              </div>
+              <div className="mt-0.5">
                 {card.title === 'Congregações' ? (
-                  <div className="flex flex-col text-[9px] md:text-xs text-black font-medium">
+                  <div className="flex flex-col text-[10px] font-bold leading-tight tracking-wide uppercase opacity-80" style={{ color: card.color }}>
                     <p>Congregações: <span className="font-normal">{congregationCount}</span></p>
                     <p>Grupos: <span className="font-normal">{groupCount}</span></p>
                   </div>
                 ) : (
-                  <div className="space-y-0.5">
-                    <p className="text-[9px] md:text-xs text-black font-medium">
-                      {card.content} <span className="font-normal">{card.title === 'Substitutos' ? substituteCount : ''}</span>
-                    </p>
+                  <div className="font-bold text-[10px] leading-tight tracking-wide uppercase opacity-80 truncate" style={{ color: card.color }}>
+                    {card.content} <span className="font-normal">{card.title === 'Substitutos' ? substituteCount : ''}</span>
                   </div>
                 )}
               </div>

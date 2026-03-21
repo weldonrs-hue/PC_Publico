@@ -39,22 +39,24 @@ interface PersonalDataViewProps {
   onSave: () => void;
 }
 
+const defaultData = {
+  numeroPessoal: '',
+  nome: '',
+  nomeEsposa: '',
+  endereco: '',
+  cidade: '',
+  cep: '',
+  uf: '',
+  circuito: '',
+  emailJwpub: '',
+  telefoneCircuito: '',
+  emailPessoal: '',
+  telefonePessoal: ''
+};
+
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
-  const [initialData, setInitialData] = useState({
-    numeroPessoal: '',
-    nome: '',
-    nomeEsposa: '',
-    endereco: '',
-    cidade: '',
-    cep: '',
-    uf: '',
-    circuito: '',
-    emailJwpub: '',
-    telefoneCircuito: '',
-    emailPessoal: '',
-    telefonePessoal: ''
-  });
-  const [formData, setFormData] = useState(initialData);
+  const [initialData, setInitialData] = useState(defaultData);
+  const [formData, setFormData] = useState(defaultData);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,8 +68,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         
         if (docSnap.exists()) {
           const docData = docSnap.data() as any;
-          setInitialData(docData);
-          setFormData(docData);
+          const mergedData = { ...defaultData, ...docData };
+          setInitialData(mergedData);
+          setFormData(mergedData);
         } else {
           // Fallback: search by userId field
           const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
@@ -75,10 +78,11 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           
           if (!querySnapshot.empty) {
             const docData = querySnapshot.docs[0].data() as any;
-            setInitialData(docData);
-            setFormData(docData);
+            const mergedData = { ...defaultData, ...docData };
+            setInitialData(mergedData);
+            setFormData(mergedData);
             // Migrate to use userId as doc ID for future efficiency
-            await setDoc(doc(db, 'personal_data', userId), { ...docData, userId });
+            await setDoc(doc(db, 'personal_data', userId), { ...mergedData, userId });
           }
         }
       } catch (error) {

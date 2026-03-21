@@ -15,7 +15,6 @@ const navItems = [
   { icon: School, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
   { icon: Layers, label: 'Diversos', view: 'misc' },
-  { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
 
 interface SidebarProps {

@@ -122,7 +122,20 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
   // Modal states
   const [selectedItem, setSelectedItem] = useState<ItineraryItem | null>(null);
   const [modalMode, setModalMode] = useState<'actions' | 'edit' | null>(null);
-  const [editFormData, setEditFormData] = useState<Partial<ItineraryItem>>({});
+  const defaultEditFormData: Partial<ItineraryItem> = {
+    dataEvento: '',
+    evento: '',
+    tipoEvento: '',
+    observacoes: '',
+    dataInicialDia: 'Terça-Feira',
+    dataTerminoDia: 'Domingo',
+    congregacao: '',
+    substituto: '',
+    grupo: '',
+    outroEvento: ''
+  };
+
+  const [editFormData, setEditFormData] = useState<Partial<ItineraryItem>>(defaultEditFormData);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
   const calculateDate = (mondayStr: string, dayName: string) => {
@@ -432,6 +445,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
       }
 
       setEditFormData({
+        ...defaultEditFormData,
         dataEvento: selectedItem.dataEvento,
         evento: tipo,
         tipoEvento: tipo,
@@ -450,17 +464,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
   const handleAddClick = () => {
     if (selectedItem) {
       setIsAddingNew(true);
-      setEditFormData({
-        dataEvento: '',
-        evento: TIPOS_EVENTO[0],
-        observacoes: '',
-        dataInicialDia: 'Terça-Feira',
-        dataTerminoDia: 'Domingo',
-        congregacao: '',
-        substituto: '',
-        grupo: '',
-        outroEvento: ''
-      });
+      setEditFormData(defaultEditFormData);
       setModalMode('edit');
     }
   };
@@ -516,22 +520,27 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
         const end = calculateDate(selectedItem.semana, editFormData.dataTerminoDia || 'Domingo');
         
         // 1. Format Date Range according to rules:
+        // - Single day: dd/mm/yyyy
         // - Same month: dd a dd/mm/aa
         // - Different months: dd/mm a dd/mm/aa
         // - Different years: dd/mm/aa a dd/mm/aa
         let dateRange = '';
         if (start && end && start.includes('/') && end.includes('/')) {
-          const [d1, m1, y1] = start.split('/');
-          const [d2, m2, y2] = end.split('/');
-          const yy1 = y1.slice(-2);
-          const yy2 = y2.slice(-2);
-
-          if (y1 !== y2) {
-            dateRange = `${d1}/${m1}/${yy1} a ${d2}/${m2}/${yy2}`;
-          } else if (m1 !== m2) {
-            dateRange = `${d1}/${m1} a ${d2}/${m2}/${yy2}`;
+          if (start === end) {
+            dateRange = start;
           } else {
-            dateRange = `${d1} a ${d2}/${m1}/${yy2}`;
+            const [d1, m1, y1] = start.split('/');
+            const [d2, m2, y2] = end.split('/');
+            const yy1 = y1.slice(-2);
+            const yy2 = y2.slice(-2);
+
+            if (y1 !== y2) {
+              dateRange = `${d1}/${m1}/${yy1} a ${d2}/${m2}/${yy2}`;
+            } else if (m1 !== m2) {
+              dateRange = `${d1}/${m1} a ${d2}/${m2}/${yy2}`;
+            } else {
+              dateRange = `${d1} a ${d2}/${m1}/${yy2}`;
+            }
           }
         }
 
@@ -884,7 +893,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
                           </div>
                           <div className="text-left">
                             <div className="font-bold text-gray-800">Adicionar Evento</div>
-                            <div className="text-xs text-gray-500">Limpar campos e adicionar novo</div>
+                            <div className="text-xs text-gray-500">Adicionar evento na mesma semana</div>
                           </div>
                         </button>
 

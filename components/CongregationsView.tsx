@@ -77,10 +77,12 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
   const [isSearchingCEP, setIsSearchingCEP] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   
-  const [formData, setFormData] = useState<Congregation>({
+  const defaultFormData: Congregation = {
     id: '', nome: '', numero: '', parte: 'A', endereco: '', coordenador: '',
     telefone: '', cidade: '', cep: '', estado: '', grupos: []
-  });
+  };
+  
+  const [formData, setFormData] = useState<Congregation>(defaultFormData);
 
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -142,16 +144,13 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
 
   const handleAddNew = () => {
     setSelectedCong(null);
-    setFormData({
-      id: '', nome: '', numero: '', parte: 'A', endereco: '', coordenador: '',
-      telefone: '', cidade: '', cep: '', estado: '', grupos: []
-    });
+    setFormData(defaultFormData);
     setIsEditing(true);
   };
 
   const handleEdit = (cong: Congregation) => {
     setSelectedCong(cong);
-    setFormData({ ...cong });
+    setFormData({ ...defaultFormData, ...cong });
     setIsEditing(true);
   };
 

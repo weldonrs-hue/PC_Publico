@@ -94,9 +94,11 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   
-  const [formData, setFormData] = useState<Substitute>({
+  const defaultFormData: Substitute = {
     id: '', nome: '', congregacaoId: '', congregacaoNome: '', cidade: '', estado: ''
-  });
+  };
+  
+  const [formData, setFormData] = useState<Substitute>(defaultFormData);
 
   const handleCongregationChange = (congId: string) => {
     const cong = congregations.find(c => c.id === congId);
@@ -121,15 +123,13 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
 
   const handleAddNew = () => {
     setSelectedSub(null);
-    setFormData({
-      id: '', nome: '', congregacaoId: '', congregacaoNome: '', cidade: '', estado: ''
-    });
+    setFormData(defaultFormData);
     setIsEditing(true);
   };
 
   const handleEdit = (sub: Substitute) => {
     setSelectedSub(sub);
-    setFormData({ ...sub });
+    setFormData({ ...defaultFormData, ...sub });
     setIsEditing(true);
   };
 

@@ -10,6 +10,7 @@ import PersonalDataView from '@/components/PersonalDataView';
 import CongregationsView from '@/components/CongregationsView';
 import SubstitutesView from '@/components/SubstitutesView';
 import ItinerariesView from '@/components/ItinerariesView';
+import SettingsView from '@/components/SettingsView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -31,7 +32,7 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings'>('dashboard');
   const [personalData, setPersonalData] = useState<any>(null);
   const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0 });
 
@@ -307,6 +308,8 @@ export default function Home() {
       setCurrentView('substitutes');
     } else if (title === 'Itinerários') {
       setCurrentView('itineraries');
+    } else if (title === 'Ajustes') {
+      setCurrentView('settings');
     }
   };
 
@@ -319,7 +322,7 @@ export default function Home() {
         currentView={currentView}
         onBack={() => setCurrentView('dashboard')}
         onViewChange={(view) => {
-          if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries'].includes(view)) {
+          if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings'].includes(view)) {
             setCurrentView(view);
           }
         }}
@@ -398,6 +401,12 @@ export default function Home() {
             <ItinerariesView 
               userId={user.id}
               onBack={() => setCurrentView('dashboard')} 
+            />
+          )}
+
+          {currentView === 'settings' && (
+            <SettingsView 
+              userId={user.id}
             />
           )}
         </div>
