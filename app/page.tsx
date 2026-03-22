@@ -425,6 +425,7 @@ export default function Home() {
           {currentView === 'settings' && (
             <SettingsView 
               userId={user.id}
+              onBack={() => setCurrentView('dashboard')} 
             />
           )}
         </div>

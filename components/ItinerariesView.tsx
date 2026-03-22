@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { 
   collection, 
   query, 
