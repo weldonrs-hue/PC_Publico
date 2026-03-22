@@ -202,7 +202,9 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
       })) as Substitute[];
       setSubstitutes(subList);
     } catch (error) {
-      console.error('Error fetching auxiliary data:', error);
+      if (auth.currentUser) {
+        console.error('Error fetching auxiliary data:', error);
+      }
     }
   }, [userId]);
 
@@ -262,7 +264,9 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
         await batch.commit();
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'itineraries_init');
+      if (auth.currentUser) {
+        handleFirestoreError(error, OperationType.WRITE, 'itineraries_init');
+      }
     } finally {
       setInitializing(false);
     }
@@ -312,11 +316,13 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
 
       // Check if we need to initialize or backfill
       const hasStartDate = items.some(item => item.semana === '01/09/2025');
-      if (!hasStartDate && !initializing) {
+      if (!hasStartDate && !initializing && auth.currentUser) {
         initializeItineraries(items);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'itineraries');
+      if (auth.currentUser) {
+        handleFirestoreError(error, OperationType.GET, 'itineraries');
+      }
       setLoading(false);
     });
 

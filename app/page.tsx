@@ -37,13 +37,15 @@ export default function Home() {
   const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0 });
 
   useEffect(() => {
+    let unsubUser: (() => void) | null = null;
+
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Ensure user document exists in Firestore and listen for changes
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
-        const unsubUser = onSnapshot(userDocRef, async (userDoc) => {
+        unsubUser = onSnapshot(userDocRef, async (userDoc) => {
           let role = 'user';
           let photoURL = null;
           
@@ -73,17 +75,27 @@ export default function Home() {
           };
           setUser(userData);
         }, (error) => {
-          console.error('Error listening to user profile:', error);
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          // Only log if we still have a user (ignore errors during logout)
+          if (auth.currentUser) {
+            console.error('Error listening to user profile:', error);
+            handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          }
         });
-
-        return () => unsubUser();
       } else {
+        if (unsubUser) {
+          unsubUser();
+          unsubUser = null;
+        }
         setUser(null);
+        setPersonalData(null);
+        setCongStats({ congregations: 0, groups: 0, substitutes: 0 });
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (unsubUser) unsubUser();
+    };
   }, []);
 
   useEffect(() => {
@@ -93,28 +105,33 @@ export default function Home() {
       // Wait for auth.currentUser to be available (up to 5 seconds)
       let attempts = 0;
       while (!auth.currentUser && attempts < 50) {
+        // If user state was cleared during wait, abort
+        if (!user) return;
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
 
-      if (!auth.currentUser) {
-        console.error('fetchData: auth.currentUser is null after waiting. User state:', user);
+      if (!auth.currentUser || !user) {
         return;
       }
 
       const activeUid = auth.currentUser.uid;
       const activeEmail = auth.currentUser.email;
+      
+      // Double check we are still logged in as the same user
+      if (activeUid !== user.id) return;
+
       console.log(`fetchData: Iniciando busca para UID: ${activeUid}, Email: ${activeEmail}`);
 
       // Test permissions with a simple query before proceeding
       try {
-        console.log('fetchData: Testando permissões de leitura...');
         const testQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
         await getDocs(testQuery);
-        console.log('fetchData: Teste de permissões OK');
       } catch (error) {
-        console.error('fetchData: Falha no teste de permissões:', error);
-        handleFirestoreError(error, OperationType.GET, 'permission_test');
+        if (auth.currentUser) {
+          console.error('fetchData: Falha no teste de permissões:', error);
+          handleFirestoreError(error, OperationType.GET, 'permission_test');
+        }
         return;
       }
 
@@ -126,45 +143,45 @@ export default function Home() {
           const pdDoc = await getDoc(pdDocRef);
           if (pdDoc.exists()) {
             pdData = pdDoc.data();
-            console.log('fetchData: Personal data found by UID doc ID');
           } else {
-            console.log('fetchData: Personal data NOT found by UID doc ID, searching by userId field...');
             // Fallback: search by userId field
             const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
             const pdSnapshot = await getDocs(pdQuery);
             if (!pdSnapshot.empty) {
               pdData = pdSnapshot.docs[0].data();
-              console.log('fetchData: Personal data found by userId field. Migrating...');
               // Migrate this doc to use activeUid as ID
               await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
             }
           }
         } catch (error) {
-          console.error('Erro ao buscar personal_data:', error);
-          handleFirestoreError(error, OperationType.GET, 'personal_data_fetch');
+          if (auth.currentUser) {
+            console.error('Erro ao buscar personal_data:', error);
+            handleFirestoreError(error, OperationType.GET, 'personal_data_fetch');
+          }
           return;
         }
         
+        if (!auth.currentUser) return;
+
         if (pdData) {
           setPersonalData(pdData);
           if (pdData.numeroPessoal) {
-            setUser((prev: any) => ({ ...prev, usuario: pdData.numeroPessoal }));
+            setUser((prev: any) => prev ? ({ ...prev, usuario: pdData.numeroPessoal }) : null);
           }
         } else {
           // MIGRATION LOGIC: Check if there's data for this username/number under a different UID
           const username = user.usuario;
           if (username && /^\d+$/.test(username)) {
-            console.log('fetchData: Iniciando busca por dados antigos para:', username);
-            
             // 1. Try to find by numeroPessoal first
             let migrationSnapshot;
             try {
               let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
               migrationSnapshot = await getDocs(migrationQuery);
             } catch (error) {
-              console.warn('fetchData: Erro na busca de migração por numeroPessoal:', error);
-              // Don't fail the whole thing, just continue
+              // Ignore migration errors if logging out
             }
+
+            if (!auth.currentUser) return;
 
             let oldUserId = null;
             let oldData = null;
@@ -173,7 +190,6 @@ export default function Home() {
               const docSnap = migrationSnapshot.docs[0];
               oldData = docSnap.data();
               oldUserId = oldData.userId;
-              console.log('fetchData: Dados antigos encontrados por numeroPessoal. Old UID:', oldUserId);
             } else {
               // 2. Try to find by old email domain (@progcir.com) in users collection
               const oldEmail = `${username}@progcir.com`;
@@ -181,14 +197,10 @@ export default function Home() {
               try {
                 const userQuery = query(collection(db, 'users'), where('email', '==', oldEmail), limit(1));
                 userSnapshot = await getDocs(userQuery);
-              } catch (error) {
-                console.warn('fetchData: Erro na busca de migração por email antigo:', error);
-              }
+              } catch (error) {}
               
               if (userSnapshot && !userSnapshot.empty) {
                 oldUserId = userSnapshot.docs[0].id;
-                console.log('fetchData: Old UID found in users collection:', oldUserId);
-                // Now find the personal_data for this oldUserId
                 try {
                   const pdOldQuery = query(collection(db, 'personal_data'), where('userId', '==', oldUserId), limit(1));
                   const pdOldSnapshot = await getDocs(pdOldQuery);
@@ -196,15 +208,13 @@ export default function Home() {
                     const docSnap = pdOldSnapshot.docs[0];
                     oldData = docSnap.data();
                   }
-                } catch (error) {
-                  console.warn('fetchData: Erro ao buscar personal_data antigo:', error);
-                }
+                } catch (error) {}
               }
             }
             
+            if (!auth.currentUser) return;
+
             if (oldUserId && oldUserId !== activeUid) {
-              console.log('fetchData: Migrando dados do UID antigo:', oldUserId, 'para o novo:', activeUid);
-              
               if (oldData) {
                 const migratedData = {
                   ...oldData,
@@ -218,11 +228,11 @@ export default function Home() {
               // Migrate other collections
               const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries'];
               for (const collName of collectionsToMigrate) {
+                if (!auth.currentUser) break;
                 try {
                   const q = query(collection(db, collName), where('userId', '==', oldUserId));
                   const snapshot = await getDocs(q);
                   if (!snapshot.empty) {
-                    console.log(`fetchData: Migrando ${snapshot.size} documentos de ${collName}`);
                     for (const d of snapshot.docs) {
                       await setDoc(doc(db, collName, d.id), {
                         ...d.data(),
@@ -230,18 +240,17 @@ export default function Home() {
                       });
                     }
                   }
-                } catch (error) {
-                  console.error(`fetchData: Erro ao migrar coleção ${collName}:`, error);
-                }
+                } catch (error) {}
               }
               
-              console.log('fetchData: Migração concluída');
-              // Re-fetch everything to be sure
+              if (!auth.currentUser) return;
               fetchData(); 
               return;
             }
           }
         }
+
+        if (!auth.currentUser) return;
 
         // Fetch Congregations for stats
         let congSnapshot;
@@ -249,7 +258,9 @@ export default function Home() {
           const congQuery = query(collection(db, 'congregations'), where('userId', '==', activeUid));
           congSnapshot = await getDocs(congQuery);
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, 'congregations_fetch');
+          if (auth.currentUser) {
+            handleFirestoreError(error, OperationType.GET, 'congregations_fetch');
+          }
           return;
         }
         let congregations = congSnapshot.size;
@@ -261,20 +272,27 @@ export default function Home() {
           }
         });
 
+        if (!auth.currentUser) return;
+
         // Fetch Substitutes for stats
         let subSnapshot;
         try {
           const subQuery = query(collection(db, 'substitutes'), where('userId', '==', activeUid));
           subSnapshot = await getDocs(subQuery);
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, 'substitutes_fetch');
+          if (auth.currentUser) {
+            handleFirestoreError(error, OperationType.GET, 'substitutes_fetch');
+          }
           return;
         }
         let substitutes = subSnapshot.size;
 
+        if (!auth.currentUser) return;
         setCongStats({ congregations, groups, substitutes });
       } catch (error) {
-        console.error('Error in fetchData overall:', error);
+        if (auth.currentUser) {
+          console.error('Error in fetchData overall:', error);
+        }
       }
     };
 

@@ -86,7 +86,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           }
         }
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'personal_data');
+        if (auth.currentUser) {
+          handleFirestoreError(error, OperationType.GET, 'personal_data');
+        }
       } finally {
         setLoading(false);
       }

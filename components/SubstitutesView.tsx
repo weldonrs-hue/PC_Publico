@@ -66,7 +66,9 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
       setSubstitutes(subsData);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'substitutes');
+      if (auth.currentUser) {
+        handleFirestoreError(error, OperationType.GET, 'substitutes');
+      }
       setLoading(false);
     });
 
@@ -81,7 +83,9 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
         })) as Congregation[];
         setCongregations(congsData);
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'congregations');
+        if (auth.currentUser) {
+          handleFirestoreError(error, OperationType.GET, 'congregations');
+        }
       }
     };
 

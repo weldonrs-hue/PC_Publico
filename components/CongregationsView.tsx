@@ -64,7 +64,9 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
       setCongregations(congsData);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'congregations');
+      if (auth.currentUser) {
+        handleFirestoreError(error, OperationType.GET, 'congregations');
+      }
       setLoading(false);
     });
 
