@@ -110,16 +110,12 @@ const OUTROS_EVENTOS = [
 
 export default function ItinerariesView({ userId, user, onBack }: ItinerariesViewProps) {
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
-  const [originalItineraries, setOriginalItineraries] = useState<string>('[]');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
   const [initializing, setInitializing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
-  
-  const hasUnsavedChanges = JSON.stringify(itineraries) !== originalItineraries;
   
   // Data for selects
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -331,12 +327,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       });
       
       setItineraries(items);
-      // Only set original if it's the first load or if we want to sync with server
-      // We use a functional update to avoid dependency on originalItineraries
-      setOriginalItineraries(prev => {
-        if (prev === '[]') return JSON.stringify(items);
-        return prev;
-      });
       setLoading(false);
 
       // Check if we need to initialize or backfill
@@ -434,42 +424,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     setViewDate(new Date());
   };
 
-  const handleChange = (id: string, field: keyof ItineraryItem, value: any) => {
+  const handleChange = async (id: string, field: keyof ItineraryItem, value: any) => {
     setItineraries(prev => prev.map(item => 
       item.id === id ? { ...item, [field]: value } : item
     ));
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
+    
+    // Save directly to database
     try {
-      const batch = writeBatch(db);
-      const originalItems = JSON.parse(originalItineraries) as ItineraryItem[];
-      const originalMap = new Map(originalItems.map(item => [item.id, JSON.stringify(item)]));
-      
-      let changedCount = 0;
-      itineraries.forEach(item => {
-        if (item.id) {
-          const currentStr = JSON.stringify(item);
-          const originalStr = originalMap.get(item.id);
-          
-          if (currentStr !== originalStr) {
-            const docRef = doc(db, 'itineraries', item.id);
-            const { id, ...data } = item;
-            batch.update(docRef, data);
-            changedCount++;
-          }
-        }
-      });
-      
-      if (changedCount > 0) {
-        await batch.commit();
-      }
-      setOriginalItineraries(JSON.stringify(itineraries));
+      const docRef = doc(db, 'itineraries', id);
+      await updateDoc(docRef, { [field]: value });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'itineraries_save');
-    } finally {
-      setSaving(false);
+      handleFirestoreError(error, OperationType.WRITE, 'itinerary_update_field');
     }
   };
 
@@ -667,11 +632,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleBack = () => {
-    if (hasUnsavedChanges) {
-      setShowExitConfirmation(true);
-    } else {
-      onBack();
-    }
+    onBack();
   };
 
   if (showAnalysis && analysisParams) {
@@ -707,10 +668,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       >
         <div className="bg-[#512da8] p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
           <div className="flex items-center gap-4">
-            <h3 className="font-bold flex items-center gap-2 whitespace-nowrap">
-              Tabela de Itinerários
-            </h3>
-            
             <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
               <button 
                 onClick={handleToday}
@@ -749,14 +706,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               <Printer size={16} />
               Imprimir
             </button>
-            <button 
-              onClick={handleSave}
-              disabled={saving || !hasUnsavedChanges}
-              className="bg-white text-[#512da8] px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Salvar Tudo
-            </button>
           </div>
         </div>
 
@@ -767,12 +716,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         ) : (
           <div className="overflow-x-auto pb-8">
             <div className="w-full max-w-full bg-white print:w-[210mm] print:mx-auto print:p-[10mm] print:shadow-none">
-              <h1 className="hidden print:block text-2xl font-bold text-center mb-6">Tabela de Itinerários</h1>
               <table className="w-full text-left border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-100 border-b border-gray-300">
                     <th className="p-3 text-xs font-bold text-white uppercase tracking-wider border-r border-white/20 w-24 bg-[#512da8] text-center">Semana</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-40">Data do Evento</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-40 text-center">Data do Evento</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Evento</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Observações</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-24 text-center">Escritório Notificado</th>
@@ -800,7 +748,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             )}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300">
+                        <td className="p-2 border-r border-gray-300 text-center">
                           <div className="text-sm text-gray-900 font-medium p-1">
                             {item.dataEvento || '-'}
                           </div>
@@ -859,55 +807,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           </div>
         )}
       </motion.div>
-
-      {/* Exit Confirmation Modal */}
-      <AnimatePresence>
-        {showExitConfirmation && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
-            >
-              <div className="p-6 text-center space-y-4">
-                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
-                  <Info size={32} />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-gray-900">Alterações não salvas</h3>
-                  <p className="text-gray-600">
-                    Você tem alterações que ainda não foram salvas. Deseja salvar antes de sair ou descartar as mudanças?
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 pt-2">
-                  <button 
-                    onClick={async () => {
-                      await handleSave();
-                      onBack();
-                    }}
-                    className="w-full py-3 rounded-xl font-bold bg-[#512da8] text-white hover:bg-[#4527a0] transition-all flex items-center justify-center gap-2"
-                  >
-                    <Save size={18} /> Salvar e Sair
-                  </button>
-                  <button 
-                    onClick={onBack}
-                    className="w-full py-3 rounded-xl font-bold text-red-600 hover:bg-red-50 transition-all"
-                  >
-                    Descartar e Sair
-                  </button>
-                  <button 
-                    onClick={() => setShowExitConfirmation(false)}
-                    className="w-full py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
-                  >
-                    Continuar Editando
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Modals */}
       <AnimatePresence>

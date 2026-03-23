@@ -106,6 +106,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [calcModal, setCalcModal] = useState<{
     type: keyof AnalysisData['ministério'];
     field: keyof MinistryActivity;
@@ -146,6 +148,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
         userId,
         updatedAt: new Date().toISOString()
       });
+      setIsDirty(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'activity_analysis');
     } finally {
@@ -153,7 +156,16 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
     }
   };
 
+  const handleBack = () => {
+    if (isDirty) {
+      setShowExitConfirmation(true);
+    } else {
+      onBack();
+    }
+  };
+
   const updateEstatistica = (field: keyof AnalysisData['estatisticas'], delta: number) => {
+    setIsDirty(true);
     setData(prev => ({
       ...prev,
       estatisticas: {
@@ -164,6 +176,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   };
 
   const updateMinistry = (type: keyof AnalysisData['ministério'], field: keyof MinistryActivity, value: string) => {
+    setIsDirty(true);
     setData(prev => ({
       ...prev,
       ministério: {
@@ -177,6 +190,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   };
 
   const updateTable = (section: 'donativos' | 'reunioes', field: string, index: number, value: string) => {
+    setIsDirty(true);
     setData(prev => {
       const sectionData = { ...prev[section] };
       if (field in sectionData) {
@@ -209,7 +223,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   const avgMeioSemana = calculateAverageReunioes(data.reunioes.meioSemana);
   const pubAtivosNum = parseInt(data.pubAtivos) || 0;
   const difference = avgFimSemana - pubAtivosNum;
-  const percentage = pubAtivosNum > 0 ? Math.round((avgFimSemana / pubAtivosNum) * 100) : 0;
+  const percentage = pubAtivosNum > 0 ? Math.round((difference / pubAtivosNum) * 100) : 0;
 
   // Calculate sum of studies automatically
   const totalEstudos = Object.values(data.ministério).reduce((acc, curr) => acc + (parseInt(curr.estudos) || 0), 0);
@@ -244,21 +258,13 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
       <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8]">
         <div className="flex items-center gap-4">
           <button 
-            onClick={onBack}
+            onClick={handleBack}
             className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-gray-50 shadow-sm"
           >
             <ChevronLeft size={24} />
           </button>
           <h2 className="text-2xl font-black text-gray-800 tracking-tight">Análise das atividades</h2>
         </div>
-        <button 
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-[#512da8] text-white px-8 py-3 rounded-xl font-black flex items-center gap-2 hover:bg-[#4527a0] transition-all disabled:opacity-50 shadow-xl shadow-indigo-200 active:scale-95"
-        >
-          {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-          Salvar Análise
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -277,7 +283,10 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
               <input 
                 type="number"
                 value={data.pubAtivos}
-                onChange={(e) => setData({...data, pubAtivos: e.target.value})}
+                onChange={(e) => {
+                  setIsDirty(true);
+                  setData({...data, pubAtivos: e.target.value});
+                }}
                 className="w-full p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 focus:border-[#512da8] focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-black text-center text-xl text-[#512da8]"
               />
             </div>
@@ -535,6 +544,54 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
       </div>
 
       {/* Average Calculator Modal */}
+      <AnimatePresence>
+        {showExitConfirmation && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="p-6 text-center space-y-4">
+                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                  <Save size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-gray-900">Alterações não salvas</h3>
+                  <p className="text-gray-600">
+                    Você tem alterações que ainda não foram salvas na análise. Deseja salvar antes de sair?
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 pt-2">
+                  <button 
+                    onClick={async () => {
+                      await handleSave();
+                      onBack();
+                    }}
+                    className="w-full py-3 rounded-xl font-bold bg-[#512da8] text-white hover:bg-[#4527a0] transition-all flex items-center justify-center gap-2"
+                  >
+                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Salvar e Sair
+                  </button>
+                  <button 
+                    onClick={onBack}
+                    className="w-full py-3 rounded-xl font-bold text-red-600 hover:bg-red-50 transition-all"
+                  >
+                    Descartar e Sair
+                  </button>
+                  <button 
+                    onClick={() => setShowExitConfirmation(false)}
+                    className="w-full py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
+                  >
+                    Continuar Editando
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {calcModal && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
