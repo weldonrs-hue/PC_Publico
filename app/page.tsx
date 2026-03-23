@@ -12,6 +12,7 @@ import SubstitutesView from '@/components/SubstitutesView';
 import ItinerariesView from '@/components/ItinerariesView';
 import SettingsView from '@/components/SettingsView';
 import UsersView from '@/components/UsersView';
+import CircuitStatisticsView from '@/components/CircuitStatisticsView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -81,9 +82,9 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics'>('dashboard');
   const [personalData, setPersonalData] = useState<any>(null);
-  const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0 });
+  const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0, analyzedCongregations: 0 });
   const [currentEvent, setCurrentEvent] = useState<string>('');
 
   const isCurrentWeek = (semanaStr: string) => {
@@ -207,7 +208,7 @@ export default function Home() {
         }
         setUser(null);
         setPersonalData(null);
-        setCongStats({ congregations: 0, groups: 0, substitutes: 0 });
+        setCongStats({ congregations: 0, groups: 0, substitutes: 0, analyzedCongregations: 0 });
         setQuotaExceeded(false);
       }
     });
@@ -365,12 +366,13 @@ export default function Home() {
         }
 
         if (shouldFetchStats && !quotaExceeded) {
-          let congSnap, subSnap, itinSnap;
+          let congSnap, subSnap, itinSnap, analysisSnap;
           try {
-            [congSnap, subSnap, itinSnap] = await Promise.all([
+            [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
               getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
               getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
-              getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid)))
+              getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))),
+              getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid)))
             ]);
           } catch (error) {
             handleFirestoreError(error, OperationType.GET, 'dashboard_stats');
@@ -382,6 +384,15 @@ export default function Home() {
             const data = doc.data();
             if (data.grupos && Array.isArray(data.grupos)) {
               groups += data.grupos.length;
+            }
+          });
+
+          // Count unique congregations with analysis
+          const analyzedCongs = new Set();
+          analysisSnap.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.congregacao) {
+              analyzedCongs.add(data.congregacao);
             }
           });
 
@@ -398,7 +409,8 @@ export default function Home() {
           const newStats = { 
             congregations: congSnap.size, 
             groups, 
-            substitutes: subSnap.size 
+            substitutes: subSnap.size,
+            analyzedCongregations: analyzedCongs.size
           };
           setCongStats(newStats);
           sessionStorage.setItem(`dashboardStats_${activeUid}`, JSON.stringify({
@@ -451,6 +463,8 @@ export default function Home() {
       setCurrentView('substitutes');
     } else if (title === 'Itinerários') {
       setCurrentView('itineraries');
+    } else if (title === 'Estatísticas') {
+      setCurrentView('statistics');
     } else if (title === 'Ajustes') {
       setCurrentView('settings');
     }
@@ -527,6 +541,7 @@ export default function Home() {
                 congregationCount={congStats.congregations}
                 groupCount={congStats.groups}
                 substituteCount={congStats.substitutes}
+                analyzedCongregationsCount={congStats.analyzedCongregations}
                 currentEvent={currentEvent}
                 user={user}
               />
@@ -585,6 +600,14 @@ export default function Home() {
 
           {currentView === 'users' && (
             <UsersView 
+              onBack={() => setCurrentView('dashboard')} 
+            />
+          )}
+
+          {currentView === 'statistics' && (
+            <CircuitStatisticsView 
+              userId={user.id}
+              personalData={personalData}
               onBack={() => setCurrentView('dashboard')} 
             />
           )}
