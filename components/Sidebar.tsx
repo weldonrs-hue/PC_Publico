@@ -151,32 +151,6 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
             portrait:overflow-x-auto portrait:scrollbar-hide portrait:gap-1
           "
         >
-          {/* Avatar for Portrait */}
-          <div 
-            className="portrait:flex landscape:hidden relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white shadow-inner cursor-pointer group/avatar-portrait overflow-hidden flex-shrink-0"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {user?.photoURL ? (
-              <Image 
-                src={user.photoURL} 
-                alt="Profile" 
-                fill 
-                className="object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <User size={20} />
-            )}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar-portrait:opacity-100 transition-opacity">
-              <Camera size={14} className="text-white" />
-            </div>
-            {isUploading && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
-
           {menuItems.map((item) => (
             <Link
               key={item.label}
@@ -237,57 +211,6 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       {/* Support Section - Replacing Documentation with Logout */}
       <div className="mt-auto landscape:flex portrait:hidden flex-col">
         <div className="bg-[#4527a0] p-4 lg:p-6 border-t border-white/10">
-          <div className="hidden lg:block mb-6">
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-3">VIAJANTE</p>
-            <div className="flex items-center gap-3">
-              <div 
-                className="relative w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white shadow-inner cursor-pointer group/avatar overflow-hidden"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {user?.photoURL ? (
-                  <Image 
-                    src={user.photoURL} 
-                    alt="Profile" 
-                    fill 
-                    className="object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <User size={20} />
-                )}
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                  <Camera size={14} className="text-white" />
-                </div>
-                {isUploading && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  </div>
-                )}
-              </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleImageSelect} 
-                accept="image/*" 
-                className="hidden" 
-              />
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">
-                  {user?.usuario || '2283701'}
-                </p>
-                <p className="text-[10px] text-white/50 truncate mb-1">
-                  {(user?.usuario || '2283701')}@progcir.app
-                </p>
-                {(user?.role === 'admin' || user?.usuario === '2283701' || user?.email === 'weldonrs@gmail.com') && (
-                  <div className="flex items-center gap-1">
-                    <UserCheck size={10} className="text-amber-400" />
-                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-tight">Administrador</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          
           <div className="space-y-1">
             <button 
               onClick={onLogout}

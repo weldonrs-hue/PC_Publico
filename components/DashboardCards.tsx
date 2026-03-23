@@ -42,6 +42,7 @@ interface DashboardCardsProps {
   groupCount?: number;
   substituteCount?: number;
   currentEvent?: string;
+  user?: any;
 }
 
 export default function DashboardCards({ 
@@ -49,7 +50,8 @@ export default function DashboardCards({
   congregationCount = 0, 
   groupCount = 0,
   substituteCount = 0,
-  currentEvent = ''
+  currentEvent = '',
+  user
 }: DashboardCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -76,6 +78,13 @@ export default function DashboardCards({
                   <div className="flex flex-col text-[10px] font-bold leading-tight tracking-wide uppercase opacity-80" style={{ color: card.color }}>
                     <p>Congregações: <span className="font-normal">{congregationCount}</span></p>
                     <p>Grupos: <span className="font-normal">{groupCount}</span></p>
+                  </div>
+                ) : card.title === 'Dados Pessoais' ? (
+                  <div className="flex flex-col text-[10px] font-bold leading-tight tracking-wide uppercase opacity-80" style={{ color: card.color }}>
+                    <p>Viajante: <span className="font-normal lowercase">{user?.usuario || '---'}@progcir.app</span></p>
+                    {user?.role === 'admin' && (
+                      <p className="text-amber-600 font-black mt-0.5">Administrador</p>
+                    )}
                   </div>
                 ) : (
                   <div className="font-bold text-[10px] leading-tight tracking-wide uppercase opacity-80 truncate" style={{ color: card.color }}>

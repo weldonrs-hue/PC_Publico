@@ -29,6 +29,8 @@ import {
 } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
+import { Camera, User } from 'lucide-react';
+import ImageCropper from '@/components/ImageCropper';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -37,6 +39,39 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [quotaExceeded, setQuotaExceeded] = useState(isQuotaExceeded());
   const quotaExceededRef = useRef(isQuotaExceeded());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setImageToCrop(reader.result as string);
+      });
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleCropComplete = async (croppedImage: string) => {
+    if (!user?.id) return;
+    
+    setIsUploading(true);
+    try {
+      const userDocRef = doc(db, 'users', user.id);
+      await updateDoc(userDocRef, {
+        photoURL: croppedImage
+      });
+      // Update local user state
+      setUser((prev: any) => ({ ...prev, photoURL: croppedImage }));
+      setImageToCrop(null);
+    } catch (error) {
+      console.error('Error updating profile photo:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.id}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Sync ref with state and check global quota
   useEffect(() => {
@@ -448,8 +483,11 @@ export default function Home() {
               {/* Welcome Section */}
               <div className="flex justify-between items-center gap-4">
                 <div className="border-2 border-blue-400 p-3 md:p-4 rounded-sm flex-1 md:flex-initial bg-white/50 flex items-center gap-4">
-                  {user?.photoURL && (
-                    <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
+                  <div 
+                    className="relative w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner cursor-pointer group/avatar overflow-hidden flex-shrink-0"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {user?.photoURL ? (
                       <Image 
                         src={user.photoURL} 
                         alt="Profile" 
@@ -457,11 +495,28 @@ export default function Home() {
                         className="object-cover"
                         referrerPolicy="no-referrer"
                       />
+                    ) : (
+                      <User size={32} />
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                      <Camera size={20} className="text-white" />
                     </div>
-                  )}
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleImageSelect} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">Olá, {personalData?.nome || user.usuario}!</h2>
-                    <p className="text-[10px] md:text-sm text-gray-500 mt-0.5">Bem-vindo ao painel de programações do circuito</p>
+                    <h1 className="text-2xl md:text-3xl font-black text-blue-600 uppercase tracking-tighter">Olá,</h1>
+                    <p className="text-blue-400 font-bold uppercase tracking-widest text-xs md:text-sm">Seja bem-vindo ao ProgCir Web</p>
                   </div>
                 </div>
               </div>
@@ -473,6 +528,7 @@ export default function Home() {
                 groupCount={congStats.groups}
                 substituteCount={congStats.substitutes}
                 currentEvent={currentEvent}
+                user={user}
               />
 
               {/* Statistics Summary Bar */}
@@ -544,6 +600,13 @@ export default function Home() {
           </div>
         </footer>
       </main>
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop} 
+          onCropComplete={handleCropComplete} 
+          onCancel={() => setImageToCrop(null)} 
+        />
+      )}
     </div>
   );
 }
