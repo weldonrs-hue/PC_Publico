@@ -36,6 +36,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { createCircuitFolderStructure } from '@/utils/fileSystem';
 
 interface SettingsViewProps {
   userId: string;
@@ -185,7 +186,11 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       // Check if API is available
       if (!(window as any).showDirectoryPicker) {
         console.warn('handleCreateFolders: showDirectoryPicker não disponível');
-        setError('Seu navegador não suporta a criação de pastas diretamente. Por favor, use um navegador moderno como Chrome ou Edge.');
+        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+          setError('Em dispositivos móveis, a criação de pastas é feita através da pasta Documentos do sistema. Por favor, use um computador para criar a estrutura completa automaticamente ou salve os arquivos individualmente.');
+        } else {
+          setError('Seu navegador não suporta a criação de pastas diretamente. Por favor, use um navegador moderno como Chrome ou Edge.');
+        }
         return;
       }
 
@@ -202,67 +207,10 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
         mode: 'readwrite'
       });
 
-      // 2. Create Circuit Folder
+      // 2. Create Structure using utility
       const circuitFolderName = circuito || 'CIRCUITO-NOVO';
-      setCreationStep(`Criando pasta base: ${circuitFolderName}...`);
-      const circuitHandle = await rootHandle.getDirectoryHandle(circuitFolderName, { create: true });
-
-      // 3. Fetch congregations
-      setCreationStep('Buscando congregações...');
-      const q = query(collection(db, 'congregations'), where('userId', '==', userId));
-      const querySnapshot = await getDocs(q);
-      const congregations = querySnapshot.docs.map(doc => doc.data().nome);
-
-      // 4. Create Main Structure
-      const mainFolders = ['CIRCUITO', 'ESCOLAS', 'EVENTOS', 'DIVERSOS'];
-      
-      for (const folder of mainFolders) {
-        setCreationStep(`Criando pasta: ${folder}...`);
-        const folderHandle = await circuitHandle.getDirectoryHandle(folder, { create: true });
-
-        if (folder === 'CIRCUITO') {
-          for (const cong of congregations) {
-            setCreationStep(`Criando pasta congregação: ${cong}...`);
-            await folderHandle.getDirectoryHandle(cong, { create: true });
-          }
-        }
-
-        if (folder === 'ESCOLAS') {
-          const subFolders = [
-            '(ESP) Serviço de Pioneiro',
-            '(Anciãos) Ministério do Reino',
-            '(Servos) Ministério do Reino'
-          ];
-          for (const sub of subFolders) {
-            await folderHandle.getDirectoryHandle(sub, { create: true });
-          }
-        }
-
-        if (folder === 'EVENTOS') {
-          const subFolders = [
-            '(CO) Congresso Regional',
-            '(CAco) Assembleia Viajante',
-            '(CAbr) Assembleia Representante',
-            '(S-312) Reunião Especial Pioneiros'
-          ];
-          for (const sub of subFolders) {
-            await folderHandle.getDirectoryHandle(sub, { create: true });
-          }
-        }
-
-        if (folder === 'DIVERSOS') {
-          const subFolders = [
-            'CARTAS ASSEMBLEIAS',
-            'PROGRAMAÇÕES',
-            'CARTAS ESP',
-            'CARTAS EMR-ANCIÃOS',
-            'CARTAS EMR-SERVOS'
-          ];
-          for (const sub of subFolders) {
-            await folderHandle.getDirectoryHandle(sub, { create: true });
-          }
-        }
-      }
+      setCreationStep(`Criando estrutura em: ${circuitFolderName}...`);
+      await createCircuitFolderStructure(rootHandle, circuitFolderName, userId);
 
       setCreationStep('Estrutura criada com sucesso!');
       setShowSuccess(true);
@@ -440,7 +388,6 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
         {settingsButtons
           .filter(btn => {
             if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
-            if (btn.id === 'pastas' && !isDesktop) return false;
             return true;
           })
           .map((btn, index) => (

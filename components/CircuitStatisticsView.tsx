@@ -10,12 +10,14 @@ import {
   DollarSign,
   BarChart3,
   Printer,
+  FileDown,
   Download
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { createCircuitFolderStructure } from '@/utils/fileSystem';
 
 interface CircuitStatisticsViewProps {
   userId: string;
@@ -218,6 +220,80 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  const handleSavePDF = async () => {
+    const element = document.getElementById('circuit-stats-form');
+    if (!element) return;
+
+    const circuitName = personalData?.circuito || 'NOVO';
+    const opt = {
+      margin: 0,
+      filename: `Circuito ${circuitName} - Estatísticas.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+    };
+
+    try {
+      // Dynamic import to avoid SSR issues
+      // @ts-ignore
+      const html2pdf = (await import('html2pdf.js')).default;
+
+      // Generate PDF blob
+      const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+
+      // Check for file system access API (Desktop)
+      if ((window as any).showDirectoryPicker) {
+        try {
+          // Ask for directory if not already known (we can't store handles persistently easily)
+          // So we always ask for the root folder once per session or just use the picker
+          const rootHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+          
+          // Create Structure using utility
+          const circuitFolderName = personalData?.circuito || 'CIRCUITO-NOVO';
+          const circuitHandle = await createCircuitFolderStructure(rootHandle, circuitFolderName, userId);
+          
+          // Get "CIRCUITO" subfolder
+          const circuitoHandle = await circuitHandle.getDirectoryHandle('CIRCUITO', { create: true });
+          
+          // Save the file
+          const fileHandle = await circuitoHandle.getFileHandle(opt.filename, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(pdfBlob);
+          await writable.close();
+          
+          alert(`PDF salvo com sucesso na pasta: ${circuitFolderName}/CIRCUITO`);
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            console.error('Erro ao salvar no sistema de arquivos:', err);
+            // Fallback to download
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = opt.filename;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }
+      } else {
+        // Mobile or non-supporting browser: just download
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = opt.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        // If on mobile, explain that it went to Downloads
+        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+          alert('PDF gerado com sucesso! Verifique sua pasta de Downloads ou Documentos.');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Ocorreu um erro ao gerar o PDF. Tente novamente.');
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-[210mm] mx-auto pb-12 print:p-0 print:m-0 print:max-w-none print:shadow-none print:bg-white">
       <style jsx global>{`
@@ -245,22 +321,33 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         }
       `}</style>
       {/* Header - Hidden in Print */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-gray-50 shadow-sm">
             <ChevronLeft size={24} />
           </button>
-          <h2 className="text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => window.print()} className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 px-4 font-bold text-sm">
-            <Printer size={18} /> Imprimir
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button 
+            onClick={handleSavePDF} 
+            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
+          >
+            <FileDown size={18} className="text-[#512da8]" /> 
+            <span>Salvar PDF</span>
+          </button>
+          <button 
+            onClick={() => window.print()} 
+            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
+          >
+            <Printer size={18} className="text-[#512da8]" /> 
+            <span>Imprimir</span>
           </button>
         </div>
       </div>
 
       {/* A4 Document Container */}
-      <div className="bg-white p-[8mm] shadow-2xl border border-gray-200 space-y-2 print:shadow-none print:border-none print:p-0 print:space-y-1 font-sans text-gray-900 overflow-hidden leading-tight print-content-container">
+      <div id="circuit-stats-form" className="bg-white p-[8mm] shadow-2xl border border-gray-200 space-y-2 print:shadow-none print:border-none print:p-0 print:space-y-1 font-sans text-gray-900 overflow-hidden leading-tight print-content-container">
         
         {/* Document Title */}
         <div className="text-center pt-2 pb-1">
