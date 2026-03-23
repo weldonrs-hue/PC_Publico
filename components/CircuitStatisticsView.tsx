@@ -219,7 +219,30 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div className="space-y-6 max-w-[210mm] mx-auto pb-12 print:p-0 print:m-0 print:max-w-none">
+    <div className="space-y-6 max-w-[210mm] mx-auto pb-12 print:p-0 print:m-0 print:max-w-none print:shadow-none">
+      <style jsx global>{`
+        @media print {
+          @page {
+            margin: 10mm;
+            size: A4;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            background-color: white !important;
+          }
+          /* Hide browser headers/footers by setting margin to 0 and then adding padding to body if needed, 
+             but standard margins usually include them. 
+             A common trick is to set margin: 0 in @page and then padding in the container. */
+          @page {
+            margin: 0;
+          }
+          body {
+            padding: 0;
+            margin: 0;
+          }
+        }
+      `}</style>
       {/* Header - Hidden in Print */}
       <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden">
         <div className="flex items-center gap-4">
@@ -250,7 +273,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             {congCount}
           </span>
           <span className="italic">congregações:</span>
-          <span className="bg-[#e9ecef] px-8 py-1 rounded font-bold text-2xl text-[#002060] border border-gray-300 ml-2 min-w-[100px] text-center">
+          <span className="bg-[#e9ecef] px-4 py-1 rounded font-bold text-[14px] text-[#002060] border border-gray-300 ml-2 min-w-[80px] text-center">
             {stats.pubAtivos}
           </span>
         </div>

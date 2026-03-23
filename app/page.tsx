@@ -471,21 +471,23 @@ export default function Home() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fa] transition-all duration-500 ease-in-out portrait:flex-col landscape:flex-row">
-      <Sidebar 
-        onLogout={handleLogout} 
-        user={user}
-        personalData={personalData}
-        currentView={currentView}
-        onBack={() => setCurrentView('dashboard')}
-        onViewChange={(view) => {
-          if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users'].includes(view)) {
-            setCurrentView(view as any);
-          }
-        }}
-      />
+    <div className="flex min-h-screen bg-[#f8f9fa] transition-all duration-500 ease-in-out portrait:flex-col landscape:flex-row print:block">
+      <div className="print:hidden">
+        <Sidebar 
+          onLogout={handleLogout} 
+          user={user}
+          personalData={personalData}
+          currentView={currentView}
+          onBack={() => setCurrentView('dashboard')}
+          onViewChange={(view) => {
+            if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users'].includes(view)) {
+              setCurrentView(view as any);
+            }
+          }}
+        />
+      </div>
       
-      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-20 landscape:lg:ml-56 portrait:mb-16">
+      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-20 landscape:lg:ml-56 portrait:mb-16 print:ml-0 print:mb-0 print:p-0">
         {quotaExceeded && (
           <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-pulse">
             ⚠️ Limite de cota do Firestore excedido. Alguns dados podem não carregar corretamente. Tente novamente mais tarde.
@@ -615,7 +617,7 @@ export default function Home() {
 
 
         {/* Footer */}
-        <footer className="mt-auto p-8 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500">
+        <footer className="mt-auto p-8 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500 print:hidden">
           <p>© 2024 ProgCir Web - Gestão de Circuitos</p>
           <div className="flex gap-6">
             <a className="hover:text-[#6c40bd] transition-colors" href="#">Termos de Uso</a>
