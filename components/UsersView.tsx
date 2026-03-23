@@ -13,19 +13,29 @@ import {
   RefreshCw,
   ShieldCheck,
   User as UserIcon,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  Loader2,
+  X
 } from 'lucide-react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { 
   collection, 
   query, 
   getDocs, 
   orderBy,
   doc,
-  updateDoc
+  updateDoc,
+  deleteDoc,
+  where,
+  writeBatch
 } from 'firebase/firestore';
+import { 
+  EmailAuthProvider,
+  reauthenticateWithCredential
+} from 'firebase/auth';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface UserMetadata {
   id: string;
@@ -47,6 +57,11 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserMetadata | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'reauth' | 'deleting' | 'success' | 'error'>('idle');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
 
   const fetchUsers = async () => {
     setRefreshing(true);
@@ -101,6 +116,66 @@ export default function UsersView({ onBack }: UsersViewProps) {
     user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete || !auth.currentUser) return;
+    
+    setIsDeleting(true);
+    setAdminError('');
+    
+    try {
+      // 1. Re-authenticate Admin
+      const providerId = auth.currentUser.providerData[0]?.providerId;
+      if (providerId === 'password') {
+        const credential = EmailAuthProvider.credential(auth.currentUser.email!, adminPassword);
+        try {
+          await reauthenticateWithCredential(auth.currentUser, credential);
+        } catch (error: any) {
+          setAdminError('Senha de administrador incorreta.');
+          setDeleteStatus('reauth');
+          setIsDeleting(false);
+          return;
+        }
+      }
+
+      setDeleteStatus('deleting');
+      const batch = writeBatch(db);
+      const uid = userToDelete.id;
+
+      // 1. Delete main user documents
+      batch.delete(doc(db, 'users', uid));
+      batch.delete(doc(db, 'personal_data', uid));
+
+      // 2. Find and delete all related data
+      const collectionsToClean = ['congregations', 'substitutes', 'itineraries'];
+      
+      for (const collName of collectionsToClean) {
+        const q = query(collection(db, collName), where('userId', '==', uid));
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach((d) => {
+          batch.delete(doc(db, collName, d.id));
+        });
+      }
+
+      await batch.commit();
+      
+      setDeleteStatus('success');
+      // Remove from local state
+      setUsers(prev => prev.filter(u => u.id !== uid));
+      
+      setTimeout(() => {
+        setUserToDelete(null);
+        setDeleteStatus('idle');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error deleting user data:', error);
+      setDeleteStatus('error');
+      handleFirestoreError(error, OperationType.DELETE, `user_data/${userToDelete.id}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const formatDate = (dateStr: any) => {
     if (!dateStr) return 'N/A';
@@ -187,13 +262,14 @@ export default function UsersView({ onBack }: UsersViewProps) {
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Criação</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Último login</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">UID do usuário</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={5} className="px-6 py-8">
+                    <td colSpan={6} className="px-6 py-8">
                       <div className="h-4 bg-gray-100 rounded w-full"></div>
                     </td>
                   </tr>
@@ -254,11 +330,22 @@ export default function UsersView({ onBack }: UsersViewProps) {
                         {user.id}
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-right">
+                      {auth.currentUser?.uid !== user.id && (
+                        <button
+                          onClick={() => setUserToDelete(user)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Excluir dados do usuário"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <Users size={48} strokeWidth={1} />
                       <p className="text-lg font-medium">Nenhum usuário encontrado</p>
@@ -277,6 +364,145 @@ export default function UsersView({ onBack }: UsersViewProps) {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {userToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6">
+                {deleteStatus === 'idle' && (
+                  <div className="space-y-6">
+                    <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 mx-auto">
+                      <Trash2 size={32} />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="text-xl font-bold text-gray-900">Excluir Dados do Usuário?</h3>
+                      <div className="mt-4 p-4 bg-gray-50 rounded-2xl text-left space-y-2">
+                        <p className="text-sm font-bold text-gray-700">Usuário: <span className="text-[#512da8]">{userToDelete.nome}</span></p>
+                        <p className="text-xs text-gray-500">Email: {userToDelete.email}</p>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-4">
+                        Esta ação removerá permanentemente todos os dados deste usuário do sistema.
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setUserToDelete(null)}
+                        className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => {
+                          const providerId = auth.currentUser?.providerData[0]?.providerId;
+                          if (providerId === 'password') {
+                            setDeleteStatus('reauth');
+                          } else {
+                            handleDeleteUser();
+                          }
+                        }}
+                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20"
+                      >
+                        Continuar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {deleteStatus === 'reauth' && (
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <h3 className="text-xl font-bold text-gray-900">Confirme sua Senha</h3>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Para autorizar a exclusão deste usuário, digite sua senha de administrador.
+                      </p>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-400 uppercase ml-1">Sua Senha (Admin)</label>
+                        <input
+                          type="password"
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
+                          placeholder="Digite sua senha"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        />
+                      </div>
+                      {adminError && (
+                        <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium">
+                          <AlertCircle size={14} />
+                          {adminError}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setDeleteStatus('idle')}
+                        disabled={isDeleting}
+                        className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all disabled:opacity-50"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        onClick={handleDeleteUser}
+                        disabled={isDeleting || !adminPassword}
+                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {isDeleting ? <Loader2 className="animate-spin" size={18} /> : 'Confirmar Exclusão'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {deleteStatus === 'deleting' && (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                    <Loader2 className="animate-spin text-red-600" size={48} />
+                    <p className="text-lg font-bold text-gray-900">Excluindo dados...</p>
+                    <p className="text-sm text-gray-500">Limpando registros do banco de dados.</p>
+                  </div>
+                )}
+
+                {deleteStatus === 'success' && (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+                      <ShieldCheck size={48} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900">Dados Removidos</h3>
+                    <p className="text-gray-500">Todos os registros associados a este usuário foram excluídos com sucesso.</p>
+                  </div>
+                )}
+
+                {deleteStatus === 'error' && (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-2">
+                      <AlertCircle size={48} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900">Erro na Exclusão</h3>
+                    <p className="text-gray-500">Não foi possível remover todos os dados. Verifique as permissões.</p>
+                    <button
+                      onClick={() => setUserToDelete(null)}
+                      className="mt-4 px-6 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
