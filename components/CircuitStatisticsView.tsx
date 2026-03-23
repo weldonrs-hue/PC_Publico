@@ -230,7 +230,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         </div>
         <div className="flex gap-2">
           <button onClick={() => window.print()} className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2 px-4 font-bold text-sm">
-            <Printer size={18} /> Imprimir A4
+            <Printer size={18} /> Imprimir
           </button>
         </div>
       </div>
