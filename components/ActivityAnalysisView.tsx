@@ -531,7 +531,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
             <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Porcentagem sobre nº de publicadores (Fim de Semana)</label>
               <div className="text-4xl font-black text-[#512da8]">
-                {percentage}%
+                {percentage > 0 ? `+${percentage}%` : `${percentage}%`}
               </div>
             </div>
           </div>

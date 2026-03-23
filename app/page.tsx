@@ -188,9 +188,14 @@ export default function Home() {
         // Fetch Personal Data if not already loaded or if it's been a while
         if (!personalData || isDashboard) {
           const pdDocRef = doc(db, 'personal_data', activeUid);
-          const pdDoc = await getDoc(pdDocRef);
+          let pdDoc;
+          try {
+            pdDoc = await getDoc(pdDocRef);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.GET, `personal_data/${activeUid}`);
+          }
           
-          if (pdDoc.exists()) {
+          if (pdDoc && pdDoc.exists()) {
             const pdData = pdDoc.data();
             setPersonalData(pdData);
             // Only update user state if the username is different to avoid loops
@@ -202,13 +207,23 @@ export default function Home() {
             const hasMigratedFallback = localStorage.getItem(`pdMigrationFallbackAttempted_${activeUid}`);
             if (!hasMigratedFallback && !quotaExceeded) {
               const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
-              const pdSnapshot = await getDocs(pdQuery);
-              if (!pdSnapshot.empty) {
+              let pdSnapshot;
+              try {
+                pdSnapshot = await getDocs(pdQuery);
+              } catch (error) {
+                handleFirestoreError(error, OperationType.GET, 'personal_data (query by userId)');
+              }
+              
+              if (pdSnapshot && !pdSnapshot.empty) {
                 localStorage.setItem(`pdMigrationFallbackAttempted_${activeUid}`, 'true');
                 const pdData = pdSnapshot.docs[0].data();
                 setPersonalData(pdData);
                 // Migrate this doc to use activeUid as ID
-                await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
+                try {
+                  await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
+                } catch (error) {
+                  handleFirestoreError(error, OperationType.WRITE, `personal_data/${activeUid}`);
+                }
               }
             }
           }
@@ -225,7 +240,10 @@ export default function Home() {
             try {
               let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
               migrationSnapshot = await getDocs(migrationQuery);
-            } catch (error) {}
+            } catch (error) {
+              // Migration query might fail if rules are strict, but we catch it
+              console.warn('Migration query failed (likely permissions):', error);
+            }
 
             if (!auth.currentUser) return;
 
@@ -244,34 +262,40 @@ export default function Home() {
                 userId: activeUid,
                 numeroPessoal: username
               };
-              await setDoc(doc(db, 'personal_data', activeUid), migratedData);
-              setPersonalData(migratedData);
-              
-              // Migrate other collections
-              const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries'];
-              const batch = writeBatch(db);
-              let batchCount = 0;
-              
-              for (const collName of collectionsToMigrate) {
-                try {
-                  const q = query(collection(db, collName), where('userId', '==', oldUserId));
-                  const snapshot = await getDocs(q);
-                  for (const d of snapshot.docs) {
-                    batch.set(doc(db, collName, d.id), { ...d.data(), userId: activeUid });
-                    batchCount++;
-                    // Firestore batch limit is 500
-                    if (batchCount >= 450) break; 
+              try {
+                await setDoc(doc(db, 'personal_data', activeUid), migratedData);
+                setPersonalData(migratedData);
+                
+                // Migrate other collections
+                const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries'];
+                const batch = writeBatch(db);
+                let batchCount = 0;
+                
+                for (const collName of collectionsToMigrate) {
+                  try {
+                    const q = query(collection(db, collName), where('userId', '==', oldUserId));
+                    const snapshot = await getDocs(q);
+                    for (const d of snapshot.docs) {
+                      batch.set(doc(db, collName, d.id), { ...d.data(), userId: activeUid });
+                      batchCount++;
+                      // Firestore batch limit is 500
+                      if (batchCount >= 450) break; 
+                    }
+                  } catch (error) {
+                    console.warn(`Migration of ${collName} failed:`, error);
                   }
-                } catch (error) {}
-                if (batchCount >= 450) break;
-              }
+                  if (batchCount >= 450) break;
+                }
 
-              if (batchCount > 0) {
-                await batch.commit();
-              }
+                if (batchCount > 0) {
+                  await batch.commit();
+                }
 
-              // Mark migration as completed in user doc
-              await updateDoc(doc(db, 'users', activeUid), { migrationCompleted: true });
+                // Mark migration as completed in user doc
+                await updateDoc(doc(db, 'users', activeUid), { migrationCompleted: true });
+              } catch (error) {
+                console.error('Migration process failed:', error);
+              }
             }
           }
         }
@@ -293,10 +317,16 @@ export default function Home() {
         }
 
         if (shouldFetchStats && !quotaExceeded) {
-          const [congSnap, subSnap] = await Promise.all([
-            getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
-            getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid)))
-          ]);
+          let congSnap, subSnap;
+          try {
+            [congSnap, subSnap] = await Promise.all([
+              getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
+              getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid)))
+            ]);
+          } catch (error) {
+            handleFirestoreError(error, OperationType.GET, 'dashboard_stats');
+            return;
+          }
 
           let groups = 0;
           congSnap.docs.forEach((doc) => {

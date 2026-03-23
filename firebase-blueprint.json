@@ -77,6 +77,23 @@
       },
       "required": ["userId", "semana", "ordem"]
     },
+    "activity_analysis": {
+      "title": "Activity Analysis",
+      "description": "Congregation activity analysis data",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "dataVisita": { "type": "string" },
+        "pubAtivos": { "type": "string" },
+        "ministério": { "type": "object" },
+        "estatisticas": { "type": "object" },
+        "donativos": { "type": "object" },
+        "reunioes": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "congregacao", "dataVisita"]
+    },
     "user": {
       "title": "User",
       "description": "User profile and roles",
@@ -105,6 +122,10 @@
     "/itineraries/{itId}": {
       "schema": "itinerary",
       "description": "Collection of itineraries"
+    },
+    "/activity_analysis/{analysisId}": {
+      "schema": "activity_analysis",
+      "description": "Collection of congregation activity analysis"
     },
     "/users/{userId}": {
       "schema": "user",
