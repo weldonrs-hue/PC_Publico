@@ -234,9 +234,13 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
     };
 
     try {
-      // Dynamic import to avoid SSR issues
-      // @ts-ignore
-      const html2pdf = (await import('html2pdf.js')).default;
+      // Dynamic import with better compatibility handling
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+
+      if (typeof html2pdf !== 'function') {
+        throw new Error('Biblioteca de PDF não carregou corretamente.');
+      }
 
       // Generate PDF blob
       const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
@@ -288,9 +292,10 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           alert('PDF gerado com sucesso! Verifique sua pasta de Downloads ou Documentos.');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
-      alert('Ocorreu um erro ao gerar o PDF. Tente novamente.');
+      const msg = error?.message || 'Erro desconhecido';
+      alert(`Ocorreu um erro ao gerar o PDF: ${msg}. Tente novamente.`);
     }
   };
 
