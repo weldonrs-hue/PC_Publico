@@ -41,13 +41,15 @@ interface DashboardCardsProps {
   congregationCount?: number;
   groupCount?: number;
   substituteCount?: number;
+  currentEvent?: string;
 }
 
 export default function DashboardCards({ 
   onCardClick, 
   congregationCount = 0, 
   groupCount = 0,
-  substituteCount = 0
+  substituteCount = 0,
+  currentEvent = ''
 }: DashboardCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -77,7 +79,10 @@ export default function DashboardCards({
                   </div>
                 ) : (
                   <div className="font-bold text-[10px] leading-tight tracking-wide uppercase opacity-80 truncate" style={{ color: card.color }}>
-                    {card.content} <span className="font-normal">{card.title === 'Substitutos' ? substituteCount : ''}</span>
+                    {card.title === 'Itinerários' ? 'EVENTO ATUAL: ' : card.content} 
+                    <span className="font-normal">
+                      {card.title === 'Substitutos' ? substituteCount : (card.title === 'Itinerários' ? (currentEvent || 'Nenhum evento') : '')}
+                    </span>
                   </div>
                 )}
               </div>

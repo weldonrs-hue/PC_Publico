@@ -49,6 +49,19 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users'>('dashboard');
   const [personalData, setPersonalData] = useState<any>(null);
   const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0 });
+  const [currentEvent, setCurrentEvent] = useState<string>('');
+
+  const isCurrentWeek = (semanaStr: string) => {
+    if (!semanaStr) return false;
+    const [day, month, year] = semanaStr.split('/').map(Number);
+    if (!day || !month || !year) return false;
+    const mondayDate = new Date(year, month - 1, day);
+    const nextMonday = new Date(mondayDate);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    
+    const now = new Date();
+    return now >= mondayDate && now < nextMonday;
+  };
 
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
@@ -317,11 +330,12 @@ export default function Home() {
         }
 
         if (shouldFetchStats && !quotaExceeded) {
-          let congSnap, subSnap;
+          let congSnap, subSnap, itinSnap;
           try {
-            [congSnap, subSnap] = await Promise.all([
+            [congSnap, subSnap, itinSnap] = await Promise.all([
               getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
-              getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid)))
+              getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
+              getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid)))
             ]);
           } catch (error) {
             handleFirestoreError(error, OperationType.GET, 'dashboard_stats');
@@ -336,6 +350,16 @@ export default function Home() {
             }
           });
 
+          // Find current event
+          let foundEvent = '';
+          itinSnap.docs.forEach((doc) => {
+            const data = doc.data();
+            if (isCurrentWeek(data.semana)) {
+              foundEvent = data.evento || '';
+            }
+          });
+          setCurrentEvent(foundEvent);
+
           const newStats = { 
             congregations: congSnap.size, 
             groups, 
@@ -344,8 +368,14 @@ export default function Home() {
           setCongStats(newStats);
           sessionStorage.setItem(`dashboardStats_${activeUid}`, JSON.stringify({
             stats: newStats,
+            currentEvent: foundEvent,
             timestamp: now
           }));
+        } else if (cachedStatsStr) {
+          const cached = JSON.parse(cachedStatsStr);
+          if (cached.currentEvent !== undefined) {
+            setCurrentEvent(cached.currentEvent);
+          }
         }
       } catch (error: any) {
         console.error('Error in fetchData:', error);
@@ -442,6 +472,7 @@ export default function Home() {
                 congregationCount={congStats.congregations}
                 groupCount={congStats.groups}
                 substituteCount={congStats.substitutes}
+                currentEvent={currentEvent}
               />
 
               {/* Statistics Summary Bar */}

@@ -113,8 +113,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const filteredUsers = users.filter(user => 
     user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.id.toLowerCase().includes(searchTerm.toLowerCase())
+    user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleDeleteUser = async () => {
@@ -229,7 +228,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Buscar por email ou UID..."
+              placeholder="Buscar por email ou nome..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#512da8]/20 focus:border-[#512da8] transition-all"
@@ -261,7 +260,6 @@ export default function UsersView({ onBack }: UsersViewProps) {
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">ID Pessoal</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Criação</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Último login</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">UID do usuário</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
@@ -269,7 +267,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={6} className="px-6 py-8">
+                    <td colSpan={5} className="px-6 py-8">
                       <div className="h-4 bg-gray-100 rounded w-full"></div>
                     </td>
                   </tr>
@@ -324,12 +322,6 @@ export default function UsersView({ onBack }: UsersViewProps) {
                         {formatDate(user.lastLogin)}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 font-mono text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-                        <Fingerprint size={14} />
-                        {user.id}
-                      </div>
-                    </td>
                     <td className="px-6 py-4 text-right">
                       {auth.currentUser?.uid !== user.id && (
                         <button
@@ -345,7 +337,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <Users size={48} strokeWidth={1} />
                       <p className="text-lg font-medium">Nenhum usuário encontrado</p>

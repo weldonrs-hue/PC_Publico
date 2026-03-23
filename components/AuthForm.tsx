@@ -28,7 +28,11 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.name === 'usuario' ? e.target.value.toUpperCase() : e.target.value;
+    let value = e.target.value;
+    if (e.target.name === 'usuario') {
+      // Only allow numbers
+      value = value.replace(/\D/g, '');
+    }
     setFormData({ ...formData, [e.target.name]: value });
     setError('');
   };
@@ -139,6 +143,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
                   name="usuario"
                   value={formData.usuario}
                   onChange={handleChange}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="Ex: 2283701"
                   className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#6c40bd] focus:border-transparent transition-all outline-none text-sm text-gray-700"
                   required
