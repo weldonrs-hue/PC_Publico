@@ -41,9 +41,33 @@ export interface FirestoreErrorInfo {
   }
 }
 
+export function isQuotaExceeded(): boolean {
+  if (typeof window === 'undefined') return false;
+  const quotaHit = localStorage.getItem('firestore_quota_exceeded_date');
+  if (!quotaHit) return false;
+  
+  const today = new Date().toISOString().split('T')[0];
+  return quotaHit === today;
+}
+
+export function setQuotaExceededGlobal() {
+  if (typeof window === 'undefined') return;
+  const today = new Date().toISOString().split('T')[0];
+  localStorage.setItem('firestore_quota_exceeded_date', today);
+  // Also set in session for immediate reactive checks if needed
+  sessionStorage.setItem('firestore_quota_exceeded', 'true');
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const isQuotaError = errorMessage.includes('quota') || errorMessage.includes('resource-exhausted');
+
+  if (isQuotaError) {
+    setQuotaExceededGlobal();
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -60,8 +84,16 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
+  
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  
+  // Only throw if it's NOT a quota error, to avoid crashing the app when quota is hit
+  if (!isQuotaError) {
+    throw new Error(JSON.stringify(errInfo));
+  } else {
+    // If quota is hit, we just log it and maybe show a warning in the UI
+    console.warn('Firestore Quota Exceeded. Some data may not load correctly.');
+  }
 }
 
 export async function testFirestoreConnection() {

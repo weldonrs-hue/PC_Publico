@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Map, 
+  Map as MapIcon, 
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -29,15 +29,17 @@ import {
   where, 
   getDocs, 
   setDoc, 
+  updateDoc,
   doc, 
   onSnapshot,
   writeBatch,
   deleteDoc
 } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 
 interface ItinerariesViewProps {
   userId: string;
+  user?: any;
   onBack: () => void;
 }
 
@@ -104,7 +106,7 @@ const OUTROS_EVENTOS = [
   'Reunião especial com os pioneiros'
 ];
 
-export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps) {
+export default function ItinerariesView({ userId, user, onBack }: ItinerariesViewProps) {
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
   const [originalItineraries, setOriginalItineraries] = useState<string>('[]');
   const [loading, setLoading] = useState(true);
@@ -224,8 +226,14 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
 
   const initializeItineraries = useCallback(async (existingItems: ItineraryItem[]) => {
     if (initializing) return;
+    
+    // Guard against multiple initializations in the same session or if quota is exceeded
+    const hasInitialized = sessionStorage.getItem(`itinerariesInit_${userId}`);
+    if (hasInitialized || isQuotaExceeded()) return;
+
     try {
       setInitializing(true);
+      sessionStorage.setItem(`itinerariesInit_${userId}`, 'true');
       const batch = writeBatch(db);
       
       const startDateStr = '01/09/2025';
@@ -235,8 +243,8 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
       const existingSemanas = new Set(existingItems.map(item => item.semana));
       let addedCount = 0;
       
-      // Generate 156 Mondays (3 years)
-      for (let i = 0; i < 156; i++) {
+      // Generate 4 Mondays (1 month)
+      for (let i = 0; i < 4; i++) {
         const d = String(date.getDate()).padStart(2, '0');
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const y = date.getFullYear();
@@ -261,10 +269,21 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
       }
       
       if (addedCount > 0) {
+        // Double check quota hasn't been hit recently
+        if (isQuotaExceeded()) return;
+
         await batch.commit();
+        // Mark as initialized in user doc to prevent repeated attempts
+        try {
+          await updateDoc(doc(db, 'users', userId), { itinerariesInitialized: true });
+          localStorage.setItem(`itineraries_initialized_${userId}`, 'true');
+        } catch (e) {}
       }
-    } catch (error) {
+    } catch (error: any) {
       if (auth.currentUser) {
+        if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
+          setQuotaExceededGlobal();
+        }
         handleFirestoreError(error, OperationType.WRITE, 'itineraries_init');
       }
     } finally {
@@ -309,25 +328,33 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
       
       setItineraries(items);
       // Only set original if it's the first load or if we want to sync with server
-      if (originalItineraries === '[]') {
-        setOriginalItineraries(JSON.stringify(items));
-      }
+      // We use a functional update to avoid dependency on originalItineraries
+      setOriginalItineraries(prev => {
+        if (prev === '[]') return JSON.stringify(items);
+        return prev;
+      });
       setLoading(false);
 
       // Check if we need to initialize or backfill
       const hasStartDate = items.some(item => item.semana === '01/09/2025');
-      if (!hasStartDate && !initializing && auth.currentUser) {
+      const hasInitializedDoc = user?.itinerariesInitialized || localStorage.getItem(`itineraries_initialized_${userId}`) === 'true';
+      const quotaHit = sessionStorage.getItem('firestore_quota_exceeded') === 'true';
+      
+      if (!hasStartDate && !initializing && auth.currentUser && !hasInitializedDoc && !quotaHit) {
         initializeItineraries(items);
       }
-    }, (error) => {
+    }, (error: any) => {
       if (auth.currentUser) {
+        if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
+          sessionStorage.setItem('firestore_quota_exceeded', 'true');
+        }
         handleFirestoreError(error, OperationType.GET, 'itineraries');
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [userId, originalItineraries, initializeItineraries, initializing]);
+  }, [userId, user?.itinerariesInitialized, initializeItineraries, initializing]);
 
   const filteredItineraries = useMemo(() => {
     try {
@@ -413,14 +440,27 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
     setSaving(true);
     try {
       const batch = writeBatch(db);
+      const originalItems = JSON.parse(originalItineraries) as ItineraryItem[];
+      const originalMap = new Map(originalItems.map(item => [item.id, JSON.stringify(item)]));
+      
+      let changedCount = 0;
       itineraries.forEach(item => {
         if (item.id) {
-          const docRef = doc(db, 'itineraries', item.id);
-          const { id, ...data } = item;
-          batch.update(docRef, data);
+          const currentStr = JSON.stringify(item);
+          const originalStr = originalMap.get(item.id);
+          
+          if (currentStr !== originalStr) {
+            const docRef = doc(db, 'itineraries', item.id);
+            const { id, ...data } = item;
+            batch.update(docRef, data);
+            changedCount++;
+          }
         }
       });
-      await batch.commit();
+      
+      if (changedCount > 0) {
+        await batch.commit();
+      }
       setOriginalItineraries(JSON.stringify(itineraries));
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'itineraries_save');
@@ -630,7 +670,7 @@ export default function ItinerariesView({ userId, onBack }: ItinerariesViewProps
           Voltar ao Painel
         </button>
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Map className="text-[#512da8]" />
+          <MapIcon className="text-[#512da8]" />
           Itinerários do Circuito
         </h2>
       </div>

@@ -15,6 +15,7 @@ const navItems = [
   { icon: School, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
   { icon: Layers, label: 'Diversos', view: 'misc' },
+  { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
 
 interface SidebarProps {
@@ -103,6 +104,10 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
     }
   };
 
+  const isAdminUser = user?.role === 'admin' || user?.usuario === '2283701' || user?.email === 'weldonrs@gmail.com';
+
+  const menuItems = [...navItems];
+
   return (
     <aside className="
       fixed z-50 bg-[#512da8] text-white transition-all duration-500 ease-in-out
@@ -172,7 +177,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
             )}
           </div>
 
-          {navItems.map((item) => (
+          {menuItems.map((item) => (
             <Link
               key={item.label}
               href="#"

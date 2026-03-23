@@ -1,6 +1,6 @@
 'use client';
 // Force rebuild
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Sidebar from '@/components/Sidebar';
 import DashboardCards from '@/components/DashboardCards';
@@ -11,6 +11,7 @@ import CongregationsView from '@/components/CongregationsView';
 import SubstitutesView from '@/components/SubstitutesView';
 import ItinerariesView from '@/components/ItinerariesView';
 import SettingsView from '@/components/SettingsView';
+import UsersView from '@/components/UsersView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -20,19 +21,32 @@ import {
   getDocs, 
   limit,
   getDoc,
-  setDoc,
-  doc,
-  onSnapshot
+  setDoc, 
+  updateDoc, 
+  doc, 
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings'>('dashboard');
+  const [quotaExceeded, setQuotaExceeded] = useState(isQuotaExceeded());
+  const quotaExceededRef = useRef(isQuotaExceeded());
+
+  // Sync ref with state and check global quota
+  useEffect(() => {
+    quotaExceededRef.current = quotaExceeded;
+    if (quotaExceeded) {
+      setQuotaExceededGlobal();
+    }
+  }, [quotaExceeded]);
+
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users'>('dashboard');
   const [personalData, setPersonalData] = useState<any>(null);
   const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0 });
 
@@ -42,43 +56,100 @@ export default function Home() {
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Ensure user document exists in Firestore and listen for changes
+        // Set a basic user state immediately so we don't stay on the login screen if authenticated
+        const basicUserData = {
+          id: firebaseUser.uid,
+          usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+          email: firebaseUser.email,
+          role: 'user', // Default role
+          photoURL: firebaseUser.photoURL || null,
+          migrationCompleted: true, // Assume true to avoid migration loops if quota is hit
+          itinerariesInitialized: true
+        };
+        setUser(basicUserData);
+
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        
-        unsubUser = onSnapshot(userDocRef, async (userDoc) => {
-          let role = 'user';
-          let photoURL = null;
-          
-          if (!userDoc.exists()) {
-            const isAdminEmail = 
-              firebaseUser.email === 'weldonrs@gmail.com' || 
-              firebaseUser.email === '2283701@progcir.app' ||
-              firebaseUser.email === '2283701@progcir.com';
-            role = isAdminEmail ? 'admin' : 'user';
-            await setDoc(userDocRef, {
-              email: firebaseUser.email,
-              role: role,
-              photoURL: null
-            });
-          } else {
-            const data = userDoc.data();
-            role = data.role || 'user';
-            photoURL = data.photoURL || null;
+
+        // Update last login once per session/auth change
+        try {
+          // Check if quota is already exceeded before doing anything
+          if (isQuotaExceeded()) {
+            setQuotaExceeded(true);
+            return;
           }
 
-          const userData = {
-            id: firebaseUser.uid,
-            usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
-            email: firebaseUser.email,
-            role: role,
-            photoURL: photoURL
-          };
-          setUser(userData);
+          const userDoc = await getDoc(userDocRef);
+          const isAdminEmail = 
+            firebaseUser.email === 'weldonrs@gmail.com' || 
+            firebaseUser.email === '2283701@progcir.app' ||
+            firebaseUser.email === '2283701@progcir.com';
+          const role = isAdminEmail ? 'admin' : 'user';
+
+          if (!userDoc.exists()) {
+            // Only attempt setDoc if quota not already known to be exceeded
+            if (!quotaExceededRef.current) {
+              await setDoc(userDocRef, {
+                email: firebaseUser.email,
+                role: role,
+                photoURL: null,
+                createdAt: new Date().toISOString(),
+                lastLogin: new Date().toISOString(),
+                migrationCompleted: false
+              });
+              localStorage.setItem(`lastLoginUpdate_${firebaseUser.uid}`, new Date().getTime().toString());
+            }
+          } else {
+            const data = userDoc.data();
+            const updates: any = {};
+            
+            // Ensure admin role is set for admin emails
+            if (isAdminEmail && data.role !== 'admin') {
+              updates.role = 'admin';
+            }
+
+            // Update lastLogin only once per day to save quota (changed from 1 hour to 24 hours)
+            const lastUpdate = localStorage.getItem(`lastLoginUpdate_${firebaseUser.uid}`);
+            const now = new Date().getTime();
+            if (!lastUpdate || (now - parseInt(lastUpdate)) > 86400000) { // 24 hours
+              updates.lastLogin = new Date().toISOString();
+              localStorage.setItem(`lastLoginUpdate_${firebaseUser.uid}`, now.toString());
+            }
+
+            if (Object.keys(updates).length > 0 && !quotaExceededRef.current) {
+              await updateDoc(userDocRef, updates);
+            }
+          }
+        } catch (error: any) {
+          console.error('Error updating user login info:', error);
+          if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
+            setQuotaExceeded(true);
+            setQuotaExceededGlobal();
+          }
+        }
+        
+        // Listen for changes without updating back (no loop)
+        unsubUser = onSnapshot(userDocRef, (userDoc) => {
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            const userData = {
+              id: firebaseUser.uid,
+              usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+              email: firebaseUser.email,
+              role: data.role || 'user',
+              photoURL: data.photoURL || null,
+              migrationCompleted: data.migrationCompleted || false,
+              itinerariesInitialized: data.itinerariesInitialized || false
+            };
+            setUser(userData);
+          }
         }, (error) => {
-          // Only log if we still have a user (ignore errors during logout)
+          // Don't throw here to avoid crashing the app if quota is hit
           if (auth.currentUser) {
-            console.error('Error listening to user profile:', error);
-            handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+            console.error('Error listening to user profile (likely quota exceeded):', error);
+            if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
+              setQuotaExceeded(true);
+              setQuotaExceededGlobal();
+            }
           }
         });
       } else {
@@ -89,6 +160,7 @@ export default function Home() {
         setUser(null);
         setPersonalData(null);
         setCongStats({ congregations: 0, groups: 0, substitutes: 0 });
+        setQuotaExceeded(false);
       }
     });
 
@@ -99,87 +171,61 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
+    const isDashboard = currentView === 'dashboard';
+    
     const fetchData = async () => {
-      // Wait for auth.currentUser to be available (up to 5 seconds)
-      let attempts = 0;
-      while (!auth.currentUser && attempts < 50) {
-        // If user state was cleared during wait, abort
-        if (!user) return;
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
-
-      if (!auth.currentUser || !user) {
-        return;
-      }
+      // Wait for auth.currentUser to be available
+      if (!auth.currentUser) return;
 
       const activeUid = auth.currentUser.uid;
-      const activeEmail = auth.currentUser.email;
       
       // Double check we are still logged in as the same user
       if (activeUid !== user.id) return;
 
-      console.log(`fetchData: Iniciando busca para UID: ${activeUid}, Email: ${activeEmail}`);
-
-      // Test permissions with a simple query before proceeding
       try {
-        const testQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
-        await getDocs(testQuery);
-      } catch (error) {
-        if (auth.currentUser) {
-          console.error('fetchData: Falha no teste de permissões:', error);
-          handleFirestoreError(error, OperationType.GET, 'permission_test');
-        }
-        return;
-      }
-
-      try {
-        // Fetch Personal Data - Try by activeUid as doc ID first
-        let pdData = null;
-        try {
+        // Fetch Personal Data if not already loaded or if it's been a while
+        if (!personalData || isDashboard) {
           const pdDocRef = doc(db, 'personal_data', activeUid);
           const pdDoc = await getDoc(pdDocRef);
+          
           if (pdDoc.exists()) {
-            pdData = pdDoc.data();
+            const pdData = pdDoc.data();
+            setPersonalData(pdData);
+            // Only update user state if the username is different to avoid loops
+            if (pdData.numeroPessoal && pdData.numeroPessoal !== user.usuario) {
+              setUser((prev: any) => prev ? ({ ...prev, usuario: pdData.numeroPessoal }) : null);
+            }
           } else {
             // Fallback: search by userId field
-            const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
-            const pdSnapshot = await getDocs(pdQuery);
-            if (!pdSnapshot.empty) {
-              pdData = pdSnapshot.docs[0].data();
-              // Migrate this doc to use activeUid as ID
-              await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
+            const hasMigratedFallback = localStorage.getItem(`pdMigrationFallbackAttempted_${activeUid}`);
+            if (!hasMigratedFallback && !quotaExceeded) {
+              const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+              const pdSnapshot = await getDocs(pdQuery);
+              if (!pdSnapshot.empty) {
+                localStorage.setItem(`pdMigrationFallbackAttempted_${activeUid}`, 'true');
+                const pdData = pdSnapshot.docs[0].data();
+                setPersonalData(pdData);
+                // Migrate this doc to use activeUid as ID
+                await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
+              }
             }
           }
-        } catch (error) {
-          if (auth.currentUser) {
-            console.error('Erro ao buscar personal_data:', error);
-            handleFirestoreError(error, OperationType.GET, 'personal_data_fetch');
-          }
-          return;
         }
         
-        if (!auth.currentUser) return;
-
-        if (pdData) {
-          setPersonalData(pdData);
-          if (pdData.numeroPessoal) {
-            setUser((prev: any) => prev ? ({ ...prev, usuario: pdData.numeroPessoal }) : null);
-          }
-        } else {
-          // MIGRATION LOGIC: Check if there's data for this username/number under a different UID
+        // MIGRATION LOGIC (only if not already completed)
+        if (!user.migrationCompleted && !personalData) {
           const username = user.usuario;
-          if (username && /^\d+$/.test(username)) {
-            // 1. Try to find by numeroPessoal first
+          const hasMigrated = localStorage.getItem(`migrationAttempted_${activeUid}`);
+          
+          if (username && /^\d+$/.test(username) && !hasMigrated && !quotaExceeded) {
+            localStorage.setItem(`migrationAttempted_${activeUid}`, 'true');
             let migrationSnapshot;
             try {
               let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
               migrationSnapshot = await getDocs(migrationQuery);
-            } catch (error) {
-              // Ignore migration errors if logging out
-            }
+            } catch (error) {}
 
             if (!auth.currentUser) return;
 
@@ -190,114 +236,97 @@ export default function Home() {
               const docSnap = migrationSnapshot.docs[0];
               oldData = docSnap.data();
               oldUserId = oldData.userId;
-            } else {
-              // 2. Try to find by old email domain (@progcir.com) in users collection
-              const oldEmail = `${username}@progcir.com`;
-              let userSnapshot;
-              try {
-                const userQuery = query(collection(db, 'users'), where('email', '==', oldEmail), limit(1));
-                userSnapshot = await getDocs(userQuery);
-              } catch (error) {}
-              
-              if (userSnapshot && !userSnapshot.empty) {
-                oldUserId = userSnapshot.docs[0].id;
-                try {
-                  const pdOldQuery = query(collection(db, 'personal_data'), where('userId', '==', oldUserId), limit(1));
-                  const pdOldSnapshot = await getDocs(pdOldQuery);
-                  if (!pdOldSnapshot.empty) {
-                    const docSnap = pdOldSnapshot.docs[0];
-                    oldData = docSnap.data();
-                  }
-                } catch (error) {}
-              }
             }
             
-            if (!auth.currentUser) return;
-
-            if (oldUserId && oldUserId !== activeUid) {
-              if (oldData) {
-                const migratedData = {
-                  ...oldData,
-                  userId: activeUid,
-                  numeroPessoal: username
-                };
-                await setDoc(doc(db, 'personal_data', activeUid), migratedData);
-                setPersonalData(migratedData);
-              }
+            if (oldUserId && oldUserId !== activeUid && oldData) {
+              const migratedData = {
+                ...oldData,
+                userId: activeUid,
+                numeroPessoal: username
+              };
+              await setDoc(doc(db, 'personal_data', activeUid), migratedData);
+              setPersonalData(migratedData);
               
               // Migrate other collections
               const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries'];
+              const batch = writeBatch(db);
+              let batchCount = 0;
+              
               for (const collName of collectionsToMigrate) {
-                if (!auth.currentUser) break;
                 try {
                   const q = query(collection(db, collName), where('userId', '==', oldUserId));
                   const snapshot = await getDocs(q);
-                  if (!snapshot.empty) {
-                    for (const d of snapshot.docs) {
-                      await setDoc(doc(db, collName, d.id), {
-                        ...d.data(),
-                        userId: activeUid
-                      });
-                    }
+                  for (const d of snapshot.docs) {
+                    batch.set(doc(db, collName, d.id), { ...d.data(), userId: activeUid });
+                    batchCount++;
+                    // Firestore batch limit is 500
+                    if (batchCount >= 450) break; 
                   }
                 } catch (error) {}
+                if (batchCount >= 450) break;
               }
-              
-              if (!auth.currentUser) return;
-              fetchData(); 
-              return;
+
+              if (batchCount > 0) {
+                await batch.commit();
+              }
+
+              // Mark migration as completed in user doc
+              await updateDoc(doc(db, 'users', activeUid), { migrationCompleted: true });
             }
           }
         }
 
-        if (!auth.currentUser) return;
-
-        // Fetch Congregations for stats
-        let congSnapshot;
-        try {
-          const congQuery = query(collection(db, 'congregations'), where('userId', '==', activeUid));
-          congSnapshot = await getDocs(congQuery);
-        } catch (error) {
-          if (auth.currentUser) {
-            handleFirestoreError(error, OperationType.GET, 'congregations_fetch');
+        // Fetch Stats (only if on dashboard or cache expired)
+        const cachedStatsStr = sessionStorage.getItem(`dashboardStats_${activeUid}`);
+        const now = new Date().getTime();
+        let shouldFetchStats = isDashboard;
+        
+        if (cachedStatsStr) {
+          const cached = JSON.parse(cachedStatsStr);
+          setCongStats(cached.stats);
+          // If cache is less than 10 minutes old, don't fetch unless explicitly on dashboard and cache is > 2 min
+          if (now - cached.timestamp < 600000) {
+            if (!isDashboard || (now - cached.timestamp < 120000)) {
+              shouldFetchStats = false;
+            }
           }
-          return;
         }
-        let congregations = congSnapshot.size;
-        let groups = 0;
-        congSnapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          if (data.grupos && Array.isArray(data.grupos)) {
-            groups += data.grupos.length;
-          }
-        });
 
-        if (!auth.currentUser) return;
+        if (shouldFetchStats && !quotaExceeded) {
+          const [congSnap, subSnap] = await Promise.all([
+            getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
+            getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid)))
+          ]);
 
-        // Fetch Substitutes for stats
-        let subSnapshot;
-        try {
-          const subQuery = query(collection(db, 'substitutes'), where('userId', '==', activeUid));
-          subSnapshot = await getDocs(subQuery);
-        } catch (error) {
-          if (auth.currentUser) {
-            handleFirestoreError(error, OperationType.GET, 'substitutes_fetch');
-          }
-          return;
+          let groups = 0;
+          congSnap.docs.forEach((doc) => {
+            const data = doc.data();
+            if (data.grupos && Array.isArray(data.grupos)) {
+              groups += data.grupos.length;
+            }
+          });
+
+          const newStats = { 
+            congregations: congSnap.size, 
+            groups, 
+            substitutes: subSnap.size 
+          };
+          setCongStats(newStats);
+          sessionStorage.setItem(`dashboardStats_${activeUid}`, JSON.stringify({
+            stats: newStats,
+            timestamp: now
+          }));
         }
-        let substitutes = subSnapshot.size;
-
-        if (!auth.currentUser) return;
-        setCongStats({ congregations, groups, substitutes });
-      } catch (error) {
-        if (auth.currentUser) {
-          console.error('Error in fetchData overall:', error);
+      } catch (error: any) {
+        console.error('Error in fetchData:', error);
+        if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
+          setQuotaExceeded(true);
         }
       }
     };
 
     fetchData();
-  }, [user, currentView]);
+  }, [user?.id, user?.usuario, user?.migrationCompleted, currentView, personalData, quotaExceeded]); // Only re-run when entering dashboard or user changes
 
   const handlePersonalDataSave = () => {
     // Trigger re-fetch
@@ -308,6 +337,7 @@ export default function Home() {
     try {
       await signOut(auth);
       setUser(null);
+      setQuotaExceeded(false);
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -340,13 +370,18 @@ export default function Home() {
         currentView={currentView}
         onBack={() => setCurrentView('dashboard')}
         onViewChange={(view) => {
-          if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings'].includes(view)) {
-            setCurrentView(view);
+          if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users'].includes(view)) {
+            setCurrentView(view as any);
           }
         }}
       />
       
       <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-20 landscape:lg:ml-56 portrait:mb-16">
+        {quotaExceeded && (
+          <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-pulse">
+            ⚠️ Limite de cota do Firestore excedido. Alguns dados podem não carregar corretamente. Tente novamente mais tarde.
+          </div>
+        )}
         <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-5xl mx-auto w-full">
           {currentView === 'dashboard' && (
             <>
@@ -418,6 +453,7 @@ export default function Home() {
           {currentView === 'itineraries' && (
             <ItinerariesView 
               userId={user.id}
+              user={user}
               onBack={() => setCurrentView('dashboard')} 
             />
           )}
@@ -425,6 +461,12 @@ export default function Home() {
           {currentView === 'settings' && (
             <SettingsView 
               userId={user.id}
+              onBack={() => setCurrentView('dashboard')} 
+            />
+          )}
+
+          {currentView === 'users' && (
+            <UsersView 
               onBack={() => setCurrentView('dashboard')} 
             />
           )}

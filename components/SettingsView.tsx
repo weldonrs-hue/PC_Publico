@@ -8,7 +8,6 @@ import {
   Trash2, 
   Calendar, 
   Lock, 
-  Sparkles, 
   FolderPlus,
   ChevronLeft,
   Loader2,
@@ -23,9 +22,14 @@ import {
   where,
   getDocs,
   doc, 
-  getDoc,
-  setDoc 
+  getDoc 
 } from 'firebase/firestore';
+import { 
+  EmailAuthProvider, 
+  reauthenticateWithCredential, 
+  updatePassword 
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 interface SettingsViewProps {
   userId: string;
@@ -76,13 +80,6 @@ const settingsButtons = [
     color: 'bg-[#6c40bd]'
   },
   {
-    id: 'atualizacoes',
-    icon: Sparkles,
-    title: 'PROCURAR',
-    subtitle: 'POR NOVAS ATUALIZAÇÕES',
-    color: 'bg-[#6c40bd]'
-  },
-  {
     id: 'pastas',
     icon: FolderPlus,
     title: 'CRIAR PASTAS',
@@ -100,6 +97,16 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isIframe, setIsIframe] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>('user');
 
   useEffect(() => {
     // Detect if running in an iframe
@@ -121,6 +128,13 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
           if (data.circuito) {
             setCircuito(data.circuito);
           }
+        }
+
+        // Fetch current user role
+        const userDocRef = doc(db, 'users', userId);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setCurrentUserRole(userDocSnap.data().role || 'user');
         }
       } catch (error) {
         console.error('Erro ao buscar configurações:', error);
@@ -163,21 +177,6 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
       const circuitFolderName = circuito || 'CIRCUITO-NOVO';
       setCreationStep(`Criando pasta base: ${circuitFolderName}...`);
       const circuitHandle = await rootHandle.getDirectoryHandle(circuitFolderName, { create: true });
-
-      // Save path to Firestore
-      const pathString = `${rootHandle.name} > ${circuitFolderName}`;
-      setPastaCircuito(pathString);
-      
-      try {
-        const docRef = doc(db, 'personal_data', userId);
-        await setDoc(docRef, { 
-          pastaCircuito: pathString,
-          userId: userId 
-        }, { merge: true });
-        console.log('Path saved to Firestore:', pathString);
-      } catch (dbErr) {
-        console.error('Erro ao salvar caminho no Firestore:', dbErr);
-      }
 
       // 3. Fetch congregations
       setCreationStep('Buscando congregações...');
@@ -257,8 +256,63 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
   const handleButtonClick = (id: string) => {
     if (id === 'pastas') {
       handleCreateFolders();
+    } else if (id === 'seguranca') {
+      setIsChangingPassword(true);
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.currentUser || !auth.currentUser.email) return;
+
+    if (passwordForm.new !== passwordForm.confirm) {
+      setPasswordError('As novas senhas não coincidem.');
+      return;
+    }
+
+    if (passwordForm.new.length < 6) {
+      setPasswordError('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordError(null);
+
+    try {
+      const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForm.current);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await updatePassword(auth.currentUser, passwordForm.new);
+      
+      setPasswordSuccess(true);
+      setPasswordForm({ current: '', new: '', confirm: '' });
+      setTimeout(() => {
+        setPasswordSuccess(false);
+        setIsChangingPassword(false);
+      }, 3000);
+    } catch (err: any) {
+      console.error('Erro ao alterar senha:', err);
+      const errorCode = err.code || '';
+      const errorMessage = err.message || '';
+      
+      if (
+        errorCode === 'auth/wrong-password' || 
+        errorCode === 'auth/invalid-credential' || 
+        errorCode === 'auth/user-not-found' ||
+        errorMessage.includes('invalid-credential') ||
+        errorMessage.includes('wrong-password')
+      ) {
+        setPasswordError('Senha atual incorreta.');
+      } else if (errorCode === 'auth/too-many-requests') {
+        setPasswordError('Muitas tentativas. Tente novamente mais tarde.');
+      } else if (errorCode === 'auth/requires-recent-login') {
+        setPasswordError('Sua sessão expirou. Por favor, saia e entre novamente no sistema.');
+      } else {
+        setPasswordError(errorMessage || 'Ocorreu um erro ao alterar a senha. Tente novamente.');
+      }
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -281,13 +335,15 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {settingsButtons.map((btn, index) => (
-          <button
-            key={index}
-            onClick={() => handleButtonClick(btn.id)}
-            disabled={isCreatingFolders}
-            className={`flex items-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group border border-gray-100 h-24 ${isCreatingFolders ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
+        {settingsButtons
+          .filter(btn => btn.id !== 'usuarios' || currentUserRole === 'admin')
+          .map((btn, index) => (
+            <button
+              key={index}
+              onClick={() => handleButtonClick(btn.id)}
+              disabled={isCreatingFolders}
+              className={`flex items-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group border border-gray-100 h-24 ${isCreatingFolders ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
             <div className="w-4 h-full bg-[#6c40bd] flex-shrink-0" />
             <div className="flex-1 flex items-center px-6 gap-6">
               <div className="text-[#6c40bd] group-hover:scale-110 transition-transform">
@@ -396,6 +452,107 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
               <p className="font-bold">Estrutura Criada!</p>
               <p className="text-xs opacity-90">As pastas foram organizadas em: {circuito || 'Circuito'}</p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Password Change Modal */}
+      <AnimatePresence>
+        {isChangingPassword && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-[#f3e5f5] rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Lock size={32} className="text-[#6c40bd]" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Alterar Senha</h3>
+                <p className="text-gray-500 text-xs">Mantenha sua conta segura</p>
+              </div>
+
+              {passwordSuccess ? (
+                <div className="py-8 text-center space-y-4">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 size={24} className="text-emerald-600" />
+                  </div>
+                  <p className="text-emerald-600 font-bold">Senha alterada com sucesso!</p>
+                </div>
+              ) : (
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Senha Atual</label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordForm.current}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#6c40bd] focus:border-transparent transition-all outline-none text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Nova Senha</label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordForm.new}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#6c40bd] focus:border-transparent transition-all outline-none text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Confirmar Nova Senha</label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordForm.confirm}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#6c40bd] focus:border-transparent transition-all outline-none text-sm"
+                    />
+                  </div>
+
+                  {passwordError && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-2xl text-[11px] border border-red-100">
+                      <AlertCircle size={14} className="shrink-0" />
+                      <p>{passwordError}</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={passwordLoading}
+                      className="w-full py-3 bg-[#6c40bd] text-white font-bold rounded-xl hover:bg-[#5a35a0] transition-colors shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {passwordLoading ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        'Confirmar Alteração'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChangingPassword(false);
+                        setPasswordError(null);
+                        setPasswordForm({ current: '', new: '', confirm: '' });
+                      }}
+                      className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

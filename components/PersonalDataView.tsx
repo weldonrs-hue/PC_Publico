@@ -30,7 +30,7 @@ import {
   limit,
   getDoc
 } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { formatBRPhone, formatCEP, formatCircuito } from '@/utils/formatters';
 
 interface PersonalDataViewProps {
@@ -73,16 +73,22 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           setFormData(mergedData);
         } else {
           // Fallback: search by userId field
+          const hasMigrated = sessionStorage.getItem(`pdMigrationAttempted_${userId}`);
+          if (hasMigrated) return;
+
           const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
           const querySnapshot = await getDocs(q);
           
           if (!querySnapshot.empty) {
+            sessionStorage.setItem(`pdMigrationAttempted_${userId}`, 'true');
             const docData = querySnapshot.docs[0].data() as any;
             const mergedData = { ...defaultData, ...docData };
             setInitialData(mergedData);
             setFormData(mergedData);
             // Migrate to use userId as doc ID for future efficiency
-            await setDoc(doc(db, 'personal_data', userId), { ...mergedData, userId });
+            if (!isQuotaExceeded()) {
+              await setDoc(doc(db, 'personal_data', userId), { ...mergedData, userId });
+            }
           }
         }
       } catch (error) {
@@ -135,12 +141,18 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     if (e) e.preventDefault();
     
     try {
+      if (isQuotaExceeded()) {
+        throw new Error('quota/limit-exceeded');
+      }
       // Use userId as document ID
       const docRef = doc(db, 'personal_data', userId);
       await setDoc(docRef, { ...formData, userId });
       setInitialData(formData);
       onSave();
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
+        setQuotaExceededGlobal();
+      }
       handleFirestoreError(error, OperationType.WRITE, 'personal_data');
     }
   };
