@@ -8,11 +8,13 @@ import {
   Trash2, 
   Calendar, 
   Lock, 
+  Users,
   FolderPlus,
   ChevronLeft,
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  UserX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -22,18 +24,23 @@ import {
   where,
   getDocs,
   doc, 
-  getDoc 
+  getDoc,
+  deleteDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { 
   EmailAuthProvider, 
   reauthenticateWithCredential, 
-  updatePassword 
+  updatePassword,
+  deleteUser
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface SettingsViewProps {
   userId: string;
   onBack: () => void;
+  onViewChange: (view: string) => void;
 }
 
 const settingsButtons = [
@@ -80,15 +87,29 @@ const settingsButtons = [
     color: 'bg-[#6c40bd]'
   },
   {
+    id: 'usuarios',
+    icon: Users,
+    title: 'CONTAS',
+    subtitle: 'DE USUÁRIOS',
+    color: 'bg-[#6c40bd]'
+  },
+  {
     id: 'pastas',
     icon: FolderPlus,
     title: 'CRIAR PASTAS',
     subtitle: 'PARA O CIRCUITO',
     color: 'bg-[#6c40bd]'
+  },
+  {
+    id: 'excluir',
+    icon: UserX,
+    title: 'EXCLUIR CONTA',
+    subtitle: 'E TODOS OS DADOS',
+    color: 'bg-red-600'
   }
 ];
 
-export default function SettingsView({ userId, onBack }: SettingsViewProps) {
+export default function SettingsView({ userId, onBack, onViewChange }: SettingsViewProps) {
   const [pastaCircuito, setPastaCircuito] = useState<string>('Não configurada');
   const [circuito, setCircuito] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -98,6 +119,11 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [isIframe, setIsIframe] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<'confirm' | 'reauth' | 'deleting' | 'success'>('confirm');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     current: '',
     new: '',
@@ -258,8 +284,81 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
       handleCreateFolders();
     } else if (id === 'seguranca') {
       setIsChangingPassword(true);
+    } else if (id === 'usuarios') {
+      onViewChange('users');
+    } else if (id === 'excluir') {
+      setIsDeletingAccount(true);
+      setDeleteStep('confirm');
+      setDeleteError('');
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    setIsProcessing(true);
+    setDeleteError('');
+
+    try {
+      // 1. Re-authenticate if it's a password user
+      const providerId = user.providerData[0]?.providerId;
+      if (providerId === 'password') {
+        const credential = EmailAuthProvider.credential(user.email!, deletePassword);
+        try {
+          await reauthenticateWithCredential(user, credential);
+        } catch (error: any) {
+          setDeleteError('Senha incorreta. Por favor, tente novamente.');
+          setIsProcessing(false);
+          return;
+        }
+      }
+
+      setDeleteStep('deleting');
+
+      // 2. Delete all Firestore data
+      const batch = writeBatch(db);
+      const uid = user.uid;
+
+      // Collections to clean up
+      const collections = ['congregations', 'substitutes', 'itineraries', 'personal_data', 'users'];
+      
+      for (const collName of collections) {
+        if (collName === 'users' || collName === 'personal_data') {
+          // These use UID as document ID
+          batch.delete(doc(db, collName, uid));
+        } else {
+          // These use auto-ID but have userId field
+          const q = query(collection(db, collName), where('userId', '==', uid));
+          const snapshot = await getDocs(q);
+          snapshot.docs.forEach((d) => {
+            batch.delete(doc(db, collName, d.id));
+          });
+        }
+      }
+
+      await batch.commit();
+
+      // 3. Delete Auth Account
+      await deleteUser(user);
+      
+      setDeleteStep('success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      if (error.code === 'auth/requires-recent-login') {
+        setDeleteStep('reauth');
+      } else {
+        setDeleteError('Ocorreu um erro ao excluir sua conta. Por favor, tente novamente mais tarde.');
+        handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}`);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -552,6 +651,125 @@ export default function SettingsView({ userId, onBack }: SettingsViewProps) {
                   </div>
                 </form>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Account Modal */}
+      <AnimatePresence>
+        {isDeletingAccount && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6">
+                {deleteStep === 'confirm' && (
+                  <div className="space-y-6">
+                    <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 mx-auto">
+                      <Trash2 size={32} />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="text-xl font-bold text-gray-900">Excluir Conta?</h3>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Esta ação é irreversível. Todos os seus dados, congregações, substitutos e itinerários serão permanentemente removidos.
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setIsDeletingAccount(false)}
+                        className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => {
+                          const providerId = auth.currentUser?.providerData[0]?.providerId;
+                          if (providerId === 'password') {
+                            setDeleteStep('reauth');
+                          } else {
+                            handleDeleteAccount();
+                          }
+                        }}
+                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20"
+                      >
+                        Sim, Excluir
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {deleteStep === 'reauth' && (
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <h3 className="text-xl font-bold text-gray-900">Confirme sua Senha</h3>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Para sua segurança, confirme sua senha antes de excluir a conta.
+                      </p>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-400 uppercase ml-1">Sua Senha</label>
+                        <input
+                          type="password"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          placeholder="Digite sua senha atual"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        />
+                      </div>
+                      {deleteError && (
+                        <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium">
+                          <AlertCircle size={14} />
+                          {deleteError}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setDeleteStep('confirm')}
+                        disabled={isProcessing}
+                        className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all disabled:opacity-50"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={isProcessing || !deletePassword}
+                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {isProcessing ? <Loader2 className="animate-spin" size={18} /> : 'Excluir Agora'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {deleteStep === 'deleting' && (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                    <Loader2 className="animate-spin text-red-600" size={48} />
+                    <p className="text-lg font-bold text-gray-900">Excluindo sua conta...</p>
+                    <p className="text-sm text-gray-500">Isso pode levar alguns segundos.</p>
+                  </div>
+                )}
+
+                {deleteStep === 'success' && (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+                      <CheckCircle2 size={48} />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900">Conta Excluída</h3>
+                    <p className="text-gray-500">Sua conta e todos os dados foram removidos com sucesso. Você será desconectado.</p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}

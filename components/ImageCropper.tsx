@@ -45,8 +45,19 @@ export default function ImageCropper({ image, onCropComplete, onCancel }: ImageC
       return '';
     }
 
-    canvas.width = pixelCrop.width;
-    canvas.height = pixelCrop.height;
+    // Set a maximum size for the avatar to save space in Firestore
+    const maxSize = 300;
+    let targetWidth = pixelCrop.width;
+    let targetHeight = pixelCrop.height;
+
+    if (targetWidth > maxSize || targetHeight > maxSize) {
+      const ratio = Math.min(maxSize / targetWidth, maxSize / targetHeight);
+      targetWidth = targetWidth * ratio;
+      targetHeight = targetHeight * ratio;
+    }
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
 
     ctx.drawImage(
       image,
@@ -56,11 +67,12 @@ export default function ImageCropper({ image, onCropComplete, onCancel }: ImageC
       pixelCrop.height,
       0,
       0,
-      pixelCrop.width,
-      pixelCrop.height
+      targetWidth,
+      targetHeight
     );
 
-    return canvas.toDataURL('image/jpeg', 0.8);
+    // Use a lower quality to further reduce size
+    return canvas.toDataURL('image/jpeg', 0.7);
   };
 
   const handleSave = async () => {
