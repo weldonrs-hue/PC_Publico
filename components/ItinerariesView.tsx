@@ -953,21 +953,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </div>
                     </button>
 
-                    {selectedItem?.congregacao && (
-                      <button 
-                        onClick={handleAnalysisClick}
-                        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-amber-500 hover:bg-amber-50 transition-all group"
-                      >
-                        <div className="bg-amber-100 p-2 rounded-lg text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                          <BarChart3 size={20} />
-                        </div>
-                        <div className="text-left">
-                          <div className="font-bold text-gray-800">Análise</div>
-                          <div className="text-xs text-gray-500">Análise das atividades da congregação</div>
-                        </div>
-                      </button>
-                    )}
-
                     {selectedItem?.evento && (
                       <>
                         <button 
@@ -993,6 +978,24 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           <div className="text-left">
                             <div className="font-bold text-gray-800">Excluir Evento</div>
                             <div className="text-xs text-gray-500">Remover evento desta semana</div>
+                          </div>
+                        </button>
+                      </>
+                    )}
+
+                    {selectedItem?.congregacao && (
+                      <>
+                        <div className="border-t border-gray-100 my-2 pt-2" />
+                        <button 
+                          onClick={handleAnalysisClick}
+                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-amber-500 hover:bg-amber-50 transition-all group"
+                        >
+                          <div className="bg-amber-100 p-2 rounded-lg text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <BarChart3 size={20} />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-gray-800">Análise</div>
+                            <div className="text-xs text-gray-500">Análise das atividades da congregação</div>
                           </div>
                         </button>
                       </>

@@ -374,12 +374,12 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     { id: 'mediaEstudos', label: 'Média mensal de Estudos Bíblicos', color: 'text-gray-700', isAuto: true },
                     { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos', color: 'text-gray-700' },
                     { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES desde a última visita', color: 'text-emerald-600' },
-                    { id: 'reativados', label: 'Quantos foram REATIVADOS desde a última visita', color: 'text-blue-600' },
-                    { id: 'readmitidos', label: 'Quantos foram READMITIDOS desde a última visita', color: 'text-indigo-600' },
+                    { id: 'reativados', label: 'Quantos foram REATIVADOS desde a última visita', color: 'text-emerald-600' },
+                    { id: 'readmitidos', label: 'Quantos foram READMITIDOS desde a última visita', color: 'text-emerald-600' },
                     { id: 'batizados', label: 'Quantos foram BATIZADOS desde a última visita', color: 'text-amber-600' },
-                    { id: 'irregulares', label: 'Número de PUBLICADORES IRREGULARES desde a última visita', color: 'text-red-600' },
-                    { id: 'inativos', label: 'Quantos ficaram INATIVOS desde a última visita', color: 'text-gray-500' },
-                    { id: 'removidos', label: 'Quantos ficaram REMOVIDOS desde a última visita', color: 'text-red-700' },
+                    { id: 'irregulares', label: 'Número de IRREGULARES desde a última visita', color: 'text-red-600' },
+                    { id: 'inativos', label: 'Quantos ficaram INATIVOS desde a última visita', color: 'text-red-600' },
+                    { id: 'removidos', label: 'Quantos ficaram REMOVIDOS desde a última visita', color: 'text-red-600' },
                     { id: 'anciaos', label: 'Número de ANCIÃOS', color: 'text-[#512da8]' },
                     { id: 'servos', label: 'Números de SERVOS MINISTERIAIS', color: 'text-[#512da8]' }
                   ].map((item, idx) => {
