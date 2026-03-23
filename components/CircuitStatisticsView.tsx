@@ -242,34 +242,36 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         throw new Error('Biblioteca de PDF não carregou corretamente.');
       }
 
+      // Fix for "oklch" color error: temporarily force standard colors on the element
+      const originalStyle = element.getAttribute('style') || '';
+      element.setAttribute('style', originalStyle + '; color: #000000; background-color: #ffffff;');
+      element.classList.add('pdf-capture');
+      
       // Generate PDF blob
       const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+      
+      // Restore original state
+      element.setAttribute('style', originalStyle);
+      element.classList.remove('pdf-capture');
 
-      // Check for file system access API (Desktop)
-      if ((window as any).showDirectoryPicker) {
+      // Check for Save File Picker API (Desktop "Save As" dialog)
+      if ((window as any).showSaveFilePicker) {
         try {
-          // Ask for directory if not already known (we can't store handles persistently easily)
-          // So we always ask for the root folder once per session or just use the picker
-          const rootHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-          
-          // Create Structure using utility
-          const circuitFolderName = personalData?.circuito || 'CIRCUITO-NOVO';
-          const circuitHandle = await createCircuitFolderStructure(rootHandle, circuitFolderName, userId);
-          
-          // Get "CIRCUITO" subfolder
-          const circuitoHandle = await circuitHandle.getDirectoryHandle('CIRCUITO', { create: true });
-          
-          // Save the file
-          const fileHandle = await circuitoHandle.getFileHandle(opt.filename, { create: true });
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: opt.filename,
+            types: [{
+              description: 'PDF Document',
+              accept: { 'application/pdf': ['.pdf'] },
+            }],
+          });
           const writable = await fileHandle.createWritable();
           await writable.write(pdfBlob);
           await writable.close();
-          
-          alert(`PDF salvo com sucesso na pasta: ${circuitFolderName}/CIRCUITO`);
+          alert('PDF salvo com sucesso!');
         } catch (err: any) {
           if (err.name !== 'AbortError') {
-            console.error('Erro ao salvar no sistema de arquivos:', err);
-            // Fallback to download
+            console.error('Erro ao salvar arquivo:', err);
+            // Fallback to standard download
             const url = URL.createObjectURL(pdfBlob);
             const a = document.createElement('a');
             a.href = url;
@@ -279,7 +281,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           }
         }
       } else {
-        // Mobile or non-supporting browser: just download
+        // Fallback for mobile or browsers without showSaveFilePicker
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
@@ -287,9 +289,8 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         a.click();
         URL.revokeObjectURL(url);
         
-        // If on mobile, explain that it went to Downloads
         if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-          alert('PDF gerado com sucesso! Verifique sua pasta de Downloads ou Documentos.');
+          alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
         }
       }
     } catch (error: any) {
@@ -323,6 +324,22 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             background-color: white !important;
             min-height: 297mm;
           }
+        }
+
+        /* Fix for html2canvas oklch color error */
+        .pdf-capture, .pdf-capture * {
+          color: #1a1a1a !important;
+          background-color: transparent !important;
+          border-color: #e5e7eb !important;
+        }
+        .pdf-capture .bg-[#e9ecef] {
+          background-color: #e9ecef !important;
+        }
+        .pdf-capture .text-[#002060] {
+          color: #002060 !important;
+        }
+        .pdf-capture h1, .pdf-capture h2, .pdf-capture h3 {
+          color: #000000 !important;
         }
       `}</style>
       {/* Header - Hidden in Print */}
