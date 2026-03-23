@@ -73,16 +73,9 @@ const settingsButtons = [
     color: 'bg-[#6c40bd]'
   },
   {
-    id: 'itinerarios',
-    icon: Calendar,
-    title: 'INICIAR',
-    subtitle: 'ITINERÁRIOS NO CIRCUITO',
-    color: 'bg-[#6c40bd]'
-  },
-  {
     id: 'seguranca',
     icon: Lock,
-    title: 'SEGURANÇA',
+    title: 'ALTERAR SENHA',
     subtitle: '',
     color: 'bg-[#6c40bd]'
   },
@@ -133,6 +126,7 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>('user');
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     // Detect if running in an iframe
@@ -141,6 +135,13 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
     } catch (e) {
       setIsIframe(true);
     }
+
+    // Detect if desktop
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
 
     const fetchSettings = async () => {
       try {
@@ -170,6 +171,8 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
     };
 
     fetchSettings();
+
+    return () => window.removeEventListener('resize', checkDesktop);
   }, [userId]);
 
   const handleCreateFolders = async () => {
@@ -435,7 +438,11 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {settingsButtons
-          .filter(btn => btn.id !== 'usuarios' || currentUserRole === 'admin')
+          .filter(btn => {
+            if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
+            if (btn.id === 'pastas' && !isDesktop) return false;
+            return true;
+          })
           .map((btn, index) => (
             <button
               key={index}

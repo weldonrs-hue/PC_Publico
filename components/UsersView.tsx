@@ -211,13 +211,13 @@ export default function UsersView({ onBack }: UsersViewProps) {
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8]"
+            title="Voltar ao Painel"
           >
-            <ChevronLeft size={24} className="text-gray-600" />
+            <ChevronLeft size={24} />
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="text-[#512da8]" />
+            <h2 className="text-2xl font-bold text-gray-900">
               Usuários do Sistema
             </h2>
             <p className="text-sm text-gray-500">Gerencie os acessos e visualize metadados dos usuários</p>

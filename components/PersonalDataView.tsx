@@ -160,16 +160,15 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <button 
           onClick={handleBack}
-          className="flex items-center gap-2 text-[#4CAF50] font-bold hover:underline transition-all"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#4CAF50]"
+          title="Voltar ao Painel"
         >
-          <ChevronLeft size={20} />
-          Voltar ao Painel
+          <ChevronLeft size={24} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Contact className="text-[#4CAF50]" />
+        <h2 className="text-2xl font-bold text-gray-800">
           Dados Pessoais do Superintendente
         </h2>
       </div>
@@ -191,22 +190,11 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-            {/* Row 1: Personal Number and Names */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="md:col-span-1 space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                  <Hash size={14} /> Número Pessoal
-                </label>
-                <input 
-                  value={formData.numeroPessoal}
-                  onChange={(e) => setFormData({...formData, numeroPessoal: e.target.value})}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
-                  placeholder="Ex: 2283701"
-                />
-              </div>
+            {/* Row 1: Names */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                  <User size={14} /> Nome Completo
+                <label className="text-xs font-bold text-gray-500 uppercase">
+                  Nome Completo
                 </label>
                 <input 
                   required
@@ -217,8 +205,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 />
               </div>
               <div className="md:col-span-1 space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                  <Users size={14} /> Nome da Esposa
+                <label className="text-xs font-bold text-gray-500 uppercase">
+                  Nome da Esposa
                 </label>
                 <input 
                   value={formData.nomeEsposa}
@@ -231,8 +219,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
             {/* Row 2: Address */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                <Map size={14} /> Endereço
+              <label className="text-xs font-bold text-gray-500 uppercase">
+                Endereço
               </label>
               <input 
                 value={formData.endereco}
@@ -245,8 +233,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             {/* Row 3: City, CEP, UF, Circuit */}
             <div className="flex flex-col md:flex-row gap-6">
               <div className="flex-1 space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                  <MapPin size={14} /> Cidade
+                <label className="text-xs font-bold text-gray-500 uppercase">
+                  Cidade
                 </label>
                 <input 
                   value={formData.cidade}
@@ -256,8 +244,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 />
               </div>
               <div className="w-full md:w-[180px] space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                  <Hash size={14} /> CEP
+                <label className="text-xs font-bold text-gray-500 uppercase">
+                  CEP
                 </label>
                 <div className="relative">
                   <input 
@@ -278,8 +266,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 </div>
               </div>
               <div className="w-full md:w-[80px] space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                  <MapPin size={14} /> UF
+                <label className="text-xs font-bold text-gray-500 uppercase">
+                  UF
                 </label>
                 <input 
                   value={formData.uf}
@@ -290,8 +278,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 />
               </div>
               <div className="w-full md:w-[120px] space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                  <Globe size={14} /> Circuito
+                <label className="text-xs font-bold text-gray-500 uppercase">
+                  Circuito
                 </label>
                 <input 
                   value={formData.circuito}
@@ -307,8 +295,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             <div className="flex flex-col md:flex-row gap-8">
               <div className="flex-1 space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                    <Mail size={14} /> E-mail JWPUB
+                  <label className="text-xs font-bold text-gray-500 uppercase">
+                    E-mail JWPUB
                   </label>
                   <input 
                     type="email"
@@ -319,8 +307,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                    <Mail size={14} /> E-mail Pessoal
+                  <label className="text-xs font-bold text-gray-500 uppercase">
+                    E-mail Pessoal
                   </label>
                   <input 
                     type="email"
@@ -334,8 +322,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
               <div className="w-full md:w-[240px] space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                    <Phone size={14} /> Telefone Circuito
+                  <label className="text-xs font-bold text-gray-500 uppercase">
+                    Telefone Circuito
                   </label>
                   <input 
                     value={formData.telefoneCircuito}
@@ -346,8 +334,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                    <Phone size={14} /> Telefone Pessoal
+                  <label className="text-xs font-bold text-gray-500 uppercase">
+                    Telefone Pessoal
                   </label>
                   <input 
                     value={formData.telefonePessoal}

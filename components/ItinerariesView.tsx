@@ -18,9 +18,11 @@ import {
   Calendar,
   Info,
   Type,
-  Printer
+  Printer,
+  BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ActivityAnalysisView from './ActivityAnalysisView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -114,6 +116,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
   const [initializing, setInitializing] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
   
   const hasUnsavedChanges = JSON.stringify(itineraries) !== originalItineraries;
   
@@ -474,6 +478,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     setModalMode('actions');
   };
 
+  const handleAnalysisClick = () => {
+    if (selectedItem && selectedItem.congregacao) {
+      setAnalysisParams({
+        congregacao: selectedItem.congregacao,
+        data: selectedItem.dataEvento || selectedItem.semana
+      });
+      setShowAnalysis(true);
+      setModalMode(null);
+    }
+  };
+
   const handleEditClick = () => {
     if (selectedItem) {
       setIsAddingNew(false);
@@ -659,18 +674,28 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     }
   };
 
+  if (showAnalysis && analysisParams) {
+    return (
+      <ActivityAnalysisView 
+        userId={userId}
+        congregationName={analysisParams.congregacao}
+        visitDate={analysisParams.data}
+        onBack={() => setShowAnalysis(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex items-center gap-4 print:hidden">
         <button 
           onClick={handleBack}
-          className="flex items-center gap-2 text-[#512da8] font-bold hover:underline transition-all"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8]"
+          title="Voltar ao Painel"
         >
-          <ChevronLeft size={20} />
-          Voltar ao Painel
+          <ChevronLeft size={24} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <MapIcon className="text-[#512da8]" />
+        <h2 className="text-2xl font-bold text-gray-800">
           Itinerários do Circuito
         </h2>
       </div>
@@ -927,6 +952,21 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         <div className="text-xs text-gray-500">Alterar informações existentes</div>
                       </div>
                     </button>
+
+                    {selectedItem?.congregacao && (
+                      <button 
+                        onClick={handleAnalysisClick}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-amber-500 hover:bg-amber-50 transition-all group"
+                      >
+                        <div className="bg-amber-100 p-2 rounded-lg text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                          <BarChart3 size={20} />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-bold text-gray-800">Análise</div>
+                          <div className="text-xs text-gray-500">Análise das atividades da congregação</div>
+                        </div>
+                      </button>
+                    )}
 
                     {selectedItem?.evento && (
                       <>

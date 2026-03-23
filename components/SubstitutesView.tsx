@@ -173,16 +173,15 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
   return (
     <div className="space-y-6">
       {/* Header with Back Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-[#C2185B] font-bold hover:underline transition-all"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#C2185B]"
+          title="Voltar ao Painel"
         >
-          <ChevronLeft size={20} />
-          Voltar ao Painel
+          <ChevronLeft size={24} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <UserCheck className="text-[#C2185B]" />
+        <h2 className="text-2xl font-bold text-gray-800">
           Superintendentes Substitutos
         </h2>
       </div>
@@ -295,7 +294,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
             className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden max-w-2xl mx-auto"
           >
             <div className="bg-[#C2185B] p-4 text-white">
-              <h3 className="font-bold flex items-center gap-2">
+              <h3 className="font-bold">
                 {selectedSub ? 'Editar Substituto' : 'Novo Substituto'}
               </h3>
             </div>

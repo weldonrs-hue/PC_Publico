@@ -192,16 +192,15 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
   return (
     <div className="space-y-6">
       {/* Header with Back Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-[#E67E22] font-bold hover:underline transition-all"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#E67E22]"
+          title="Voltar ao Painel"
         >
-          <ChevronLeft size={20} />
-          Voltar ao Painel
+          <ChevronLeft size={24} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Store className="text-[#E67E22]" />
+        <h2 className="text-2xl font-bold text-gray-800">
           Gestão de Congregações
         </h2>
       </div>
@@ -320,7 +319,7 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
             className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
           >
             <div className="bg-[#E67E22] p-4 text-white">
-              <h3 className="font-bold flex items-center gap-2">
+              <h3 className="font-bold">
                 {selectedCong ? 'Editar Congregação' : 'Nova Congregação'}
               </h3>
             </div>
@@ -416,8 +415,7 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
 
                 {/* Contact Info */}
                 <div className="bg-gray-50 p-4 rounded-xl space-y-4">
-                  <h4 className="text-sm font-bold text-gray-700 border-b border-gray-200 pb-2 flex items-center gap-2">
-                    <User size={16} className="text-[#E67E22]" />
+                  <h4 className="text-sm font-bold text-gray-700 border-b border-gray-200 pb-2">
                     Coordenador
                   </h4>
                   <div className="space-y-1">
@@ -444,8 +442,7 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
               {/* Groups Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                  <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                    <Users size={16} className="text-[#E67E22]" />
+                  <h4 className="text-sm font-bold text-gray-700">
                     Grupos e Pré-grupos
                   </h4>
                   <button 
