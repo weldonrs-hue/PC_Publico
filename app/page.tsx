@@ -471,7 +471,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fa] transition-all duration-500 ease-in-out portrait:flex-col landscape:flex-row print:block">
+    <div className="flex min-h-screen bg-[#f8f9fa] transition-all duration-500 ease-in-out portrait:flex-col landscape:flex-row print:block print:bg-white">
       <div className="print:hidden">
         <Sidebar 
           onLogout={handleLogout} 

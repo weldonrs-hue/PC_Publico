@@ -219,27 +219,28 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div className="space-y-6 max-w-[210mm] mx-auto pb-12 print:p-0 print:m-0 print:max-w-none print:shadow-none">
+    <div className="space-y-6 max-w-[210mm] mx-auto pb-12 print:p-0 print:m-0 print:max-w-none print:shadow-none print:bg-white">
       <style jsx global>{`
         @media print {
           @page {
-            margin: 10mm;
+            margin: 0;
             size: A4;
           }
           body {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             background-color: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
-          /* Hide browser headers/footers by setting margin to 0 and then adding padding to body if needed, 
-             but standard margins usually include them. 
-             A common trick is to set margin: 0 in @page and then padding in the container. */
-          @page {
-            margin: 0;
-          }
-          body {
-            padding: 0;
-            margin: 0;
+          /* Apply the 1.2cm side margins and white background to the print container */
+          .print-content-container {
+            padding-left: 12mm !important;
+            padding-right: 12mm !important;
+            padding-top: 10mm !important;
+            padding-bottom: 10mm !important;
+            background-color: white !important;
+            min-height: 297mm;
           }
         }
       `}</style>
@@ -259,7 +260,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       </div>
 
       {/* A4 Document Container */}
-      <div className="bg-white p-[8mm] shadow-2xl border border-gray-200 space-y-2 print:shadow-none print:border-none print:p-0 print:space-y-1 font-sans text-gray-900 overflow-hidden leading-tight">
+      <div className="bg-white p-[8mm] shadow-2xl border border-gray-200 space-y-2 print:shadow-none print:border-none print:p-0 print:space-y-1 font-sans text-gray-900 overflow-hidden leading-tight print-content-container">
         
         {/* Document Title */}
         <div className="text-center pt-2 pb-1">
