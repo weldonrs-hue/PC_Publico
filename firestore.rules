@@ -8,52 +8,53 @@ service cloud.firestore {
     
     function isAdmin() {
       return signedIn() && (
-        request.auth.token.email == "weldonrs@gmail.com" ||
-        request.auth.token.email == "2283701@progcir.app" ||
-        request.auth.token.email == "2283701@progcir.com" ||
-        request.auth.token.get('email', '') == "weldonrs@gmail.com" ||
-        request.auth.token.get('email', '') == "2283701@progcir.app" ||
-        request.auth.token.get('email', '') == "2283701@progcir.com" ||
+        request.auth.token.get('email', '').lower() == "weldonrs@gmail.com" ||
+        request.auth.token.get('email', '').lower() == "2283701@progcir.app" ||
+        request.auth.token.get('email', '').lower() == "2283701@progcir.com" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin')
       );
     }
 
-    function getPrefix(email) {
-      return email == null || email == "" ? "" : email.split("@")[0];
+    function isEmailPrefix(prefix) {
+      return signedIn() && 
+             prefix != null && 
+             prefix != "" && 
+             request.auth.token.get('email', '').lower().matches("^" + prefix.lower() + "@.*");
+    }
+
+    // Global admin access
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
 
     // Rules for users collection
     match /users/{userId} {
-      allow read, write: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow read, write: if signedIn() && (request.auth.uid == userId);
       // Migration support: allow reading if email prefix matches
       allow read: if signedIn() && resource != null && 
-                    getPrefix(resource.data.get('email', '')) == getPrefix(request.auth.token.get('email', ''));
+                    isEmailPrefix(resource.data.get('numeroPessoal', ''));
     }
 
     // Rules for personal_data
     match /personal_data/{dataId} {
       // Allow read if:
-      // 1. User is admin
-      // 2. Document ID is the user's UID
-      // 3. Document's userId field matches user's UID
-      // 4. Document's numeroPessoal matches user's email prefix (migration)
+      // 1. Document ID is the user's UID
+      // 2. Document's userId field matches user's UID
+      // 3. Document's numeroPessoal matches user's email prefix (migration)
       allow read: if signedIn() && (
-        isAdmin() || 
         dataId == request.auth.uid || 
         (resource != null && (
           resource.data.get('userId', '') == request.auth.uid ||
-          resource.data.get('numeroPessoal', '') == getPrefix(request.auth.token.get('email', ''))
+          isEmailPrefix(resource.data.get('numeroPessoal', ''))
         ))
       );
       
       // Allow write if:
-      // 1. User is admin
-      // 2. Document ID is the user's UID
-      // 3. Document's userId field matches user's UID (for updates)
-      // 4. New data's userId field matches user's UID (for creates/updates)
+      // 1. Document ID is the user's UID
+      // 2. Document's userId field matches user's UID (for updates)
+      // 3. New data's userId field matches user's UID (for creates/updates)
       allow write: if signedIn() && (
-        isAdmin() || 
         dataId == request.auth.uid ||
         (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
         (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid)
@@ -62,41 +63,36 @@ service cloud.firestore {
 
     // Rules for other collections
     match /congregations/{id} {
-      allow read: if signedIn() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid);
-      allow write: if signedIn() && (isAdmin() || 
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
         (request.resource != null && request.resource.data.userId == request.auth.uid)
       );
     }
 
     match /substitutes/{id} {
-      allow read: if signedIn() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid);
-      allow write: if signedIn() && (isAdmin() || 
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
         (request.resource != null && request.resource.data.userId == request.auth.uid)
       );
     }
 
     match /itineraries/{id} {
-      allow read: if signedIn() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid);
-      allow write: if signedIn() && (isAdmin() || 
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
         (request.resource != null && request.resource.data.userId == request.auth.uid)
       );
     }
 
     match /activity_analysis/{id} {
-      allow read: if signedIn() && (isAdmin() || resource == null || resource.data.userId == request.auth.uid || id.startsWith(request.auth.uid + "_"));
-      allow write: if signedIn() && (isAdmin() || 
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || id.startsWith(request.auth.uid + "_"));
+      allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
         (request.resource != null && request.resource.data.userId == request.auth.uid) ||
         id.startsWith(request.auth.uid + "_")
       );
-    }
-
-    // Catch-all
-    match /{path=**} {
-      allow read, write: if isAdmin();
     }
   }
 }
