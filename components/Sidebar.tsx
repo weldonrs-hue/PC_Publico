@@ -227,17 +227,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
               <span className="font-bold text-xs hidden lg:block">Sair do Sistema</span>
             </button>
 
-            {currentView !== 'dashboard' && (
-              <button 
-                onClick={onBack}
-                className="flex items-center justify-center lg:justify-start gap-3 text-white bg-white/10 hover:bg-white/20 transition-all w-full group p-3 rounded-xl mt-4 border border-white/20 shadow-lg"
-              >
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <ChevronLeft size={24} strokeWidth={3} />
-                </div>
-                <span className="font-bold text-sm hidden lg:block">Voltar ao Painel</span>
-              </button>
-            )}
+            {/* Removed Back to Dashboard button as requested */}
           </div>
         </div>
       </div>

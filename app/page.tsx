@@ -660,7 +660,7 @@ export default function Home() {
 
           {currentView === 'users' && (
             <UsersView 
-              onBack={() => setCurrentView('dashboard')} 
+              onBack={() => setCurrentView('settings')} 
             />
           )}
 
