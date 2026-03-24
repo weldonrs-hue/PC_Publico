@@ -234,9 +234,34 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
     const element = document.getElementById('activity-analysis-form');
     if (!element) return;
 
+    // Format date for filename: (YYYY MM-DD)
+    const formatDateForFilename = (dateStr: string) => {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const d = parts[0].padStart(2, '0');
+        const m = parts[1].padStart(2, '0');
+        let y = parts[2];
+        if (y.length === 2) y = `20${y}`;
+        return `${y} ${m}-${d}`;
+      }
+      // Handle range like "10 a 15/11/2025"
+      const rangeMatch = dateStr.match(/(\d{1,2})\s+a\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if (rangeMatch) {
+        const d = rangeMatch[1].padStart(2, '0');
+        const m = rangeMatch[3].padStart(2, '0');
+        let y = rangeMatch[4];
+        if (y.length === 2) y = `20${y}`;
+        return `${y} ${m}-${d}`;
+      }
+      return dateStr.replace(/\//g, '-');
+    };
+
+    const formattedDate = formatDateForFilename(data.dataVisita);
+    const filename = `Analise (${formattedDate}) ${data.congregacao}.pdf`;
+
     const opt = {
       margin: 0,
-      filename: `Análise - ${data.congregacao} - ${data.dataVisita.replace(/\//g, '-')}.pdf`,
+      filename: filename,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, logging: false },
       jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
@@ -262,7 +287,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
       if ((window as any).showSaveFilePicker) {
         try {
           const fileHandle = await (window as any).showSaveFilePicker({
-            suggestedName: opt.filename,
+            suggestedName: filename,
             types: [{
               description: 'PDF Document',
               accept: { 'application/pdf': ['.pdf'] },
@@ -277,7 +302,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
             const url = URL.createObjectURL(pdfBlob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = opt.filename;
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
           }
@@ -286,7 +311,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = opt.filename;
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
         

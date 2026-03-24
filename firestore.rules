@@ -8,9 +8,6 @@ service cloud.firestore {
     
     function isAdmin() {
       return signedIn() && (
-        request.auth.token.email == "weldonrs@gmail.com" ||
-        request.auth.token.email == "2283701@progcir.app" ||
-        request.auth.token.email == "2283701@progcir.com" ||
         request.auth.token.get('email', '') == "weldonrs@gmail.com" ||
         request.auth.token.get('email', '') == "2283701@progcir.app" ||
         request.auth.token.get('email', '') == "2283701@progcir.com"
@@ -39,8 +36,10 @@ service cloud.firestore {
       allow read: if signedIn() && (
         isAdmin() || 
         dataId == request.auth.uid || 
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (resource != null && resource.data.get('numeroPessoal', '') == getPrefix(request.auth.token.get('email', '')))
+        (resource != null && (
+          resource.data.get('userId', '') == request.auth.uid ||
+          resource.data.get('numeroPessoal', '') == getPrefix(request.auth.token.get('email', ''))
+        ))
       );
       
       // Allow write if:
