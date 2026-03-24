@@ -238,31 +238,47 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
     };
 
     try {
-      // Dynamic import with better compatibility handling
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdf = html2pdfModule.default || html2pdfModule;
+      // Import libraries
+      const { toPng } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
 
-      if (typeof html2pdf !== 'function') {
-        throw new Error('Biblioteca de PDF não carregou corretamente.');
-      }
-
-      // Fix for "oklch" color error: temporarily force standard colors on the element
-      const originalStyle = element.getAttribute('style') || '';
-      element.setAttribute('style', originalStyle + '; color: #000000; background-color: #ffffff;');
+      // Add a class to ensure print-specific styles are applied if needed
       element.classList.add('pdf-capture');
       
-      // Generate PDF blob
-      const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+      // Convert element to PNG image
+      // html-to-image is much better at handling modern CSS like oklch
+      const dataUrl = await toPng(element, {
+        quality: 1.0,
+        pixelRatio: 2, // High resolution
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
       
-      // Restore original state
-      element.setAttribute('style', originalStyle);
       element.classList.remove('pdf-capture');
 
-      // Check for Save File Picker API (Desktop "Save As" dialog)
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const pdfBlob = pdf.output('blob');
+
+      const filename = `Circuito ${circuitName} - Estatísticas.pdf`;
+
       if ((window as any).showSaveFilePicker) {
         try {
           const fileHandle = await (window as any).showSaveFilePicker({
-            suggestedName: opt.filename,
+            suggestedName: filename,
             types: [{
               description: 'PDF Document',
               accept: { 'application/pdf': ['.pdf'] },
@@ -279,7 +295,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             const url = URL.createObjectURL(pdfBlob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = opt.filename;
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
           }
@@ -289,7 +305,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = opt.filename;
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
         

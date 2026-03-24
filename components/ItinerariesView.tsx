@@ -182,6 +182,80 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     window.print();
   };
 
+  const handleSavePDF = async () => {
+    const element = document.getElementById('itinerary-table-container');
+    if (!element) return;
+
+    const filename = `Itinerário - ${currentMonthLabel}.pdf`;
+
+    try {
+      const { toPng } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      element.classList.add('pdf-capture');
+      
+      const dataUrl = await toPng(element, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+      
+      element.classList.remove('pdf-capture');
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const pdfBlob = pdf.output('blob');
+
+      if ((window as any).showSaveFilePicker) {
+        try {
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'PDF Document',
+              accept: { 'application/pdf': ['.pdf'] },
+            }],
+          });
+          const writable = await fileHandle.createWritable();
+          await writable.write(pdfBlob);
+          await writable.close();
+          alert('PDF salvo com sucesso!');
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }
+      } else {
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    }
+  };
+
   const fetchAuxiliaryData = useCallback(async () => {
     try {
       // Fetch congregations
@@ -700,6 +774,13 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
           <div className="flex gap-2 print:hidden">
             <button 
+              onClick={handleSavePDF}
+              className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
+            >
+              <Save size={16} />
+              Salvar PDF
+            </button>
+            <button 
               onClick={handlePrint}
               className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
             >
@@ -714,7 +795,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             <Loader2 className="animate-spin text-[#512da8]" size={48} />
           </div>
         ) : (
-          <div className="overflow-x-auto pb-8">
+          <div className="overflow-x-auto pb-8" id="itinerary-table-container">
             <div className="w-full max-w-full bg-white print:w-[210mm] print:mx-auto print:p-[10mm] print:shadow-none">
               <table className="w-full text-left border-collapse border border-gray-300">
                 <thead>
@@ -1106,6 +1187,52 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           </div>
         )}
       </AnimatePresence>
+
+      <style jsx global>{`
+        @media print {
+          @page {
+            margin: 0;
+            size: A4;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            background-color: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .print\:hidden {
+            display: none !important;
+          }
+        }
+
+        .pdf-capture {
+          background-color: white !important;
+          color: black !important;
+          padding: 20px !important;
+        }
+
+        .pdf-capture .bg-\[\#512da8\] {
+          background-color: #512da8 !important;
+          color: white !important;
+        }
+
+        .pdf-capture .bg-amber-100\/40 {
+          background-color: #fef3c7 !important;
+        }
+
+        .pdf-capture .text-indigo-700 {
+          color: #4338ca !important;
+        }
+
+        .pdf-capture .text-green-600 {
+          color: #16a34a !important;
+        }
+
+        .pdf-capture .border-gray-300 {
+          border-color: #d1d5db !important;
+        }
+      `}</style>
     </div>
   );
 }
