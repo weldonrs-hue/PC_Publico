@@ -83,6 +83,10 @@ export default function Home() {
   }, [quotaExceeded]);
 
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics'>('dashboard');
+  const [lastSubViews, setLastSubViews] = useState<{ [key: string]: string }>({
+    dashboard: 'dashboard',
+    settings: 'settings'
+  });
   const [personalData, setPersonalData] = useState<any>(null);
   const [congStats, setCongStats] = useState({ 
     congregations: 0, 
@@ -96,6 +100,15 @@ export default function Home() {
     servos: 0
   });
   const [currentEvent, setCurrentEvent] = useState<string>('');
+
+  // Track last sub-views for navigation persistence
+  useEffect(() => {
+    if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
+      setLastSubViews(prev => ({ ...prev, dashboard: currentView }));
+    } else if (['settings', 'users'].includes(currentView)) {
+      setLastSubViews(prev => ({ ...prev, settings: currentView }));
+    }
+  }, [currentView]);
 
   const isCurrentWeek = (semanaStr: string) => {
     if (!semanaStr) return false;
@@ -538,7 +551,23 @@ export default function Home() {
           currentView={currentView}
           onBack={() => setCurrentView('dashboard')}
           onViewChange={(view) => {
-            if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users'].includes(view)) {
+            if (view === 'dashboard') {
+              // If already in a Circuito sub-view, reset to main dashboard
+              if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
+                setCurrentView('dashboard');
+              } else {
+                // Restore last visited sub-view in Circuito
+                setCurrentView(lastSubViews.dashboard as any);
+              }
+            } else if (view === 'settings') {
+              // If already in a Settings sub-view, reset to main settings
+              if (['settings', 'users'].includes(currentView)) {
+                setCurrentView('settings');
+              } else {
+                // Restore last visited sub-view in Settings
+                setCurrentView(lastSubViews.settings as any);
+              }
+            } else if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users', 'statistics'].includes(view)) {
               setCurrentView(view as any);
             }
           }}
@@ -589,8 +618,8 @@ export default function Home() {
                     className="hidden" 
                   />
                   <div>
-                    <h1 className="text-2xl md:text-3xl font-black text-blue-600 uppercase tracking-tighter">Olá,</h1>
-                    <p className="text-blue-400 font-bold uppercase tracking-widest text-xs md:text-sm">Seja bem-vindo ao ProgCir Web</p>
+                    <h1 className="text-lg md:text-xl font-bold text-blue-600 uppercase tracking-tight">Olá, {personalData?.nome || personalData?.numeroPessoal || user?.usuario || ''}</h1>
+                    <p className="text-blue-400 font-medium uppercase tracking-widest text-[10px] md:text-xs">Seja bem-vindo ao ProgCir Web</p>
                   </div>
                 </div>
               </div>
