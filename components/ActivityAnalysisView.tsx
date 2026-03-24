@@ -402,20 +402,57 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
               min-height: 297mm;
             }
           }
-          .pdf-capture, .pdf-capture * {
+          
+          /* Fix for html2canvas oklch color error and preserve colors */
+          .pdf-capture {
+            background-color: #ffffff !important;
             color: #1a1a1a !important;
-            background-color: transparent !important;
+          }
+          .pdf-capture * {
             border-color: #e5e7eb !important;
+            /* Force standard color space for capture */
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .pdf-capture .bg-indigo-50\/50 {
             background-color: #f0f4ff !important;
+          }
+          .pdf-capture .bg-teal-50\/30 {
+            background-color: #f0fdfa !important;
           }
           .pdf-capture .bg-white {
             background-color: #ffffff !important;
           }
           .pdf-capture .bg-gradient-to-r {
-            background: #f3f4f6 !important;
-            color: #1a1a1a !important;
+            background: #4a7c74 !important; /* Fallback to solid hex */
+            color: #ffffff !important;
+          }
+          .pdf-capture .text-\[\#512da8\] {
+            color: #512da8 !important;
+          }
+          .pdf-capture .bg-\[\#512da8\] {
+            background-color: #512da8 !important;
+          }
+          .pdf-capture .bg-orange-100 {
+            background-color: #ffedd5 !important;
+          }
+          .pdf-capture .bg-teal-100 {
+            background-color: #ccfbf1 !important;
+          }
+          .pdf-capture .bg-gray-50 {
+            background-color: #f9fafb !important;
+          }
+          .pdf-capture .bg-gray-100 {
+            background-color: #f3f4f6 !important;
+          }
+          .pdf-capture .text-emerald-600 {
+            color: #059669 !important;
+          }
+          .pdf-capture .text-red-600 {
+            color: #dc2626 !important;
+          }
+          .pdf-capture .text-amber-600 {
+            color: #d97706 !important;
           }
         `}</style>
         

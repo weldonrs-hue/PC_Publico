@@ -330,21 +330,44 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           }
         }
 
-        /* Fix for html2canvas oklch color error */
-        .pdf-capture, .pdf-capture * {
-          color: #1a1a1a !important;
-          background-color: transparent !important;
-          border-color: #e5e7eb !important;
-        }
-        .pdf-capture .bg-[#e9ecef] {
-          background-color: #e9ecef !important;
-        }
-        .pdf-capture .text-[#002060] {
-          color: #002060 !important;
-        }
-        .pdf-capture h1, .pdf-capture h2, .pdf-capture h3 {
-          color: #000000 !important;
-        }
+      /* Fix for html2canvas oklch color error and preserve colors */
+      .pdf-capture {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+      }
+      .pdf-capture * {
+        border-color: #e5e7eb !important;
+        /* Force standard color space for capture */
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .pdf-capture .bg-\[\#e9ecef\] {
+        background-color: #e9ecef !important;
+      }
+      .pdf-capture .bg-\[\#f2f2f2\] {
+        background-color: #f2f2f2 !important;
+      }
+      .pdf-capture .bg-\[\#fdf5e6\] {
+        background-color: #fdf5e6 !important;
+      }
+      .pdf-capture .bg-\[\#a9d08e\] {
+        background-color: #a9d08e !important;
+      }
+      .pdf-capture .bg-\[\#f4b084\] {
+        background-color: #f4b084 !important;
+      }
+      .pdf-capture .text-\[\#002060\] {
+        color: #002060 !important;
+      }
+      .pdf-capture .text-white {
+        color: #ffffff !important;
+      }
+      .pdf-capture h1, .pdf-capture h2, .pdf-capture h3 {
+        color: #000000 !important;
+      }
+      .pdf-capture .bg-white {
+        background-color: #ffffff !important;
+      }
       `}</style>
       {/* Header - Hidden in Print */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
