@@ -94,6 +94,19 @@
       },
       "required": ["userId", "congregacao", "dataVisita"]
     },
+    "s303_report": {
+      "title": "S-303 Report",
+      "description": "Circuit Overseer's report on the congregation visit",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "dataVisita": { "type": "string" },
+        "relatorio": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "congregacao", "dataVisita"]
+    },
     "user": {
       "title": "User",
       "description": "User profile and roles",
@@ -126,6 +139,10 @@
     "/activity_analysis/{analysisId}": {
       "schema": "activity_analysis",
       "description": "Collection of congregation activity analysis"
+    },
+    "/s303_reports/{reportId}": {
+      "schema": "s303_report",
+      "description": "Collection of S-303 reports"
     },
     "/users/{userId}": {
       "schema": "user",

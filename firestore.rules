@@ -94,5 +94,14 @@ service cloud.firestore {
         id.startsWith(request.auth.uid + "_")
       );
     }
+
+    match /s303_reports/{id} {
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || id.startsWith(request.auth.uid + "_"));
+      allow write: if signedIn() && (
+        (resource != null && resource.data.userId == request.auth.uid) ||
+        (request.resource != null && request.resource.data.userId == request.auth.uid) ||
+        id.startsWith(request.auth.uid + "_")
+      );
+    }
   }
 }

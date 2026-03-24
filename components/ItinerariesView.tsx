@@ -19,10 +19,12 @@ import {
   Info,
   Type,
   Printer,
-  BarChart3
+  BarChart3,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ActivityAnalysisView from './ActivityAnalysisView';
+import S303ReportView from './S303ReportView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -68,6 +70,8 @@ interface Congregation {
   id: string;
   nome: string;
   cidade: string;
+  numero: string;
+  estado: string;
   grupos?: string[];
 }
 
@@ -116,6 +120,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [initializing, setInitializing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
+  const [showS303, setShowS303] = useState(false);
+  const [s303Params, setS303Params] = useState<{congregacao: Congregation, data: string} | null>(null);
   
   // Data for selects
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -265,6 +271,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         id: doc.id,
         nome: doc.data().nome,
         cidade: doc.data().cidade,
+        numero: doc.data().numero || '',
+        estado: doc.data().estado || '',
         grupos: doc.data().grupos || []
       })) as Congregation[];
       setCongregations(congList);
@@ -528,6 +536,20 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     }
   };
 
+  const handleS303Click = () => {
+    if (selectedItem && selectedItem.congregacao) {
+      const cong = congregations.find(c => c.nome === selectedItem.congregacao);
+      if (cong) {
+        setS303Params({
+          congregacao: cong,
+          data: selectedItem.dataEvento || selectedItem.semana
+        });
+        setShowS303(true);
+        setModalMode(null);
+      }
+    }
+  };
+
   const handleEditClick = () => {
     if (selectedItem) {
       setIsAddingNew(false);
@@ -716,6 +738,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         congregationName={analysisParams.congregacao}
         visitDate={analysisParams.data}
         onBack={() => setShowAnalysis(false)}
+      />
+    );
+  }
+
+  if (showS303 && s303Params) {
+    return (
+      <S303ReportView 
+        userId={userId}
+        congregation={s303Params.congregacao}
+        visitDate={s303Params.data}
+        onBack={() => setShowS303(false)}
       />
     );
   }
@@ -976,6 +1009,19 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           <div className="text-left">
                             <div className="font-bold text-gray-800">Análise</div>
                             <div className="text-xs text-gray-500">Análise das atividades da congregação</div>
+                          </div>
+                        </button>
+
+                        <button 
+                          onClick={handleS303Click}
+                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                        >
+                          <div className="bg-blue-100 p-2 rounded-lg text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <FileDown size={20} />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-gray-800">S-303 Relatório sobre a visita</div>
+                            <div className="text-xs text-gray-500">Relatório do superintendente de circuito</div>
                           </div>
                         </button>
                       </>
