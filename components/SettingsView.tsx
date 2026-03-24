@@ -46,6 +46,13 @@ interface SettingsViewProps {
 
 const settingsButtons = [
   {
+    id: 'pastas',
+    icon: FolderPlus,
+    title: 'CRIAR ESTRUTURA',
+    subtitle: 'DE PASTAS DO CIRCUITO',
+    color: 'bg-[#6c40bd]'
+  },
+  {
     id: 'resgatar',
     icon: RefreshCw,
     title: 'RESGATAR DADOS',
@@ -224,8 +231,8 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
             <button
               key={index}
               onClick={() => handleButtonClick(btn.id)}
-              disabled={isCreatingFolders}
-              className={`flex items-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group border border-gray-100 h-24 ${isCreatingFolders ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isCreatingFolders || btn.id === 'resgatar' || btn.id === 'impressora'}
+              className={`flex items-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group border border-gray-100 h-24 ${(isCreatingFolders || btn.id === 'resgatar' || btn.id === 'impressora') ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
             <div className="w-4 h-full bg-[#6c40bd] flex-shrink-0" />
             <div className="flex-1 flex items-center px-6 gap-6">
@@ -245,22 +252,6 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
             </div>
           </button>
         ))}
-      </div>
-
-      <div className="mt-12 space-y-3">
-        <p className="font-bold text-gray-800 text-sm ml-2">Localização da pasta do Circuito:</p>
-        <div className="bg-[#e9e4f5] p-4 rounded-2xl border border-[#d1c4e9] shadow-inner relative overflow-hidden">
-          {loading ? (
-            <div className="flex items-center gap-2 text-[#311b92]">
-              <Loader2 size={16} className="animate-spin" />
-              <span className="text-sm font-mono">Carregando...</span>
-            </div>
-          ) : (
-            <p className="font-mono text-sm text-[#311b92] break-all">
-              {pastaCircuito}
-            </p>
-          )}
-        </div>
       </div>
     </motion.div>
 
@@ -319,7 +310,9 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
             </div>
           </motion.div>
         )}
-      </AnimatePresence>      <AnimatePresence>
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showSuccess && (
           <motion.div 
             initial={{ opacity: 0, y: 50 }}
@@ -334,10 +327,6 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
-    </>
-  );
-}  )}
       </AnimatePresence>
     </>
   );

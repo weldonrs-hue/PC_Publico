@@ -10,7 +10,12 @@ export default function SecondarySection() {
       <div className="lg:col-span-2 bg-white/50 rounded-2xl p-4 md:p-6 space-y-4 border border-white/20">
         <div className="flex justify-between items-center">
           <h5 className="font-headline font-bold text-lg">Atividade Recente</h5>
-          <button className="text-[#6c40bd] font-bold text-xs hover:underline">Ver Todos</button>
+          <button 
+            disabled
+            className="text-gray-400 font-bold text-xs cursor-not-allowed"
+          >
+            Ver Todos
+          </button>
         </div>
         <div className="space-y-2">
           <div className="bg-white p-2 md:p-3 rounded-xl flex items-center gap-2 md:gap-3 group hover:shadow-sm transition-all border border-gray-100">

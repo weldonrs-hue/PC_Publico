@@ -151,31 +151,36 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
             portrait:overflow-x-auto portrait:scrollbar-hide portrait:gap-1
           "
         >
-          {menuItems.map((item) => (
-            <Link
-              key={item.label}
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                onViewChange(item.view);
-              }}
-              className={`
-                flex items-center rounded-xl transition-all group
-                landscape:justify-center lg:landscape:justify-start
-                landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
-                portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[60px]
-                ${isActive(item.view) ? 'bg-[#673ab7] text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
-              `}
-            >
-              <item.icon size={20} className="flex-shrink-0" />
-              <span className="font-sans lg:block hidden text-[10px] landscape:text-base">
-                {item.label}
-              </span>
-              <span className="portrait:block lg:hidden landscape:hidden text-[9px] font-bold mt-1 truncate w-full text-center">
-                {item.label}
-              </span>
-            </Link>
-          ))}
+          {menuItems.map((item) => {
+            const isDisabled = ['schools', 'events', 'misc'].includes(item.view);
+            return (
+              <Link
+                key={item.label}
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (!isDisabled) onViewChange(item.view);
+                }}
+                className={`
+                  flex items-center rounded-xl transition-all group
+                  landscape:justify-center lg:landscape:justify-start
+                  landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
+                  portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[60px]
+                  ${isActive(item.view) ? 'bg-[#673ab7] text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                  ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : ''}
+                `}
+                title={isDisabled ? 'Função em desenvolvimento' : item.label}
+              >
+                <item.icon size={20} className="flex-shrink-0" />
+                <span className="font-sans lg:block hidden text-[10px] landscape:text-base">
+                  {item.label}
+                </span>
+                <span className="portrait:block lg:hidden landscape:hidden text-[9px] font-bold mt-1 truncate w-full text-center">
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
 
           {/* Logout item for Portrait (inside scroll) */}
           <button
