@@ -84,7 +84,17 @@ export default function Home() {
 
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics'>('dashboard');
   const [personalData, setPersonalData] = useState<any>(null);
-  const [congStats, setCongStats] = useState({ congregations: 0, groups: 0, substitutes: 0, analyzedCongregations: 0 });
+  const [congStats, setCongStats] = useState({ 
+    congregations: 0, 
+    groups: 0, 
+    substitutes: 0, 
+    analyzedCongregations: 0,
+    publicadoresAtivos: 0,
+    pioneirosRegulares: 0,
+    pioneirosEspeciais: 0,
+    anciaos: 0,
+    servos: 0
+  });
   const [currentEvent, setCurrentEvent] = useState<string>('');
 
   const isCurrentWeek = (semanaStr: string) => {
@@ -208,7 +218,17 @@ export default function Home() {
         }
         setUser(null);
         setPersonalData(null);
-        setCongStats({ congregations: 0, groups: 0, substitutes: 0, analyzedCongregations: 0 });
+        setCongStats({ 
+          congregations: 0, 
+          groups: 0, 
+          substitutes: 0, 
+          analyzedCongregations: 0,
+          publicadoresAtivos: 0,
+          pioneirosRegulares: 0,
+          pioneirosEspeciais: 0,
+          anciaos: 0,
+          servos: 0
+        });
         setQuotaExceeded(false);
       }
     });
@@ -396,6 +416,39 @@ export default function Home() {
             }
           });
 
+          const analysesByCong: { [key: string]: any } = {};
+          analysisSnap.docs.forEach((doc) => {
+            const data = doc.data();
+            const cong = data.congregacao;
+            if (!analysesByCong[cong]) {
+              analysesByCong[cong] = data;
+            } else {
+              const currentLatest = analysesByCong[cong];
+              const [d1, m1, y1] = currentLatest.dataVisita.split('/').map(Number);
+              const [d2, m2, y2] = data.dataVisita.split('/').map(Number);
+              const date1 = new Date(y1, m1 - 1, d1);
+              const date2 = new Date(y2, m2 - 1, d2);
+              if (date2 > date1) {
+                analysesByCong[cong] = data;
+              }
+            }
+          });
+
+          const latestAnalyses = Object.values(analysesByCong);
+          let totalPubs = 0;
+          let totalPioReg = 0;
+          let totalPioEsp = 0;
+          let totalAnciaos = 0;
+          let totalServos = 0;
+
+          latestAnalyses.forEach((analysis: any) => {
+            totalPubs += parseInt(analysis.ministério?.publicadores?.relatando) || 0;
+            totalPioReg += parseInt(analysis.ministério?.pioneirosRegulares?.relatando) || 0;
+            totalPioEsp += parseInt(analysis.ministério?.pioneirosEspeciais?.relatando) || 0;
+            totalAnciaos += analysis.estatisticas?.anciaos || 0;
+            totalServos += analysis.estatisticas?.servos || 0;
+          });
+
           // Find current event
           let foundEvent = '';
           itinSnap.docs.forEach((doc) => {
@@ -410,7 +463,12 @@ export default function Home() {
             congregations: congSnap.size, 
             groups, 
             substitutes: subSnap.size,
-            analyzedCongregations: analyzedCongs.size
+            analyzedCongregations: analyzedCongs.size,
+            publicadoresAtivos: totalPubs,
+            pioneirosRegulares: totalPioReg,
+            pioneirosEspeciais: totalPioEsp,
+            anciaos: totalAnciaos,
+            servos: totalServos
           };
           setCongStats(newStats);
           sessionStorage.setItem(`dashboardStats_${activeUid}`, JSON.stringify({
@@ -550,11 +608,11 @@ export default function Home() {
 
               {/* Statistics Summary Bar */}
               <div className="bg-[#e0d8eb] p-2 md:p-4 rounded-xl md:rounded-full flex flex-wrap items-center justify-center md:justify-between px-4 md:px-10 text-[10px] md:text-xs font-bold text-[#3a264b] shadow-inner gap-2 md:gap-4">
-                <div className="flex gap-1">Publicadores Ativos: <span className="font-normal underline decoration-dotted">1.240</span></div>
-                <div className="flex gap-1">Pioneiros Regulares: <span className="font-normal underline decoration-dotted">85</span></div>
-                <div className="flex gap-1">Pioneiros Especiais: <span className="font-normal underline decoration-dotted">12</span></div>
-                <div className="flex gap-1">Anciãos: <span className="font-normal underline decoration-dotted">156</span></div>
-                <div className="flex gap-1">Servos: <span className="font-normal underline decoration-dotted">210</span></div>
+                <div className="flex gap-1">Publicadores Ativos: <span className="font-normal underline decoration-dotted">{congStats.publicadoresAtivos.toLocaleString('pt-BR')}</span></div>
+                <div className="flex gap-1">Pioneiros Regulares: <span className="font-normal underline decoration-dotted">{congStats.pioneirosRegulares.toLocaleString('pt-BR')}</span></div>
+                <div className="flex gap-1">Pioneiros Especiais: <span className="font-normal underline decoration-dotted">{congStats.pioneirosEspeciais.toLocaleString('pt-BR')}</span></div>
+                <div className="flex gap-1">Anciãos: <span className="font-normal underline decoration-dotted">{congStats.anciaos.toLocaleString('pt-BR')}</span></div>
+                <div className="flex gap-1">Servos: <span className="font-normal underline decoration-dotted">{congStats.servos.toLocaleString('pt-BR')}</span></div>
               </div>
 
               {/* Activity and Map Section */}
