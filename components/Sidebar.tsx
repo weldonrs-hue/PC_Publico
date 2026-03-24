@@ -1,7 +1,7 @@
 'use client';
 // Force rebuild
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, School, Calendar, Layers, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import ImageCropper from './ImageCropper';
@@ -12,9 +12,9 @@ import Image from 'next/image';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
-  { icon: School, label: 'Escolas', view: 'schools' },
+  { icon: GraduationCap, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
-  { icon: Layers, label: 'Diversos', view: 'misc' },
+  { icon: Shapes, label: 'Diversos', view: 'misc' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
 
