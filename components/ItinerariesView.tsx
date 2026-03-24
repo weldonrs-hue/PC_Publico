@@ -651,10 +651,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       <div className="flex items-center gap-4 print:hidden">
         <button 
           onClick={handleBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8]"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
-          <ChevronLeft size={24} />
+          <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <h2 className="text-2xl font-bold text-gray-800">
           Itinerários do Circuito

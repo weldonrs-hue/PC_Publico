@@ -13,7 +13,9 @@ import {
   DollarSign,
   BarChart3,
   Calculator,
-  X
+  X,
+  FileDown,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -228,6 +230,77 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   // Calculate sum of studies automatically
   const totalEstudos = Object.values(data.ministério).reduce((acc, curr) => acc + (parseInt(curr.estudos) || 0), 0);
 
+  const handleSavePDF = async () => {
+    const element = document.getElementById('activity-analysis-form');
+    if (!element) return;
+
+    const opt = {
+      margin: 0,
+      filename: `Análise - ${data.congregacao} - ${data.dataVisita.replace(/\//g, '-')}.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+    };
+
+    try {
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+
+      if (typeof html2pdf !== 'function') {
+        throw new Error('Biblioteca de PDF não carregou corretamente.');
+      }
+
+      const originalStyle = element.getAttribute('style') || '';
+      element.setAttribute('style', originalStyle + '; color: #000000; background-color: #ffffff;');
+      element.classList.add('pdf-capture');
+      
+      const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+      
+      element.setAttribute('style', originalStyle);
+      element.classList.remove('pdf-capture');
+
+      if ((window as any).showSaveFilePicker) {
+        try {
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: opt.filename,
+            types: [{
+              description: 'PDF Document',
+              accept: { 'application/pdf': ['.pdf'] },
+            }],
+          });
+          const writable = await fileHandle.createWritable();
+          await writable.write(pdfBlob);
+          await writable.close();
+          alert('PDF salvo com sucesso!');
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = opt.filename;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }
+      } else {
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = opt.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+          alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar PDF:', error);
+      const msg = error?.message || 'Erro desconhecido';
+      alert(`Ocorreu um erro ao gerar o PDF: ${msg}. Tente novamente.`);
+    }
+  };
+
   const openCalculator = (type: keyof AnalysisData['ministério'], field: keyof MinistryActivity, label: string) => {
     setCalcModal({ type, field, label });
     setCalcValues(['', '', '', '', '', '']);
@@ -255,19 +328,79 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
         <div className="flex items-center gap-4">
           <button 
             onClick={handleBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-gray-50 shadow-sm"
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+            title="Voltar ao Painel"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft size={28} strokeWidth={3} />
           </button>
           <h2 className="text-2xl font-black text-gray-800 tracking-tight">Análise das atividades</h2>
         </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button 
+            onClick={handleSavePDF} 
+            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
+          >
+            <FileDown size={18} className="text-[#512da8]" /> 
+            <span>Salvar PDF</span>
+          </button>
+          <button 
+            onClick={() => window.print()} 
+            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
+          >
+            <Printer size={18} className="text-[#512da8]" /> 
+            <span>Imprimir</span>
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div id="activity-analysis-form" className="space-y-6 bg-white p-[8mm] shadow-2xl border border-gray-200 print:shadow-none print:border-none print:p-0 print:space-y-4 font-sans text-gray-900 overflow-hidden leading-tight">
+        <style jsx global>{`
+          @media print {
+            @page {
+              margin: 0;
+              size: A4;
+            }
+            body {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              background-color: white !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            #activity-analysis-form {
+              padding: 12mm !important;
+              background-color: white !important;
+              min-height: 297mm;
+            }
+          }
+          .pdf-capture, .pdf-capture * {
+            color: #1a1a1a !important;
+            background-color: transparent !important;
+            border-color: #e5e7eb !important;
+          }
+          .pdf-capture .bg-indigo-50\/50 {
+            background-color: #f0f4ff !important;
+          }
+          .pdf-capture .bg-white {
+            background-color: #ffffff !important;
+          }
+          .pdf-capture .bg-gradient-to-r {
+            background: #f3f4f6 !important;
+            color: #1a1a1a !important;
+          }
+        `}</style>
+        
+        {/* Document Title - Visible only in PDF/Print */}
+        <div className="hidden print:block text-center pt-2 pb-4">
+          <h1 className="text-3xl font-bold tracking-tight text-[#512da8]">Análise das Atividades</h1>
+          <p className="text-gray-500 font-medium">{data.congregacao} — {data.dataVisita}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
           {/* Top Info */}
@@ -542,6 +675,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           </div>
         </div>
       </div>
+    </div>
 
       {/* Average Calculator Modal */}
       <AnimatePresence>

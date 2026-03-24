@@ -8,21 +8,17 @@ service cloud.firestore {
     
     function isAdmin() {
       return signedIn() && (
-        request.auth.token.get('email', '') == "weldonrs@gmail.com" ||
-        request.auth.token.get('email', '') == "2283701@progcir.app" ||
-        request.auth.token.get('email', '') == "2283701@progcir.com" ||
         request.auth.token.email == "weldonrs@gmail.com" ||
         request.auth.token.email == "2283701@progcir.app" ||
-        request.auth.token.email == "2283701@progcir.com"
+        request.auth.token.email == "2283701@progcir.com" ||
+        request.auth.token.get('email', '') == "weldonrs@gmail.com" ||
+        request.auth.token.get('email', '') == "2283701@progcir.app" ||
+        request.auth.token.get('email', '') == "2283701@progcir.com"
       );
     }
 
     function getPrefix(email) {
       return email == null || email == "" ? "" : email.split("@")[0];
-    }
-
-    function isOwner(r) {
-      return signedIn() && r != null && r.data.get('userId', '') == request.auth.uid;
     }
 
     // Rules for users collection
@@ -35,14 +31,29 @@ service cloud.firestore {
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      allow read, write: if signedIn() && (dataId == request.auth.uid || isAdmin());
+      // Allow read if:
+      // 1. User is admin
+      // 2. Document ID is the user's UID
+      // 3. Document's userId field matches user's UID
+      // 4. Document's numeroPessoal matches user's email prefix (migration)
       allow read: if signedIn() && (
-        isAdmin() ||
-        (resource != null && resource.data.userId == request.auth.uid) ||
+        isAdmin() || 
+        dataId == request.auth.uid || 
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
         (resource != null && resource.data.get('numeroPessoal', '') == getPrefix(request.auth.token.get('email', '')))
       );
-      allow create, update: if signedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid);
-      allow delete: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // Allow write if:
+      // 1. User is admin
+      // 2. Document ID is the user's UID
+      // 3. Document's userId field matches user's UID (for updates)
+      // 4. New data's userId field matches user's UID (for creates/updates)
+      allow write: if signedIn() && (
+        isAdmin() || 
+        dataId == request.auth.uid ||
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
+        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid)
+      );
     }
 
     // Rules for other collections

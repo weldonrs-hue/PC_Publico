@@ -196,8 +196,12 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
         <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8]">
           <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-gray-50 shadow-sm">
-              <ChevronLeft size={24} />
+            <button 
+              onClick={onBack} 
+              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+              title="Voltar ao Painel"
+            >
+              <ChevronLeft size={28} strokeWidth={3} />
             </button>
             <h2 className="text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
           </div>
@@ -345,8 +349,12 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       {/* Header - Hidden in Print */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-gray-50 shadow-sm">
-            <ChevronLeft size={24} />
+          <button 
+            onClick={onBack} 
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+            title="Voltar ao Painel"
+          >
+            <ChevronLeft size={28} strokeWidth={3} />
           </button>
           <h2 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
         </div>

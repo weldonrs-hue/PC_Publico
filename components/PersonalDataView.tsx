@@ -163,10 +163,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       <div className="flex items-center gap-4">
         <button 
           onClick={handleBack}
-          className="p-2 bg-white hover:bg-gray-50 rounded-full transition-all text-[#4CAF50] shadow-md border border-gray-100 flex items-center justify-center"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#4CAF50] bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
-          <ChevronLeft size={24} strokeWidth={3} />
+          <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <h2 className="text-2xl font-bold text-gray-800">
           Dados Pessoais do Superintendente

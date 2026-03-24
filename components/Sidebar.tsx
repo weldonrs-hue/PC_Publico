@@ -230,12 +230,12 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
             {currentView !== 'dashboard' && (
               <button 
                 onClick={onBack}
-                className="flex items-center justify-center lg:justify-start gap-3 text-white/70 hover:text-white hover:bg-white/5 transition-all w-full group p-2 rounded-lg mt-2 border border-white/10"
+                className="flex items-center justify-center lg:justify-start gap-3 text-white bg-white/10 hover:bg-white/20 transition-all w-full group p-3 rounded-xl mt-4 border border-white/20 shadow-lg"
               >
-                <div className="w-5 h-5 flex items-center justify-center">
-                  <ChevronLeft size={18} />
+                <div className="w-6 h-6 flex items-center justify-center">
+                  <ChevronLeft size={24} strokeWidth={3} />
                 </div>
-                <span className="font-bold text-xs hidden lg:block">Voltar ao Painel</span>
+                <span className="font-bold text-sm hidden lg:block">Voltar ao Painel</span>
               </button>
             )}
           </div>

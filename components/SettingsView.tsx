@@ -214,9 +214,10 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       <div className="flex items-center gap-4 mb-6">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#6c40bd] bg-white shadow-md border border-gray-200"
+          title="Voltar ao Painel"
         >
-          <ChevronLeft size={24} className="text-gray-600" />
+          <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <h2 className="text-2xl font-bold text-gray-900">Ajustes do Sistema</h2>
       </div>
