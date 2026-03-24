@@ -14,7 +14,8 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  UserX
+  UserX,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -50,6 +51,20 @@ const settingsButtons = [
     icon: FolderPlus,
     title: 'CRIAR ESTRUTURA',
     subtitle: 'DE PASTAS DO CIRCUITO',
+    color: 'bg-[#6c40bd]'
+  },
+  {
+    id: 'usuarios',
+    icon: Users,
+    title: 'EXIBIR',
+    subtitle: 'USUÁRIOS DO SISTEMA',
+    color: 'bg-[#6c40bd]'
+  },
+  {
+    id: 'senha',
+    icon: Lock,
+    title: 'ALTERAR',
+    subtitle: 'MINHA SENHA',
     color: 'bg-[#6c40bd]'
   },
   {
@@ -198,8 +213,48 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
   const handleButtonClick = (id: string) => {
     if (id === 'pastas') {
       handleCreateFolders();
+    } else if (id === 'usuarios') {
+      onViewChange('users');
+    } else if (id === 'senha') {
+      setIsChangingPassword(true);
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.new !== passwordForm.confirm) {
+      setPasswordError('As senhas não coincidem');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordError(null);
+
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) throw new Error('Usuário não autenticado');
+
+      const credential = EmailAuthProvider.credential(user.email, passwordForm.current);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, passwordForm.new);
+
+      setPasswordSuccess(true);
+      setPasswordForm({ current: '', new: '', confirm: '' });
+      setTimeout(() => {
+        setPasswordSuccess(false);
+        setIsChangingPassword(false);
+      }, 3000);
+    } catch (err: any) {
+      console.error('Erro ao alterar senha:', err);
+      if (err.code === 'auth/wrong-password') {
+        setPasswordError('Senha atual incorreta');
+      } else {
+        setPasswordError(err.message || 'Erro ao alterar senha');
+      }
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -212,13 +267,6 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
         className="space-y-8 relative"
       >
       <div className="flex items-center gap-4 mb-6">
-        <button 
-          onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#6c40bd] bg-white shadow-md border border-gray-200"
-          title="Voltar ao Painel"
-        >
-          <ChevronLeft size={28} strokeWidth={3} />
-        </button>
         <h2 className="text-2xl font-bold text-gray-900">Ajustes do Sistema</h2>
       </div>
 
@@ -255,6 +303,92 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
         ))}
       </div>
     </motion.div>
+
+    {/* Password Change Modal */}
+      <AnimatePresence>
+        {isChangingPassword && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">Alterar Senha</h3>
+                <button 
+                  onClick={() => setIsChangingPassword(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {passwordSuccess ? (
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <p className="font-bold text-green-600">Senha alterada com sucesso!</p>
+                </div>
+              ) : (
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Senha Atual</label>
+                    <input 
+                      type="password"
+                      required
+                      value={passwordForm.current}
+                      onChange={(e) => setPasswordForm({...passwordForm, current: e.target.value})}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#6c40bd] focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Nova Senha</label>
+                    <input 
+                      type="password"
+                      required
+                      value={passwordForm.new}
+                      onChange={(e) => setPasswordForm({...passwordForm, new: e.target.value})}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#6c40bd] focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Confirmar Nova Senha</label>
+                    <input 
+                      type="password"
+                      required
+                      value={passwordForm.confirm}
+                      onChange={(e) => setPasswordForm({...passwordForm, confirm: e.target.value})}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#6c40bd] focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                    />
+                  </div>
+
+                  {passwordError && (
+                    <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      {passwordError}
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit"
+                    disabled={passwordLoading}
+                    className="w-full py-3 bg-[#6c40bd] text-white font-bold rounded-xl hover:bg-[#5a35a0] transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {passwordLoading ? <Loader2 size={20} className="animate-spin" /> : 'Atualizar Senha'}
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     {/* Creation Overlay */}
       <AnimatePresence>

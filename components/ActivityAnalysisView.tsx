@@ -95,8 +95,8 @@ const defaultData: AnalysisData = {
     obraMundial: ['', '', '', '', '', ''],
   },
   reunioes: {
-    meioSemana: ['', '', '', '', ''],
-    fimSemana: ['', '', '', '', ''],
+    meioSemana: ['', '', '', '', '', ''],
+    fimSemana: ['', '', '', '', '', ''],
   },
 };
 
