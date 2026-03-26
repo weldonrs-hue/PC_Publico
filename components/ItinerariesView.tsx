@@ -237,7 +237,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           const writable = await fileHandle.createWritable();
           await writable.write(pdfBlob);
           await writable.close();
-          alert('PDF salvo com sucesso!');
         } catch (err: any) {
           if (err.name !== 'AbortError') {
             const url = URL.createObjectURL(pdfBlob);

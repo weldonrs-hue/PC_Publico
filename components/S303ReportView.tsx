@@ -76,7 +76,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         relatorio: reportText,
         updatedAt: new Date().toISOString()
       });
-      alert('Relatório salvo com sucesso!');
+      // Success feedback can be added here if needed, avoiding alert()
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 's303_report_save');
     } finally {
@@ -118,7 +118,137 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       pdf.save(filename);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-      alert('Erro ao gerar PDF.');
+    }
+  };
+
+  const handleFillOriginalPDF = async () => {
+    try {
+      const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+      
+      // Fetch the original PDF
+      const existingPdfBytes = await fetch('/S-303.pdf').then(res => res.arrayBuffer());
+      
+      // Load the PDF
+      const pdfDoc = await PDFDocument.load(existingPdfBytes);
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0];
+      const { width, height } = firstPage.getSize();
+
+      // Use a standard font
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontSize = 10;
+
+      // Helper to draw text
+      const draw = (text: string, x: number, y: number, isBold = false) => {
+        if (!text) return;
+        firstPage.drawText(text, {
+          x,
+          y: height - y, // Convert from top-left to bottom-left
+          size: fontSize,
+          font: isBold ? boldFont : font,
+          color: rgb(0, 0, 0),
+        });
+      };
+
+      // Helper to draw centered text with auto-scaling
+      const drawCentered = (text: string, startX: number, width: number, y: number, isBold = false) => {
+        if (!text) return;
+        let currentFontSize = fontSize;
+        let textWidth = (isBold ? boldFont : font).widthOfTextAtSize(text, currentFontSize);
+        
+        // Auto-scale
+        while (textWidth > width && currentFontSize > 5) {
+          currentFontSize -= 0.5;
+          textWidth = (isBold ? boldFont : font).widthOfTextAtSize(text, currentFontSize);
+        }
+        
+        const x = startX + (width - textWidth) / 2;
+        firstPage.drawText(text, {
+          x,
+          y: height - y,
+          size: currentFontSize,
+          font: isBold ? boldFont : font,
+          color: rgb(0, 0, 0),
+        });
+      };
+
+      // Coordinates (estimated in points from top-left)
+      // Elevating by 23mm (Net result after elevating 20mm and raising 3mm)
+      const yOffset = 65.2;
+      const xOffset = 5.67; // 2mm general left shift
+      
+      const yOffsetRow1 = 1.42; // +0.5mm
+      const yOffsetRow2 = 4.25; // 0.5mm (prev) + 1mm (new) = 1.5mm total
+      const yOffsetRow3 = 5.66; // 1mm (prev) + 1mm (new) = 2mm total
+      
+      const xOffsetReport = 8.5; // 3mm left shift for report
+      const yOffsetReport = 5.67; // 2mm up shift for report
+
+      // Space widths in points (1mm = 2.83465 pts)
+      const w60 = 170.08;
+      const w80 = 226.77;
+      const w65 = 184.25;
+      const w15 = 42.52;
+      const w77 = 218.27;
+
+      // Row 1
+      drawCentered(congregation.numero, 145 - xOffset, w60, 128 - yOffset - yOffsetRow1, true);
+      drawCentered(visitDate, 415 - xOffset, w80, 128 - yOffset - yOffsetRow1, true);
+
+      // Row 2
+      drawCentered(congregation.nome, 145 - xOffset, w65, 153 - yOffset - yOffsetRow2, true);
+      drawCentered(congregation.cidade, 335 - xOffset, w60, 153 - yOffset - yOffsetRow2, true);
+      drawCentered(congregation.estado, 525 - xOffset, w15, 153 - yOffset - yOffsetRow2, true);
+
+      // Row 3
+      drawCentered(personalData?.nome || '', 110 - xOffset, w77, 178 - yOffset - yOffsetRow3, true);
+      draw(personalData?.circuito || '', 385 - xOffset, 178 - yOffset - yOffsetRow3, true);
+
+      // Report Text (with wrapping and newline support)
+      const maxWidth = 500;
+      const startX = 60 - xOffset - xOffsetReport;
+      const startY = 225 - yOffset - yOffsetReport;
+      const lineHeight = 14;
+      
+      const paragraphs = reportText.split('\n');
+      let currentY = startY;
+
+      for (const paragraph of paragraphs) {
+        const words = paragraph.split(' ');
+        let line = '';
+
+        for (const word of words) {
+          const testLine = line + word + ' ';
+          const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+          if (testWidth > maxWidth) {
+            draw(line, startX, currentY);
+            line = word + ' ';
+            currentY += lineHeight;
+          } else {
+            line = testLine;
+          }
+        }
+        draw(line, startX, currentY);
+        currentY += lineHeight; // Extra space for paragraph
+      }
+
+      // Serialize the PDF to bytes (a Uint8Array)
+      const pdfBytes = await pdfDoc.save();
+
+      // Trigger download
+      const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `S-303_Preenchido_${congregation.nome}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Erro ao preencher PDF original:', error);
+      // Fallback to the HTML-to-PDF if something fails
+      handleSavePDF();
     }
   };
 
@@ -133,6 +263,19 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
   return (
     <div className="space-y-6">
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: landscape;
+            margin: 0;
+          }
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}</style>
+
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
           <button 
@@ -153,11 +296,11 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
             Salvar
           </button>
           <button 
-            onClick={handleSavePDF}
+            onClick={handleFillOriginalPDF}
             className="bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all"
           >
             <FileDown size={18} />
-            PDF
+            PDF Original
           </button>
           <button 
             onClick={handlePrint}
@@ -169,83 +312,79 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-200 print:shadow-none print:border-none">
-        <div id="s303-report-container" className="p-12 bg-white min-h-[297mm] w-full max-w-[210mm] mx-auto text-black font-serif">
-          <h1 className="text-center text-xl font-bold mb-8 uppercase tracking-wide">
+      <div className="bg-white shadow-xl rounded-2xl overflow-x-auto border border-gray-200 print:shadow-none print:border-none print:overflow-visible">
+        <div id="s303-report-container" className="p-[15mm] bg-white w-[297mm] min-h-[210mm] mx-auto text-black font-serif leading-tight print:p-[15mm] print:m-0 shadow-2xl print:shadow-none relative">
+          <h1 className="text-center text-[18px] font-bold mb-[10mm] uppercase tracking-tight">
             RELATÓRIO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO À CONGREGAÇÃO
           </h1>
 
-          <div className="space-y-6 text-sm">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-              <div className="flex items-end gap-2">
-                <span className="whitespace-nowrap">Número da congregação:</span>
-                <div className="flex-1 border-b border-black pb-0.5 px-2 font-sans font-medium">
-                  {congregation.numero}
-                </div>
+          <div className="space-y-[6mm] text-[13px]">
+            {/* Row 1 */}
+            <div className="flex items-end gap-[2mm]">
+              <span className="whitespace-nowrap">Número da congregação:</span>
+              <div className="flex-[0.4] border-b border-black pb-0.5 px-2 font-sans font-medium min-w-[50mm]">
+                {congregation.numero}
               </div>
-              <div className="flex items-end gap-2">
-                <span className="whitespace-nowrap">Datas em que visitou:</span>
-                <div className="flex-1 border-b border-black pb-0.5 px-2 font-sans font-medium">
-                  {visitDate}
-                </div>
+              <span className="whitespace-nowrap ml-[4mm]">Datas em que visitou:</span>
+              <div className="flex-[0.6] border-b border-black pb-0.5 px-2 font-sans font-medium">
+                {visitDate}
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-x-4 gap-y-4">
-              <div className="flex items-end gap-2 col-span-1">
-                <span className="whitespace-nowrap">Nome da congregação:</span>
-                <div className="flex-1 border-b border-black pb-0.5 px-2 font-sans font-medium">
-                  {congregation.nome}
-                </div>
+            {/* Row 2 */}
+            <div className="flex items-end gap-[2mm]">
+              <span className="whitespace-nowrap">Nome da congregação:</span>
+              <div className="flex-[0.45] border-b border-black pb-0.5 px-2 font-sans font-medium">
+                {congregation.nome}
               </div>
-              <div className="flex items-end gap-2">
-                <span className="whitespace-nowrap">Cidade:</span>
-                <div className="flex-1 border-b border-black pb-0.5 px-2 font-sans font-medium">
-                  {congregation.cidade}
-                </div>
+              <span className="whitespace-nowrap ml-[4mm]">Cidade:</span>
+              <div className="flex-[0.35] border-b border-black pb-0.5 px-2 font-sans font-medium">
+                {congregation.cidade}
               </div>
-              <div className="flex items-end gap-2">
-                <span className="whitespace-nowrap">Província ou estado:</span>
-                <div className="flex-1 border-b border-black pb-0.5 px-2 font-sans font-medium">
-                  {congregation.estado}
-                </div>
+              <span className="whitespace-nowrap ml-[4mm]">Província ou estado:</span>
+              <div className="flex-[0.2] border-b border-black pb-0.5 px-2 font-sans font-medium">
+                {congregation.estado}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-              <div className="flex items-end gap-2">
-                <span className="whitespace-nowrap">Sup. de circuito:</span>
-                <div className="flex-1 border-b border-black pb-0.5 px-2 font-sans font-medium">
-                  {personalData?.nome || ''}
-                </div>
+            {/* Row 3 */}
+            <div className="flex items-end gap-[2mm]">
+              <span className="whitespace-nowrap">Sup. de circuito:</span>
+              <div className="flex-[0.65] border-b border-black pb-0.5 px-2 font-sans font-medium">
+                {personalData?.nome || ''}
               </div>
-              <div className="flex items-end gap-2">
-                <span className="whitespace-nowrap">Número do circuito:</span>
-                <div className="flex-1 border-b border-black pb-0.5 px-2 font-sans font-medium">
-                  {personalData?.circuito || ''}
-                </div>
+              <span className="whitespace-nowrap ml-[4mm]">Número do circuito:</span>
+              <div className="flex-[0.35] border-b border-black pb-0.5 px-2 font-sans font-medium">
+                {personalData?.circuito || ''}
               </div>
             </div>
 
-            <div className="pt-4 space-y-4">
-              <p className="font-sans text-[13px]">
+            {/* Thick Line */}
+            <div className="border-t-[1.5pt] border-black pt-[4mm] mt-[2mm]">
+              <p className="text-[13px] mb-[4mm]">
                 Descreva brevemente o espírito da congregação e que encorajamento ou conselhos foram dados:
               </p>
-              <textarea 
-                value={reportText}
-                onChange={(e) => setReportText(e.target.value)}
-                className="w-full min-h-[400px] p-4 border border-gray-300 rounded-lg font-sans text-sm focus:outline-none focus:ring-1 focus:ring-black print:border-none print:p-0 print:min-h-0"
-                placeholder="Digite o relatório aqui..."
-              />
+              <div className="relative">
+                <textarea 
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  className="w-full min-h-[100mm] p-0 border-none font-serif text-[14px] leading-[1.6] focus:outline-none focus:ring-0 print:hidden resize-none"
+                  placeholder="Digite o relatório aqui..."
+                />
+                <div className="hidden print:block whitespace-pre-wrap font-serif text-[14px] leading-[1.6] min-h-[100mm]">
+                  {reportText}
+                </div>
+              </div>
             </div>
 
-            <div className="pt-12 space-y-6 text-[12px] italic leading-relaxed">
+            {/* Footer */}
+            <div className="pt-[10mm] space-y-[4mm] text-[12px] leading-snug">
               <p>
                 (Antes de terminar a visita à congregação no domingo, e numa hora que não interfira na programação de serviço de campo, 
                 considere este relatório com a comissão de serviço da congregação. Deixe uma cópia com o coordenador do corpo de anciãos 
                 para que todos os anciãos a leiam e para que a recapitulem na próxima reunião trimestral dos anciãos.)
               </p>
-              <p className="not-italic font-sans font-bold text-xs">
+              <p className="font-bold text-[11px] pt-[2mm]">
                 S-303-T 1/25
               </p>
             </div>
@@ -254,6 +393,12 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       </div>
 
       <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+
+        .font-serif {
+          font-family: 'Libre Baskerville', serif !important;
+        }
+
         @media print {
           @page {
             margin: 0;
