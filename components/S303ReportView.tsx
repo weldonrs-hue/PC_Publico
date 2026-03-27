@@ -79,25 +79,27 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
     const adjustFontSize = () => {
       // Check for overflow
-      if (textarea.scrollHeight > textarea.clientHeight) {
+      // We use a small offset to be safe
+      const isOverflowing = textarea.scrollHeight > textarea.clientHeight;
+      
+      if (isOverflowing) {
         if (reportFontSize > 8) {
-          // Shrink more aggressively if overflow is large
-          const overflowRatio = textarea.scrollHeight / textarea.clientHeight;
-          const step = overflowRatio > 1.2 ? 0.5 : 0.2;
-          setReportFontSize(prev => Math.max(8, prev - step));
+          // Shrink font size
+          setReportFontSize(prev => Math.max(8, prev - 0.4));
         }
       } else if (reportFontSize < 14) {
-        // Grow back if there's enough space
-        // We use a small buffer (5px) to avoid flickering
-        // If we have more than 10px of space, we can try to grow
-        if (textarea.clientHeight - textarea.scrollHeight > 10) {
-          setReportFontSize(prev => Math.min(14, prev + 0.3));
+        // Try to grow font size
+        // To avoid flickering, we only grow if there is significant space
+        // A line at the current font size is roughly reportFontSize * 1.6
+        const estimatedLineHeight = reportFontSize * 1.6;
+        if (textarea.clientHeight - textarea.scrollHeight > estimatedLineHeight) {
+          setReportFontSize(prev => Math.min(14, prev + 0.4));
         }
       }
     };
 
-    // Use requestAnimationFrame to ensure DOM is updated before measuring
-    const timeoutId = setTimeout(adjustFontSize, 10);
+    // Use a slightly longer timeout to ensure the DOM has settled
+    const timeoutId = setTimeout(adjustFontSize, 50);
     return () => clearTimeout(timeoutId);
   }, [reportText, reportFontSize]);
 
