@@ -8,9 +8,9 @@ service cloud.firestore {
     
     function isAdmin() {
       return signedIn() && (
-        request.auth.token.get('email', '').lower() == "weldonrs@gmail.com" ||
-        request.auth.token.get('email', '').lower() == "2283701@progcir.app" ||
-        request.auth.token.get('email', '').lower() == "2283701@progcir.com" ||
+        request.auth.token.email.lower() == "weldonrs@gmail.com" ||
+        request.auth.token.email.lower() == "2283701@progcir.app" ||
+        request.auth.token.email.lower() == "2283701@progcir.com" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin')
       );

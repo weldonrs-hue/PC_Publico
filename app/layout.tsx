@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Manrope } from 'next/font/google';
+import { Inter, Manrope, Libre_Baskerville } from 'next/font/google';
 import './globals.css';
 
 const inter = Inter({
@@ -12,6 +12,12 @@ const manrope = Manrope({
   variable: '--font-manrope',
 });
 
+const libreBaskerville = Libre_Baskerville({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-serif',
+});
+
 export const metadata: Metadata = {
   title: 'ProgCir Web - Gestão de Circuitos',
   description: 'Plataforma administrativa para gestão de circuitos e congregações.',
@@ -19,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-br" className={`${inter.variable} ${manrope.variable}`}>
+    <html lang="pt-br" className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable}`}>
       <body suppressHydrationWarning className="bg-gray-50 font-sans">
         {children}
       </body>
