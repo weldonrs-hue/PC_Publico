@@ -387,10 +387,10 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
             </div>
 
             {/* Bold Divider */}
-            <div className="border-t-2 border-black mt-1 mb-3"></div>
+            <div className="border-t-2 border-black mt-1 mb-1"></div>
 
             {/* Description Label */}
-            <p className="text-[13px] mt-[0.5rem] mb-[0.5rem]">
+            <p className="text-[13px] mt-0 mb-[0.5rem]">
               Descreva brevemente o espírito da congregação e que encorajamento ou conselhos foram dados:
             </p>
 
