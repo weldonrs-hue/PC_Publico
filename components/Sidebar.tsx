@@ -1,7 +1,7 @@
 'use client';
 // Force rebuild
 import { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import ImageCropper from './ImageCropper';

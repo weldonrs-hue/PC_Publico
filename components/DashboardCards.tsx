@@ -1,6 +1,6 @@
 'use client';
 
-import { Contact, Store, UserRound, Map, BarChart3 } from 'lucide-react';
+import { Contact, Store, UserRound, Map, BarChart3, ClipboardList } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const cards = [

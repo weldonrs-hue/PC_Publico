@@ -6,12 +6,22 @@ import {
   Save, 
   Loader2,
   Printer,
-  FileDown
+  FileDown,
+  Bold,
+  Italic,
+  Type,
+  Palette,
+  Plus,
+  Minus,
+  ChevronDown
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { toPng } from 'html-to-image';
+import { jsPDF } from 'jspdf';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 interface S303ReportViewProps {
   userId: string;
@@ -30,12 +40,38 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   const [saving, setSaving] = useState(false);
   const [reportText, setReportText] = useState('');
   const [initialReportText, setInitialReportText] = useState('');
-  const [reportFontSize, setReportFontSize] = useState(14);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [reportFontSize, setReportFontSize] = useState(16);
+  const [fontFamily, setFontFamily] = useState("'Arimo', Arial, sans-serif");
+  const [textColor, setTextColor] = useState('#000000');
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFontPicker, setShowFontPicker] = useState(false);
+  
+  const editableRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [personalData, setPersonalData] = useState<any>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   const isDirty = reportText !== initialReportText;
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      const hasSelection = selection && selection.toString().length > 0 && editableRef.current?.contains(selection.anchorNode);
+      setShowToolbar(!!hasSelection);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  // Sync contentEditable with state on load
+  useEffect(() => {
+    if (editableRef.current && reportText && !editableRef.current.innerHTML) {
+      editableRef.current.innerHTML = reportText;
+    }
+  }, [loading, reportText]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,9 +95,17 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         const reportRef = doc(db, 's303_reports', reportId);
         const reportSnap = await getDoc(reportRef);
         if (reportSnap.exists()) {
-          const text = reportSnap.data().relatorio || '';
+          const data = reportSnap.data();
+          const text = data.relatorio || '';
           setReportText(text);
           setInitialReportText(text);
+          
+          if (data.textStyles) {
+            if (data.textStyles.fontSize) setReportFontSize(data.textStyles.fontSize);
+            // We still keep these for the "default" state if needed, 
+            // but rich text will have its own tags
+            if (data.textStyles.color) setTextColor(data.textStyles.color);
+          }
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, 's303_report');
@@ -74,48 +118,39 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   }, [userId, congregation.nome, visitDate]);
 
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editable = editableRef.current;
+    if (!editable) return;
 
     const adjustFontSize = () => {
-      // Check for overflow
-      // We use a small offset to be safe
-      const isOverflowing = textarea.scrollHeight > textarea.clientHeight;
+      const isOverflowing = editable.scrollHeight > editable.clientHeight;
       
       if (isOverflowing) {
         if (reportFontSize > 8) {
-          // Shrink font size
           setReportFontSize(prev => Math.max(8, prev - 0.4));
         }
       } else if (reportFontSize < 14) {
-        // Try to grow font size
-        // To avoid flickering, we only grow if there is significant space
-        // A line at the current font size is roughly reportFontSize * 1.6
         const estimatedLineHeight = reportFontSize * 1.6;
-        if (textarea.clientHeight - textarea.scrollHeight > estimatedLineHeight) {
+        if (editable.clientHeight - editable.scrollHeight > estimatedLineHeight) {
           setReportFontSize(prev => Math.min(14, prev + 0.4));
         }
       }
     };
 
-    // Use a slightly longer timeout to ensure the DOM has settled
     const timeoutId = setTimeout(adjustFontSize, 50);
     return () => clearTimeout(timeoutId);
   }, [reportText, reportFontSize]);
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newText = e.target.value;
-    const textarea = textareaRef.current;
-    
-    if (textarea) {
-      // Temporary update to check overflow at min font size
-      if (reportFontSize <= 8 && textarea.scrollHeight > textarea.clientHeight && newText.length > reportText.length) {
-        // Don't allow more text if we're at min font and overflowing
-        return;
-      }
+  const handleTextChange = () => {
+    if (editableRef.current) {
+      setReportText(editableRef.current.innerHTML);
     }
-    
-    setReportText(newText);
+  };
+
+  const execCommand = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+    handleTextChange();
+    // Refocus to keep toolbar visible if needed
+    editableRef.current?.focus();
   };
 
   const handleSave = async (shouldExit = false) => {
@@ -127,7 +162,11 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         congregacao: congregation.nome,
         dataVisita: visitDate,
         relatorio: reportText,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        textStyles: {
+          fontSize: reportFontSize,
+          color: textColor
+        }
       });
       setInitialReportText(reportText);
       if (shouldExit) {
@@ -160,9 +199,6 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
     const filename = `S-303 - ${congregation.nome} - ${visitDate.replace(/\//g, '-')}.pdf`;
 
     try {
-      const { toPng } = await import('html-to-image');
-      const { jsPDF } = await import('jspdf');
-
       const dataUrl = await toPng(element, {
         quality: 1.0,
         pixelRatio: 2,
@@ -188,10 +224,12 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
   const handleFillOriginalPDF = async () => {
     try {
-      const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
-      
       // Fetch the original PDF
-      const existingPdfBytes = await fetch('/S-303.pdf').then(res => res.arrayBuffer());
+      const response = await fetch('S-303.pdf');
+      if (!response.ok) {
+        throw new Error(`Erro ao baixar o PDF original: ${response.status} ${response.statusText}`);
+      }
+      const existingPdfBytes = await response.arrayBuffer();
       
       // Load the PDF
       const pdfDoc = await PDFDocument.load(existingPdfBytes);
@@ -199,24 +237,45 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const firstPage = pages[0];
       const { width, height } = firstPage.getSize();
 
-      // Use a standard font
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      // Use a standard font based on selection
+      let selectedFont = StandardFonts.Helvetica;
+      if (fontFamily.includes('Times')) selectedFont = StandardFonts.TimesRoman;
+      if (fontFamily.includes('Courier')) selectedFont = StandardFonts.Courier;
+
+      let fontToUse = selectedFont;
+      const font = await pdfDoc.embedFont(fontToUse);
+      const boldFont = await pdfDoc.embedFont(
+        selectedFont === StandardFonts.Helvetica ? StandardFonts.HelveticaBold :
+        selectedFont === StandardFonts.TimesRoman ? StandardFonts.TimesRomanBold :
+        StandardFonts.CourierBold
+      );
       const fontSize = 10;
 
+      // Convert hex color to RGB
+      const hexToRgb = (hex: string) => {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        return rgb(r, g, b);
+      };
+      const pdfColor = hexToRgb(textColor);
+
       // Helper to draw text
-      const draw = (text: string, x: number, y: number, isBold = false) => {
+      const draw = (text: string, x: number, y: number, isBoldText = false) => {
         if (!text) return;
         firstPage.drawText(text, {
           x,
           y: height - y, // Convert from top-left to bottom-left
           size: fontSize,
-          font: isBold ? boldFont : font,
-          color: rgb(0, 0, 0),
+          font: isBoldText ? boldFont : font,
+          color: pdfColor,
         });
       };
 
       // Coordinates (estimated in points from top-left)
+      const mmToPt = 2.83465;
+      const expansionPt = 4 * mmToPt;
+      
       // Elevating by 23mm (Net result after elevating 20mm and raising 3mm)
       const yOffset = 65.2;
       const xOffset = 5.67; // 2mm general left shift
@@ -241,32 +300,67 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       draw(personalData?.nome || '', 110 - xOffset, 178 - yOffset - yOffsetRow3, true);
       draw(personalData?.circuito || '', 385 - xOffset, 178 - yOffset - yOffsetRow3, true);
 
+      // Helper for justified text
+      const drawJustifiedLine = (text: string, x: number, y: number, width: number) => {
+        const words = text.trim().split(/\s+/);
+        if (words.length <= 1) {
+          draw(text, x, y);
+          return;
+        }
+
+        const totalWordsWidth = words.reduce((acc, word) => acc + font.widthOfTextAtSize(word, fontSize), 0);
+        const totalSpaceWidth = width - totalWordsWidth;
+        const spaceBetweenWords = totalSpaceWidth / (words.length - 1);
+
+        let currentX = x;
+        for (let i = 0; i < words.length; i++) {
+          draw(words[i], currentX, y);
+          currentX += font.widthOfTextAtSize(words[i], fontSize) + spaceBetweenWords;
+        }
+      };
+
+      // Strip HTML tags for manual PDF filling as pdf-lib doesn't support HTML
+      const stripHtml = (html: string) => {
+        const tmp = document.createElement("DIV");
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || "";
+      };
+      const plainReportText = stripHtml(reportText);
+
       // Report Text (with wrapping and newline support)
-      const maxWidth = 500;
-      const startX = 60 - xOffset - xOffsetReport;
+      const maxWidth = 500 + (2 * expansionPt);
+      const startX = 60 - xOffset - xOffsetReport - expansionPt;
       const startY = 225 - yOffset - yOffsetReport;
       const lineHeight = 14;
       
-      const paragraphs = reportText.split('\n');
+      const paragraphs = plainReportText.split('\n');
       let currentY = startY;
 
       for (const paragraph of paragraphs) {
+        if (!paragraph.trim()) {
+          currentY += lineHeight;
+          continue;
+        }
+
         const words = paragraph.split(' ');
         let line = '';
 
-        for (const word of words) {
-          const testLine = line + word + ' ';
+        for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          const testLine = line + (line ? ' ' : '') + word;
           const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+          
           if (testWidth > maxWidth) {
-            draw(line, startX, currentY);
-            line = word + ' ';
+            drawJustifiedLine(line, startX, currentY, maxWidth);
+            line = word;
             currentY += lineHeight;
           } else {
             line = testLine;
           }
         }
+        // Last line of paragraph is NOT justified
         draw(line, startX, currentY);
-        currentY += lineHeight; // Extra space for paragraph
+        currentY += lineHeight;
       }
 
       // Serialize the PDF to bytes (a Uint8Array)
@@ -298,8 +392,8 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   }
 
   return (
-    <div className="space-y-[15mm] w-full px-[15mm] pb-[15mm] flex flex-col items-center">
-      <div className="flex items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-[1300px]">
+    <div className="space-y-8 w-full pb-10 flex flex-col items-center">
+      <div className="flex items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-5xl">
         <div className="flex items-center gap-4">
           <button 
             onClick={handleBack}
@@ -330,101 +424,263 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-[1300px]">
+      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-5xl">
         <div 
           id="s303-report-container" 
-          className="bg-white w-full min-h-[148mm] mx-auto text-black print:m-0 flex flex-col"
+          className="bg-white w-full min-h-[200mm] mx-auto text-black print:m-0 flex flex-col"
           style={{ 
             fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
-            padding: '12mm 15mm'
+            padding: '18mm 22mm'
           }}
         >
-          <header className="mb-6">
-            <h1 className="text-center font-bold text-[15px] uppercase tracking-wide">
+          <header className="mb-10">
+            <h1 className="text-center font-bold text-[20px] uppercase tracking-wide">
               RELATÓRIO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO À CONGREGAÇÃO
             </h1>
           </header>
 
           <section className="flex flex-col flex-grow">
             {/* Row 1 */}
-            <div className="flex items-baseline mb-[0.8rem]">
-              <label className="text-[13px] whitespace-nowrap">Número da congregação:</label>
-              <div className="border-b border-black flex-[0.7] h-[1.2rem] ml-[0.4rem] px-2 text-[13px] font-medium">
+            <div className="flex items-baseline mb-[1.2rem]">
+              <label className="text-[17px] whitespace-nowrap">Número da congregação:</label>
+              <div className="border-b border-black flex-[0.7] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
                 {congregation.numero}
               </div>
-              <label className="text-[13px] whitespace-nowrap ml-4">Datas em que visitou:</label>
-              <div className="border-b border-black flex-1 h-[1.2rem] ml-[0.4rem] px-2 text-[13px] font-medium">
+              <label className="text-[17px] whitespace-nowrap ml-8">Datas em que visitou:</label>
+              <div className="border-b border-black flex-1 h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
                 {visitDate}
               </div>
             </div>
 
             {/* Row 2 */}
-            <div className="flex items-baseline mb-[0.8rem]">
-              <label className="text-[13px] whitespace-nowrap">Nome da congregação:</label>
-              <div className="border-b border-black flex-[0.8] h-[1.2rem] ml-[0.4rem] px-2 text-[13px] font-medium">
+            <div className="flex items-baseline mb-[1.2rem]">
+              <label className="text-[17px] whitespace-nowrap">Nome da congregação:</label>
+              <div className="border-b border-black flex-[0.8] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
                 {congregation.nome}
               </div>
-              <label className="text-[13px] whitespace-nowrap ml-4">Cidade:</label>
-              <div className="border-b border-black flex-[0.6] h-[1.2rem] ml-[0.4rem] px-2 text-[13px] font-medium">
+              <label className="text-[17px] whitespace-nowrap ml-8">Cidade:</label>
+              <div className="border-b border-black flex-[0.6] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
                 {congregation.cidade}
               </div>
-              <label className="text-[13px] whitespace-nowrap ml-4">Província ou estado:</label>
-              <div className="border-b border-black flex-[0.2] h-[1.2rem] ml-[0.4rem] px-2 text-[13px] font-medium">
+              <label className="text-[17px] whitespace-nowrap ml-8">Província ou estado:</label>
+              <div className="border-b border-black flex-[0.2] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
                 {congregation.estado}
               </div>
             </div>
 
             {/* Row 3 */}
-            <div className="flex items-baseline mb-[0.8rem]">
-              <label className="text-[13px] whitespace-nowrap">Sup. de circuito:</label>
-              <div className="border-b border-black flex-[0.8] h-[1.2rem] ml-[0.4rem] px-2 text-[13px] font-medium">
+            <div className="flex items-baseline mb-[1.2rem]">
+              <label className="text-[17px] whitespace-nowrap">Sup. de circuito:</label>
+              <div className="border-b border-black flex-[0.8] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
                 {personalData?.nome || ''}
               </div>
-              <label className="text-[13px] whitespace-nowrap ml-4">Número do circuito:</label>
-              <div className="border-b border-black flex-[0.6] h-[1.2rem] ml-[0.4rem] px-2 text-[13px] font-medium">
+              <label className="text-[17px] whitespace-nowrap ml-8">Número do circuito:</label>
+              <div className="border-b border-black flex-[0.6] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
                 {personalData?.circuito || ''}
               </div>
             </div>
 
             {/* Bold Divider */}
-            <div className="border-t-2 border-black mt-1 mb-1"></div>
+            <div className="border-t-2 border-black mb-3" style={{ marginTop: 'calc(0.75rem - 5mm)' }}></div>
 
             {/* Description Label */}
-            <p className="text-[13px] mt-0 mb-[0.5rem]">
+            <p className="text-[17px] mt-0 mb-[2mm]">
               Descreva brevemente o espírito da congregação e que encorajamento ou conselhos foram dados:
             </p>
 
             <div className="relative flex-grow">
-              <textarea 
-                ref={textareaRef}
-                value={reportText}
-                onChange={handleTextChange}
-                className="w-full h-[58mm] p-0 border-none font-sans leading-[1.6] focus:outline-none focus:ring-0 print:hidden resize-none bg-transparent overflow-hidden"
-                placeholder="Digite o relatório aqui..."
+              {/* Toolbar Popup */}
+              {showToolbar && (
+                <motion.div 
+                  ref={toolbarRef}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="absolute -top-16 left-0 z-20 bg-white border border-gray-200 rounded-xl shadow-xl p-1.5 flex items-center gap-1 print:hidden"
+                >
+                  {/* Font Family */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowFontPicker(!showFontPicker)}
+                      className="flex items-center gap-1 px-2 py-1.5 hover:bg-gray-100 rounded-lg text-sm font-medium transition-all"
+                    >
+                      <span className="max-w-[80px] truncate">
+                        {fontFamily.split(',')[0].replace(/'/g, '')}
+                      </span>
+                      <ChevronDown size={14} />
+                    </button>
+                    {showFontPicker && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[150px] z-30">
+                        {[
+                          { name: 'Arimo', value: "Arimo" },
+                          { name: 'Times New Roman', value: "Times New Roman" },
+                          { name: 'Courier New', value: "Courier New" },
+                          { name: 'Georgia', value: "Georgia" },
+                          { name: 'Helvetica', value: "Helvetica" }
+                        ].map(f => (
+                          <button
+                            key={f.name}
+                            onMouseDown={(e) => {
+                              e.preventDefault(); // Prevent focus loss
+                              setFontFamily(f.value);
+                              execCommand('fontName', f.value);
+                              setShowFontPicker(false);
+                            }}
+                            className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 text-sm transition-all"
+                            style={{ fontFamily: f.value }}
+                          >
+                            {f.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-px h-6 bg-gray-200 mx-1" />
+
+                  {/* Font Size */}
+                  <div className="flex items-center gap-0.5">
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); setReportFontSize(prev => Math.max(8, prev - 1)); }}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-all"
+                      title="Diminuir fonte"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span className="text-sm font-bold w-6 text-center">{Math.round(reportFontSize)}</span>
+                    <button 
+                      onMouseDown={(e) => { e.preventDefault(); setReportFontSize(prev => Math.min(24, prev + 1)); }}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-all"
+                      title="Aumentar fonte"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+
+                  <div className="w-px h-6 bg-gray-200 mx-1" />
+
+                  {/* Bold & Italic */}
+                  <button 
+                    onMouseDown={(e) => { e.preventDefault(); execCommand('bold'); }}
+                    className="p-1.5 rounded-lg transition-all hover:bg-gray-100"
+                    title="Negrito"
+                  >
+                    <Bold size={16} />
+                  </button>
+                  <button 
+                    onMouseDown={(e) => { e.preventDefault(); execCommand('italic'); }}
+                    className="p-1.5 rounded-lg transition-all hover:bg-gray-100"
+                    title="Itálico"
+                  >
+                    <Italic size={16} />
+                  </button>
+
+                  <div className="w-px h-6 bg-gray-200 mx-1" />
+
+                  {/* Color Picker */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowColorPicker(!showColorPicker)}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-all flex flex-col items-center gap-0.5"
+                      title="Cor do texto"
+                    >
+                      <Palette size={16} style={{ color: textColor }} />
+                      <div className="w-3 h-0.5" style={{ backgroundColor: textColor }} />
+                    </button>
+                    {showColorPicker && (
+                      <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl p-3 z-30 min-w-[240px]">
+                        <div className="mb-2">
+                          <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Cores do Tema</h4>
+                          <div className="flex gap-1">
+                            {[
+                              ['#ffffff', '#f2f2f2', '#d9d9d9', '#bfbfbf', '#a6a6a6', '#7f7f7f'],
+                              ['#000000', '#7f7f7f', '#595959', '#3f3f3f', '#262626', '#0c0c0c'],
+                              ['#eeece1', '#ddd9c3', '#c4bd97', '#938953', '#494429', '#1d1b10'],
+                              ['#1f497d', '#c6d9f0', '#8db3e2', '#548dd4', '#17365d', '#0f243e'],
+                              ['#4f81bd', '#dbe5f1', '#b8cce4', '#95b3d7', '#366092', '#244061'],
+                              ['#c0504d', '#f2dbdb', '#e6b8b7', '#d99694', '#953734', '#632423'],
+                              ['#9bbb59', '#ebf1de', '#d7e3bc', '#c3d69b', '#76923c', '#4f6128'],
+                              ['#8064a2', '#e5e0ec', '#ccc1d9', '#b2a2c7', '#5f497a', '#3f3151'],
+                              ['#4bacc6', '#dbeef3', '#b7dee8', '#92cddc', '#31859b', '#215967'],
+                              ['#f79646', '#fdeada', '#fbd5b5', '#fac08f', '#e36c09', '#974806'],
+                            ].map((column, colIdx) => (
+                              <div key={colIdx} className="flex flex-col gap-1">
+                                {column.map((c, rowIdx) => (
+                                  <button
+                                    key={rowIdx}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setTextColor(c);
+                                      execCommand('foreColor', c);
+                                      setShowColorPicker(false);
+                                    }}
+                                    className={`w-5 h-5 border border-gray-100 transition-all hover:scale-110 ${rowIdx === 0 ? 'mb-1' : ''}`}
+                                    style={{ backgroundColor: c }}
+                                  />
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="w-full h-px bg-gray-100 my-3" />
+                        
+                        <div>
+                          <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Cores Padrão</h4>
+                          <div className="flex gap-1">
+                            {['#c00000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#002060', '#7030a0'].map(c => (
+                              <button
+                                key={c}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setTextColor(c);
+                                  execCommand('foreColor', c);
+                                  setShowColorPicker(false);
+                                }}
+                                className="w-5 h-5 border border-gray-100 transition-all hover:scale-110"
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              <div 
+                ref={editableRef}
+                contentEditable
+                onInput={handleTextChange}
+                className="w-full h-[100mm] p-0 border-none font-sans leading-[1.6] focus:outline-none focus:ring-0 print:hidden overflow-hidden empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                data-placeholder="Digite o relatório aqui..."
                 style={{ 
-                  fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
-                  fontSize: `${reportFontSize}px`
+                  fontFamily,
+                  fontSize: `${reportFontSize}px`,
+                  textAlign: 'justify',
+                  paddingTop: '2mm'
                 }}
               />
               <div 
-                className="hidden print:block whitespace-pre-wrap leading-[1.6] h-[58mm] overflow-hidden"
+                className="hidden print:block whitespace-pre-wrap leading-[1.6] h-[100mm] overflow-hidden text-justify"
                 style={{ 
-                  fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
-                  fontSize: `${reportFontSize}px`
+                  fontFamily,
+                  fontSize: `${reportFontSize}px`,
+                  textAlign: 'justify',
+                  paddingTop: '2mm'
                 }}
-              >
-                {reportText}
-              </div>
+                dangerouslySetInnerHTML={{ __html: reportText }}
+              />
             </div>
           </section>
 
           <footer className="mt-auto">
-            <div className="text-[10.5px] line-height-[1.35] text-justify">
+            <div className="text-[14px] line-height-[1.4] text-justify">
               (Antes de terminar a visita à congregação no domingo, e numa hora que não interfira na programação de serviço de campo, 
               considere este relatório com a comissão de serviço da congregação. Deixe uma cópia com o coordenador do corpo de anciãos 
               para que todos os anciãos a leiam e para que a recapitulem na próxima reunião trimestral dos anciãos.)
             </div>
-            <div className="text-[15px] mt-4">
+            <div className="text-[20px] mt-8">
               S-303-T 1/25
             </div>
           </footer>

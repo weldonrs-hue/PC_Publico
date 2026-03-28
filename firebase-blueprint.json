@@ -103,7 +103,17 @@
         "congregacao": { "type": "string" },
         "dataVisita": { "type": "string" },
         "relatorio": { "type": "string" },
-        "updatedAt": { "type": "string" }
+        "updatedAt": { "type": "string" },
+        "textStyles": {
+          "type": "object",
+          "properties": {
+            "fontFamily": { "type": "string" },
+            "fontSize": { "type": "number" },
+            "fontWeight": { "type": "string" },
+            "fontStyle": { "type": "string" },
+            "color": { "type": "string" }
+          }
+        }
       },
       "required": ["userId", "congregacao", "dataVisita"]
     },
