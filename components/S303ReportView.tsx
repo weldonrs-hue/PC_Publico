@@ -46,6 +46,8 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   const [showToolbar, setShowToolbar] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [reportHeight, setReportHeight] = useState(110);
   
   const editableRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -90,6 +92,16 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
           }
         }
 
+        // Fetch user role to check admin status
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const adminEmails = ["weldonrs@gmail.com", "2283701@progcir.app", "2283701@progcir.com"];
+          const userEmail = userData.email?.toLowerCase();
+          setIsAdmin(userData.role === 'admin' || adminEmails.includes(userEmail));
+        }
+
         // Fetch existing report
         const reportId = `${userId}_${congregation.nome}_${visitDate.replace(/\//g, '-')}`;
         const reportRef = doc(db, 's303_reports', reportId);
@@ -99,6 +111,8 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
           const text = data.relatorio || '';
           setReportText(text);
           setInitialReportText(text);
+          
+          if (data.reportHeight) setReportHeight(data.reportHeight);
           
           if (data.textStyles) {
             if (data.textStyles.fontSize) setReportFontSize(data.textStyles.fontSize);
@@ -162,6 +176,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         congregacao: congregation.nome,
         dataVisita: visitDate,
         relatorio: reportText,
+        reportHeight,
         updatedAt: new Date().toISOString(),
         textStyles: {
           fontSize: reportFontSize,
@@ -239,8 +254,11 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
       // Use a standard font based on selection
       let selectedFont = StandardFonts.Helvetica;
-      if (fontFamily.includes('Times')) selectedFont = StandardFonts.TimesRoman;
-      if (fontFamily.includes('Courier')) selectedFont = StandardFonts.Courier;
+      if (fontFamily.includes('Times') || fontFamily.includes('Georgia')) {
+        selectedFont = StandardFonts.TimesRoman;
+      } else if (fontFamily.includes('Courier')) {
+        selectedFont = StandardFonts.Courier;
+      }
 
       let fontToUse = selectedFont;
       const font = await pdfDoc.embedFont(fontToUse);
@@ -249,7 +267,11 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         selectedFont === StandardFonts.TimesRoman ? StandardFonts.TimesRomanBold :
         StandardFonts.CourierBold
       );
-      const fontSize = 10;
+      
+      // Convert reportFontSize (px) to PDF points (pt)
+      // User requested: PDF size should be even smaller
+      const fontSize = Math.max(6, reportFontSize - 9);
+      const pdfLineHeight = fontSize * 1.4;
 
       // Convert hex color to RGB
       const hexToRgb = (hex: string) => {
@@ -258,17 +280,30 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         const b = parseInt(hex.slice(5, 7), 16) / 255;
         return rgb(r, g, b);
       };
-      const pdfColor = hexToRgb(textColor);
+      const reportColor = hexToRgb(textColor);
+      const blackColor = rgb(0, 0, 0);
 
-      // Helper to draw text
-      const draw = (text: string, x: number, y: number, isBoldText = false) => {
+      // Helper to draw header text (fixed size and color)
+      const drawHeader = (text: string, x: number, y: number) => {
         if (!text) return;
         firstPage.drawText(text, {
           x,
-          y: height - y, // Convert from top-left to bottom-left
+          y: height - y,
+          size: 10,
+          font: font, // Changed from boldFont to font
+          color: blackColor,
+        });
+      };
+
+      // Helper to draw report text
+      const drawReport = (text: string, x: number, y: number, isBoldText = false) => {
+        if (!text) return;
+        firstPage.drawText(text, {
+          x,
+          y: height - y,
           size: fontSize,
           font: isBoldText ? boldFont : font,
-          color: pdfColor,
+          color: blackColor, // Forced to black as requested
         });
       };
 
@@ -288,23 +323,76 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const yOffsetReport = 5.67; // 2mm up shift for report
 
       // Row 1
-      draw(congregation.numero, 145 - xOffset, 128 - yOffset - yOffsetRow1, true);
-      draw(visitDate, 415 - xOffset, 128 - yOffset - yOffsetRow1, true);
+      drawHeader(congregation.numero, 145 - xOffset, 128 - yOffset - yOffsetRow1);
+      drawHeader(visitDate, 415 - xOffset, 128 - yOffset - yOffsetRow1);
 
       // Row 2
-      draw(congregation.nome, 145 - xOffset, 153 - yOffset - yOffsetRow2, true);
-      draw(congregation.cidade, 335 - xOffset, 153 - yOffset - yOffsetRow2, true);
-      draw(congregation.estado, 525 - xOffset, 153 - yOffset - yOffsetRow2, true);
+      drawHeader(congregation.nome, 145 - xOffset, 153 - yOffset - yOffsetRow2);
+      drawHeader(congregation.cidade, 335 - xOffset, 153 - yOffset - yOffsetRow2);
+      drawHeader(congregation.estado, 525 - xOffset, 153 - yOffset - yOffsetRow2);
 
       // Row 3
-      draw(personalData?.nome || '', 110 - xOffset, 178 - yOffset - yOffsetRow3, true);
-      draw(personalData?.circuito || '', 385 - xOffset, 178 - yOffset - yOffsetRow3, true);
+      drawHeader(personalData?.nome || '', 110 - xOffset, 178 - yOffset - yOffsetRow3);
+      drawHeader(personalData?.circuito || '', 385 - xOffset, 178 - yOffset - yOffsetRow3);
 
-      // Helper for justified text
+      // Report Text (Robust manual drawing to ensure it's NEVER blank)
+      const maxWidth = 500 + (2 * expansionPt);
+      const startX = 60 - xOffset - xOffsetReport - expansionPt;
+      const startY = 225 - yOffset - yOffsetReport;
+
+      // Improved HTML to Plain Text conversion for PDF
+      const stripHtmlForPdf = (html: string) => {
+        if (!html) return "";
+        let text = html;
+        // Convert line breaks and block elements to newlines
+        text = text.replace(/<br\s*\/?>/gi, '\n');
+        text = text.replace(/<\/p>/gi, '\n');
+        text = text.replace(/<\/div>/gi, '\n');
+        text = text.replace(/<(p|div|li|h[1-6])[^>]*>/gi, '\n');
+        
+        // Remove all other tags
+        text = text.replace(/<[^>]*>/g, '');
+        
+        // Decode common HTML entities
+        const entities: { [key: string]: string } = {
+          '&nbsp;': ' ',
+          '&amp;': '&',
+          '&lt;': '<',
+          '&gt;': '>',
+          '&quot;': '"',
+          '&#39;': "'",
+          '&atilde;': 'ã',
+          '&otilde;': 'õ',
+          '&ccedil;': 'ç',
+          '&aacute;': 'á',
+          '&eacute;': 'é',
+          '&iacute;': 'í',
+          '&oacute;': 'ó',
+          '&uacute;': 'ú',
+          '&acirc;': 'â',
+          '&ecirc;': 'ê',
+          '&icirc;': 'î',
+          '&ocirc;': 'ô',
+          '&ucirc;': 'û'
+        };
+        
+        Object.keys(entities).forEach(entity => {
+          text = text.replace(new RegExp(entity, 'g'), entities[entity]);
+        });
+        
+        return text;
+      };
+
+      const plainReportText = stripHtmlForPdf(reportText);
+      const paragraphs = plainReportText.split(/\r?\n/);
+      let currentY = startY;
+      let hasStarted = false;
+
+      // Helper for justified text (Manual drawing)
       const drawJustifiedLine = (text: string, x: number, y: number, width: number) => {
-        const words = text.trim().split(/\s+/);
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
         if (words.length <= 1) {
-          draw(text, x, y);
+          drawReport(text, x, y);
           return;
         }
 
@@ -314,53 +402,46 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
         let currentX = x;
         for (let i = 0; i < words.length; i++) {
-          draw(words[i], currentX, y);
+          drawReport(words[i], currentX, y);
           currentX += font.widthOfTextAtSize(words[i], fontSize) + spaceBetweenWords;
         }
       };
 
-      // Strip HTML tags for manual PDF filling as pdf-lib doesn't support HTML
-      const stripHtml = (html: string) => {
-        const tmp = document.createElement("DIV");
-        tmp.innerHTML = html;
-        return tmp.textContent || tmp.innerText || "";
-      };
-      const plainReportText = stripHtml(reportText);
+      for (let i = 0; i < paragraphs.length; i++) {
+        const paragraph = paragraphs[i].trim();
+        
+        // Skip initial empty lines
+        if (!hasStarted && !paragraph) continue;
+        hasStarted = true;
 
-      // Report Text (with wrapping and newline support)
-      const maxWidth = 500 + (2 * expansionPt);
-      const startX = 60 - xOffset - xOffsetReport - expansionPt;
-      const startY = 225 - yOffset - yOffsetReport;
-      const lineHeight = 14;
-      
-      const paragraphs = plainReportText.split('\n');
-      let currentY = startY;
-
-      for (const paragraph of paragraphs) {
-        if (!paragraph.trim()) {
-          currentY += lineHeight;
+        if (!paragraph) {
+          // Empty line (double Enter)
+          currentY += pdfLineHeight;
           continue;
         }
 
-        const words = paragraph.split(' ');
+        const words = paragraph.split(/\s+/).filter(w => w.length > 0);
         let line = '';
 
-        for (let i = 0; i < words.length; i++) {
-          const word = words[i];
+        for (let j = 0; j < words.length; j++) {
+          const word = words[j];
           const testLine = line + (line ? ' ' : '') + word;
           const testWidth = font.widthOfTextAtSize(testLine, fontSize);
           
           if (testWidth > maxWidth) {
             drawJustifiedLine(line, startX, currentY, maxWidth);
             line = word;
-            currentY += lineHeight;
+            currentY += pdfLineHeight;
           } else {
             line = testLine;
           }
         }
-        // Last line of paragraph is NOT justified
-        draw(line, startX, currentY);
-        currentY += lineHeight;
+        
+        // Last line of paragraph (not justified)
+        if (line) {
+          drawReport(line, startX, currentY);
+          currentY += pdfLineHeight;
+        }
       }
 
       // Serialize the PDF to bytes (a Uint8Array)
@@ -393,7 +474,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
   return (
     <div className="space-y-8 w-full pb-10 flex flex-col items-center">
-      <div className="flex items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-5xl">
+      <div className="flex items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-6xl">
         <div className="flex items-center gap-4">
           <button 
             onClick={handleBack}
@@ -424,69 +505,90 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-5xl">
+      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl">
         <div 
           id="s303-report-container" 
           className="bg-white w-full min-h-[200mm] mx-auto text-black print:m-0 flex flex-col"
           style={{ 
             fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
-            padding: '18mm 22mm'
+            padding: '18mm 23mm'
           }}
         >
-          <header className="mb-10">
-            <h1 className="text-center font-bold text-[20px] uppercase tracking-wide">
+          <header className="mb-1">
+            <h1 className="text-center font-bold text-[1.1rem] tracking-normal">
               RELATÓRIO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO À CONGREGAÇÃO
             </h1>
           </header>
 
-          <section className="flex flex-col flex-grow">
+          <section className="space-y-3 text-[0.85rem]">
             {/* Row 1 */}
-            <div className="flex items-baseline mb-[1.2rem]">
-              <label className="text-[17px] whitespace-nowrap">Número da congregação:</label>
-              <div className="border-b border-black flex-[0.7] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
-                {congregation.numero}
+            <div className="flex items-baseline w-full">
+              <div className="flex items-baseline w-[48%]">
+                <span className="whitespace-nowrap pr-1">Número da congregação:</span>
+                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                  {congregation.numero}
+                </div>
               </div>
-              <label className="text-[17px] whitespace-nowrap ml-8">Datas em que visitou:</label>
-              <div className="border-b border-black flex-1 h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
-                {visitDate}
+              <div className="flex items-baseline w-[52%] pl-6">
+                <span className="whitespace-nowrap pr-1">Datas em que visitou:</span>
+                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                  {visitDate}
+                </div>
               </div>
             </div>
 
             {/* Row 2 */}
-            <div className="flex items-baseline mb-[1.2rem]">
-              <label className="text-[17px] whitespace-nowrap">Nome da congregação:</label>
-              <div className="border-b border-black flex-[0.8] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
-                {congregation.nome}
+            <div className="flex items-baseline w-full">
+              <div className="flex items-baseline w-[48%]">
+                <span className="whitespace-nowrap pr-1">Nome da congregação:</span>
+                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                  {congregation.nome}
+                </div>
               </div>
-              <label className="text-[17px] whitespace-nowrap ml-8">Cidade:</label>
-              <div className="border-b border-black flex-[0.6] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
-                {congregation.cidade}
-              </div>
-              <label className="text-[17px] whitespace-nowrap ml-8">Província ou estado:</label>
-              <div className="border-b border-black flex-[0.2] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
-                {congregation.estado}
+              <div className="flex items-baseline w-[52%] pl-6">
+                <div className="flex items-baseline w-[55%]">
+                  <span className="whitespace-nowrap pr-1">Cidade:</span>
+                  <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                    {congregation.cidade}
+                  </div>
+                </div>
+                <div className="flex items-baseline w-[45%] pl-4">
+                  <span className="whitespace-nowrap pr-1">Província ou estado:</span>
+                  <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                    {congregation.estado}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Row 3 */}
-            <div className="flex items-baseline mb-[1.2rem]">
-              <label className="text-[17px] whitespace-nowrap">Sup. de circuito:</label>
-              <div className="border-b border-black flex-[0.8] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
-                {personalData?.nome || ''}
+            <div className="flex items-baseline w-full">
+              <div className="flex items-baseline w-[48%]">
+                <span className="whitespace-nowrap pr-1">Sup. de circuito:</span>
+                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                  {personalData?.nome || ''}
+                </div>
               </div>
-              <label className="text-[17px] whitespace-nowrap ml-8">Número do circuito:</label>
-              <div className="border-b border-black flex-[0.6] h-[1.6rem] ml-[0.6rem] px-2 text-[17px] font-medium">
-                {personalData?.circuito || ''}
+              <div className="flex items-baseline w-[52%] pl-6">
+                <div className="flex items-baseline w-full">
+                  <span className="whitespace-nowrap pr-1">Número do circuito:</span>
+                  <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                    {personalData?.circuito || ''}
+                  </div>
+                </div>
               </div>
             </div>
+          </section>
 
-            {/* Bold Divider */}
-            <div className="border-t-2 border-black mb-3" style={{ marginTop: 'calc(0.75rem - 5mm)' }}></div>
+          {/* Main Divider */}
+          <div className="border-b-[1.5px] border-black my-4" style={{ marginTop: '1rem', marginBottom: '0.75rem' }}></div>
 
-            {/* Description Label */}
-            <p className="text-[17px] mt-0 mb-[2mm]">
+          {/* Instruction Text */}
+          <section>
+            <p className="text-[0.85rem] leading-tight mb-2">
               Descreva brevemente o espírito da congregação e que encorajamento ou conselhos foram dados:
             </p>
+          </section>
 
             <div className="relative flex-grow">
               {/* Toolbar Popup */}
@@ -644,6 +746,29 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
                         </div>
                       </div>
                     )}
+                    {/* Height Adjustment (Admin Only) */}
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 border-l border-gray-200 pl-2 ml-2">
+                        <button 
+                          onMouseDown={(e) => { e.preventDefault(); setReportHeight(prev => Math.max(50, prev - 1)); }}
+                          className="p-1.5 hover:bg-gray-100 rounded-lg transition-all text-gray-500"
+                          title="Diminuir altura da caixa"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <div className="flex flex-col items-center px-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-0.5">Altura</span>
+                          <span className="text-xs font-bold text-[#512da8] tabular-nums">{reportHeight}mm</span>
+                        </div>
+                        <button 
+                          onMouseDown={(e) => { e.preventDefault(); setReportHeight(prev => Math.min(200, prev + 1)); }}
+                          className="p-1.5 hover:bg-gray-100 rounded-lg transition-all text-gray-500"
+                          title="Aumentar altura da caixa"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -652,35 +777,36 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
                 ref={editableRef}
                 contentEditable
                 onInput={handleTextChange}
-                className="w-full h-[100mm] p-0 border-none font-sans leading-[1.6] focus:outline-none focus:ring-0 print:hidden overflow-hidden empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                className="w-full p-0 border-none font-sans leading-[1.6] focus:outline-none focus:ring-0 print:hidden overflow-hidden empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
                 data-placeholder="Digite o relatório aqui..."
                 style={{ 
                   fontFamily,
                   fontSize: `${reportFontSize}px`,
                   textAlign: 'justify',
-                  paddingTop: '2mm'
+                  paddingTop: '2mm',
+                  height: `${reportHeight}mm`
                 }}
               />
               <div 
-                className="hidden print:block whitespace-pre-wrap leading-[1.6] h-[100mm] overflow-hidden text-justify"
+                className="hidden print:block whitespace-pre-wrap leading-[1.6] overflow-hidden text-justify"
                 style={{ 
                   fontFamily,
                   fontSize: `${reportFontSize}px`,
                   textAlign: 'justify',
-                  paddingTop: '2mm'
+                  paddingTop: '2mm',
+                  height: `${reportHeight}mm`
                 }}
                 dangerouslySetInnerHTML={{ __html: reportText }}
               />
             </div>
-          </section>
 
           <footer className="mt-auto">
-            <div className="text-[14px] line-height-[1.4] text-justify">
+            <div className="text-[15px] leading-[1.4] text-justify" style={{ marginTop: '6mm' }}>
               (Antes de terminar a visita à congregação no domingo, e numa hora que não interfira na programação de serviço de campo, 
               considere este relatório com a comissão de serviço da congregação. Deixe uma cópia com o coordenador do corpo de anciãos 
               para que todos os anciãos a leiam e para que a recapitulem na próxima reunião trimestral dos anciãos.)
             </div>
-            <div className="text-[20px] mt-8">
+            <div className="text-[20px] mt-2">
               S-303-T 1/25
             </div>
           </footer>
@@ -735,7 +861,13 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         @media print {
           @page {
             margin: 0;
-            size: A4;
+            size: A4 landscape;
+          }
+          #s303-report-container {
+            width: 297mm !important;
+            height: 210mm !important;
+            margin: 0 !important;
+            padding: 15mm 20mm !important;
           }
           body {
             background-color: white !important;
