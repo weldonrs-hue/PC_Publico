@@ -828,7 +828,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           </div>
         ) : (
           <div className="overflow-x-auto pb-8" id="itinerary-table-container">
-            <div className="w-full max-w-full bg-white print:w-[210mm] print:mx-auto print:p-[10mm] print:shadow-none">
+            <div className="w-full max-w-full bg-white print:w-[210mm] print:mx-auto print:p-[15mm] print:shadow-none">
               <table className="w-full text-left border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-100 border-b border-gray-300">

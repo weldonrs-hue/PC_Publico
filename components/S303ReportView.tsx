@@ -41,7 +41,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   const [reportText, setReportText] = useState('');
   const [initialReportText, setInitialReportText] = useState('');
   const [reportFontSize, setReportFontSize] = useState(16);
-  const [fontFamily, setFontFamily] = useState("'Arimo', Arial, sans-serif");
+  const [fontFamily, setFontFamily] = useState("'Arimo', Arial, Helvetica, sans-serif");
   const [textColor, setTextColor] = useState('#000000');
   const [showToolbar, setShowToolbar] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -55,7 +55,21 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  const [showPdfMenu, setShowPdfMenu] = useState(false);
+  const pdfMenuRef = useRef<HTMLDivElement>(null);
+
   const isDirty = reportText !== initialReportText;
+
+  // Handle clicks outside PDF menu to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(event.target as Node)) {
+        setShowPdfMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const handleSelectionChange = () => {
@@ -191,30 +205,37 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       handleFirestoreError(error, OperationType.WRITE, 's303_report_save');
     } finally {
       setSaving(false);
-      setShowConfirmDialog(false);
     }
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
     if (isDirty) {
-      setShowConfirmDialog(true);
+      await handleSave(true);
     } else {
       onBack();
     }
   };
 
   const handlePrint = () => {
-    // Small delay to ensure any pending UI updates are rendered
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    window.print();
+  };
+
+  const getFormattedFilename = () => {
+    // visitDate is usually "DD/MM/YYYY - DD/MM/YYYY"
+    // We want the second date
+    let secondDate = visitDate;
+    if (visitDate.includes(' - ')) {
+      const parts = visitDate.split(' - ');
+      secondDate = parts[1] || parts[0];
+    }
+    return `S-303 (${secondDate}) ${congregation.nome}.pdf`;
   };
 
   const handleSavePDF = async () => {
     const element = document.getElementById('s303-report-container');
     if (!element) return;
 
-    const filename = `S-303 - ${congregation.nome} - ${visitDate.replace(/\//g, '-')}.pdf`;
+    const filename = getFormattedFilename();
 
     try {
       const dataUrl = await toPng(element, {
@@ -224,16 +245,33 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       });
 
       const pdf = new jsPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
 
-      const imgProps = pdf.getImageProperties(dataUrl);
+      const margin = 0; // No margins
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const availableWidth = pdfWidth;
+      const availableHeight = pdfHeight;
 
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const ratio = imgProps.width / imgProps.height;
+      
+      let finalWidth = availableWidth;
+      let finalHeight = availableWidth / ratio;
+
+      if (finalHeight > availableHeight) {
+        finalHeight = availableHeight;
+        finalWidth = availableHeight * ratio;
+      }
+
+      const x = (pdfWidth - finalWidth) / 2;
+      const y = (pdfHeight - finalHeight) / 2;
+
+      pdf.addImage(dataUrl, 'PNG', x, y, finalWidth, finalHeight);
       pdf.save(filename);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -446,7 +484,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `S-303_Preenchido_${congregation.nome}.pdf`;
+      link.download = getFormattedFilename();
       link.click();
       URL.revokeObjectURL(url);
 
@@ -482,25 +520,45 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
           </div>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={() => handleSave(false)}
-            disabled={saving || !isDirty}
-            className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-sm ${
-              isDirty 
-                ? 'bg-[#7B1FA2] text-white hover:opacity-90' 
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? 'Salvando...' : 'Salvar'}
-          </button>
-          <button 
-            onClick={handleFillOriginalPDF}
-            className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
-          >
-            <FileDown size={16} />
-            <span className="hidden sm:inline">PDF Original</span>
-          </button>
+          <div className="relative" ref={pdfMenuRef}>
+            <button 
+              onClick={() => setShowPdfMenu(!showPdfMenu)}
+              className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
+            >
+              <FileDown size={16} />
+              <span>PDF</span>
+              <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showPdfMenu && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="absolute top-full right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 min-w-[180px] z-20 overflow-hidden"
+              >
+                <button
+                  onClick={() => {
+                    handleFillOriginalPDF();
+                    setShowPdfMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
+                >
+                  <FileDown size={18} className="text-[#7B1FA2]" />
+                  PDF Original
+                </button>
+                <button
+                  onClick={() => {
+                    handleSavePDF();
+                    setShowPdfMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
+                >
+                  <FileDown size={18} className="text-[#7B1FA2]" />
+                  PDF ProgCir
+                </button>
+              </motion.div>
+            )}
+          </div>
           <button 
             onClick={handlePrint}
             className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
@@ -511,55 +569,28 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-          #s303-report-container {
-            width: 210mm !important;
-            height: 297mm !important;
-            padding: 15mm 20mm !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
-            display: flex !important;
-            flex-direction: column !important;
-            overflow: hidden !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-        }
-      ` }} />
-
       <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl print:max-w-none print:w-full">
         <div 
           id="s303-report-container" 
-          className="bg-white w-full min-h-[200mm] print:min-h-0 mx-auto text-black print:m-0 print:p-0 flex flex-col"
+          className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col"
           style={{ 
             fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
-            padding: '15mm 20mm'
+            padding: '15mm',
+            width: '297mm',
+            minHeight: '210mm',
+            boxSizing: 'border-box'
           }}
         >
           <header className="mb-[5mm]">
             <h1 
-              className="text-center font-bold text-[19px] tracking-tight leading-tight uppercase mx-auto"
-              style={{ width: '915px' }}
+              className="text-center font-bold text-[19px] tracking-tight leading-tight uppercase w-full"
             >
               RELATÓRIO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO À CONGREGAÇÃO
             </h1>
           </header>
 
           <section 
-            className="space-y-[5mm] text-[15px] mx-auto"
-            style={{ width: '915px' }}
+            className="space-y-[5mm] text-[15px] w-full"
           >
             {/* Row 1 */}
             <div className="flex items-baseline w-full">
@@ -637,12 +668,12 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
           {/* Main Divider */}
           <div 
-            className="border-b-[1.5px] border-black"
-            style={{ width: '915px', height: '1px', marginTop: '2.5mm', marginBottom: '2.5mm', paddingLeft: '0px', paddingRight: '0px', marginRight: '0px', marginLeft: '76px' }}
+            className="border-b-[1.5px] border-black w-full"
+            style={{ height: '1px', marginTop: '2.5mm', marginBottom: '2.5mm' }}
           ></div>
 
           {/* Instruction Text */}
-          <section className="mx-auto" style={{ width: '915px' }}>
+          <section className="w-full">
             <p className="text-[16px] font-normal leading-tight">
               Descreva brevemente o espírito da congregação e que encorajamento ou conselhos foram dados:
             </p>
@@ -832,8 +863,8 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
               )}
 
               <div 
-                className="report-content-wrapper mx-auto"
-                style={{ width: '915px', marginTop: '-14px', height: '320.919px' }}
+                className="report-content-wrapper w-full"
+                style={{ marginTop: '-14px' }}
               >
                 <div 
                   ref={editableRef}
@@ -847,82 +878,36 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
                     textAlign: 'justify',
                     paddingTop: '2mm',
                     marginTop: '9px',
-                    height: `${reportHeight}mm`,
-                    width: '915px'
+                    height: `${reportHeight}mm`
                   }}
                 />
                 <div 
-                  className="hidden print:block whitespace-pre-wrap leading-[1.6] overflow-hidden text-justify"
+                  className="hidden print:block leading-[1.6] overflow-hidden text-justify w-full"
                   style={{ 
                     fontFamily,
                     fontSize: `${reportFontSize}px`,
                     textAlign: 'justify',
                     paddingTop: '2mm',
                     marginTop: '9px',
-                    height: `${reportHeight}mm`,
-                    width: '915px'
+                    height: `${reportHeight}mm`
                   }}
                   dangerouslySetInnerHTML={{ __html: reportText }}
                 />
               </div>
             </div>
 
-          <footer className="mt-auto pt-2">
-            <div 
-              className="text-[16px] leading-[1.2] text-justify italic text-gray-800 mx-auto" 
-              style={{ marginTop: '0px', height: '64.6px', width: '915px' }}
-            >
+          <footer className="w-full" style={{ marginTop: '3mm' }}>
+            <div className="text-[16px] leading-[1.2] text-justify italic text-gray-800 mb-2">
               (Antes de terminar a visita à congregação no domingo, e numa hora que não interfira na programação de serviço de campo, 
               considere este relatório com a comissão de serviço da congregação. Deixe uma cópia com o coordenador do corpo de anciãos 
               para que todos os anciãos a leiam e para que a recapitulem na próxima reunião trimestral dos anciãos.)
             </div>
-            <div 
-              className="text-[15px] font-normal mx-auto"
-              style={{ width: '915px', marginTop: '0px', marginBottom: '30px' }}
-            >
+            <div className="text-[15px] font-normal mb-10">
               S-303-T 1/25
             </div>
           </footer>
         </div>
       </div>
-
-      {/* Confirmation Dialog */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <motion.div 
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-gray-100"
-          >
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Salvar alterações?</h3>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              Você fez alterações no relatório. Deseja salvar antes de sair?
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => handleSave(true)}
-                disabled={saving}
-                className="w-full bg-[#512da8] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#4527a0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
-              >
-                {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                Sim, salvar e sair
-              </button>
-              <button
-                onClick={onBack}
-                className="w-full bg-gray-50 text-gray-700 py-4 rounded-2xl font-bold text-lg hover:bg-gray-100 transition-all border border-gray-200"
-              >
-                Sair sem salvar
-              </button>
-              <button
-                onClick={() => setShowConfirmDialog(false)}
-                className="w-full text-gray-400 py-2 font-medium hover:text-gray-600 transition-all"
-              >
-                Cancelar
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
@@ -933,7 +918,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
         @media print {
           @page {
-            margin: 20mm;
+            margin: 0;
             size: A4 landscape;
           }
           html, body {
@@ -944,19 +929,18 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
             background: white !important;
           }
           #s303-report-container {
-            width: 100% !important;
-            height: 170mm !important; /* A4 height (210mm) - margins (40mm) */
-            min-height: 0 !important;
+            width: 297mm !important;
+            height: 210mm !important;
+            min-height: 210mm !important;
             margin: 0 !important;
-            padding: 0 !important; /* Let @page margins handle it */
+            padding: 15mm !important;
             overflow: hidden !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             box-sizing: border-box !important;
           }
-          /* Ensure content fits within the 170mm height of landscape A4 with 20mm margins */
+          /* Ensure content fits within the landscape A4 */
           .report-content-wrapper {
-            max-height: 82mm;
             overflow: hidden !important;
           }
           body {

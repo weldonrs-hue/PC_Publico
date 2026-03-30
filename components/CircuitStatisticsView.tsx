@@ -335,12 +335,9 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             margin: 0 !important;
             padding: 0 !important;
           }
-          /* Apply the 1.2cm side margins and white background to the print container */
+          /* Apply the 1.5cm margins and white background to the print container */
           .print-content-container {
-            padding-left: 12mm !important;
-            padding-right: 12mm !important;
-            padding-top: 10mm !important;
-            padding-bottom: 10mm !important;
+            padding: 15mm !important;
             background-color: white !important;
             min-height: 297mm;
           }

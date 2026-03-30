@@ -411,7 +411,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
               padding: 0 !important;
             }
             #activity-analysis-form {
-              padding: 12mm !important;
+              padding: 15mm !important;
               background-color: white !important;
               min-height: 297mm;
             }
