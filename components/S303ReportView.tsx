@@ -47,7 +47,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [reportHeight, setReportHeight] = useState(110);
+  const [reportHeight, setReportHeight] = useState(82);
   
   const editableRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -204,7 +204,10 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   };
 
   const handlePrint = () => {
-    window.print();
+    // Small delay to ensure any pending UI updates are rendered
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const handleSavePDF = async () => {
@@ -252,25 +255,16 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const firstPage = pages[0];
       const { width, height } = firstPage.getSize();
 
-      // Use a standard font based on selection
+      // Use Arial (Helvetica) as requested for the original PDF
       let selectedFont = StandardFonts.Helvetica;
-      if (fontFamily.includes('Times') || fontFamily.includes('Georgia')) {
-        selectedFont = StandardFonts.TimesRoman;
-      } else if (fontFamily.includes('Courier')) {
-        selectedFont = StandardFonts.Courier;
-      }
 
       let fontToUse = selectedFont;
       const font = await pdfDoc.embedFont(fontToUse);
-      const boldFont = await pdfDoc.embedFont(
-        selectedFont === StandardFonts.Helvetica ? StandardFonts.HelveticaBold :
-        selectedFont === StandardFonts.TimesRoman ? StandardFonts.TimesRomanBold :
-        StandardFonts.CourierBold
-      );
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       
       // Convert reportFontSize (px) to PDF points (pt)
-      // User requested: PDF size should be even smaller
-      const fontSize = Math.max(6, reportFontSize - 9);
+      // User requested: Increase by 0.5 units (from previous -6.5 to -6)
+      const fontSize = Math.max(6, reportFontSize - 6);
       const pdfLineHeight = fontSize * 1.4;
 
       // Convert hex color to RGB
@@ -489,15 +483,27 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
         <div className="flex gap-2">
           <button 
+            onClick={() => handleSave(false)}
+            disabled={saving || !isDirty}
+            className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-sm ${
+              isDirty 
+                ? 'bg-[#7B1FA2] text-white hover:opacity-90' 
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+          <button 
             onClick={handleFillOriginalPDF}
-            className="bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm"
+            className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
           >
             <FileDown size={16} />
             <span className="hidden sm:inline">PDF Original</span>
           </button>
           <button 
             onClick={handlePrint}
-            className="bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm"
+            className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
           >
             <Printer size={16} />
             <span className="hidden sm:inline">Imprimir</span>
@@ -505,32 +511,69 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+          #s303-report-container {
+            width: 210mm !important;
+            height: 297mm !important;
+            padding: 15mm 20mm !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      ` }} />
+
+      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl print:max-w-none print:w-full">
         <div 
           id="s303-report-container" 
-          className="bg-white w-full min-h-[200mm] mx-auto text-black print:m-0 flex flex-col"
+          className="bg-white w-full min-h-[200mm] print:min-h-0 mx-auto text-black print:m-0 print:p-0 flex flex-col"
           style={{ 
             fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
-            padding: '18mm 23mm'
+            padding: '15mm 20mm'
           }}
         >
-          <header className="mb-1">
-            <h1 className="text-center font-bold text-[1.1rem] tracking-normal">
+          <header className="mb-[5mm]">
+            <h1 
+              className="text-center font-bold text-[19px] tracking-tight leading-tight uppercase mx-auto"
+              style={{ width: '915px' }}
+            >
               RELATÓRIO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO À CONGREGAÇÃO
             </h1>
           </header>
 
-          <section className="space-y-3 text-[0.85rem]">
+          <section 
+            className="space-y-[5mm] text-[15px] mx-auto"
+            style={{ width: '915px' }}
+          >
             {/* Row 1 */}
             <div className="flex items-baseline w-full">
-              <div className="flex items-baseline w-[48%]">
-                <span className="whitespace-nowrap pr-1">Número da congregação:</span>
+              <div className="flex items-baseline w-[45%]">
+                <span className="whitespace-nowrap pr-1 font-normal tracking-tight">Número da congregação:</span>
                 <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
                   {congregation.numero}
                 </div>
               </div>
-              <div className="flex items-baseline w-[52%] pl-6">
-                <span className="whitespace-nowrap pr-1">Datas em que visitou:</span>
+              <div className="flex items-baseline w-[55%] pl-8">
+                <span 
+                  className="whitespace-nowrap pr-1 font-normal tracking-tight"
+                  style={{ marginLeft: '-30px' }}
+                >Datas em que visitou:</span>
                 <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
                   {visitDate}
                 </div>
@@ -539,21 +582,27 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
             {/* Row 2 */}
             <div className="flex items-baseline w-full">
-              <div className="flex items-baseline w-[48%]">
-                <span className="whitespace-nowrap pr-1">Nome da congregação:</span>
+              <div className="flex items-baseline w-[45%]">
+                <span className="whitespace-nowrap pr-1 font-normal tracking-tight">Nome da congregação:</span>
                 <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
                   {congregation.nome}
                 </div>
               </div>
-              <div className="flex items-baseline w-[52%] pl-6">
+              <div className="flex items-baseline w-[55%] pl-8">
                 <div className="flex items-baseline w-[55%]">
-                  <span className="whitespace-nowrap pr-1">Cidade:</span>
+                  <span 
+                    className="whitespace-nowrap pr-1 font-normal tracking-tight"
+                    style={{ marginLeft: '-30px' }}
+                  >Cidade:</span>
                   <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
                     {congregation.cidade}
                   </div>
                 </div>
                 <div className="flex items-baseline w-[45%] pl-4">
-                  <span className="whitespace-nowrap pr-1">Província ou estado:</span>
+                  <span 
+                    className="whitespace-nowrap pr-1 font-normal text-[16px] tracking-tighter"
+                    style={{ marginLeft: '-12px' }}
+                  >Província ou estado:</span>
                   <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
                     {congregation.estado}
                   </div>
@@ -563,16 +612,22 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
             {/* Row 3 */}
             <div className="flex items-baseline w-full">
-              <div className="flex items-baseline w-[48%]">
-                <span className="whitespace-nowrap pr-1">Sup. de circuito:</span>
+              <div className="flex items-baseline w-[45%]">
+                <span className="whitespace-nowrap pr-1 font-normal tracking-tight">Sup. de circuito:</span>
                 <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
                   {personalData?.nome || ''}
                 </div>
               </div>
-              <div className="flex items-baseline w-[52%] pl-6">
+              <div className="flex items-baseline w-[55%] pl-8">
                 <div className="flex items-baseline w-full">
-                  <span className="whitespace-nowrap pr-1">Número do circuito:</span>
-                  <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
+                  <span 
+                    className="whitespace-nowrap pr-1 font-normal tracking-tight"
+                    style={{ marginLeft: '-30px' }}
+                  >Número do circuito:</span>
+                  <div 
+                    className="border-b border-black flex-grow h-[1.2em] px-2 font-medium"
+                    style={{ width: '180px', height: '19.2px' }}
+                  >
                     {personalData?.circuito || ''}
                   </div>
                 </div>
@@ -581,11 +636,14 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
           </section>
 
           {/* Main Divider */}
-          <div className="border-b-[1.5px] border-black my-4" style={{ marginTop: '1rem', marginBottom: '0.75rem' }}></div>
+          <div 
+            className="border-b-[1.5px] border-black"
+            style={{ width: '915px', height: '1px', marginTop: '2.5mm', marginBottom: '2.5mm', paddingLeft: '0px', paddingRight: '0px', marginRight: '0px', marginLeft: '76px' }}
+          ></div>
 
           {/* Instruction Text */}
-          <section>
-            <p className="text-[0.85rem] leading-tight mb-2">
+          <section className="mx-auto" style={{ width: '915px' }}>
+            <p className="text-[16px] font-normal leading-tight">
               Descreva brevemente o espírito da congregação e que encorajamento ou conselhos foram dados:
             </p>
           </section>
@@ -774,39 +832,54 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
               )}
 
               <div 
-                ref={editableRef}
-                contentEditable
-                onInput={handleTextChange}
-                className="w-full p-0 border-none font-sans leading-[1.6] focus:outline-none focus:ring-0 print:hidden overflow-hidden empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
-                data-placeholder="Digite o relatório aqui..."
-                style={{ 
-                  fontFamily,
-                  fontSize: `${reportFontSize}px`,
-                  textAlign: 'justify',
-                  paddingTop: '2mm',
-                  height: `${reportHeight}mm`
-                }}
-              />
-              <div 
-                className="hidden print:block whitespace-pre-wrap leading-[1.6] overflow-hidden text-justify"
-                style={{ 
-                  fontFamily,
-                  fontSize: `${reportFontSize}px`,
-                  textAlign: 'justify',
-                  paddingTop: '2mm',
-                  height: `${reportHeight}mm`
-                }}
-                dangerouslySetInnerHTML={{ __html: reportText }}
-              />
+                className="report-content-wrapper mx-auto"
+                style={{ width: '915px', marginTop: '-14px', height: '320.919px' }}
+              >
+                <div 
+                  ref={editableRef}
+                  contentEditable
+                  onInput={handleTextChange}
+                  className="w-full p-0 border-none font-sans leading-[1.6] focus:outline-none focus:ring-0 print:hidden overflow-hidden empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                  data-placeholder="Digite o relatório aqui..."
+                  style={{ 
+                    fontFamily,
+                    fontSize: `${reportFontSize}px`,
+                    textAlign: 'justify',
+                    paddingTop: '2mm',
+                    marginTop: '9px',
+                    height: `${reportHeight}mm`,
+                    width: '915px'
+                  }}
+                />
+                <div 
+                  className="hidden print:block whitespace-pre-wrap leading-[1.6] overflow-hidden text-justify"
+                  style={{ 
+                    fontFamily,
+                    fontSize: `${reportFontSize}px`,
+                    textAlign: 'justify',
+                    paddingTop: '2mm',
+                    marginTop: '9px',
+                    height: `${reportHeight}mm`,
+                    width: '915px'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: reportText }}
+                />
+              </div>
             </div>
 
-          <footer className="mt-auto">
-            <div className="text-[15px] leading-[1.4] text-justify" style={{ marginTop: '6mm' }}>
+          <footer className="mt-auto pt-2">
+            <div 
+              className="text-[16px] leading-[1.2] text-justify italic text-gray-800 mx-auto" 
+              style={{ marginTop: '0px', height: '64.6px', width: '915px' }}
+            >
               (Antes de terminar a visita à congregação no domingo, e numa hora que não interfira na programação de serviço de campo, 
               considere este relatório com a comissão de serviço da congregação. Deixe uma cópia com o coordenador do corpo de anciãos 
               para que todos os anciãos a leiam e para que a recapitulem na próxima reunião trimestral dos anciãos.)
             </div>
-            <div className="text-[20px] mt-2">
+            <div 
+              className="text-[15px] font-normal mx-auto"
+              style={{ width: '915px', marginTop: '0px', marginBottom: '30px' }}
+            >
               S-303-T 1/25
             </div>
           </footer>
@@ -860,14 +933,31 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
         @media print {
           @page {
-            margin: 0;
+            margin: 20mm;
             size: A4 landscape;
           }
-          #s303-report-container {
-            width: 297mm !important;
-            height: 210mm !important;
+          html, body {
             margin: 0 !important;
-            padding: 15mm 20mm !important;
+            padding: 0 !important;
+            height: auto !important;
+            width: auto !important;
+            background: white !important;
+          }
+          #s303-report-container {
+            width: 100% !important;
+            height: 170mm !important; /* A4 height (210mm) - margins (40mm) */
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important; /* Let @page margins handle it */
+            overflow: hidden !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            box-sizing: border-box !important;
+          }
+          /* Ensure content fits within the 170mm height of landscape A4 with 20mm margins */
+          .report-content-wrapper {
+            max-height: 82mm;
+            overflow: hidden !important;
           }
           body {
             background-color: white !important;
