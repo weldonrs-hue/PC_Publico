@@ -47,7 +47,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [reportHeight, setReportHeight] = useState(82);
+  const [reportHeight, setReportHeight] = useState(90);
   
   const editableRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -238,10 +238,21 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
     const filename = getFormattedFilename();
 
     try {
+      // Use a fixed width/height for capture to ensure margins are preserved
+      // 297mm is approx 1122.5px at 96dpi
       const dataUrl = await toPng(element, {
         quality: 1.0,
-        pixelRatio: 2,
+        pixelRatio: 3, // Higher quality for better text rendering
         backgroundColor: '#ffffff',
+        width: 1122.5,
+        height: 793.7,
+        style: {
+          margin: '0',
+          boxShadow: 'none',
+          borderRadius: '0',
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
       });
 
       const pdf = new jsPDF({
@@ -250,28 +261,15 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         format: 'a4'
       });
 
-      const margin = 0; // No margins
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const availableWidth = pdfWidth;
-      const availableHeight = pdfHeight;
+      // Apply the 95% scale adjustment as requested by the user
+      // This matches the browser's 95% print scale setting
+      const scale = 0.95;
+      const w = 297 * scale;
+      const h = 210 * scale;
+      const x = (297 - w) / 2;
+      const y = (210 - h) / 2;
 
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const ratio = imgProps.width / imgProps.height;
-      
-      let finalWidth = availableWidth;
-      let finalHeight = availableWidth / ratio;
-
-      if (finalHeight > availableHeight) {
-        finalHeight = availableHeight;
-        finalWidth = availableHeight * ratio;
-      }
-
-      const x = (pdfWidth - finalWidth) / 2;
-      const y = (pdfHeight - finalHeight) / 2;
-
-      pdf.addImage(dataUrl, 'PNG', x, y, finalWidth, finalHeight);
+      pdf.addImage(dataUrl, 'PNG', x, y, w, h);
       pdf.save(filename);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -505,7 +503,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   }
 
   return (
-    <div className="space-y-8 w-full pb-10 flex flex-col items-center">
+    <div className="space-y-8 w-full pb-10 flex flex-col items-center print:space-y-0 print:pb-0 print:block">
       <div className="flex items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-6xl">
         <div className="flex items-center gap-4">
           <button 
@@ -569,15 +567,17 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl print:max-w-none print:w-full">
+      <div className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl print:max-w-none print:w-full print:m-0 print:p-0">
         <div 
           id="s303-report-container" 
-          className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col"
+          className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col print:w-[297mm] print:h-[210mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
           style={{ 
             fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
             padding: '15mm',
             width: '297mm',
-            minHeight: '210mm',
+            minWidth: '297mm',
+            height: '210mm',
+            overflow: 'hidden',
             boxSizing: 'border-box'
           }}
         >
@@ -924,20 +924,24 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            height: auto !important;
-            width: auto !important;
+            height: 210mm !important;
+            width: 297mm !important;
+            overflow: hidden !important;
             background: white !important;
           }
           #s303-report-container {
             width: 297mm !important;
             height: 210mm !important;
-            min-height: 210mm !important;
             margin: 0 !important;
             padding: 15mm !important;
             overflow: hidden !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             box-sizing: border-box !important;
+            background: white !important;
+            /* Apply 95% scale to match user's preferred print setting */
+            transform: scale(0.95) !important;
+            transform-origin: top center !important;
           }
           /* Ensure content fits within the landscape A4 */
           .report-content-wrapper {
