@@ -78,6 +78,11 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchingCEP, setIsSearchingCEP] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showJWSearch, setShowJWSearch] = useState(false);
+  const [jwSearchTerm, setJWSearchTerm] = useState('');
+  const [jwResults, setJWResults] = useState<any[]>([]);
+  const [jwLoading, setJWLoading] = useState(false);
+  const [jwError, setJWError] = useState<string | null>(null);
   
   const defaultFormData: Congregation = {
     id: '', nome: '', numero: '', parte: 'A', endereco: '', coordenador: '',
@@ -189,6 +194,55 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
     c.numero.includes(searchTerm)
   );
 
+  const handleJWSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jwSearchTerm.trim()) return;
+
+    setJWLoading(true);
+    setJWError(null);
+    try {
+      const response = await fetch(`/api/jw-search?q=${encodeURIComponent(jwSearchTerm)}`);
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // JW.org API returns results in 'meetings' or similar
+      const results = data.meetings || [];
+      setJWResults(results);
+      
+      if (results.length === 0) {
+        setJWError('Nenhuma congregação encontrada nessa localização.');
+      }
+    } catch (error: any) {
+      console.error('Erro na busca JW:', error);
+      setJWError('Erro ao buscar congregações. Tente novamente.');
+    } finally {
+      setJWLoading(false);
+    }
+  };
+
+  const handleSelectJWCong = (jwCong: any) => {
+    // Extract info from JW.org result
+    // The structure usually has orgName, address, etc.
+    const address = jwCong.address || {};
+    
+    setFormData({
+      ...defaultFormData,
+      nome: jwCong.orgName || '',
+      numero: jwCong.orgNumber?.toString() || '',
+      endereco: `${address.addressLine1 || ''}${address.addressLine2 ? `, ${address.addressLine2}` : ''}`,
+      cidade: address.city?.toUpperCase() || '',
+      estado: address.stateCode?.toUpperCase() || '',
+      cep: address.postalCode || '',
+    });
+    
+    setShowJWSearch(false);
+    setIsEditing(true);
+    setSelectedCong(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Back Button */}
@@ -215,25 +269,34 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
             className="space-y-4"
           >
             {/* Search and Add Bar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                  type="text"
-                  placeholder="Buscar por nome ou número..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#E67E22] transition-colors"
-                />
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="relative w-full md:w-96">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="text"
+                    placeholder="Buscar por nome ou número..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#E67E22] transition-colors"
+                  />
+                </div>
+                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                  <button 
+                    onClick={() => setShowJWSearch(true)}
+                    className="w-full md:w-auto bg-white text-[#E67E22] border border-[#E67E22] px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#E67E22]/5 transition-colors shadow-sm"
+                  >
+                    <Search size={20} />
+                    Buscar no JW.org
+                  </button>
+                  <button 
+                    onClick={handleAddNew}
+                    className="w-full md:w-auto bg-[#E67E22] text-white px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#d35400] transition-colors shadow-md"
+                  >
+                    <Plus size={20} />
+                    Nova Congregação
+                  </button>
+                </div>
               </div>
-              <button 
-                onClick={handleAddNew}
-                className="w-full md:w-auto bg-[#E67E22] text-white px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#d35400] transition-colors shadow-md"
-              >
-                <Plus size={20} />
-                Nova Congregação
-              </button>
-            </div>
 
             {/* List Grid */}
             {loading ? (
@@ -527,6 +590,93 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
               >
                 Cancelar
               </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* JW.org Search Modal */}
+      {showJWSearch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl p-0 max-w-2xl w-full shadow-2xl overflow-hidden"
+          >
+            <div className="bg-[#E67E22] p-4 text-white flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2">
+                <Search size={20} />
+                Buscar Congregações no JW.org
+              </h3>
+              <button onClick={() => setShowJWSearch(false)} className="hover:bg-white/20 p-1 rounded-lg transition-colors">
+                <Plus size={24} className="rotate-45" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <form onSubmit={handleJWSearch} className="flex gap-2">
+                <input 
+                  autoFocus
+                  type="text"
+                  placeholder="Digite a cidade, bairro ou endereço..."
+                  value={jwSearchTerm}
+                  onChange={(e) => setJWSearchTerm(e.target.value)}
+                  className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#E67E22] transition-all"
+                />
+                <button 
+                  type="submit"
+                  disabled={jwLoading}
+                  className="bg-[#E67E22] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#d35400] transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {jwLoading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                  Buscar
+                </button>
+              </form>
+
+              {jwError && (
+                <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium text-center">
+                  {jwError}
+                </div>
+              )}
+
+              <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                {jwResults.map((result, idx) => (
+                  <div 
+                    key={idx}
+                    className="p-4 bg-gray-50 border border-gray-200 rounded-xl hover:border-[#E67E22] hover:bg-white transition-all group cursor-pointer"
+                    onClick={() => handleSelectJWCong(result)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-gray-900 group-hover:text-[#E67E22] transition-colors">
+                          {result.orgName}
+                        </h4>
+                        <p className="text-xs text-gray-500 font-mono mb-2">Nº {result.orgNumber}</p>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <MapPin size={14} className="text-gray-400" />
+                          <span>{result.address?.addressLine1}, {result.address?.city}</span>
+                        </div>
+                      </div>
+                      <button 
+                        className="bg-white text-[#E67E22] border border-[#E67E22]/20 px-3 py-1 rounded-lg text-xs font-bold hover:bg-[#E67E22] hover:text-white transition-all"
+                      >
+                        Selecionar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                
+                {!jwLoading && jwResults.length === 0 && !jwError && (
+                  <div className="text-center py-12 text-gray-400">
+                    <Search className="mx-auto mb-2 opacity-20" size={48} />
+                    <p>Digite uma localização para buscar congregações próximas.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-4 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-400 text-center">
+              Os dados são obtidos publicamente do site oficial jw.org
             </div>
           </motion.div>
         </div>
