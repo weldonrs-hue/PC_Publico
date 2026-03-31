@@ -259,59 +259,34 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       
       element.classList.remove('pdf-capture');
 
-      // Create PDF
+      // Create a temporary PDF to get image properties
+      const tempPdf = new jsPDF();
+      const imgProps = tempPdf.getImageProperties(dataUrl);
+      const pdfWidth = 210; // A4 width in mm
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      // Create the final PDF with dynamic height to avoid cutting
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: [pdfWidth, pdfHeight]
       });
-
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
       const pdfBlob = pdf.output('blob');
 
       const filename = `Circuito ${circuitName} - Estatísticas.pdf`;
 
-      if ((window as any).showSaveFilePicker) {
-        try {
-          const fileHandle = await (window as any).showSaveFilePicker({
-            suggestedName: filename,
-            types: [{
-              description: 'PDF Document',
-              accept: { 'application/pdf': ['.pdf'] },
-            }],
-          });
-          const writable = await fileHandle.createWritable();
-          await writable.write(pdfBlob);
-          await writable.close();
-          alert('PDF salvo com sucesso!');
-        } catch (err: any) {
-          if (err.name !== 'AbortError') {
-            console.error('Erro ao salvar arquivo:', err);
-            // Fallback to standard download
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
-          }
-        }
-      } else {
-        // Fallback for mobile or browsers without showSaveFilePicker
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-          alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
-        }
+      // Standard download method (compatible with iframes)
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
       }
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
@@ -321,7 +296,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   };
 
   return (
-    <div className="space-y-6 max-w-[210mm] mx-auto pb-12 print:p-0 print:m-0 print:max-w-none print:shadow-none print:bg-white">
+    <div className="space-y-6 max-w-5xl mx-auto pb-12 print:p-0 print:m-0 print:max-w-none print:shadow-none print:bg-white">
       <style jsx global>{`
         @media print {
           @page {
@@ -335,56 +310,64 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             margin: 0 !important;
             padding: 0 !important;
           }
-          /* Apply the 1.5cm margins and white background to the print container */
-          .print-content-container {
-            padding: 15mm !important;
+          #circuit-stats-form {
+            padding: 8mm !important;
             background-color: white !important;
-            min-height: 297mm;
+            height: 297mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
           }
         }
 
-      /* Fix for html2canvas oklch color error and preserve colors */
-      .pdf-capture {
-        background-color: #ffffff !important;
-        color: #1a1a1a !important;
-      }
-      .pdf-capture * {
-        border-color: #e5e7eb !important;
-        /* Force standard color space for capture */
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      .pdf-capture .bg-\[\#e9ecef\] {
-        background-color: #e9ecef !important;
-      }
-      .pdf-capture .bg-\[\#f2f2f2\] {
-        background-color: #f2f2f2 !important;
-      }
-      .pdf-capture .bg-\[\#fdf5e6\] {
-        background-color: #fdf5e6 !important;
-      }
-      .pdf-capture .bg-\[\#a9d08e\] {
-        background-color: #a9d08e !important;
-      }
-      .pdf-capture .bg-\[\#f4b084\] {
-        background-color: #f4b084 !important;
-      }
-      .pdf-capture .text-\[\#002060\] {
-        color: #002060 !important;
-      }
-      .pdf-capture .text-white {
-        color: #ffffff !important;
-      }
-      .pdf-capture h1, .pdf-capture h2, .pdf-capture h3 {
-        color: #000000 !important;
-      }
-      .pdf-capture .bg-white {
-        background-color: #ffffff !important;
-      }
+        /* Fix for html2canvas oklch color error and preserve colors */
+        .pdf-capture {
+          background-color: #ffffff !important;
+          color: #1a1a1a !important;
+        }
+        .pdf-capture * {
+          border-color: #e5e7eb !important;
+          /* Force standard color space for capture */
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .pdf-capture .bg-\[\#e9ecef\] {
+          background-color: #e9ecef !important;
+        }
+        .pdf-capture .bg-\[\#f2f2f2\] {
+          background-color: #f2f2f2 !important;
+        }
+        .pdf-capture .bg-\[\#fdf5e6\] {
+          background-color: #fdf5e6 !important;
+        }
+        .pdf-capture .bg-\[\#a9d08e\] {
+          background-color: #a9d08e !important;
+        }
+        .pdf-capture .bg-\[\#f4b084\] {
+          background-color: #f4b084 !important;
+        }
+        .pdf-capture .text-\[\#002060\] {
+          color: #002060 !important;
+        }
+        .pdf-capture .text-white {
+          color: #ffffff !important;
+        }
+        .pdf-capture h1, .pdf-capture h2, .pdf-capture h3 {
+          color: #000000 !important;
+        }
+        .pdf-capture .bg-white {
+          background-color: #ffffff !important;
+        }
+        .pdf-capture .bg-gray-50 {
+          background-color: #f9fafb !important;
+        }
+        .pdf-capture .bg-gray-100 {
+          background-color: #f3f4f6 !important;
+        }
       `}</style>
       {/* Header - Hidden in Print */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={onBack} 
             className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
@@ -392,7 +375,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           >
             <ChevronLeft size={28} strokeWidth={3} />
           </button>
-          <h2 className="text-xl sm:text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
+          <h2 className="text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button 
@@ -413,31 +396,32 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       </div>
 
       {/* A4 Document Container */}
-      <div id="circuit-stats-form" className="bg-white p-[8mm] shadow-2xl border border-gray-200 space-y-2 print:shadow-none print:border-none print:p-0 print:space-y-1 font-sans text-gray-900 overflow-hidden leading-tight print-content-container">
+      <div className="overflow-x-auto pb-4">
+        <div id="circuit-stats-form" className="min-w-[800px] space-y-6 bg-white p-[8mm] shadow-2xl border border-gray-200 print:shadow-none print:border-none print:p-0 print:space-y-4 font-sans text-gray-900 overflow-hidden leading-tight print:min-w-0">
         
-        {/* Document Title */}
-        <div className="text-center pt-2 pb-1">
-          <h1 className="text-4xl font-normal tracking-tight">Estatísticas do Circuito</h1>
+        {/* Document Title - Visible only in PDF/Print */}
+        <div className="hidden print:block text-center pt-2 pb-4">
+          <h1 className="text-4xl font-bold tracking-tight text-[#512da8]">Estatísticas do Circuito</h1>
         </div>
 
         {/* Summary Line */}
-        <div className="flex items-center justify-center gap-2 text-[12px] font-normal py-3">
+        <div className="flex items-center justify-center gap-2 text-[24px] font-normal py-4">
           <span className="italic">Total de publicadores ativos do circuito em</span>
           <span className="bg-[#e9ecef] px-3 py-1 rounded font-bold text-gray-900 border border-gray-300">
             {congCount}
           </span>
           <span className="italic">congregações:</span>
-          <span className="bg-[#e9ecef] px-4 py-1 rounded font-bold text-[14px] text-[#002060] border border-gray-300 ml-2 min-w-[80px] text-center">
+          <span className="bg-[#e9ecef] px-4 py-1 rounded font-bold text-[32px] text-[#002060] border border-gray-300 ml-2 min-w-[80px] text-center">
             {stats.pubAtivos}
           </span>
         </div>
 
         {/* Section 1: Ministry Averages */}
         <div className="space-y-0">
-          <div className="grid grid-cols-[1fr_100px_100px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[12px]">MÉDIAS DO CIRCUITO NO MINISTÉRIO</h3>
-            <span className="text-[9px] font-normal text-gray-500 uppercase text-center">Média mensal</span>
-            <span className="text-[9px] font-normal text-gray-500 uppercase text-center">Média mensal</span>
+          <div className="grid grid-cols-[1fr_120px_120px] items-end border-b border-[#002060] pb-0.5">
+            <h3 className="font-bold text-[#002060] uppercase text-[22px]">MÉDIAS DO CIRCUITO NO MINISTÉRIO</h3>
+            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média mensal</span>
+            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média mensal</span>
           </div>
           <div className="divide-y divide-gray-200">
             {[
@@ -446,16 +430,16 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
               { id: 'pioneirosRegulares', label: 'PIONEIROS REGULARES' },
               { id: 'pioneirosEspeciais', label: 'PIONEIROS ESPECIAIS' }
             ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_100px_100px] items-center py-0.5 bg-white">
-                <span className="font-bold text-gray-800 text-[11px] uppercase pl-1">{item.label}</span>
-                <div className="text-center font-normal text-[14px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].relatando)}</div>
-                <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].estudos)}</div>
+              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
+                <span className="font-bold text-gray-800 text-[20px] uppercase pl-1">{item.label}</span>
+                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].relatando)}</div>
+                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].estudos)}</div>
               </div>
             ))}
-            <div className="grid grid-cols-[1fr_100px_100px] items-center py-1 bg-[#fdf5e6]">
-              <span className="font-normal text-gray-800 text-[11px] uppercase pl-1">Média mensal de <span className="font-bold">ESTUDOS BÍBLICOS:</span></span>
-              <div className="text-center font-bold text-[14px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.estatisticas.mediaEstudos)}</div>
-              <div className="text-center font-bold text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
+            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 bg-[#fdf5e6]">
+              <span className="font-normal text-gray-800 text-[20px] uppercase pl-1">Média mensal de <span className="font-bold">ESTUDOS BÍBLICOS:</span></span>
+              <div className="text-center font-bold text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.estatisticas.mediaEstudos)}</div>
+              <div className="text-center font-bold text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
                 {stats.pubAtivos > 0 ? (stats.estatisticas.mediaEstudos / stats.pubAtivos).toFixed(1).replace('.', ',') : '0,0'} / Pub
               </div>
             </div>
@@ -463,11 +447,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         </div>
 
         {/* Section 2: Spiritual Situation */}
-        <div className="space-y-0 pt-1">
-          <div className="grid grid-cols-[1fr_100px_100px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[12px]">SITUAÇÃO ESPIRITUAL DOS PUBLICADORES</h3>
-            <span className="text-[9px] font-normal text-gray-500 uppercase text-center">Média / 6 meses</span>
-            <span className="text-[9px] font-normal text-gray-500 uppercase text-center">Porcentagem</span>
+        <div className="space-y-0 pt-2">
+          <div className="grid grid-cols-[1fr_120px_120px] items-end border-b border-[#002060] pb-0.5">
+            <h3 className="font-bold text-[#002060] uppercase text-[22px]">SITUAÇÃO ESPIRITUAL DOS PUBLICADORES</h3>
+            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média / 6 meses</span>
+            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Porcentagem</span>
           </div>
           <div className="divide-y divide-gray-200">
             {[
@@ -477,41 +461,41 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
               { id: 'reativados', label: 'Quantos foram REATIVADOS desde a última visita:' },
               { id: 'readmitidos', label: 'Quantos foram READMITIDOS desde a última visita:' }
             ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_100px_100px] items-center py-0.5 bg-white">
-                <span className="text-[11px] text-gray-800 pl-1">
+              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
+                <span className="text-[20px] text-gray-800 pl-1">
                   {item.label.includes(':') ? 
                     <><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></> : 
                     <><span className="font-normal">{item.label.split('DIRIGEM')[0]}</span><span className="font-bold">DIRIGEM</span><span className="font-normal">{item.label.split('DIRIGEM')[1]}</span></>
                   }
                 </span>
-                <div className="text-center font-normal text-[14px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
+                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
               </div>
             ))}
             
             {/* Growth Bar */}
-            <div className="grid grid-cols-[1fr_100px_100px] items-center py-0.5 bg-[#a9d08e] border-y border-white">
-              <span className="font-bold text-white text-[11px] uppercase tracking-wider text-right pr-4">Crescimento de publicadores:</span>
-              <div className="text-center font-bold text-[14px] text-white">{crescimento}</div>
-              <div className="text-center font-bold text-[14px] text-white">{percCrescimento.replace('.', ',')}%</div>
+            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-[#a9d08e] border-y border-white">
+              <span className="font-bold text-white text-[20px] uppercase tracking-wider text-right pr-4">Crescimento de publicadores:</span>
+              <div className="text-center font-bold text-[28px] text-white">{crescimento}</div>
+              <div className="text-center font-bold text-[28px] text-white">{percCrescimento.replace('.', ',')}%</div>
             </div>
 
             {[
               { id: 'inativos', label: 'Quantos ficaram INATIVOS desde a última visita:' },
               { id: 'removidos', label: 'Quantos foram DESASSOCIADOS desde a última visita:' }
             ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_100px_100px] items-center py-0.5 bg-white">
-                <span className="text-[11px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
-                <div className="text-center font-normal text-[14px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
+                <span className="text-[20px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
+                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
+                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
               </div>
             ))}
 
             {/* Decrease Bar */}
-            <div className="grid grid-cols-[1fr_100px_100px] items-center py-0.5 bg-[#f4b084] border-y border-white">
-              <span className="font-bold text-white text-[11px] uppercase tracking-wider text-right pr-4">Decréscimo de Publicadores:</span>
-              <div className="text-center font-bold text-[14px] text-white">{decrescimo}</div>
-              <div className="text-center font-bold text-[14px] text-white">{percDecrescimo.replace('.', ',')}%</div>
+            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-[#f4b084] border-y border-white">
+              <span className="font-bold text-white text-[20px] uppercase tracking-wider text-right pr-4">Decréscimo de Publicadores:</span>
+              <div className="text-center font-bold text-[28px] text-white">{decrescimo}</div>
+              <div className="text-center font-bold text-[28px] text-white">{percDecrescimo.replace('.', ',')}%</div>
             </div>
 
             {[
@@ -519,36 +503,36 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
               { id: 'anciaos', label: 'Número de ANCIÃOS:' },
               { id: 'servos', label: 'Números de SERVOS MINISTERIAIS:' }
             ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_100px_100px] items-center py-0.5 bg-white">
-                <span className="text-[11px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
-                <div className="text-center font-normal text-[14px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
+                <span className="text-[20px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
+                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
+                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Section 3: Meeting Attendance */}
-        <div className="space-y-0 pt-1">
-          <div className="grid grid-cols-[1fr_200px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[12px]">REUNIÕES CONGREGACIONAIS</h3>
-            <span className="text-[9px] font-normal text-gray-500 uppercase text-center">Assistência mensal</span>
+        <div className="space-y-0 pt-2">
+          <div className="grid grid-cols-[1fr_240px] items-end border-b border-[#002060] pb-0.5">
+            <h3 className="font-bold text-[#002060] uppercase text-[22px]">REUNIÕES CONGREGACIONAIS</h3>
+            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Assistência mensal</span>
           </div>
           <div className="divide-y divide-gray-200">
-            <div className="grid grid-cols-[1fr_200px] items-center py-0.5 bg-white">
-              <span className="text-[11px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">MEIO DE SEMANA</span></span>
-              <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.meioSemana)}</div>
+            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
+              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">MEIO DE SEMANA</span></span>
+              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.meioSemana)}</div>
             </div>
-            <div className="grid grid-cols-[1fr_200px] items-center py-0.5 bg-white">
-              <span className="text-[11px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">FIM DE SEMANA</span></span>
-              <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.fimSemana)}</div>
+            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
+              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">FIM DE SEMANA</span></span>
+              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.fimSemana)}</div>
             </div>
-            <div className="grid grid-cols-[1fr_100px_100px] items-center py-1 bg-[#fdf5e6]">
-              <span className="font-normal text-gray-800 text-[11px] uppercase pl-1">Média dos que assistem a reunião e <span className="font-bold">NÃO SÃO</span> Publicadores:</span>
-              <div className="text-center font-normal text-[14px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">
+            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 bg-[#fdf5e6]">
+              <span className="font-normal text-gray-800 text-[20px] uppercase pl-1">Média dos que assistem a reunião e <span className="font-bold">NÃO SÃO</span> Publicadores:</span>
+              <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">
                 {Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos).toFixed(1).replace('.', ',')}
               </div>
-              <div className="text-center font-bold text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
+              <div className="text-center font-bold text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
                 {stats.pubAtivos > 0 ? (Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos) / stats.pubAtivos * 100).toFixed(1).replace('.', ',') : '0,0'}%
               </div>
             </div>
@@ -556,29 +540,30 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         </div>
 
         {/* Section 4: Donations */}
-        <div className="space-y-0 pt-1">
-          <div className="grid grid-cols-[1fr_200px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[12px]">DONATIVOS DO CIRCUITO</h3>
-            <span className="text-[9px] font-normal text-gray-500 uppercase text-center">Média / 6 meses</span>
+        <div className="space-y-0 pt-2">
+          <div className="grid grid-cols-[1fr_240px] items-end border-b border-[#002060] pb-0.5">
+            <h3 className="font-bold text-[#002060] uppercase text-[22px]">DONATIVOS DO CIRCUITO</h3>
+            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média / 6 meses</span>
           </div>
           <div className="divide-y divide-gray-200">
-            <div className="grid grid-cols-[1fr_200px] items-center py-0.5 bg-white">
-              <span className="text-[11px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">OBRA MUNDIAL</span></span>
-              <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.obraMundial)}</div>
+            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
+              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">OBRA MUNDIAL</span></span>
+              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.obraMundial)}</div>
             </div>
-            <div className="grid grid-cols-[1fr_200px] items-center py-0.5 bg-white">
-              <span className="text-[11px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">CONGREGAÇÃO</span></span>
-              <div className="text-center font-normal text-[14px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.congregacao)}</div>
+            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
+              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">CONGREGAÇÃO</span></span>
+              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.congregacao)}</div>
             </div>
           </div>
         </div>
 
         {/* Footer Info - Hidden in Print or very small */}
-        <div className="pt-2 flex justify-between items-end border-t border-gray-100 text-[8px] text-gray-300 font-medium print:pt-1">
+        <div className="pt-2 flex justify-between items-end border-t border-gray-100 text-[10px] text-gray-300 font-medium print:pt-1">
           <div>Relatório gerado em: {new Date().toLocaleDateString('pt-BR')}</div>
           <div className="uppercase tracking-widest">ProgCir Web</div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

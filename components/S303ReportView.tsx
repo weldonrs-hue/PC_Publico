@@ -299,8 +299,8 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       
       // Convert reportFontSize (px) to PDF points (pt)
-      // User requested: Increase by 0.5 units (from previous -6.5 to -6)
-      const fontSize = Math.max(6, reportFontSize - 6);
+      // User requested: Decrease font size by increasing offset to -7
+      const fontSize = Math.max(6, reportFontSize - 7);
       const pdfLineHeight = fontSize * 1.4;
 
       // Convert hex color to RGB
@@ -378,7 +378,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         text = text.replace(/<br\s*\/?>/gi, '\n');
         text = text.replace(/<\/p>/gi, '\n');
         text = text.replace(/<\/div>/gi, '\n');
-        text = text.replace(/<(p|div|li|h[1-6])[^>]*>/gi, '\n');
+        text = text.replace(/<(p|div|li|h[1-6])[^>]*>/gi, '');
         
         // Remove all other tags
         text = text.replace(/<[^>]*>/g, '');
@@ -504,20 +504,20 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
   return (
     <div className="space-y-8 w-full pb-10 flex flex-col items-center print:space-y-0 print:pb-0 print:block">
-      <div className="flex items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-6xl">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-6xl gap-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={handleBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-sm border border-gray-200"
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-sm border border-gray-200 flex-shrink-0"
           >
             <ChevronLeft size={24} strokeWidth={2.5} />
           </button>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 leading-tight">S-303 Relatório</h2>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">{congregation.nome} • {visitDate}</p>
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">S-303 Relatório</h2>
+            <p className="text-[10px] sm:text-xs text-gray-500 font-medium uppercase tracking-wider truncate">{congregation.nome} • {visitDate}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
           <div className="relative" ref={pdfMenuRef}>
             <button 
               onClick={() => setShowPdfMenu(!showPdfMenu)}

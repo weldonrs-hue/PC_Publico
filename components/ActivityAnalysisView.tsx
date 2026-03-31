@@ -281,57 +281,32 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
       
       element.classList.remove('pdf-capture');
 
-      // Create PDF
+      // Create a temporary PDF to get image properties
+      const tempPdf = new jsPDF();
+      const imgProps = tempPdf.getImageProperties(dataUrl);
+      const pdfWidth = 210; // A4 width in mm
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      // Create the final PDF with dynamic height to avoid cutting
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: [pdfWidth, pdfHeight]
       });
-
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
       const pdfBlob = pdf.output('blob');
 
-      if ((window as any).showSaveFilePicker) {
-        try {
-          const fileHandle = await (window as any).showSaveFilePicker({
-            suggestedName: filename,
-            types: [{
-              description: 'PDF Document',
-              accept: { 'application/pdf': ['.pdf'] },
-            }],
-          });
-          const writable = await fileHandle.createWritable();
-          await writable.write(pdfBlob);
-          await writable.close();
-          alert('PDF salvo com sucesso!');
-        } catch (err: any) {
-          if (err.name !== 'AbortError') {
-            console.error('Erro ao salvar arquivo:', err);
-            // Fallback to standard download
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
-          }
-        }
-      } else {
-        // Fallback for mobile or browsers without showSaveFilePicker
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-          alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
-        }
+      // Standard download method (compatible with iframes)
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
       }
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
@@ -365,7 +340,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <>
+      <div className="space-y-6 max-w-5xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
         <div className="flex items-center gap-4">
@@ -396,7 +372,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
         </div>
       </div>
 
-      <div id="activity-analysis-form" className="space-y-6 bg-white p-[8mm] shadow-2xl border border-gray-200 print:shadow-none print:border-none print:p-0 print:space-y-4 font-sans text-gray-900 overflow-hidden leading-tight">
+      <div className="overflow-x-auto pb-4">
+        <div id="activity-analysis-form" className="min-w-[800px] space-y-6 bg-white p-[8mm] shadow-2xl border border-gray-200 print:shadow-none print:border-none print:p-0 print:space-y-4 font-sans text-gray-900 overflow-hidden leading-tight print:min-w-0">
         <style jsx global>{`
           @media print {
             @page {
@@ -411,9 +388,12 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
               padding: 0 !important;
             }
             #activity-analysis-form {
-              padding: 15mm !important;
+              padding: 8mm !important;
               background-color: white !important;
-              min-height: 297mm;
+              height: 297mm;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
             }
           }
           
@@ -472,8 +452,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
         
         {/* Document Title - Visible only in PDF/Print */}
         <div className="hidden print:block text-center pt-2 pb-4">
-          <h1 className="text-3xl font-bold tracking-tight text-[#512da8]">Análise das Atividades</h1>
-          <p className="text-gray-500 font-medium">{data.congregacao} — {data.dataVisita}</p>
+          <h1 className="text-4xl font-bold tracking-tight text-[#512da8]">Análise das Atividades</h1>
+          <p className="text-xl text-gray-500 font-medium">{data.congregacao} — {data.dataVisita}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -482,13 +462,13 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Top Info */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
-              <label className="text-xs font-black text-[#512da8] uppercase mb-1 block">Congregação</label>
-              <div className="p-3 bg-indigo-50/50 rounded-xl font-black text-gray-800 border border-indigo-100 text-lg">
+              <label className="text-xl font-black text-[#512da8] uppercase mb-1 block tracking-tight">Congregação</label>
+              <div className="p-3 bg-indigo-50/50 rounded-xl font-black text-gray-800 border border-indigo-100 text-3xl">
                 {data.congregacao}
               </div>
             </div>
             <div>
-              <label className="text-xs font-black text-[#512da8] uppercase mb-1 block">Pub. Ativos</label>
+              <label className="text-xl font-black text-[#512da8] uppercase mb-1 block tracking-tight">Pub. Ativos</label>
               <input 
                 type="number"
                 value={data.pubAtivos}
@@ -496,12 +476,12 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                   setIsDirty(true);
                   setData({...data, pubAtivos: e.target.value});
                 }}
-                className="w-full p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 focus:border-[#512da8] focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-black text-center text-xl text-[#512da8]"
+                className="w-full p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 focus:border-[#512da8] focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-black text-center text-4xl text-[#512da8]"
               />
             </div>
             <div>
-              <label className="text-xs font-black text-[#512da8] uppercase mb-1 block">Data da visita</label>
-              <div className="p-3 bg-indigo-50/50 rounded-xl font-black text-gray-800 border border-indigo-100 text-center text-lg">
+              <label className="text-xl font-black text-[#512da8] uppercase mb-1 block tracking-tight">Data da visita</label>
+              <div className="p-3 bg-indigo-50/50 rounded-xl font-black text-gray-800 border border-indigo-100 text-center text-3xl">
                 {data.dataVisita}
               </div>
             </div>
@@ -510,11 +490,11 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Ministry Activities */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
-              <Users size={20} />
-              <h3 className="font-black text-sm uppercase tracking-widest">Atividades Gerais do Ministério (média mensal)</h3>
+              <Users size={24} />
+              <h3 className="font-black text-2xl uppercase tracking-widest">Atividades Gerais do Ministério (média mensal)</h3>
             </div>
             <div className="p-0">
-              <table className="w-full text-sm">
+              <table className="w-full text-xl">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="p-4 text-left font-black text-gray-600">CATEGORIA</th>
@@ -530,14 +510,14 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     { id: 'pioneirosEspeciais', label: 'PIONEIROS ESPECIAIS', bg: 'bg-teal-50/30' }
                   ].map((item) => (
                     <tr key={item.id} className={`${item.bg} hover:bg-teal-50/50 transition-colors`}>
-                      <td className="p-4 font-black text-gray-700">{item.label}</td>
+                      <td className="p-4 font-black text-gray-700 text-2xl">{item.label}</td>
                       <td className="p-2">
                         <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
                           <input 
                             type="number"
                             value={data.ministério[item.id as keyof AnalysisData['ministério']].relatando}
                             onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'relatando', e.target.value)}
-                            className="w-full p-2.5 bg-transparent text-center font-black outline-none text-lg text-gray-800"
+                            className="w-full p-2.5 bg-transparent text-center font-black outline-none text-3xl text-gray-800"
                           />
                           <button 
                             onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
@@ -554,7 +534,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                             type="number"
                             value={data.ministério[item.id as keyof AnalysisData['ministério']].estudos}
                             onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'estudos', e.target.value)}
-                            className="w-full p-2.5 bg-transparent text-center font-black outline-none text-lg text-gray-800"
+                            className="w-full p-2.5 bg-transparent text-center font-black outline-none text-3xl text-gray-800"
                           />
                           <button 
                             onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
@@ -575,11 +555,11 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Congregation Stats */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
-              <BarChart3 size={20} />
-              <h3 className="font-black text-sm uppercase tracking-widest">Estatísticas da Congregação</h3>
+              <BarChart3 size={24} />
+              <h3 className="font-black text-2xl uppercase tracking-widest">Estatísticas da Congregação</h3>
             </div>
             <div className="p-0">
-              <table className="w-full text-sm">
+              <table className="w-full text-xl">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="p-4 text-left font-black text-gray-600">DESCRIÇÃO</th>
@@ -605,7 +585,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     const perc = pubAtivosNum > 0 ? Math.round((val / pubAtivosNum) * 100) : 0;
                     return (
                       <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-indigo-50/30 transition-colors`}>
-                        <td className={`p-4 font-normal ${item.color}`}>{item.label}</td>
+                        <td className={`p-4 font-normal text-2xl ${item.color}`}>{item.label}</td>
                         <td className="p-2">
                           <div className="flex items-center justify-center gap-4 bg-white rounded-xl border border-gray-200 p-1 shadow-sm">
                             <button 
@@ -615,7 +595,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                             >
                               <Minus size={18} />
                             </button>
-                            <span className="font-black text-xl min-w-[40px] text-center text-gray-800">{val}</span>
+                            <span className="font-black text-4xl min-w-[40px] text-center text-gray-800">{val}</span>
                             <button 
                               onClick={() => !item.isAuto && updateEstatistica(item.id as keyof AnalysisData['estatisticas'], 1)}
                               disabled={item.isAuto}
@@ -626,7 +606,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                           </div>
                         </td>
                         <td className="p-4 text-center">
-                          <span className="font-black text-lg text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                          <span className="font-black text-3xl text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
                             {perc}%
                           </span>
                         </td>
@@ -644,41 +624,41 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Donations */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
-              <DollarSign size={20} />
-              <h3 className="font-black text-sm uppercase tracking-widest">Donativos</h3>
+              <DollarSign size={24} />
+              <h3 className="font-black text-2xl uppercase tracking-widest">Donativos</h3>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase text-center block tracking-widest">Congregação</label>
+                  <label className="text-xl font-black text-gray-400 uppercase text-center block tracking-widest">Congregação</label>
                   {data.donativos.congregacao.map((v, i) => (
                     <input 
                       key={i}
                       value={v}
                       onChange={(e) => updateTable('donativos', 'congregacao', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-3xl font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
                       placeholder="0,00"
                     />
                   ))}
                   <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
-                    <span className="text-[10px] font-black text-gray-400 tracking-widest">TOTAL</span>
-                    <span className="font-black text-lg text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.congregacao)}</span>
+                    <span className="text-xl font-black text-gray-400 tracking-widest">TOTAL</span>
+                    <span className="font-black text-4xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.congregacao)}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase text-center block tracking-widest">Obra Mundial</label>
+                  <label className="text-xl font-black text-gray-400 uppercase text-center block tracking-widest">Obra Mundial</label>
                   {data.donativos.obraMundial.map((v, i) => (
                     <input 
                       key={i}
                       value={v}
                       onChange={(e) => updateTable('donativos', 'obraMundial', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-3xl font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
                       placeholder="0,00"
                     />
                   ))}
                   <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
-                    <span className="text-[10px] font-black text-gray-400 tracking-widest">TOTAL</span>
-                    <span className="font-black text-lg text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.obraMundial)}</span>
+                    <span className="text-xl font-black text-gray-400 tracking-widest">TOTAL</span>
+                    <span className="font-black text-4xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.obraMundial)}</span>
                   </div>
                 </div>
               </div>
@@ -752,6 +732,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
         </div>
       </div>
     </div>
+  </div>
+</div>
 
       {/* Average Calculator Modal */}
       <AnimatePresence>
@@ -862,6 +844,6 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
