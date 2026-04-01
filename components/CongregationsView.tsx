@@ -7,13 +7,17 @@ import {
   Edit2, 
   Trash2, 
   ChevronLeft,
+  ChevronRight,
   Search,
   MapPin,
   User,
   Phone,
   Users,
   Save,
-  Loader2
+  Loader2,
+  X,
+  Calendar,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -83,6 +87,7 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
   const [jwResults, setJWResults] = useState<any[]>([]);
   const [jwLoading, setJWLoading] = useState(false);
   const [jwError, setJWError] = useState<string | null>(null);
+  const [selectedJWResult, setSelectedJWResult] = useState<any | null>(null);
   
   const defaultFormData: Congregation = {
     id: '', nome: '', numero: '', parte: 'A', endereco: '', coordenador: '',
@@ -208,9 +213,9 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
         throw new Error(data.error);
       }
 
-      // JW.org API returns results in 'meetings' or similar
-      const results = data.meetings || [];
+      const results = data.results || [];
       setJWResults(results);
+      setSelectedJWResult(null);
       
       if (results.length === 0) {
         setJWError('Nenhuma congregação encontrada nessa localização.');
@@ -223,24 +228,29 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
     }
   };
 
-  const handleSelectJWCong = (jwCong: any) => {
+  const handleSelectJWCong = () => {
+    if (!selectedJWResult) return;
+    
     // Extract info from JW.org result
-    // The structure usually has orgName, address, etc.
-    const address = jwCong.address || {};
+    const address = selectedJWResult.address || {};
+    const phones = selectedJWResult.phones || [];
+    const mainPhone = phones.length > 0 ? formatPhone(phones[0].phone) : '';
     
     setFormData({
       ...defaultFormData,
-      nome: jwCong.orgName || '',
-      numero: jwCong.orgNumber?.toString() || '',
+      nome: selectedJWResult.orgName || '',
+      numero: selectedJWResult.orgNumber?.toString() || '',
       endereco: `${address.addressLine1 || ''}${address.addressLine2 ? `, ${address.addressLine2}` : ''}`,
       cidade: address.city?.toUpperCase() || '',
       estado: address.stateCode?.toUpperCase() || '',
       cep: address.postalCode || '',
+      telefone: mainPhone,
     });
     
     setShowJWSearch(false);
     setIsEditing(true);
     setSelectedCong(null);
+    setSelectedJWResult(null);
   };
 
   return (
@@ -597,86 +607,208 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
 
       {/* JW.org Search Modal */}
       {showJWSearch && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-md">
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl p-0 max-w-2xl w-full shadow-2xl overflow-hidden"
+            className="bg-white rounded-3xl p-0 max-w-3xl w-full shadow-2xl overflow-hidden border border-gray-200"
           >
-            <div className="bg-[#E67E22] p-4 text-white flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2">
-                <Search size={20} />
-                Buscar Congregações no JW.org
-              </h3>
-              <button onClick={() => setShowJWSearch(false)} className="hover:bg-white/20 p-1 rounded-lg transition-colors">
-                <Plus size={24} className="rotate-45" />
+            {/* Header */}
+            <div className="bg-[#4A6DA7] p-5 text-white flex justify-between items-center shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Search size={22} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Buscar no JW.org</h3>
+                  <p className="text-[10px] opacity-80 uppercase tracking-wider font-medium">Localizador de Congregações</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowJWSearch(false)} 
+                className="hover:bg-white/20 p-2 rounded-xl transition-all"
+              >
+                <X size={24} />
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
-              <form onSubmit={handleJWSearch} className="flex gap-2">
-                <input 
-                  autoFocus
-                  type="text"
-                  placeholder="Digite a cidade, bairro ou endereço..."
-                  value={jwSearchTerm}
-                  onChange={(e) => setJWSearchTerm(e.target.value)}
-                  className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#E67E22] transition-all"
-                />
-                <button 
-                  type="submit"
-                  disabled={jwLoading}
-                  className="bg-[#E67E22] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#d35400] transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {jwLoading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
-                  Buscar
-                </button>
-              </form>
-
-              {jwError && (
-                <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium text-center">
-                  {jwError}
+            <div className="flex flex-col md:flex-row h-[600px]">
+              {/* Left Side: Search and Results */}
+              <div className={`flex-1 flex flex-col border-r border-gray-100 ${selectedJWResult ? 'hidden md:flex' : 'flex'}`}>
+                <div className="p-6 border-b border-gray-50 bg-gray-50/50">
+                  <form onSubmit={handleJWSearch} className="relative">
+                    <input 
+                      autoFocus
+                      type="text"
+                      placeholder="Cidade, bairro ou endereço..."
+                      value={jwSearchTerm}
+                      onChange={(e) => setJWSearchTerm(e.target.value)}
+                      className="w-full p-4 pl-12 bg-white border border-gray-200 rounded-2xl outline-none focus:border-[#4A6DA7] focus:ring-4 focus:ring-[#4A6DA7]/10 transition-all shadow-sm"
+                    />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <button 
+                      type="submit"
+                      disabled={jwLoading}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#4A6DA7] text-white p-2 rounded-xl hover:bg-[#3b5998] transition-colors disabled:opacity-50"
+                    >
+                      {jwLoading ? <Loader2 size={20} className="animate-spin" /> : <ChevronRight size={20} />}
+                    </button>
+                  </form>
                 </div>
-              )}
 
-              <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                {jwResults.map((result, idx) => (
-                  <div 
-                    key={idx}
-                    className="p-4 bg-gray-50 border border-gray-200 rounded-xl hover:border-[#E67E22] hover:bg-white transition-all group cursor-pointer"
-                    onClick={() => handleSelectJWCong(result)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-bold text-gray-900 group-hover:text-[#E67E22] transition-colors">
-                          {result.orgName}
-                        </h4>
-                        <p className="text-xs text-gray-500 font-mono mb-2">Nº {result.orgNumber}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <MapPin size={14} className="text-gray-400" />
-                          <span>{result.address?.addressLine1}, {result.address?.city}</span>
-                        </div>
-                      </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                  {jwLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                      <Loader2 className="animate-spin text-[#4A6DA7]" size={40} />
+                      <p className="text-sm font-medium">Buscando congregações...</p>
+                    </div>
+                  ) : jwResults.length > 0 ? (
+                    jwResults.map((result, idx) => (
                       <button 
-                        className="bg-white text-[#E67E22] border border-[#E67E22]/20 px-3 py-1 rounded-lg text-xs font-bold hover:bg-[#E67E22] hover:text-white transition-all"
+                        key={idx}
+                        onClick={() => setSelectedJWResult(result)}
+                        className={`w-full text-left p-4 rounded-2xl border transition-all group ${
+                          selectedJWResult?.orgNumber === result.orgNumber 
+                            ? 'bg-[#4A6DA7]/5 border-[#4A6DA7] shadow-md' 
+                            : 'bg-white border-gray-100 hover:border-[#4A6DA7]/30 hover:bg-gray-50'
+                        }`}
                       >
-                        Selecionar
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <h4 className={`font-bold transition-colors ${
+                              selectedJWResult?.orgNumber === result.orgNumber ? 'text-[#4A6DA7]' : 'text-gray-900'
+                            }`}>
+                              {result.orgName}
+                            </h4>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <MapPin size={12} />
+                              <span className="truncate">{result.address?.city}, {result.address?.stateCode}</span>
+                            </div>
+                          </div>
+                          <ChevronRight size={16} className={`transition-transform ${
+                            selectedJWResult?.orgNumber === result.orgNumber ? 'translate-x-1 text-[#4A6DA7]' : 'text-gray-300'
+                          }`} />
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center p-8">
+                      <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                        <Search size={40} className="opacity-20" />
+                      </div>
+                      <h4 className="text-gray-600 font-bold mb-1">
+                        {jwError ? 'Ops!' : 'Comece sua busca'}
+                      </h4>
+                      <p className="text-sm">
+                        {jwError || 'Digite uma localização acima para encontrar congregações próximas.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Side: Details */}
+              <div className={`flex-1 flex flex-col bg-gray-50/30 ${selectedJWResult ? 'flex' : 'hidden md:flex'}`}>
+                {selectedJWResult ? (
+                  <div className="flex-1 flex flex-col">
+                    <div className="p-8 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[#4A6DA7] font-bold text-xs uppercase tracking-widest">
+                          <Store size={14} />
+                          <span>Detalhes da Congregação</span>
+                        </div>
+                        <h2 className="text-3xl font-black text-gray-900 leading-tight">
+                          {selectedJWResult.orgName}
+                        </h2>
+                        <p className="text-sm font-mono text-gray-500 bg-white inline-block px-2 py-1 rounded-md border border-gray-100">
+                          Nº {selectedJWResult.orgNumber}
+                        </p>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                          <div className="flex gap-4">
+                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#4A6DA7] shrink-0">
+                              <MapPin size={20} />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-bold text-gray-400 uppercase">Localização</p>
+                              <p className="text-gray-700 font-medium leading-relaxed">
+                                {selectedJWResult.address?.addressLine1}
+                                {selectedJWResult.address?.addressLine2 && <><br />{selectedJWResult.address?.addressLine2}</>}
+                                <br />
+                                {selectedJWResult.address?.city}, {selectedJWResult.address?.stateCode} {selectedJWResult.address?.postalCode}
+                              </p>
+                            </div>
+                          </div>
+
+                          {selectedJWResult.phones?.length > 0 && (
+                            <div className="flex gap-4 pt-4 border-t border-gray-50">
+                              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600 shrink-0">
+                                <Phone size={20} />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs font-bold text-gray-400 uppercase">Telefone</p>
+                                <p className="text-gray-700 font-bold">{selectedJWResult.phones[0].phone}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {selectedJWResult.properties?.length > 0 && (
+                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                            <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase">
+                              <Calendar size={14} />
+                              <span>Horários das Reuniões</span>
+                            </div>
+                            <div className="space-y-3">
+                              {selectedJWResult.properties.map((prop: any, i: number) => (
+                                <div key={i} className="flex justify-between items-center text-sm">
+                                  <span className="text-gray-600">{prop.label}</span>
+                                  <span className="font-bold text-gray-900">{prop.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-6 bg-white border-t border-gray-100 flex gap-3">
+                      <button 
+                        onClick={() => setSelectedJWResult(null)}
+                        className="flex-1 py-4 text-gray-500 font-bold hover:bg-gray-50 rounded-2xl transition-all md:hidden"
+                      >
+                        Voltar
+                      </button>
+                      <button 
+                        onClick={handleSelectJWCong}
+                        className="flex-[2] py-4 bg-[#4A6DA7] text-white font-bold rounded-2xl hover:bg-[#3b5998] transition-all shadow-lg shadow-[#4A6DA7]/20 flex items-center justify-center gap-2"
+                      >
+                        <Save size={20} />
+                        Carregar no ProgCir
                       </button>
                     </div>
                   </div>
-                ))}
-                
-                {!jwLoading && jwResults.length === 0 && !jwError && (
-                  <div className="text-center py-12 text-gray-400">
-                    <Search className="mx-auto mb-2 opacity-20" size={48} />
-                    <p>Digite uma localização para buscar congregações próximas.</p>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-12 text-center">
+                    <div className="w-24 h-24 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-6">
+                      <Info size={40} className="opacity-10" />
+                    </div>
+                    <h4 className="text-gray-600 font-bold mb-2">Detalhes da Seleção</h4>
+                    <p className="text-sm max-w-[200px]">
+                      Selecione uma congregação na lista ao lado para ver as informações detalhadas.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="p-4 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-400 text-center">
-              Os dados são obtidos publicamente do site oficial jw.org
+            <div className="p-3 bg-gray-50 border-t border-gray-100 flex justify-center items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-[10px] text-gray-500 font-medium uppercase tracking-widest">
+                Conectado ao Banco de Dados Oficial JW.org
+              </span>
             </div>
           </motion.div>
         </div>

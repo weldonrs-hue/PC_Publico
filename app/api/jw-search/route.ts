@@ -23,17 +23,26 @@ export async function GET(request: Request) {
     
     const response = await fetch(jwApiUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json',
-      }
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+      next: { revalidate: 3600 } // Cache for 1 hour
     });
 
     if (!response.ok) {
-      throw new Error(`JW.org API responded with ${response.status}`);
+      const errorText = await response.text();
+      console.error(`JW.org API Error (${response.status}):`, errorText);
+      throw new Error(`JW.org API respondeu com erro ${response.status}`);
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Ensure we return a consistent structure
+    return NextResponse.json({
+      results: data.meetings || [],
+      count: data.count || (data.meetings ? data.meetings.length : 0)
+    });
   } catch (error: any) {
     console.error('Error searching JW.org:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
