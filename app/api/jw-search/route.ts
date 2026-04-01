@@ -14,8 +14,12 @@ export async function GET(request: Request) {
     // However, we can try to use their search API directly if it supports text.
     // Actually, the hub.jw.org search seems to use a different endpoint.
     
-    // Let's try the apps.jw.org search API which is well known
-    const jwApiUrl = `https://apps.jw.org/api/v1/meetings/search?output=json&pubLanguageFilter=pt&searchLanguageFilter=pt&location=${encodeURIComponent(query)}`;
+    // The correct endpoint for JW.org meeting search
+    // Using the apps.jw.org API with correct parameters
+    // We'll use the endpoint that the public website's "Find a Meeting" tool uses.
+    // It often uses a language code. 'P' is for Portuguese, 'E' for English.
+    // However, the search usually works with 'E' or 'P'.
+    const jwApiUrl = `https://apps.jw.org/P/meetings/search?search=${encodeURIComponent(query)}&output=json`;
     
     const response = await fetch(jwApiUrl, {
       headers: {

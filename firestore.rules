@@ -1,7 +1,37 @@
 rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId} (Firebase Auth UID)
+// Fields:
+//   - role: string ("admin" | "user")
+//   - numeroPessoal: string (optional, for migration)
+//
+// Collection: personal_data
+// Document ID: {dataId} (UID or numeroPessoal)
+// Fields:
+//   - userId: string (UID)
+//   - name: string
+//   - email: string
+//   - [other personal fields]
+//
+// Collection: congregations, substitutes, itineraries, activity_analysis, s303_reports
+// Document ID: {id}
+// Fields:
+//   - userId: string (UID)
+//   - [collection specific fields]
+//
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
     function signedIn() {
       return request.auth != null;
     }
@@ -12,15 +42,28 @@ service cloud.firestore {
         request.auth.token.email.lower() == "2283701@progcir.app" ||
         request.auth.token.email.lower() == "2283701@progcir.com" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin')
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return signedIn() && request.auth.uid == resource.data.userId;
     }
 
     function isEmailPrefix(prefix) {
       return signedIn() && 
              prefix != null && 
              prefix != "" && 
-             request.auth.token.get('email', '').lower().matches("^" + prefix.lower() + "@.*");
+             request.auth.token.email.lower().matches("^" + prefix.lower() + "@.*");
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
     // Global admin access
@@ -30,7 +73,7 @@ service cloud.firestore {
 
     // Rules for users collection
     match /users/{userId} {
-      allow read, write: if signedIn() && (request.auth.uid == userId);
+      allow read, write: if isOwner(userId);
       // Migration support: allow reading if email prefix matches
       allow read: if signedIn() && resource != null && 
                     isEmailPrefix(resource.data.get('numeroPessoal', ''));
@@ -38,22 +81,12 @@ service cloud.firestore {
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      // Allow read if:
-      // 1. Document ID is the user's UID
-      // 2. Document's userId field matches user's UID
-      // 3. Document's numeroPessoal matches user's email prefix (migration)
       allow read: if signedIn() && (
         dataId == request.auth.uid || 
-        (resource != null && (
-          resource.data.get('userId', '') == request.auth.uid ||
-          isEmailPrefix(resource.data.get('numeroPessoal', ''))
-        ))
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
+        isEmailPrefix(dataId)
       );
       
-      // Allow write if:
-      // 1. Document ID is the user's UID
-      // 2. Document's userId field matches user's UID (for updates)
-      // 3. New data's userId field matches user's UID (for creates/updates)
       allow write: if signedIn() && (
         dataId == request.auth.uid ||
         (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
@@ -105,3 +138,4 @@ service cloud.firestore {
     }
   }
 }
+

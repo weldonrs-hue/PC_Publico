@@ -292,20 +292,39 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     try {
       setInitializing(true);
       sessionStorage.setItem(`itinerariesInit_${userId}`, 'true');
-      const batch = writeBatch(db);
+      
+      const now = new Date();
+      let refYear = now.getFullYear();
+      // Service year starts in September (month 8)
+      if (now.getMonth() < 8) {
+        refYear--;
+      }
+      
+      // Target end date: Sept 1st, 3 years after current service year start
+      const targetEndDate = new Date(refYear + 3, 8, 1);
+      // Minimum end date: Sept 1, 2028 (3 years from Sept 1, 2025)
+      const minEndDate = new Date(2028, 8, 1);
+      const finalTargetEndDate = targetEndDate > minEndDate ? targetEndDate : minEndDate;
       
       const startDateStr = '01/09/2025';
-      const [day, month, year] = startDateStr.split('/').map(Number);
-      const date = new Date(year, month - 1, day);
+      const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
+      const currentDate = new Date(startYear, startMonth - 1, startDay);
       
       const existingSemanas = new Set(existingItems.map(item => item.semana));
+      const batch = writeBatch(db);
       let addedCount = 0;
       
-      // Generate 4 Mondays (1 month)
-      for (let i = 0; i < 4; i++) {
-        const d = String(date.getDate()).padStart(2, '0');
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const y = date.getFullYear();
+      // Find max ordem to continue if adding to existing
+      let maxOrdem = 0;
+      if (existingItems.length > 0) {
+        maxOrdem = Math.max(...existingItems.map(i => i.ordem || 0));
+      }
+
+      // Generate weeks until finalTargetEndDate
+      while (currentDate < finalTargetEndDate) {
+        const d = String(currentDate.getDate()).padStart(2, '0');
+        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const y = currentDate.getFullYear();
         const semanaStr = `${d}/${m}/${y}`;
         
         if (!existingSemanas.has(semanaStr)) {
@@ -317,13 +336,16 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             observacoes: '',
             escritorioNotificado: false,
             congregacaoNotificada: false,
-            ordem: i + 1
+            ordem: ++maxOrdem
           };
           batch.set(newDocRef, { ...item, userId });
           addedCount++;
+          
+          // Firestore batch limit is 500. 3 years is ~156 weeks.
+          if (addedCount >= 450) break; 
         }
         
-        date.setDate(date.getDate() + 7);
+        currentDate.setDate(currentDate.getDate() + 7);
       }
       
       if (addedCount > 0) {
@@ -331,7 +353,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         if (isQuotaExceeded()) return;
 
         await batch.commit();
-        // Mark as initialized in user doc to prevent repeated attempts
+        // Mark as initialized in user doc to prevent repeated attempts in the same session
         try {
           await updateDoc(doc(db, 'users', userId), { itinerariesInitialized: true });
           localStorage.setItem(`itineraries_initialized_${userId}`, 'true');
@@ -389,10 +411,28 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
       // Check if we need to initialize or backfill
       const hasStartDate = items.some(item => item.semana === '01/09/2025');
-      const hasInitializedDoc = user?.itinerariesInitialized || localStorage.getItem(`itineraries_initialized_${userId}`) === 'true';
+      
+      // Calculate target end date
+      const now = new Date();
+      let refYear = now.getFullYear();
+      if (now.getMonth() < 8) refYear--;
+      const targetEndDate = new Date(refYear + 3, 8, 1);
+      const minEndDate = new Date(2028, 8, 1);
+      const finalTargetEndDate = targetEndDate > minEndDate ? targetEndDate : minEndDate;
+
+      // Check if we have the end date
+      const lastItem = items.length > 0 ? items[items.length - 1] : null;
+      let hasFullRange = false;
+      if (lastItem) {
+        const [ld, lm, ly] = lastItem.semana.split('/').map(Number);
+        const lastDate = new Date(ly, lm - 1, ld);
+        // Margin of 7 days to account for the last week starting on Monday
+        hasFullRange = lastDate.getTime() >= (finalTargetEndDate.getTime() - (7 * 24 * 60 * 60 * 1000));
+      }
+
       const quotaHit = sessionStorage.getItem('firestore_quota_exceeded') === 'true';
       
-      if (!hasStartDate && !initializing && auth.currentUser && !hasInitializedDoc && !quotaHit) {
+      if ((!hasStartDate || !hasFullRange) && !initializing && auth.currentUser && !quotaHit) {
         initializeItineraries(items);
       }
     }, (error: any) => {
@@ -924,7 +964,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               {/* Modal Content */}
               <div className="p-6">
                 {modalMode === 'actions' ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                     <p className="text-sm text-gray-500 mb-4">
                       Semana de <span className="font-bold text-[#512da8]">{selectedItem?.semana}</span>
                     </p>
