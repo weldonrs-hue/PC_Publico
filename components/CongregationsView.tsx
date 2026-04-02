@@ -93,6 +93,8 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
     id: '', nome: '', numero: '', parte: 'A', endereco: '', coordenador: '',
     telefone: '', cidade: '', cep: '', estado: '', grupos: []
   };
+
+  const [formData, setFormData] = useState<Congregation>(defaultFormData);
   
   const [jwSearchMode, setJWSearchMode] = useState<'api' | 'browser'>('browser');
   const [jwCongId, setJWCongId] = useState('');
