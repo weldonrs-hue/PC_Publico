@@ -324,12 +324,12 @@ export default function Home() {
               migrationSnapshot = await getDocs(migrationQuery);
               
               // If not found by username, try by email
-              if ((!migrationSnapshot || migrationSnapshot.empty) && auth.currentUser?.email) {
-                const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', auth.currentUser.email), limit(1));
+              if ((!migrationSnapshot || migrationSnapshot.empty) && firebaseUser.email) {
+                const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', firebaseUser.email), limit(1));
                 migrationSnapshot = await getDocs(emailQuery);
                 
                 if (!migrationSnapshot || migrationSnapshot.empty) {
-                  const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', auth.currentUser.email), limit(1));
+                  const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', firebaseUser.email), limit(1));
                   migrationSnapshot = await getDocs(jwpubQuery);
                 }
               }
@@ -417,12 +417,12 @@ export default function Home() {
                 let migrationSnapshot = await getDocs(migrationQuery);
                 
                 // If not found by username, try by email
-                if (migrationSnapshot.empty && auth.currentUser?.email) {
-                  const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', auth.currentUser.email), limit(1));
+                if (migrationSnapshot.empty && firebaseUser.email) {
+                  const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', firebaseUser.email), limit(1));
                   migrationSnapshot = await getDocs(emailQuery);
                   
                   if (migrationSnapshot.empty) {
-                    const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', auth.currentUser.email), limit(1));
+                    const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', firebaseUser.email), limit(1));
                     migrationSnapshot = await getDocs(jwpubQuery);
                   }
                 }
@@ -458,7 +458,7 @@ export default function Home() {
                     }
                     
                     await updateDoc(doc(db, 'users', activeUid), { migrationV2Completed: true });
-                    setUser(prev => prev ? { ...prev, migrationV2Completed: true } : null);
+                    setUser((prev: any) => prev ? { ...prev, migrationV2Completed: true } : null);
                   }
                 }
               } catch (error) {
