@@ -36,14 +36,22 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function isAdmin() {
+    function isEmailAdmin() {
       return signedIn() && (
         request.auth.token.email.lower() == "weldonrs@gmail.com" ||
         request.auth.token.email.lower() == "2283701@progcir.app" ||
-        request.auth.token.email.lower() == "2283701@progcir.com" ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        request.auth.token.email.lower() == "2283701@progcir.com"
       );
+    }
+
+    function isRoleAdmin() {
+      return signedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isAdmin() {
+      return isEmailAdmin() || isRoleAdmin();
     }
 
     function isOwner(userId) {
@@ -51,7 +59,10 @@ service cloud.firestore {
     }
 
     function isDocOwner() {
-      return signedIn() && request.auth.uid == resource.data.userId;
+      return signedIn() && (
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
+        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid)
+      );
     }
 
     function isEmailPrefix(prefix) {
@@ -66,9 +77,9 @@ service cloud.firestore {
         email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
 
-    // Global admin access
+    // Global admin access (Email-based only to avoid recursion)
     match /{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if isEmailAdmin();
     }
 
     // Rules for users collection
@@ -83,57 +94,63 @@ service cloud.firestore {
     match /personal_data/{dataId} {
       allow read: if signedIn() && (
         dataId == request.auth.uid || 
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
+        isDocOwner() ||
+        isRoleAdmin() ||
         isEmailPrefix(dataId)
       );
       
       allow write: if signedIn() && (
         dataId == request.auth.uid ||
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid)
+        isDocOwner() ||
+        isRoleAdmin()
       );
     }
 
     // Rules for other collections
     match /congregations/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || isRoleAdmin());
       allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
-        (request.resource != null && request.resource.data.userId == request.auth.uid)
+        (request.resource != null && request.resource.data.userId == request.auth.uid) ||
+        isRoleAdmin()
       );
     }
 
     match /substitutes/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || isRoleAdmin());
       allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
-        (request.resource != null && request.resource.data.userId == request.auth.uid)
+        (request.resource != null && request.resource.data.userId == request.auth.uid) ||
+        isRoleAdmin()
       );
     }
 
     match /itineraries/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || isRoleAdmin());
       allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
-        (request.resource != null && request.resource.data.userId == request.auth.uid)
+        (request.resource != null && request.resource.data.userId == request.auth.uid) ||
+        isRoleAdmin()
       );
     }
 
     match /activity_analysis/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || id.startsWith(request.auth.uid + "_"));
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || id.startsWith(request.auth.uid + "_") || isRoleAdmin());
       allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
         (request.resource != null && request.resource.data.userId == request.auth.uid) ||
-        id.startsWith(request.auth.uid + "_")
+        id.startsWith(request.auth.uid + "_") ||
+        isRoleAdmin()
       );
     }
 
     match /s303_reports/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || id.startsWith(request.auth.uid + "_"));
+      allow read: if signedIn() && (resource == null || resource.data.userId == request.auth.uid || id.startsWith(request.auth.uid + "_") || isRoleAdmin());
       allow write: if signedIn() && (
         (resource != null && resource.data.userId == request.auth.uid) ||
         (request.resource != null && request.resource.data.userId == request.auth.uid) ||
-        id.startsWith(request.auth.uid + "_")
+        id.startsWith(request.auth.uid + "_") ||
+        isRoleAdmin()
       );
     }
   }
