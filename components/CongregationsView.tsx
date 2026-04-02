@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { 
   Store, 
   Plus, 
@@ -15,8 +16,16 @@ import {
   Loader2,
   ExternalLink,
   Navigation,
-  ClipboardPaste
+  ClipboardPaste,
+  Map as MapIcon,
+  List
 } from 'lucide-react';
+
+// Dynamically import map to avoid SSR issues
+const CongregationsMap = dynamic(() => import('./CongregationsMap'), { 
+  ssr: false,
+  loading: () => <div className="h-[600px] w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Carregando Mapa...</div>
+});
 import { motion, AnimatePresence } from 'motion/react';
 
 import { auth, db } from '@/lib/firebase';
@@ -50,11 +59,25 @@ interface Congregation {
 interface CongregationsViewProps {
   userId: string;
   onBack: () => void;
+  initialCongregation?: Congregation | null;
 }
 
-export default function CongregationsView({ userId, onBack }: CongregationsViewProps) {
+const defaultFormData: Congregation = {
+  id: '', nome: '', numero: '', parte: 'A', endereco: '', coordenador: '',
+  telefone: '', cidade: '', cep: '', estado: '', gps: '', grupos: []
+};
+
+export default function CongregationsView({ userId, onBack, initialCongregation }: CongregationsViewProps) {
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (initialCongregation) {
+      setSelectedCong(initialCongregation);
+      setFormData({ ...defaultFormData, ...initialCongregation });
+      setIsEditing(true);
+    }
+  }, [initialCongregation]);
 
   useEffect(() => {
     const q = query(collection(db, 'congregations'), where('userId', '==', userId));
@@ -77,6 +100,7 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
   }, [userId]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [isPasting, setIsPasting] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [selectedCong, setSelectedCong] = useState<Congregation | null>(null);
@@ -84,11 +108,6 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
   const [isSearchingCEP, setIsSearchingCEP] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   
-  const defaultFormData: Congregation = {
-    id: '', nome: '', numero: '', parte: 'A', endereco: '', coordenador: '',
-    telefone: '', cidade: '', cep: '', estado: '', gps: '', grupos: []
-  };
-
   const [formData, setFormData] = useState<Congregation>(defaultFormData);
 
   const formatCEP = (value: string) => {
@@ -314,15 +333,33 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
           >
             {/* Search and Add Bar */}
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <div className="relative w-full md:w-96">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input 
-                    type="text"
-                    placeholder="Buscar por nome ou número..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#E67E22] transition-colors"
-                  />
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <div className="relative flex-1 md:w-96">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text"
+                      placeholder="Buscar por nome ou número..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#E67E22] transition-colors"
+                    />
+                  </div>
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button 
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-[#E67E22] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      title="Ver Lista"
+                    >
+                      <List size={20} />
+                    </button>
+                    <button 
+                      onClick={() => setViewMode('map')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white text-[#E67E22] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      title="Ver Mapa"
+                    >
+                      <MapIcon size={20} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                   <a 
@@ -344,11 +381,35 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
                 </div>
               </div>
 
-            {/* List Grid */}
+            {/* List or Map Grid */}
             {loading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="animate-spin text-[#E67E22]" size={48} />
               </div>
+            ) : viewMode === 'map' ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="space-y-4"
+              >
+                <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 h-[600px]">
+                  <CongregationsMap 
+                    congregations={filteredCongregations} 
+                    onEdit={(cong) => handleEdit(cong)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <MapPin size={14} className="text-[#E67E22]" />
+                  <span>
+                    Mostrando {
+                      filteredCongregations.filter(c => {
+                        const gps = c.gps?.trim();
+                        return gps && (gps.includes(',') || gps.includes(' '));
+                      }).length
+                    } de {filteredCongregations.length} congregações no mapa.
+                  </span>
+                </div>
+              </motion.div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredCongregations.length > 0 ? (
@@ -394,10 +455,15 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
                           <User size={14} className="text-gray-400" />
                           <span className="truncate">{cong.coordenador || 'Sem coordenador'}</span>
                         </div>
-                        {cong.gps && (
+                        {cong.gps ? (
                           <div className="flex items-center gap-2">
                             <MapPin size={14} className="text-[#E67E22]" />
                             <span className="text-xs font-mono text-[#E67E22]">{cong.gps}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-gray-300" />
+                            <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">Sem GPS</span>
                           </div>
                         )}
                         {cong.grupos && cong.grupos.length > 0 && (

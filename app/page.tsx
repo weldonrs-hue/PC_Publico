@@ -100,6 +100,8 @@ export default function Home() {
     servos: 0
   });
   const [currentEvent, setCurrentEvent] = useState<string>('');
+  const [congregations, setCongregations] = useState<any[]>([]);
+  const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
@@ -569,6 +571,7 @@ export default function Home() {
             anciaos: totalAnciaos,
             servos: totalServos
           };
+          setCongregations(congSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           setCongStats(newStats);
           sessionStorage.setItem(`dashboardStats_${activeUid}`, JSON.stringify({
             stats: newStats,
@@ -731,14 +734,24 @@ export default function Home() {
               </div>
 
               {/* Activity and Map Section */}
-              <SecondarySection />
+              <SecondarySection 
+                congregations={congregations} 
+                onEdit={(cong) => {
+                  setSelectedCongregation(cong);
+                  setCurrentView('congregations');
+                }}
+              />
             </>
           )}
 
           {currentView === 'congregations' && (
             <CongregationsView 
               userId={user.id} 
-              onBack={() => setCurrentView('dashboard')} 
+              onBack={() => {
+                setCurrentView('dashboard');
+                setSelectedCongregation(null);
+              }} 
+              initialCongregation={selectedCongregation}
             />
           )}
 
