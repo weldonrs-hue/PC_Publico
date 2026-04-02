@@ -1044,15 +1044,15 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="text-center pb-2 border-b border-gray-100 mb-4">
-                      <h4 className="text-lg font-bold text-[#512da8]">
+                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="text-center pb-1 border-b border-gray-100 mb-2">
+                      <h4 className="text-base font-bold text-[#512da8]">
                         {selectedItem && getWeekRangeDisplay(selectedItem.semana)}
                       </h4>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                         Tipo de Evento:
                       </label>
                       <select 
@@ -1075,7 +1075,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           }
                           setEditFormData({ ...editFormData, ...updates });
                         }}
-                        className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
+                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                       >
                         {TIPOS_EVENTO.map(t => (
                           <option key={t} value={t}>{t}</option>
@@ -1083,43 +1083,43 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                           Data inicial:
                         </label>
                         <div className="relative">
                           <select 
                             value={editFormData.dataInicialDia}
                             onChange={(e) => setEditFormData({ ...editFormData, dataInicialDia: e.target.value })}
-                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-10 text-gray-900 font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
                           >
                             {DIAS_SEMANA.map(d => (
                               <option key={d} value={d}>{d}</option>
                             ))}
                           </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-red-700 font-serif italic text-xs">
-                            {selectedItem && calculateDate(selectedItem.semana, editFormData.dataInicialDia || 'Terça-Feira')}
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-red-700 font-serif italic text-[10px]">
+                            {selectedItem && calculateDate(selectedItem.semana, editFormData.dataInicialDia || 'Terça-Feira').split('/')[0]}
                           </div>
                         </div>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                           Data de término:
                         </label>
                         <div className="relative">
                           <select 
                             value={editFormData.dataTerminoDia}
                             onChange={(e) => setEditFormData({ ...editFormData, dataTerminoDia: e.target.value })}
-                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-10 text-gray-900 font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
                           >
                             {DIAS_SEMANA.map(d => (
                               <option key={d} value={d}>{d}</option>
                             ))}
                           </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-red-700 font-serif italic text-xs">
-                            {selectedItem && calculateDate(selectedItem.semana, editFormData.dataTerminoDia || 'Domingo')}
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-red-700 font-serif italic text-[10px]">
+                            {selectedItem && calculateDate(selectedItem.semana, editFormData.dataTerminoDia || 'Domingo').split('/')[0]}
                           </div>
                         </div>
                       </div>
@@ -1128,7 +1128,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     {/* Conditional Fields based on Event Type */}
                     {editFormData.evento === 'Visita a Grupo' && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                           Grupo:
                         </label>
                         <select 
@@ -1143,7 +1143,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                               congregacao: cong ? cong.nome : ''
                             });
                           }}
-                          className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
+                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione um grupo...</option>
                           {congregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome }))).map((g, idx) => (
@@ -1155,7 +1155,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     {editFormData.evento === 'Outros Eventos' && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                           Evento:
                         </label>
                         <div className="relative">
@@ -1164,7 +1164,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             value={editFormData.outroEvento}
                             onChange={(e) => setEditFormData({ ...editFormData, outroEvento: e.target.value })}
                             placeholder="Digite ou selecione um evento..."
-                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                           />
                           <datalist id="outros-eventos-list">
                             {OUTROS_EVENTOS.map((oe, idx) => (
@@ -1177,13 +1177,13 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Recebendo visita de pastoreio') && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                           Congregação:
                         </label>
                         <select 
                           value={editFormData.congregacao}
                           onChange={(e) => setEditFormData({ ...editFormData, congregacao: e.target.value })}
-                          className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
+                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione uma congregação...</option>
                           {congregations.map(c => (
@@ -1195,7 +1195,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Visita a Grupo') && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                           Substituto (se aplicável):
                         </label>
                         <div className="relative">
@@ -1204,7 +1204,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             value={editFormData.substituto}
                             onChange={(e) => setEditFormData({ ...editFormData, substituto: e.target.value })}
                             placeholder="Digite ou selecione um substituto..."
-                            className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                           />
                           <datalist id="substitutes-list">
                             {substitutes.map(s => (
@@ -1216,28 +1216,28 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     )}
 
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                         COMENTÁRIOS
                       </label>
                       <textarea 
                         value={editFormData.observacoes}
                         onChange={(e) => setEditFormData({ ...editFormData, observacoes: e.target.value })}
                         placeholder="..."
-                        rows={3}
-                        className="w-full p-3 rounded-xl border-2 border-gray-300 focus:border-[#512da8] outline-none transition-all resize-none bg-white text-gray-900 font-medium"
+                        rows={2}
+                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all resize-none bg-white text-gray-900 text-sm font-medium"
                       />
                     </div>
 
-                    <div className="flex gap-3 pt-4">
+                    <div className="flex gap-3 pt-2">
                       <button 
                         onClick={() => setModalMode('actions')}
-                        className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
+                        className="flex-1 py-2 rounded-lg font-bold text-gray-500 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 text-sm"
                       >
-                        <X size={18} /> Cancelar
+                        <X size={16} /> Cancelar
                       </button>
                       <button 
                         onClick={handleFormSave}
-                        className="flex-1 py-3 rounded-xl font-bold bg-[#512da8] text-white hover:bg-[#4527a0] shadow-lg shadow-indigo-200 transition-all"
+                        className="flex-1 py-2 rounded-lg font-bold bg-[#512da8] text-white hover:bg-[#4527a0] shadow-lg shadow-indigo-200 transition-all text-sm"
                       >
                         Confirmar
                       </button>

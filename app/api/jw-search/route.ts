@@ -3,23 +3,19 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
+  const id = searchParams.get('id');
   
-  if (!query) {
-    return NextResponse.json({ error: 'Query is required' }, { status: 400 });
+  if (!query && !id) {
+    return NextResponse.json({ error: 'Query or ID is required' }, { status: 400 });
   }
 
   try {
-    // 1. First, we need to geocode the location string if it's not coordinates
-    // JW.org uses an internal geocoding or a public one.
-    // However, we can try to use their search API directly if it supports text.
-    // Actually, the hub.jw.org search seems to use a different endpoint.
-    
-    // The correct endpoint for JW.org meeting search
-    // Using the apps.jw.org API with correct parameters
-    // We'll use the endpoint that the public website's "Find a Meeting" tool uses.
-    // It often uses a language code. 'P' is for Portuguese, 'E' for English.
-    // However, the search usually works with 'E' or 'P'.
-    const jwApiUrl = `https://apps.jw.org/P/meetings/search?search=${encodeURIComponent(query)}&output=json`;
+    let jwApiUrl = '';
+    if (id) {
+      jwApiUrl = `https://apps.jw.org/P/meetings/search?orgNumber=${id}&output=json`;
+    } else {
+      jwApiUrl = `https://apps.jw.org/P/meetings/search?search=${encodeURIComponent(query!)}&output=json`;
+    }
     
     const response = await fetch(jwApiUrl, {
       headers: {
@@ -27,13 +23,17 @@ export async function GET(request: Request) {
         'Accept': 'application/json',
         'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
       },
-      next: { revalidate: 3600 } // Cache for 1 hour
+      next: { revalidate: 3600 }
     });
+
+    if (response.status === 404) {
+      return NextResponse.json({ results: [], count: 0 });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`JW.org API Error (${response.status}):`, errorText);
-      throw new Error(`JW.org API respondeu com erro ${response.status}`);
+      return NextResponse.json({ results: [], count: 0 });
     }
 
     const data = await response.json();

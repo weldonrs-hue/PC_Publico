@@ -94,7 +94,30 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
     telefone: '', cidade: '', cep: '', estado: '', grupos: []
   };
   
-  const [formData, setFormData] = useState<Congregation>(defaultFormData);
+  const [jwSearchMode, setJWSearchMode] = useState<'api' | 'browser'>('browser');
+  const [jwCongId, setJWCongId] = useState('');
+
+  const handleCaptureByID = async () => {
+    if (!jwCongId.trim()) return;
+    setJWLoading(true);
+    setJWError(null);
+    try {
+      const response = await fetch(`/api/jw-search?id=${encodeURIComponent(jwCongId)}`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
+      const results = data.results || [];
+      if (results.length > 0) {
+        setSelectedJWResult(results[0]);
+      } else {
+        setJWError('Congregação não encontrada com este número.');
+      }
+    } catch (error: any) {
+      setJWError('Erro ao capturar dados. Verifique o número.');
+    } finally {
+      setJWLoading(false);
+    }
+  };
 
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -632,79 +655,136 @@ export default function CongregationsView({ userId, onBack }: CongregationsViewP
               </button>
             </div>
             
-            <div className="flex flex-col md:flex-row h-[600px]">
+            <div className="flex flex-col md:flex-row h-[650px]">
               {/* Left Side: Search and Results */}
               <div className={`flex-1 flex flex-col border-r border-gray-100 ${selectedJWResult ? 'hidden md:flex' : 'flex'}`}>
-                <div className="p-6 border-b border-gray-50 bg-gray-50/50">
-                  <form onSubmit={handleJWSearch} className="relative">
-                    <input 
-                      autoFocus
-                      type="text"
-                      placeholder="Cidade, bairro ou endereço..."
-                      value={jwSearchTerm}
-                      onChange={(e) => setJWSearchTerm(e.target.value)}
-                      className="w-full p-4 pl-12 bg-white border border-gray-200 rounded-2xl outline-none focus:border-[#4A6DA7] focus:ring-4 focus:ring-[#4A6DA7]/10 transition-all shadow-sm"
-                    />
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <button 
-                      type="submit"
-                      disabled={jwLoading}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#4A6DA7] text-white p-2 rounded-xl hover:bg-[#3b5998] transition-colors disabled:opacity-50"
-                    >
-                      {jwLoading ? <Loader2 size={20} className="animate-spin" /> : <ChevronRight size={20} />}
-                    </button>
-                  </form>
+                <div className="p-4 border-b border-gray-50 bg-gray-50/50 flex gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => setJWSearchMode('browser')}
+                    className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${jwSearchMode === 'browser' ? 'bg-[#4A6DA7] text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}`}
+                  >
+                    Navegador JW
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setJWSearchMode('api')}
+                    className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${jwSearchMode === 'api' ? 'bg-[#4A6DA7] text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200'}`}
+                  >
+                    Busca Direta
+                  </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                  {jwLoading ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
-                      <Loader2 className="animate-spin text-[#4A6DA7]" size={40} />
-                      <p className="text-sm font-medium">Buscando congregações...</p>
-                    </div>
-                  ) : jwResults.length > 0 ? (
-                    jwResults.map((result, idx) => (
-                      <button 
-                        key={idx}
-                        onClick={() => setSelectedJWResult(result)}
-                        className={`w-full text-left p-4 rounded-2xl border transition-all group ${
-                          selectedJWResult?.orgNumber === result.orgNumber 
-                            ? 'bg-[#4A6DA7]/5 border-[#4A6DA7] shadow-md' 
-                            : 'bg-white border-gray-100 hover:border-[#4A6DA7]/30 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-1">
-                            <h4 className={`font-bold transition-colors ${
-                              selectedJWResult?.orgNumber === result.orgNumber ? 'text-[#4A6DA7]' : 'text-gray-900'
-                            }`}>
-                              {result.orgName}
-                            </h4>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <MapPin size={12} />
-                              <span className="truncate">{result.address?.city}, {result.address?.stateCode}</span>
-                            </div>
-                          </div>
-                          <ChevronRight size={16} className={`transition-transform ${
-                            selectedJWResult?.orgNumber === result.orgNumber ? 'translate-x-1 text-[#4A6DA7]' : 'text-gray-300'
-                          }`} />
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center p-8">
-                      <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                        <Search size={40} className="opacity-20" />
-                      </div>
-                      <h4 className="text-gray-600 font-bold mb-1">
-                        {jwError ? 'Ops!' : 'Comece sua busca'}
-                      </h4>
-                      <p className="text-sm">
-                        {jwError || 'Digite uma localização acima para encontrar congregações próximas.'}
+                {jwSearchMode === 'browser' ? (
+                  <div className="flex-1 flex flex-col">
+                    <div className="p-4 bg-amber-50 border-b border-amber-100">
+                      <p className="text-[10px] text-amber-800 font-medium leading-tight">
+                        1. Use o mapa abaixo para encontrar a congregação.<br/>
+                        2. Localize o <b>Número da Congregação</b> no site.<br/>
+                        3. Digite o número abaixo e clique em Capturar.
                       </p>
+                      <div className="mt-3 flex gap-2">
+                        <input 
+                          type="text"
+                          placeholder="Nº da Congregação..."
+                          value={jwCongId}
+                          onChange={(e) => setJWCongId(e.target.value.replace(/\D/g, ''))}
+                          className="flex-1 p-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-[#4A6DA7]"
+                        />
+                        <button 
+                          type="button"
+                          onClick={handleCaptureByID}
+                          disabled={jwLoading || !jwCongId}
+                          className="bg-[#4A6DA7] text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-[#3b5998] disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {jwLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                          Capturar
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <div className="flex-1 bg-gray-100 relative">
+                      <iframe 
+                        src="https://hub.jw.org/meetings/pt?q=%7B%22meetingType%22:%22meetings%22%7D"
+                        className="w-full h-full border-none"
+                        title="JW.org Meetings"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-6 border-b border-gray-50 bg-gray-50/50">
+                      <form onSubmit={handleJWSearch} className="relative">
+                        <input 
+                          autoFocus
+                          type="text"
+                          placeholder="Cidade, bairro ou endereço..."
+                          value={jwSearchTerm}
+                          onChange={(e) => setJWSearchTerm(e.target.value)}
+                          className="w-full p-4 pl-12 bg-white border border-gray-200 rounded-2xl outline-none focus:border-[#4A6DA7] focus:ring-4 focus:ring-[#4A6DA7]/10 transition-all shadow-sm"
+                        />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <button 
+                          type="submit"
+                          disabled={jwLoading}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#4A6DA7] text-white p-2 rounded-xl hover:bg-[#3b5998] transition-colors disabled:opacity-50"
+                        >
+                          {jwLoading ? <Loader2 size={20} className="animate-spin" /> : <ChevronRight size={20} />}
+                        </button>
+                      </form>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                      {jwLoading ? (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                          <Loader2 className="animate-spin text-[#4A6DA7]" size={40} />
+                          <p className="text-sm font-medium">Buscando congregações...</p>
+                        </div>
+                      ) : jwResults.length > 0 ? (
+                        jwResults.map((result, idx) => (
+                          <button 
+                            key={idx}
+                            type="button"
+                            onClick={() => setSelectedJWResult(result)}
+                            className={`w-full text-left p-4 rounded-2xl border transition-all group ${
+                              selectedJWResult?.orgNumber === result.orgNumber 
+                                ? 'bg-[#4A6DA7]/5 border-[#4A6DA7] shadow-md' 
+                                : 'bg-white border-gray-100 hover:border-[#4A6DA7]/30 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                <h4 className={`font-bold transition-colors ${
+                                  selectedJWResult?.orgNumber === result.orgNumber ? 'text-[#4A6DA7]' : 'text-gray-900'
+                                }`}>
+                                  {result.orgName}
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <MapPin size={12} />
+                                  <span className="truncate">{result.address?.city}, {result.address?.stateCode}</span>
+                                </div>
+                              </div>
+                              <ChevronRight size={16} className={`transition-transform ${
+                                selectedJWResult?.orgNumber === result.orgNumber ? 'translate-x-1 text-[#4A6DA7]' : 'text-gray-300'
+                              }`} />
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center p-8">
+                          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                            <Search size={40} className="opacity-20" />
+                          </div>
+                          <h4 className="text-gray-600 font-bold mb-1">
+                            {jwError ? 'Ops!' : 'Comece sua busca'}
+                          </h4>
+                          <p className="text-sm">
+                            {jwError || 'Digite uma localização acima para encontrar congregações próximas.'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Right Side: Details */}

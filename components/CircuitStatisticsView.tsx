@@ -135,24 +135,36 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         };
 
         congregations.forEach(cong => {
+          if (!cong || !cong.congregacao) return;
+          
           totals.pubAtivos += parseInt(cong.pubAtivos) || 0;
           
-          Object.keys(cong.ministério).forEach(key => {
-            const k = key as keyof AnalysisData['ministério'];
-            totals.ministério[k].relatando += parseInt(cong.ministério[k].relatando) || 0;
-            totals.ministério[k].estudos += parseInt(cong.ministério[k].estudos) || 0;
-          });
+          if (cong.ministério) {
+            Object.keys(cong.ministério).forEach(key => {
+              const k = key as keyof AnalysisData['ministério'];
+              if (cong.ministério[k]) {
+                totals.ministério[k].relatando += parseInt(cong.ministério[k].relatando) || 0;
+                totals.ministério[k].estudos += parseInt(cong.ministério[k].estudos) || 0;
+              }
+            });
+          }
 
-          Object.keys(cong.estatisticas).forEach(key => {
-            const k = key as keyof AnalysisData['estatisticas'];
-            totals.estatisticas[k] += cong.estatisticas[k] || 0;
-          });
+          if (cong.estatisticas) {
+            Object.keys(cong.estatisticas).forEach(key => {
+              const k = key as keyof AnalysisData['estatisticas'];
+              totals.estatisticas[k] += (cong.estatisticas[k] as number) || 0;
+            });
+          }
 
-          totals.reunioes.meioSemana += calculateAverage(cong.reunioes.meioSemana);
-          totals.reunioes.fimSemana += calculateAverage(cong.reunioes.fimSemana);
+          if (cong.reunioes) {
+            totals.reunioes.meioSemana += calculateAverage(cong.reunioes.meioSemana || []);
+            totals.reunioes.fimSemana += calculateAverage(cong.reunioes.fimSemana || []);
+          }
 
-          totals.donativos.congregacao += calculateTotalDonativos(cong.donativos.congregacao);
-          totals.donativos.obraMundial += calculateTotalDonativos(cong.donativos.obraMundial);
+          if (cong.donativos) {
+            totals.donativos.congregacao += calculateTotalDonativos(cong.donativos.congregacao || []);
+            totals.donativos.obraMundial += calculateTotalDonativos(cong.donativos.obraMundial || []);
+          }
         });
 
         setStats(totals);
@@ -167,11 +179,16 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   }, [userId]);
 
   const parseDate = (dateStr: string) => {
-    const [day, month, year] = dateStr.split('/').map(Number);
+    if (!dateStr || typeof dateStr !== 'string') return new Date(0);
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return new Date(0);
+    const [day, month, year] = parts.map(Number);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return new Date(0);
     return new Date(year, month - 1, day);
   };
 
   const calculateAverage = (list: string[]) => {
+    if (!list || !Array.isArray(list)) return 0;
     const validValues = list.map(v => parseInt(v)).filter(v => !isNaN(v));
     if (validValues.length === 0) return 0;
     const sum = validValues.reduce((acc, curr) => acc + curr, 0);
@@ -179,7 +196,8 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   };
 
   const calculateTotalDonativos = (list: string[]) => {
-    return list.reduce((acc, curr) => acc + (parseFloat(curr.replace(',', '.')) || 0), 0);
+    if (!list || !Array.isArray(list)) return 0;
+    return list.reduce((acc, curr) => acc + (parseFloat(String(curr).replace(',', '.')) || 0), 0);
   };
 
   if (loading) {
