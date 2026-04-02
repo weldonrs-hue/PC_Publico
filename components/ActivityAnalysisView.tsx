@@ -352,7 +352,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           >
             <ChevronLeft size={28} strokeWidth={3} />
           </button>
-          <h2 className="text-2xl font-black text-gray-800 tracking-tight">Análise das atividades</h2>
+          <h2 className="text-xl font-bold text-gray-800 tracking-tight">Análise das atividades</h2>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button 
@@ -452,8 +452,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
         
         {/* Document Title - Visible only in PDF/Print */}
         <div className="hidden print:block text-center pt-2 pb-4">
-          <h1 className="text-4xl font-bold tracking-tight text-[#512da8]">Análise das Atividades</h1>
-          <p className="text-xl text-gray-500 font-medium">{data.congregacao} — {data.dataVisita}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[#512da8]">Análise das Atividades</h1>
+          <p className="text-lg text-gray-500 font-medium">{data.congregacao} — {data.dataVisita}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -462,13 +462,13 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Top Info */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
-              <label className="text-xl font-black text-[#512da8] uppercase mb-1 block tracking-tight">Congregação</label>
-              <div className="p-3 bg-indigo-50/50 rounded-xl font-black text-gray-800 border border-indigo-100 text-3xl">
+              <label className="text-sm font-bold text-[#512da8] uppercase mb-1 block tracking-tight">Congregação</label>
+              <div className="p-3 bg-indigo-50/50 rounded-xl font-bold text-gray-800 border border-indigo-100 text-xl">
                 {data.congregacao}
               </div>
             </div>
             <div>
-              <label className="text-xl font-black text-[#512da8] uppercase mb-1 block tracking-tight">Pub. Ativos</label>
+              <label className="text-sm font-bold text-[#512da8] uppercase mb-1 block tracking-tight">Pub. Ativos</label>
               <input 
                 type="number"
                 value={data.pubAtivos}
@@ -476,12 +476,12 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                   setIsDirty(true);
                   setData({...data, pubAtivos: e.target.value});
                 }}
-                className="w-full p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 focus:border-[#512da8] focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-black text-center text-4xl text-[#512da8]"
+                className="w-full p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 focus:border-[#512da8] focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-bold text-center text-2xl text-[#512da8]"
               />
             </div>
             <div>
-              <label className="text-xl font-black text-[#512da8] uppercase mb-1 block tracking-tight">Data da visita</label>
-              <div className="p-3 bg-indigo-50/50 rounded-xl font-black text-gray-800 border border-indigo-100 text-center text-3xl">
+              <label className="text-sm font-bold text-[#512da8] uppercase mb-1 block tracking-tight">Data da visita</label>
+              <div className="p-3 bg-indigo-50/50 rounded-xl font-bold text-gray-800 border border-indigo-100 text-center text-xl">
                 {data.dataVisita}
               </div>
             </div>
@@ -490,16 +490,16 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Ministry Activities */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
-              <Users size={24} />
-              <h3 className="font-black text-2xl uppercase tracking-widest">Atividades Gerais do Ministério (média mensal)</h3>
+              <Users size={20} />
+              <h3 className="font-bold text-lg uppercase tracking-widest">Atividades Gerais do Ministério (média mensal)</h3>
             </div>
             <div className="p-0">
-              <table className="w-full text-xl">
+              <table className="w-full text-base">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-4 text-left font-black text-gray-600">CATEGORIA</th>
-                    <th className="p-4 text-center font-black text-gray-600 w-36">Nº RELATANDO</th>
-                    <th className="p-4 text-center font-black text-gray-600 w-36">Nº DE ESTUDOS</th>
+                    <th className="p-4 text-left font-bold text-gray-600">CATEGORIA</th>
+                    <th className="p-4 text-center font-bold text-gray-600 w-36">Nº RELATANDO</th>
+                    <th className="p-4 text-center font-bold text-gray-600 w-36">Nº DE ESTUDOS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -510,14 +510,14 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     { id: 'pioneirosEspeciais', label: 'PIONEIROS ESPECIAIS', bg: 'bg-teal-50/30' }
                   ].map((item) => (
                     <tr key={item.id} className={`${item.bg} hover:bg-teal-50/50 transition-colors`}>
-                      <td className="p-4 font-black text-gray-700 text-2xl">{item.label}</td>
+                      <td className="p-4 font-bold text-gray-700 text-lg">{item.label}</td>
                       <td className="p-2">
                         <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
                           <input 
                             type="number"
                             value={data.ministério[item.id as keyof AnalysisData['ministério']].relatando}
                             onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'relatando', e.target.value)}
-                            className="w-full p-2.5 bg-transparent text-center font-black outline-none text-3xl text-gray-800"
+                            className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
                           />
                           <button 
                             onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
@@ -534,7 +534,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                             type="number"
                             value={data.ministério[item.id as keyof AnalysisData['ministério']].estudos}
                             onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'estudos', e.target.value)}
-                            className="w-full p-2.5 bg-transparent text-center font-black outline-none text-3xl text-gray-800"
+                            className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
                           />
                           <button 
                             onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
@@ -555,16 +555,16 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Congregation Stats */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
-              <BarChart3 size={24} />
-              <h3 className="font-black text-2xl uppercase tracking-widest">Estatísticas da Congregação</h3>
+              <BarChart3 size={20} />
+              <h3 className="font-bold text-lg uppercase tracking-widest">Estatísticas da Congregação</h3>
             </div>
             <div className="p-0">
-              <table className="w-full text-xl">
+              <table className="w-full text-base">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-4 text-left font-black text-gray-600">DESCRIÇÃO</th>
-                    <th className="p-4 text-center font-black text-gray-600 w-44">QUANTIDADE</th>
-                    <th className="p-4 text-center font-black text-gray-600 w-32">PORCENTAGEM</th>
+                    <th className="p-4 text-left font-bold text-gray-600">DESCRIÇÃO</th>
+                    <th className="p-4 text-center font-bold text-gray-600 w-44">QUANTIDADE</th>
+                    <th className="p-4 text-center font-bold text-gray-600 w-32">PORCENTAGEM</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -585,7 +585,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     const perc = pubAtivosNum > 0 ? Math.round((val / pubAtivosNum) * 100) : 0;
                     return (
                       <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-indigo-50/30 transition-colors`}>
-                        <td className={`p-4 font-normal text-2xl ${item.color}`}>{item.label}</td>
+                        <td className={`p-4 font-normal text-lg ${item.color}`}>{item.label}</td>
                         <td className="p-2">
                           <div className="flex items-center justify-center gap-4 bg-white rounded-xl border border-gray-200 p-1 shadow-sm">
                             <button 
@@ -593,20 +593,20 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                               disabled={item.isAuto}
                               className={`p-1.5 rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white transition-all active:scale-90 ${item.isAuto ? 'opacity-20 cursor-not-allowed' : ''}`}
                             >
-                              <Minus size={18} />
+                              <Minus size={16} />
                             </button>
-                            <span className="font-black text-4xl min-w-[40px] text-center text-gray-800">{val}</span>
+                            <span className="font-bold text-2xl min-w-[40px] text-center text-gray-800">{val}</span>
                             <button 
                               onClick={() => !item.isAuto && updateEstatistica(item.id as keyof AnalysisData['estatisticas'], 1)}
                               disabled={item.isAuto}
                               className={`p-1.5 rounded-lg bg-teal-100 text-teal-600 hover:bg-teal-600 hover:text-white transition-all active:scale-90 ${item.isAuto ? 'opacity-20 cursor-not-allowed' : ''}`}
                             >
-                              <Plus size={18} />
+                              <Plus size={16} />
                             </button>
                           </div>
                         </td>
                         <td className="p-4 text-center">
-                          <span className="font-black text-3xl text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                          <span className="font-bold text-xl text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
                             {perc}%
                           </span>
                         </td>
@@ -624,41 +624,41 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Donations */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
-              <DollarSign size={24} />
-              <h3 className="font-black text-2xl uppercase tracking-widest">Donativos</h3>
+              <DollarSign size={20} />
+              <h3 className="font-bold text-lg uppercase tracking-widest">Donativos</h3>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xl font-black text-gray-400 uppercase text-center block tracking-widest">Congregação</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase text-center block tracking-widest">Congregação</label>
                   {data.donativos.congregacao.map((v, i) => (
                     <input 
                       key={i}
                       value={v}
                       onChange={(e) => updateTable('donativos', 'congregacao', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-3xl font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-xl font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                       placeholder="0,00"
                     />
                   ))}
                   <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
-                    <span className="text-xl font-black text-gray-400 tracking-widest">TOTAL</span>
-                    <span className="font-black text-4xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.congregacao)}</span>
+                    <span className="text-xs font-bold text-gray-400 tracking-widest">TOTAL</span>
+                    <span className="font-bold text-2xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.congregacao)}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xl font-black text-gray-400 uppercase text-center block tracking-widest">Obra Mundial</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase text-center block tracking-widest">Obra Mundial</label>
                   {data.donativos.obraMundial.map((v, i) => (
                     <input 
                       key={i}
                       value={v}
                       onChange={(e) => updateTable('donativos', 'obraMundial', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-3xl font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-xl font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                       placeholder="0,00"
                     />
                   ))}
                   <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
-                    <span className="text-xl font-black text-gray-400 tracking-widest">TOTAL</span>
-                    <span className="font-black text-4xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.obraMundial)}</span>
+                    <span className="text-xs font-bold text-gray-400 tracking-widest">TOTAL</span>
+                    <span className="font-bold text-2xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.obraMundial)}</span>
                   </div>
                 </div>
               </div>
@@ -668,41 +668,41 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Meetings */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
-              <Users size={20} />
-              <h3 className="font-black text-sm uppercase tracking-widest">Reuniões</h3>
+              <Users size={18} />
+              <h3 className="font-bold text-base uppercase tracking-widest">Reuniões</h3>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase text-center block tracking-widest">Meio de Semana</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase text-center block tracking-widest">Meio de Semana</label>
                   {data.reunioes.meioSemana.map((v, i) => (
                     <input 
                       key={i}
                       type="number"
                       value={v}
                       onChange={(e) => updateTable('reunioes', 'meioSemana', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                     />
                   ))}
                   <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
-                    <span className="text-[10px] font-black text-gray-400 tracking-widest uppercase">Média</span>
-                    <span className="font-black text-lg text-teal-600">{avgMeioSemana}</span>
+                    <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Média</span>
+                    <span className="font-bold text-base text-teal-600">{avgMeioSemana}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase text-center block tracking-widest">Fim de Semana</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase text-center block tracking-widest">Fim de Semana</label>
                   {data.reunioes.fimSemana.map((v, i) => (
                     <input 
                       key={i}
                       type="number"
                       value={v}
                       onChange={(e) => updateTable('reunioes', 'fimSemana', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-black outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                     />
                   ))}
                   <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
-                    <span className="text-[10px] font-black text-gray-400 tracking-widest uppercase">Média</span>
-                    <span className="font-black text-lg text-teal-600">{avgFimSemana}</span>
+                    <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Média</span>
+                    <span className="font-bold text-base text-teal-600">{avgFimSemana}</span>
                   </div>
                 </div>
               </div>
@@ -712,14 +712,14 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           {/* Summary Cards */}
           <div className="grid grid-cols-1 gap-4">
             <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Diferença entre publicadores e média de Fim de Semana</label>
-              <div className={`text-4xl font-black ${difference >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Diferença entre publicadores e média de Fim de Semana</label>
+              <div className={`text-2xl font-bold ${difference >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {difference > 0 ? `+${difference}` : difference}
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Porcentagem sobre nº de publicadores (Fim de Semana)</label>
-              <div className="text-4xl font-black text-[#512da8]">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Porcentagem sobre nº de publicadores (Fim de Semana)</label>
+              <div className="text-2xl font-bold text-[#512da8]">
                 {percentage > 0 ? `+${percentage}%` : `${percentage}%`}
               </div>
             </div>

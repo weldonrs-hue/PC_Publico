@@ -113,10 +113,17 @@ const OUTROS_EVENTOS = [
 ];
 
 export default function ItinerariesView({ userId, user, onBack }: ItinerariesViewProps) {
+  const getLastMonday = () => {
+    const today = new Date();
+    const day = today.getDay(); // 0 (Sun) to 6 (Sat)
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(today.setDate(diff));
+  };
+
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [viewDate, setViewDate] = useState(new Date());
+  const [viewDate, setViewDate] = useState(getLastMonday());
   const [initializing, setInitializing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
@@ -519,7 +526,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleToday = () => {
-    setViewDate(new Date());
+    setViewDate(getLastMonday());
   };
 
   const handleChange = async (id: string, field: keyof ItineraryItem, value: any) => {

@@ -41,7 +41,7 @@ export default function SecondarySection() {
         </div>
       </div>
 
-      {/* Map View */}
+      {/* Map View Placeholder */}
       <div className="bg-white rounded-2xl p-1 overflow-hidden shadow-sm relative group border-2 border-blue-400">
         <div className="h-full min-h-[200px] w-full rounded-[1.2rem] bg-[#5ba381] overflow-hidden relative">
           <Image
@@ -53,7 +53,7 @@ export default function SecondarySection() {
           />
           <div className="absolute inset-0 flex flex-col justify-end p-4 text-white bg-black/20">
             <h5 className="font-headline font-bold text-base">Visão Geográfica</h5>
-            <p className="text-[10px] font-bold">12 congregações mapeadas</p>
+            <p className="text-[10px] font-bold">Mapeamento de congregações</p>
           </div>
         </div>
       </div>

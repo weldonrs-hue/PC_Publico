@@ -72,15 +72,23 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        setLoading(true);
         const q = query(collection(db, 'activity_analysis'), where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
         
+        console.log(`[CircuitStatistics] Fetched ${querySnapshot.size} documents for userId: ${userId}`);
+
         const analysesByCong: { [key: string]: AnalysisData } = {};
         
         querySnapshot.forEach((doc) => {
           const data = doc.data() as AnalysisData;
           const cong = data.congregacao;
           
+          if (!cong) {
+            console.warn(`[CircuitStatistics] Document ${doc.id} has no congregation name.`);
+            return;
+          }
+
           if (!analysesByCong[cong]) {
             analysesByCong[cong] = data;
           } else {
@@ -101,6 +109,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         });
 
         const congregations = Object.values(analysesByCong);
+        console.log(`[CircuitStatistics] Aggregated ${congregations.length} unique congregation analyses.`);
         setCongCount(congregations.length);
 
         const totals = {

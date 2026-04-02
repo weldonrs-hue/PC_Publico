@@ -316,12 +316,23 @@ export default function Home() {
           const username = user.usuario;
           const hasMigrated = localStorage.getItem(`migrationAttempted_${activeUid}`);
           
-          if (username && /^\d+$/.test(username) && !hasMigrated && !quotaExceeded) {
+          if (username && !hasMigrated && !quotaExceeded) {
             localStorage.setItem(`migrationAttempted_${activeUid}`, 'true');
             let migrationSnapshot;
             try {
               let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
               migrationSnapshot = await getDocs(migrationQuery);
+              
+              // If not found by username, try by email
+              if ((!migrationSnapshot || migrationSnapshot.empty) && firebaseUser.email) {
+                const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', firebaseUser.email), limit(1));
+                migrationSnapshot = await getDocs(emailQuery);
+                
+                if (!migrationSnapshot || migrationSnapshot.empty) {
+                  const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', firebaseUser.email), limit(1));
+                  migrationSnapshot = await getDocs(jwpubQuery);
+                }
+              }
             } catch (error) {
               // Migration query might fail if rules are strict, but we catch it
               console.warn('Migration query failed (likely permissions):', error);
@@ -349,7 +360,7 @@ export default function Home() {
                 setPersonalData(migratedData);
                 
                 // Migrate other collections
-                const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries'];
+                const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries', 'activity_analysis', 's303_reports'];
                 const batch = writeBatch(db);
                 let batchCount = 0;
                 
@@ -358,9 +369,21 @@ export default function Home() {
                     const q = query(collection(db, collName), where('userId', '==', oldUserId));
                     const snapshot = await getDocs(q);
                     for (const d of snapshot.docs) {
-                      batch.set(doc(db, collName, d.id), { ...d.data(), userId: activeUid });
+                      const docData = d.data();
+                      let newDocRef;
+                      
+                      if (collName === 'activity_analysis' || collName === 's303_reports') {
+                        const congregacao = docData.congregacao || '';
+                        const dataVisita = docData.dataVisita || '';
+                        const newId = `${activeUid}_${congregacao}_${dataVisita.replace(/\//g, '-')}`;
+                        newDocRef = doc(db, collName, newId);
+                      } else {
+                        // Create a new document with a new ID to avoid modifying the original
+                        newDocRef = doc(collection(db, collName));
+                      }
+                      
+                      batch.set(newDocRef, { ...docData, userId: activeUid });
                       batchCount++;
-                      // Firestore batch limit is 500
                       if (batchCount >= 450) break; 
                     }
                   } catch (error) {
@@ -374,9 +397,72 @@ export default function Home() {
                 }
 
                 // Mark migration as completed in user doc
-                await updateDoc(doc(db, 'users', activeUid), { migrationCompleted: true });
+                await updateDoc(doc(db, 'users', activeUid), { 
+                  migrationCompleted: true,
+                  migrationV2Completed: true // Added to track that analysis/reports were also migrated
+                });
               } catch (error) {
                 console.error('Migration process failed:', error);
+              }
+            }
+          } else if (user.migrationCompleted && !user.migrationV2Completed && !quotaExceeded) {
+            // V2 Migration for users who already migrated but missed analysis/reports
+            const username = user.usuario;
+            const hasMigratedV2 = localStorage.getItem(`migrationV2Attempted_${activeUid}`);
+            
+            if (username && !hasMigratedV2) {
+              localStorage.setItem(`migrationV2Attempted_${activeUid}`, 'true');
+              try {
+                let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
+                let migrationSnapshot = await getDocs(migrationQuery);
+                
+                // If not found by username, try by email
+                if (migrationSnapshot.empty && firebaseUser.email) {
+                  const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', firebaseUser.email), limit(1));
+                  migrationSnapshot = await getDocs(emailQuery);
+                  
+                  if (migrationSnapshot.empty) {
+                    const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', firebaseUser.email), limit(1));
+                    migrationSnapshot = await getDocs(jwpubQuery);
+                  }
+                }
+                
+                if (!migrationSnapshot.empty) {
+                  const oldData = migrationSnapshot.docs[0].data();
+                  const oldUserId = oldData.userId;
+                  
+                  if (oldUserId && oldUserId !== activeUid) {
+                    const collectionsToMigrate = ['activity_analysis', 's303_reports'];
+                    const batch = writeBatch(db);
+                    let batchCount = 0;
+                    
+                    for (const collName of collectionsToMigrate) {
+                      const q = query(collection(db, collName), where('userId', '==', oldUserId));
+                      const snapshot = await getDocs(q);
+                      for (const d of snapshot.docs) {
+                        const docData = d.data();
+                        const congregacao = docData.congregacao || '';
+                        const dataVisita = docData.dataVisita || '';
+                        const newId = `${activeUid}_${congregacao}_${dataVisita.replace(/\//g, '-')}`;
+                        const newDocRef = doc(db, collName, newId);
+                        
+                        batch.set(newDocRef, { ...docData, userId: activeUid });
+                        batchCount++;
+                        if (batchCount >= 450) break;
+                      }
+                      if (batchCount >= 450) break;
+                    }
+                    
+                    if (batchCount > 0) {
+                      await batch.commit();
+                    }
+                    
+                    await updateDoc(doc(db, 'users', activeUid), { migrationV2Completed: true });
+                    setUser(prev => prev ? { ...prev, migrationV2Completed: true } : null);
+                  }
+                }
+              } catch (error) {
+                console.warn('V2 Migration failed:', error);
               }
             }
           }
@@ -455,7 +541,7 @@ export default function Home() {
           let totalServos = 0;
 
           latestAnalyses.forEach((analysis: any) => {
-            totalPubs += parseInt(analysis.ministério?.publicadores?.relatando) || 0;
+            totalPubs += parseInt(analysis.pubAtivos) || 0;
             totalPioReg += parseInt(analysis.ministério?.pioneirosRegulares?.relatando) || 0;
             totalPioEsp += parseInt(analysis.ministério?.pioneirosEspeciais?.relatando) || 0;
             totalAnciaos += analysis.estatisticas?.anciaos || 0;
@@ -504,7 +590,7 @@ export default function Home() {
     };
 
     fetchData();
-  }, [user?.id, user?.usuario, user?.migrationCompleted, currentView, personalData, quotaExceeded]); // Only re-run when entering dashboard or user changes
+  }, [user?.id, user?.usuario, user?.migrationCompleted, user?.migrationV2Completed, currentView, personalData, quotaExceeded]); // Only re-run when entering dashboard or user changes
 
   const handlePersonalDataSave = () => {
     // Trigger re-fetch
