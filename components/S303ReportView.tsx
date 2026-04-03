@@ -68,13 +68,10 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       // A4 landscape width in pixels at 96dpi is ~1123px (297mm)
       const a4WidthPx = 1123;
       
-      if (containerWidth > 720) {
-        // Calculate scale to fit the container with some padding
-        const newScale = Math.min(1.4, (containerWidth - 40) / a4WidthPx);
-        setScale(newScale);
-      } else {
-        setScale(1);
-      }
+      // Calculate scale to fit the container with some padding
+      // Allow scaling down for mobile and up for desktop
+      const newScale = Math.min(1.4, (containerWidth - 32) / a4WidthPx);
+      setScale(newScale);
     };
 
     const observer = new ResizeObserver(updateScale);
@@ -607,7 +604,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
       <div 
         ref={containerRef}
-        className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full max-w-7xl print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center"
+        className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-7xl print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center"
       >
         <div 
           id="s303-report-container" 

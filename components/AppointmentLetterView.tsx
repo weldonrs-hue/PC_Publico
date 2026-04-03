@@ -64,13 +64,10 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       // A4 width in pixels at 96dpi is ~794px (210mm)
       const a4WidthPx = 794;
       
-      if (containerWidth > 720) {
-        // Calculate scale to fit the container with some padding
-        const newScale = Math.min(1.5, (containerWidth - 40) / a4WidthPx);
-        setScale(newScale);
-      } else {
-        setScale(1);
-      }
+      // Calculate scale to fit the container with some padding
+      // Allow scaling down for mobile and up for desktop
+      const newScale = Math.min(1.5, (containerWidth - 32) / a4WidthPx);
+      setScale(newScale);
     };
 
     const observer = new ResizeObserver(updateScale);
@@ -278,7 +275,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       {/* Letter Content */}
       <div 
         ref={containerRef}
-        className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full max-w-7xl print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center"
+        className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-7xl print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center"
       >
         <div 
           id="appointment-letter-container"
@@ -404,38 +401,38 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
             {/* Closing */}
             <div className="mt-8 relative group">
-              {/* Signature Upload Controls */}
-              <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
-                  title="Adicionar imagem da assinatura"
-                >
-                  <Upload size={16} />
-                </button>
-                {signatureImage && (
-                  <button 
-                    onClick={() => setSignatureImage(null)}
-                    className="p-2 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
-                    title="Remover imagem"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-                <input 
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </div>
-
               <div className="flex flex-col items-end mb-[58px]">
                 <div className="w-72 text-center">
                   <p className="text-[15px] mt-0 pl-[61px] mb-[18px] text-left">Seu irmão,</p>
                   {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center">
+                    {/* Signature Upload Controls */}
+                    <div className="absolute -right-10 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                        title="Adicionar imagem da assinatura"
+                      >
+                        <Upload size={14} />
+                      </button>
+                      {signatureImage && (
+                        <button 
+                          onClick={() => setSignatureImage(null)}
+                          className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
+                          title="Remover imagem"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                      <input 
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </div>
+
                     {signatureImage ? (
                       <div className="h-16 flex items-center justify-center mb-[-10px]">
                         <img 
