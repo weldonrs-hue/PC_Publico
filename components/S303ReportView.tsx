@@ -57,6 +57,32 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
   const [showPdfMenu, setShowPdfMenu] = useState(false);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return;
+      const containerWidth = containerRef.current.offsetWidth;
+      
+      // A4 landscape width in pixels at 96dpi is ~1123px (297mm)
+      const a4WidthPx = 1123;
+      
+      if (containerWidth > 720) {
+        // Calculate scale to fit the container with some padding
+        const newScale = Math.min(1.4, (containerWidth - 40) / a4WidthPx);
+        setScale(newScale);
+      } else {
+        setScale(1);
+      }
+    };
+
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) observer.observe(containerRef.current);
+    updateScale();
+
+    return () => observer.disconnect();
+  }, []);
 
   const isDirty = reportText !== initialReportText;
 
@@ -516,7 +542,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
   return (
     <div className="space-y-8 w-full pb-10 flex flex-col items-center print:space-y-0 print:pb-0 print:block">
-      <div className="flex flex-col sm:flex-row items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-6xl gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-7xl gap-4">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={handleBack}
@@ -579,7 +605,10 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl print:max-w-none print:w-full print:m-0 print:p-0">
+      <div 
+        ref={containerRef}
+        className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full max-w-7xl print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center"
+      >
         <div 
           id="s303-report-container" 
           className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col print:w-[297mm] print:h-[210mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
@@ -590,7 +619,11 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
             minWidth: '297mm',
             height: '210mm',
             overflow: 'hidden',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            transform: `scale(${scale})`,
+            transformOrigin: 'top center',
+            marginBottom: `${(scale - 1) * 210}mm`, // Add margin at bottom to account for scaled height
+            transition: 'transform 0.2s ease-out, margin-bottom 0.2s ease-out'
           }}
         >
           <header className="mb-[5mm]">

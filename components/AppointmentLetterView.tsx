@@ -6,7 +6,10 @@ import {
   Loader2,
   Printer,
   FileDown,
-  X
+  X,
+  Image as ImageIcon,
+  Trash2,
+  Upload
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
@@ -44,7 +47,38 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     servosDesignados: ['', '', '', ''],
     irmaosRemovidos: ['', '', '', '']
   });
+  const [letterDate, setLetterDate] = useState<Date>(new Date());
+  const [isDateFocused, setIsDateFocused] = useState(false);
+  const [signatureName, setSignatureName] = useState('');
+  const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const letterRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return;
+      const containerWidth = containerRef.current.offsetWidth;
+      
+      // A4 width in pixels at 96dpi is ~794px (210mm)
+      const a4WidthPx = 794;
+      
+      if (containerWidth > 720) {
+        // Calculate scale to fit the container with some padding
+        const newScale = Math.min(1.5, (containerWidth - 40) / a4WidthPx);
+        setScale(newScale);
+      } else {
+        setScale(1);
+      }
+    };
+
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) observer.observe(containerRef.current);
+    updateScale();
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,13 +99,17 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
         const pdRef = doc(db, 'personal_data', userId);
         const pdSnap = await getDoc(pdRef);
         if (pdSnap.exists()) {
-          setPersonalData(pdSnap.data());
+          const data = pdSnap.data();
+          setPersonalData(data);
+          setSignatureName(data.nome || '');
         } else {
           // Fallback
           const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
           const snap = await getDocs(q);
           if (!snap.empty) {
-            setPersonalData(snap.docs[0].data());
+            const data = snap.docs[0].data();
+            setPersonalData(data);
+            setSignatureName(data.nome || '');
           }
         }
       } catch (error) {
@@ -84,6 +122,10 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     fetchData();
   }, [userId, congregation.nome, visitDate]);
 
+  useEffect(() => {
+    // No longer needed to set string date here, we use Date object
+  }, []);
+
   const handlePrint = () => {
     window.print();
   };
@@ -92,7 +134,13 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     const element = document.getElementById('appointment-letter-container');
     if (!element) return;
 
-    const dateStr = formatDate().replace(/[/,]/g, '-').replace(/\s+/g, '_');
+    // Simple date format for filename: DD-MM-YYYY
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const dateStr = `${day}-${month}-${year}`;
+    
     const filename = `Carta_Designacao_${congregation.nome}_${dateStr}.pdf`;
 
     try {
@@ -138,15 +186,49 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     });
   };
 
-  const formatDate = () => {
-    const date = new Date();
-    const options: Intl.DateTimeFormatOptions = { 
+  const formatLongDate = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { 
       weekday: 'long', 
       day: '2-digit', 
       month: '2-digit', 
       year: 'numeric' 
-    };
-    return date.toLocaleDateString('pt-BR', options);
+    });
+  };
+
+  const formatShortDate = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+  };
+
+  const handleDateInputChange = (value: string) => {
+    // Allow user to type freely while focused
+    // We'll only try to parse it on blur or if it matches dd/mm/yyyy
+    const parts = value.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        const newDate = new Date(year, month, day);
+        if (!isNaN(newDate.getTime())) {
+          setLetterDate(newDate);
+        }
+      }
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSignatureImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   if (loading) {
@@ -161,7 +243,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   return (
     <div className="space-y-8 w-full pb-10 flex flex-col items-center print:space-y-0 print:pb-0 print:block bg-gray-50 min-h-screen">
       {/* Header Toolbar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-6xl gap-4 mt-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between print:hidden bg-white/80 backdrop-blur-md p-4 rounded-2xl sticky top-0 z-10 border border-gray-100 shadow-sm w-full max-w-7xl gap-4 mt-4">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={onBack}
@@ -194,7 +276,10 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       </div>
 
       {/* Letter Content */}
-      <div className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full max-w-6xl print:max-w-none print:w-full print:m-0 print:p-0">
+      <div 
+        ref={containerRef}
+        className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full max-w-7xl print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center"
+      >
         <div 
           id="appointment-letter-container"
           className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col print:w-[210mm] print:h-[297mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
@@ -205,7 +290,11 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             minWidth: '210mm',
             height: '297mm',
             overflow: 'hidden',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            transform: `scale(${scale})`,
+            transformOrigin: 'top center',
+            marginBottom: `${(scale - 1) * 297}mm`, // Add margin at bottom to account for scaled height
+            transition: 'transform 0.2s ease-out, margin-bottom 0.2s ease-out'
           }}
         >
           <article 
@@ -224,7 +313,15 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
             {/* Date */}
             <div className="text-right mb-6">
-              <p className="text-[15px]">{formatDate()}</p>
+              <input 
+                type="text"
+                value={isDateFocused ? formatShortDate(letterDate) : formatLongDate(letterDate)}
+                onChange={(e) => handleDateInputChange(e.target.value)}
+                onFocus={() => setIsDateFocused(true)}
+                onBlur={() => setIsDateFocused(false)}
+                className="text-[15px] text-right bg-transparent border-none outline-none w-full print:placeholder-transparent"
+                style={{ fontFamily: "'Times New Roman', Times, serif" }}
+              />
             </div>
 
             {/* Congregation & Recipient Info */}
@@ -306,17 +403,58 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             </div>
 
             {/* Closing */}
-            <div className="mt-8">
+            <div className="mt-8 relative group">
+              {/* Signature Upload Controls */}
+              <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                  title="Adicionar imagem da assinatura"
+                >
+                  <Upload size={16} />
+                </button>
+                {signatureImage && (
+                  <button 
+                    onClick={() => setSignatureImage(null)}
+                    className="p-2 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
+                    title="Remover imagem"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+                <input 
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </div>
+
               <div className="flex flex-col items-end mb-[58px]">
                 <div className="w-72 text-center">
                   <p className="text-[15px] mt-0 pl-[61px] mb-[18px] text-left">Seu irmão,</p>
                   {/* Signature Block */}
-                  <div className="inline-block relative">
-                    <div className="font-signature text-[32px] text-[#004aad] leading-none mb-[-4px]" style={{ fontFamily: "'Dancing Script', cursive" }}>
-                      {personalData?.nome || 'Assinatura'}
-                    </div>
+                  <div className="inline-block relative w-full flex flex-col items-center">
+                    {signatureImage ? (
+                      <div className="h-16 flex items-center justify-center mb-[-10px]">
+                        <img 
+                          src={signatureImage} 
+                          alt="Assinatura" 
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <input 
+                        type="text"
+                        value={signatureName}
+                        onChange={(e) => setSignatureName(e.target.value)}
+                        className="font-signature text-[32px] text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full"
+                        style={{ fontFamily: "'Dancing Script', cursive" }}
+                      />
+                    )}
                     <div className="border-t border-black w-full mx-auto mb-0"></div>
-                    <p className="font-bold text-[11px] mt-[5px] uppercase tracking-wider mb-0">
+                    <p className="font-bold text-[11px] mt-[5px] uppercase tracking-wider mb-0 text-center bg-transparent border-none outline-none w-full">
                       {personalData?.nome || 'Nome do Viajante'}
                     </p>
                   </div>
@@ -354,7 +492,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             break-inside: avoid !important;
             box-sizing: border-box !important;
             background: white !important;
-            /* Apply 95% scale to match user's preferred print setting */
+            /* Reset scale for printing */
             transform: scale(0.95) !important;
             transform-origin: top center !important;
           }
