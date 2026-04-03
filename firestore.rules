@@ -40,16 +40,16 @@ service cloud.firestore {
       return signedIn() && 
              "email" in request.auth.token &&
              (
-               request.auth.token.email.lower() == "weldonrs@gmail.com" ||
-               request.auth.token.email.lower() == "2283701@progcir.app" ||
-               request.auth.token.email.lower() == "2283701@progcir.com"
+               request.auth.token.email == "weldonrs@gmail.com" ||
+               request.auth.token.email == "2283701@progcir.app" ||
+               request.auth.token.email == "2283701@progcir.com"
              );
     }
 
     function isRoleAdmin() {
       return signedIn() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
     }
 
     function isAdmin() {
@@ -97,15 +97,15 @@ service cloud.firestore {
     match /personal_data/{dataId} {
       allow read: if signedIn() && (
         dataId == request.auth.uid || 
-        isDocOwner() ||
         isAdmin() ||
+        isDocOwner() ||
         isEmailPrefix(dataId)
       );
       
       allow write: if signedIn() && (
         dataId == request.auth.uid ||
-        isDocOwner() ||
-        isAdmin()
+        isAdmin() ||
+        isDocOwner()
       );
       
       // Only admins can list all personal data
