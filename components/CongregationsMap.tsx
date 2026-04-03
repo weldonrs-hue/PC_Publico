@@ -29,8 +29,8 @@ interface Congregation {
 }
 
 interface CongregationsMapProps {
-  congregations: Congregation[];
-  onEdit?: (cong: Congregation) => void;
+  congregations: any[];
+  onEdit?: (cong: any) => void;
 }
 
 // Helper to parse GPS coordinates from string

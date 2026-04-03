@@ -37,11 +37,13 @@ service cloud.firestore {
     }
     
     function isEmailAdmin() {
-      return signedIn() && (
-        request.auth.token.email.lower() == "weldonrs@gmail.com" ||
-        request.auth.token.email.lower() == "2283701@progcir.app" ||
-        request.auth.token.email.lower() == "2283701@progcir.com"
-      );
+      return signedIn() && 
+             "email" in request.auth.token &&
+             (
+               request.auth.token.email.lower() == "weldonrs@gmail.com" ||
+               request.auth.token.email.lower() == "2283701@progcir.app" ||
+               request.auth.token.email.lower() == "2283701@progcir.com"
+             );
     }
 
     function isRoleAdmin() {
@@ -67,6 +69,7 @@ service cloud.firestore {
 
     function isEmailPrefix(prefix) {
       return signedIn() && 
+             "email" in request.auth.token &&
              prefix != null && 
              prefix != "" && 
              request.auth.token.email.lower().matches("^" + prefix.lower() + "@.*");
