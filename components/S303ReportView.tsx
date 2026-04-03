@@ -16,7 +16,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { toPng } from 'html-to-image';
