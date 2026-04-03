@@ -112,7 +112,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
     <aside className="
       fixed z-50 bg-[#512da8] text-white transition-all duration-500 ease-in-out
       portrait:bottom-0 portrait:left-0 portrait:right-0 portrait:h-16 portrait:flex-row portrait:w-full
-      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-24 landscape:lg:w-56 landscape:flex-col
+      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-20 landscape:lg:w-56 landscape:flex-col
       flex overflow-y-auto landscape:custom-scrollbar
     ">
       {/* Logo Section */}
@@ -121,7 +121,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           <div className="bg-white w-8 h-8 lg:w-10 lg:h-10 rounded flex items-center justify-center flex-shrink-0">
             <Square className="text-[#512da8] fill-[#512da8]" size={20} />
           </div>
-          <p className="text-[10px] lg:text-sm text-white font-extrabold uppercase tracking-widest hidden lg:block landscape:block">PROGCIR WEB</p>
+          <p className="text-[10px] lg:text-sm text-white font-extrabold uppercase tracking-widest hidden lg:block">PROGCIR WEB</p>
         </div>
       </div>
 
@@ -163,7 +163,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
                 }}
                 className={`
                   flex items-center rounded-xl transition-all group
-                  landscape:justify-start
+                  landscape:justify-center lg:landscape:justify-start
                   landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
                   portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[60px]
                   ${isActive(item.view) ? 'bg-[#673ab7] text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
@@ -172,7 +172,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
                 title={isDisabled ? 'Função em desenvolvimento' : item.label}
               >
                 <item.icon size={20} className="flex-shrink-0" />
-                <span className="font-sans landscape:block lg:block hidden text-[10px] lg:text-base">
+                <span className="font-sans lg:block hidden text-[10px] landscape:text-base">
                   {item.label}
                 </span>
                 <span className="portrait:block lg:hidden landscape:hidden text-[9px] font-bold mt-1 truncate w-full text-center">
@@ -219,12 +219,12 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           <div className="space-y-1">
             <button 
               onClick={onLogout}
-              className="flex items-center landscape:justify-start justify-center gap-3 text-white/70 hover:text-white hover:bg-white/5 transition-all w-full group p-2 rounded-lg"
+              className="flex items-center justify-center lg:justify-start gap-3 text-white/70 hover:text-white hover:bg-white/5 transition-all w-full group p-2 rounded-lg"
             >
               <div className="w-5 h-5 flex items-center justify-center">
                 <LogOut size={18} />
               </div>
-              <span className="font-bold text-[10px] lg:text-xs landscape:block lg:block hidden">Sair do Sistema</span>
+              <span className="font-bold text-xs hidden lg:block">Sair do Sistema</span>
             </button>
 
             {/* Removed Back to Dashboard button as requested */}

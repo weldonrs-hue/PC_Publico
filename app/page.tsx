@@ -694,7 +694,7 @@ export default function Home() {
         />
       </div>
       
-      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-24 landscape:lg:ml-56 portrait:mb-16 print:ml-0 print:mb-0 print:p-0">
+      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-20 landscape:lg:ml-56 portrait:mb-16 print:ml-0 print:mb-0 print:p-0">
         {quotaExceeded && (
           <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-pulse">
             ⚠️ Limite de cota do Firestore excedido. Alguns dados podem não carregar corretamente. Tente novamente mais tarde.
@@ -705,9 +705,9 @@ export default function Home() {
             <>
               {/* Welcome Section */}
               <div className="flex justify-between items-center gap-4">
-                <div className="border-2 border-blue-400 p-2 md:p-4 rounded-sm flex-1 md:flex-initial bg-white/50 flex items-center gap-3 md:gap-4">
+                <div className="border-2 border-blue-400 p-3 md:p-4 rounded-sm flex-1 md:flex-initial bg-white/50 flex items-center gap-4">
                   <div 
-                    className="relative w-12 h-12 md:w-16 md:h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner cursor-pointer group/avatar overflow-hidden flex-shrink-0"
+                    className="relative w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner cursor-pointer group/avatar overflow-hidden flex-shrink-0"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {user?.photoURL ? (
@@ -719,14 +719,14 @@ export default function Home() {
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <User size={24} className="md:w-8 md:h-8" />
+                      <User size={32} />
                     )}
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                      <Camera size={16} className="text-white md:w-5 md:h-5" />
+                      <Camera size={20} className="text-white" />
                     </div>
                     {isUploading && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       </div>
                     )}
                   </div>
@@ -738,8 +738,8 @@ export default function Home() {
                     className="hidden" 
                   />
                   <div>
-                    <h1 className="text-base md:text-xl font-bold text-blue-600 uppercase tracking-tight">Olá, {personalData?.nome || personalData?.numeroPessoal || user?.usuario || ''}</h1>
-                    <p className="text-blue-400 font-medium uppercase tracking-widest text-[8px] md:text-xs">Seja bem-vindo ao ProgCir Web</p>
+                    <h1 className="text-lg md:text-xl font-bold text-blue-600 uppercase tracking-tight">Olá, {personalData?.nome || personalData?.numeroPessoal || user?.usuario || ''}</h1>
+                    <p className="text-blue-400 font-medium uppercase tracking-widest text-[10px] md:text-xs">Seja bem-vindo ao ProgCir Web</p>
                   </div>
                 </div>
               </div>
@@ -756,7 +756,7 @@ export default function Home() {
               />
 
               {/* Statistics Summary Bar */}
-              <div className="bg-[#e0d8eb] p-2 md:p-4 rounded-xl md:rounded-full flex flex-wrap items-center justify-center landscape:justify-between md:justify-between px-4 md:px-10 text-[10px] md:text-xs font-bold text-[#3a264b] shadow-inner gap-2 md:gap-4">
+              <div className="bg-[#e0d8eb] p-2 md:p-4 rounded-xl md:rounded-full flex flex-wrap items-center justify-center md:justify-between px-4 md:px-10 text-[10px] md:text-xs font-bold text-[#3a264b] shadow-inner gap-2 md:gap-4">
                 <div className="flex gap-1">Publicadores Ativos: <span className="font-normal underline decoration-dotted">{congStats.publicadoresAtivos.toLocaleString('pt-BR')}</span></div>
                 <div className="flex gap-1">Pioneiros Regulares: <span className="font-normal underline decoration-dotted">{congStats.pioneirosRegulares.toLocaleString('pt-BR')}</span></div>
                 <div className="flex gap-1">Pioneiros Especiais: <span className="font-normal underline decoration-dotted">{congStats.pioneirosEspeciais.toLocaleString('pt-BR')}</span></div>
