@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Map as MapIcon, 
   ChevronLeft,
@@ -125,6 +125,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [saving, setSaving] = useState(false);
   const [viewDate, setViewDate] = useState(getLastMonday());
   const [initializing, setInitializing] = useState(false);
+  const initializingRef = useRef(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
   const [showS303, setShowS303] = useState(false);
@@ -290,13 +291,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const initializeItineraries = useCallback(async (existingItems: ItineraryItem[]) => {
-    if (initializing) return;
+    if (initializingRef.current) return;
     
     // Guard against multiple initializations in the same session or if quota is exceeded
     const hasInitialized = sessionStorage.getItem(`itinerariesInit_${userId}`);
     if (hasInitialized || isQuotaExceeded()) return;
 
     try {
+      initializingRef.current = true;
       setInitializing(true);
       sessionStorage.setItem(`itinerariesInit_${userId}`, 'true');
       
@@ -317,7 +319,16 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
       const currentDate = new Date(startYear, startMonth - 1, startDay);
       
-      const existingSemanas = new Set(existingItems.map(item => item.semana));
+      // Normalize existing semanas for comparison
+      const existingSemanas = new Set(existingItems.map(item => {
+        const s = item.semana || '';
+        if (s.includes('/')) {
+          const [d, m, y] = s.split('/');
+          return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        }
+        return s;
+      }));
+
       const batch = writeBatch(db);
       let addedCount = 0;
       
@@ -335,7 +346,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         const semanaStr = `${d}/${m}/${y}`;
         
         if (!existingSemanas.has(semanaStr)) {
-          const newDocRef = doc(collection(db, 'itineraries'));
+          // Use a deterministic ID for base weeks to prevent duplicates
+          const docId = `${userId}_${semanaStr.replace(/\//g, '-')}`;
+          const newDocRef = doc(db, 'itineraries', docId);
+          
           const item: ItineraryItem = {
             semana: semanaStr,
             dataEvento: '',
@@ -375,8 +389,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       }
     } finally {
       setInitializing(false);
+      initializingRef.current = false;
     }
-  }, [userId, initializing]);
+  }, [userId]);
 
   useEffect(() => {
     const q = query(
@@ -385,11 +400,27 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
+      const rawItems = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as ItineraryItem[];
       
+      // Client-side deduplication: if multiple items have the same semana AND same content (empty), keep only one
+      const items: ItineraryItem[] = [];
+      const seenEmpty = new Set<string>();
+      
+      rawItems.forEach(item => {
+        const isEmpty = !item.evento && !item.observacoes && !item.dataEvento && !item.congregacao;
+        if (isEmpty) {
+          if (!seenEmpty.has(item.semana)) {
+            items.push(item);
+            seenEmpty.add(item.semana);
+          }
+        } else {
+          items.push(item);
+        }
+      });
+
       // Sort by date (semana is DD/MM/YYYY)
       items.sort((a, b) => {
         try {
@@ -439,7 +470,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
       const quotaHit = sessionStorage.getItem('firestore_quota_exceeded') === 'true';
       
-      if ((!hasStartDate || !hasFullRange) && !initializing && auth.currentUser && !quotaHit) {
+      if ((!hasStartDate || !hasFullRange) && !initializingRef.current && auth.currentUser && !quotaHit) {
         initializeItineraries(items);
       }
     }, (error: any) => {
@@ -453,7 +484,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     });
 
     return () => unsubscribe();
-  }, [userId, user?.itinerariesInitialized, initializeItineraries, initializing]);
+  }, [userId, user?.itinerariesInitialized, initializeItineraries]);
 
   const filteredItineraries = useMemo(() => {
     try {
