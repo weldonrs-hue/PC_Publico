@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Maximize, Navigation } from 'lucide-react';
 
 // Fix for Leaflet marker icons in Next.js
 const DefaultIcon = L.icon({
@@ -37,8 +38,6 @@ interface CongregationsMapProps {
 const parseGPS = (gpsStr?: string): [number, number] | null => {
   if (!gpsStr) return null;
   
-  // Remove any characters that aren't numbers, dots, commas, spaces, or minus signs
-  // This handles cases like "S 7.240467, W 35.877171" or "Lat: -7.2, Lng: -35.8"
   let clean = gpsStr.replace(/[^0-9.,\s-]/g, '').trim().replace(/\s+/g, ' ');
   
   let parts: string[] = [];
@@ -49,7 +48,6 @@ const parseGPS = (gpsStr?: string): [number, number] | null => {
   }
   
   if (parts.length >= 2) {
-    // Filter out empty parts and try to parse the first two valid numbers
     const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
     if (numbers.length >= 2) {
       return [numbers[0], numbers[1]];
@@ -59,38 +57,60 @@ const parseGPS = (gpsStr?: string): [number, number] | null => {
 };
 
 // Component to handle map centering and bounds
-function MapBounds({ congregations }: { congregations: any[] }) {
+function MapControls({ congregations }: { congregations: any[] }) {
   const map = useMap();
+
+  const handleResetView = useCallback(() => {
+    if (!congregations || congregations.length === 0) return;
+
+    const validPoints = congregations
+      .map(c => c.coords)
+      .filter(p => p !== null) as [number, number][];
+
+    if (validPoints.length > 0) {
+      try {
+        const bounds = L.latLngBounds(validPoints);
+        map.fitBounds(bounds, { 
+          padding: [50, 50],
+          maxZoom: 15,
+          animate: true,
+          duration: 1
+        });
+      } catch (err) {
+        console.warn('Error fitting map bounds:', err);
+      }
+    }
+  }, [congregations, map]);
 
   useEffect(() => {
     if (!congregations || congregations.length === 0) return;
 
-    // Small delay to ensure container is ready and map is initialized
     const timer = setTimeout(() => {
       map.invalidateSize();
-      const validPoints = congregations
-        .map(c => c.coords)
-        .filter(p => p !== null) as [number, number][];
-
-      if (validPoints.length > 0) {
-        try {
-          const bounds = L.latLngBounds(validPoints);
-          map.fitBounds(bounds, { 
-            padding: [50, 50],
-            maxZoom: 15,
-            animate: true,
-            duration: 1
-          });
-        } catch (err) {
-          console.warn('Error fitting map bounds:', err);
-        }
-      }
-    }, 100);
+      handleResetView();
+    }, 500);
 
     return () => clearTimeout(timer);
-  }, [congregations, map]);
+  }, [congregations.length, map, handleResetView, congregations]);
 
-  return null;
+  return (
+    <div className="leaflet-top leaflet-right" style={{ marginTop: '80px', marginRight: '10px' }}>
+      <div className="leaflet-control leaflet-bar">
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleResetView();
+          }}
+          className="bg-white hover:bg-gray-100 text-gray-700 w-[34px] h-[34px] flex items-center justify-center transition-colors shadow-md border-none rounded-sm"
+          title="Centralizar Visualização"
+          type="button"
+        >
+          <Maximize size={18} />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function CongregationsMap({ congregations, onEdit }: CongregationsMapProps) {
@@ -108,16 +128,19 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
     coords: parseGPS(c.gps)
   })).filter(c => c.coords !== null) as (Congregation & { coords: [number, number] })[];
 
-  // Default center (Brazil) if no congregations
   const defaultCenter: [number, number] = [-14.235, -51.9253];
 
   return (
-    <div className="h-full w-full rounded-xl overflow-hidden relative z-0">
+    <div className="h-full w-full rounded-xl overflow-hidden relative">
       <MapContainer 
         center={defaultCenter} 
         zoom={4} 
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}
+        doubleClickZoom={true}
+        dragging={true}
+        zoomControl={true}
+        touchZoom={true}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -148,6 +171,7 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
                       onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${cong.coords[0]},${cong.coords[1]}`, '_blank')}
                       className="w-full py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
                     >
+                      <Navigation size={12} />
                       Como Chegar
                     </button>
                   </div>
@@ -157,7 +181,7 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
           );
         })}
         
-        <MapBounds congregations={validCongregations} />
+        <MapControls congregations={validCongregations} />
       </MapContainer>
     </div>
   );

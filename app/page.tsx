@@ -255,6 +255,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const activeUid = user?.id || auth.currentUser?.uid;
+    if (!activeUid || quotaExceeded) return;
+
+    const q = query(collection(db, 'congregations'), where('userId', '==', activeUid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const congs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCongregations(congs);
+    }, (error) => {
+      console.error('Error listening to congregations:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id, quotaExceeded]);
+
+  useEffect(() => {
     if (!user?.id) return;
 
     const isDashboard = currentView === 'dashboard';
@@ -571,7 +586,6 @@ export default function Home() {
             anciaos: totalAnciaos,
             servos: totalServos
           };
-          setCongregations(congSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           setCongStats(newStats);
           sessionStorage.setItem(`dashboardStats_${activeUid}`, JSON.stringify({
             stats: newStats,
