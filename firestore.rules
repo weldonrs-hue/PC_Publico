@@ -33,7 +33,7 @@ service cloud.firestore {
     // ===============================================================
     
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
     
     function isEmailAdmin() {
@@ -98,15 +98,18 @@ service cloud.firestore {
       allow read: if signedIn() && (
         dataId == request.auth.uid || 
         isDocOwner() ||
-        isRoleAdmin() ||
+        isAdmin() ||
         isEmailPrefix(dataId)
       );
       
       allow write: if signedIn() && (
         dataId == request.auth.uid ||
         isDocOwner() ||
-        isRoleAdmin()
+        isAdmin()
       );
+      
+      // Only admins can list all personal data
+      allow list: if isAdmin();
     }
 
     // Rules for other collections

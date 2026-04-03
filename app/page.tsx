@@ -275,13 +275,25 @@ export default function Home() {
     const isDashboard = currentView === 'dashboard';
     
     const fetchData = async () => {
-      // Wait for auth.currentUser to be available
-      if (!auth.currentUser) return;
+      // Use user.id as the primary source of truth for the UID
+      const activeUid = user?.id;
+      if (!activeUid) {
+        console.log('fetchData: No active UID, skipping');
+        return;
+      }
 
-      const activeUid = auth.currentUser.uid;
+      // Double check auth.currentUser is also available (Firestore needs it for rules)
+      if (!auth.currentUser) {
+        console.log('fetchData: auth.currentUser is null, waiting...');
+        // Small delay to allow Firebase to sync auth state
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!auth.currentUser) {
+          console.log('fetchData: auth.currentUser still null after delay');
+          return;
+        }
+      }
       
-      // Double check we are still logged in as the same user
-      if (activeUid !== user.id) return;
+      console.log(`fetchData: Starting for UID ${activeUid}`);
 
       try {
         // Fetch Personal Data if not already loaded or if it's been a while
@@ -290,7 +302,9 @@ export default function Home() {
           let pdDoc;
           try {
             pdDoc = await getDoc(pdDocRef);
+            console.log(`fetchData: Personal data doc exists: ${pdDoc.exists()}`);
           } catch (error) {
+            console.error(`fetchData: Error getting personal_data/${activeUid}:`, error);
             handleFirestoreError(error, OperationType.GET, `personal_data/${activeUid}`);
           }
           

@@ -434,11 +434,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         {/* Summary Line */}
         <div className="flex items-center justify-center gap-2 text-[24px] font-normal py-4">
           <span className="italic">Total de publicadores ativos do circuito em</span>
-          <span className="bg-[#e9ecef] px-3 py-1 rounded font-bold text-gray-900 border border-gray-300">
+          <span className="bg-[#e9ecef] px-3 py-1 rounded font-bold text-[24px] text-gray-900 border border-gray-300">
             {congCount}
           </span>
           <span className="italic">congregações:</span>
-          <span className="bg-[#e9ecef] px-4 py-1 rounded font-bold text-[32px] text-[#002060] border border-gray-300 ml-2 min-w-[80px] text-center">
+          <span className="bg-[#e9ecef] px-4 py-1 rounded font-bold text-[24px] text-[#002060] border border-gray-300 ml-2 min-w-[80px] text-center">
             {stats.pubAtivos}
           </span>
         </div>
@@ -459,14 +459,14 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             ].map((item) => (
               <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
                 <span className="font-bold text-gray-800 text-[20px] uppercase pl-1">{item.label}</span>
-                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].relatando)}</div>
-                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].estudos)}</div>
+                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].relatando)}</div>
+                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].estudos)}</div>
               </div>
             ))}
             <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 bg-[#fdf5e6]">
               <span className="font-normal text-gray-800 text-[20px] uppercase pl-1">Média mensal de <span className="font-bold">ESTUDOS BÍBLICOS:</span></span>
-              <div className="text-center font-bold text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.estatisticas.mediaEstudos)}</div>
-              <div className="text-center font-bold text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
+              <div className="text-center font-bold text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.estatisticas.mediaEstudos)}</div>
+              <div className="text-center font-bold text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
                 {stats.pubAtivos > 0 ? (stats.estatisticas.mediaEstudos / stats.pubAtivos).toFixed(1).replace('.', ',') : '0,0'} / Pub
               </div>
             </div>
@@ -495,16 +495,16 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
                     <><span className="font-normal">{item.label.split('DIRIGEM')[0]}</span><span className="font-bold">DIRIGEM</span><span className="font-normal">{item.label.split('DIRIGEM')[1]}</span></>
                   }
                 </span>
-                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
+                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
               </div>
             ))}
             
             {/* Growth Bar */}
             <div className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-[#a9d08e] border-y border-white">
               <span className="font-bold text-white text-[20px] uppercase tracking-wider text-right pr-4">Crescimento de publicadores:</span>
-              <div className="text-center font-bold text-[28px] text-white">{crescimento}</div>
-              <div className="text-center font-bold text-[28px] text-white">{percCrescimento.replace('.', ',')}%</div>
+              <div className="text-center font-bold text-[24px] text-white">{crescimento}</div>
+              <div className="text-center font-bold text-[24px] text-white">{percCrescimento.replace('.', ',')}%</div>
             </div>
 
             {[
@@ -513,16 +513,16 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             ].map((item) => (
               <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
                 <span className="text-[20px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
-                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
+                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
               </div>
             ))}
 
             {/* Decrease Bar */}
             <div className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-[#f4b084] border-y border-white">
               <span className="font-bold text-white text-[20px] uppercase tracking-wider text-right pr-4">Decréscimo de Publicadores:</span>
-              <div className="text-center font-bold text-[28px] text-white">{decrescimo}</div>
-              <div className="text-center font-bold text-[28px] text-white">{percDecrescimo.replace('.', ',')}%</div>
+              <div className="text-center font-bold text-[24px] text-white">{decrescimo}</div>
+              <div className="text-center font-bold text-[24px] text-white">{percDecrescimo.replace('.', ',')}%</div>
             </div>
 
             {[
@@ -532,8 +532,8 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             ].map((item) => (
               <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
                 <span className="text-[20px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
-                <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
+                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
               </div>
             ))}
           </div>
@@ -548,18 +548,18 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           <div className="divide-y divide-gray-200">
             <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
               <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">MEIO DE SEMANA</span></span>
-              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.meioSemana)}</div>
+              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.meioSemana)}</div>
             </div>
             <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
               <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">FIM DE SEMANA</span></span>
-              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.fimSemana)}</div>
+              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.fimSemana)}</div>
             </div>
             <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 bg-[#fdf5e6]">
               <span className="font-normal text-gray-800 text-[20px] uppercase pl-1">Média dos que assistem a reunião e <span className="font-bold">NÃO SÃO</span> Publicadores:</span>
-              <div className="text-center font-normal text-[28px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">
+              <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">
                 {Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos).toFixed(1).replace('.', ',')}
               </div>
-              <div className="text-center font-bold text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
+              <div className="text-center font-bold text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
                 {stats.pubAtivos > 0 ? (Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos) / stats.pubAtivos * 100).toFixed(1).replace('.', ',') : '0,0'}%
               </div>
             </div>
@@ -575,11 +575,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           <div className="divide-y divide-gray-200">
             <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
               <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">OBRA MUNDIAL</span></span>
-              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.obraMundial)}</div>
+              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.obraMundial)}</div>
             </div>
             <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
               <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">CONGREGAÇÃO</span></span>
-              <div className="text-center font-normal text-[28px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.congregacao)}</div>
+              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.congregacao)}</div>
             </div>
           </div>
         </div>
