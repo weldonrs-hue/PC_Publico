@@ -278,17 +278,20 @@ export default function Home() {
       // Use user.id as the primary source of truth for the UID
       const activeUid = user?.id;
       if (!activeUid) {
-        console.log('fetchData: No active UID, skipping');
         return;
       }
 
-      // Double check auth.currentUser is also available (Firestore needs it for rules)
-      if (!auth.currentUser) {
-        console.log('fetchData: auth.currentUser is null, waiting...');
-        // Small delay to allow Firebase to sync auth state
-        await new Promise(resolve => setTimeout(resolve, 500));
-        if (!auth.currentUser) {
-          console.log('fetchData: auth.currentUser still null after delay');
+      // Ensure auth.currentUser is available and matches user.id
+      // This prevents permission errors due to race conditions during auth state changes
+      if (!auth.currentUser || auth.currentUser.uid !== activeUid) {
+        let attempts = 0;
+        while ((!auth.currentUser || auth.currentUser.uid !== activeUid) && attempts < 20) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        
+        if (!auth.currentUser || auth.currentUser.uid !== activeUid) {
+          console.warn('fetchData: auth.currentUser not ready or UID mismatch after waiting');
           return;
         }
       }

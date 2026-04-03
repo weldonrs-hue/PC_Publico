@@ -25,6 +25,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import ActivityAnalysisView from './ActivityAnalysisView';
 import S303ReportView from './S303ReportView';
+import AppointmentLetterView from './AppointmentLetterView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -130,6 +131,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
   const [showS303, setShowS303] = useState(false);
   const [s303Params, setS303Params] = useState<{congregacao: Congregation, data: string} | null>(null);
+  const [showAppointmentLetter, setShowAppointmentLetter] = useState(false);
+  const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
   
   // Data for selects
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -604,6 +607,20 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     }
   };
 
+  const handleAppointmentLetterClick = () => {
+    if (selectedItem && selectedItem.congregacao) {
+      const cong = congregations.find(c => c.nome === selectedItem.congregacao);
+      if (cong) {
+        setAppointmentLetterParams({
+          congregacao: cong,
+          data: selectedItem.dataEvento || selectedItem.semana
+        });
+        setShowAppointmentLetter(true);
+        setModalMode(null);
+      }
+    }
+  };
+
   const handleEditClick = () => {
     if (selectedItem) {
       setIsAddingNew(false);
@@ -803,6 +820,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         congregation={s303Params.congregacao}
         visitDate={s303Params.data}
         onBack={() => setShowS303(false)}
+      />
+    );
+  }
+
+  if (showAppointmentLetter && appointmentLetterParams) {
+    return (
+      <AppointmentLetterView 
+        userId={userId}
+        congregation={appointmentLetterParams.congregacao}
+        visitDate={appointmentLetterParams.data}
+        onBack={() => setShowAppointmentLetter(false)}
       />
     );
   }
@@ -1076,6 +1104,19 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           <div className="text-left">
                             <div className="font-bold text-gray-800">S-303 Relatório sobre a visita</div>
                             <div className="text-xs text-gray-500">Relatório do superintendente de circuito</div>
+                          </div>
+                        </button>
+
+                        <button 
+                          onClick={handleAppointmentLetterClick}
+                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-purple-500 hover:bg-purple-50 transition-all group"
+                        >
+                          <div className="bg-purple-100 p-2 rounded-lg text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                            <Printer size={20} />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-gray-800">Carta de Designação/Remoção</div>
+                            <div className="text-xs text-gray-500">Gerar carta de designação ou remoção</div>
                           </div>
                         </button>
                       </>

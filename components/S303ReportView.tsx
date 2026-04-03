@@ -91,6 +91,18 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!userId) return;
+
+      // Wait for auth.currentUser to be ready and match userId
+      if (!auth.currentUser || auth.currentUser.uid !== userId) {
+        let attempts = 0;
+        while ((!auth.currentUser || auth.currentUser.uid !== userId) && attempts < 20) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        if (!auth.currentUser || auth.currentUser.uid !== userId) return;
+      }
+
       try {
         // Fetch personal data
         const pdRef = doc(db, 'personal_data', userId);
