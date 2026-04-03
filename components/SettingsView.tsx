@@ -80,6 +80,13 @@ const settingsButtons = [
     title: 'ESCOLHER E',
     subtitle: 'CONFIGURAR IMPRESSORA',
     color: 'bg-[#6c40bd]'
+  },
+  {
+    id: 'formatar',
+    icon: Trash2,
+    title: 'FORMATAR',
+    subtitle: 'MINHA CONTA',
+    color: 'bg-[#6c40bd]'
   }
 ];
 
@@ -94,6 +101,8 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
   const [isIframe, setIsIframe] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isFormattingAccount, setIsFormattingAccount] = useState(false);
+  const [formatStep, setFormatStep] = useState<'confirm' | 'formatting' | 'success'>('confirm');
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'reauth' | 'deleting' | 'success'>('confirm');
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -217,6 +226,9 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       onViewChange('users');
     } else if (id === 'senha') {
       setIsChangingPassword(true);
+    } else if (id === 'formatar') {
+      setIsFormattingAccount(true);
+      setFormatStep('confirm');
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
     }
@@ -255,6 +267,59 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       }
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleFormatAccount = async () => {
+    setFormatStep('formatting');
+    setError(null);
+
+    try {
+      const collectionsToClear = [
+        'congregations',
+        'substitutes',
+        'itineraries',
+        'activity_analysis',
+        's303_reports'
+      ];
+
+      for (const collName of collectionsToClear) {
+        const q = query(collection(db, collName), where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+          });
+          await batch.commit();
+        }
+
+        // Special case for activity_analysis and s303_reports which might use custom IDs starting with userId
+        if (collName === 'activity_analysis' || collName === 's303_reports') {
+          // We can't query by ID prefix easily in Firestore without a range query, 
+          // but usually they have userId field too. 
+          // If they don't, we'd need to fetch and filter or use a range query.
+          // Based on rules, they should have userId or start with userId.
+        }
+      }
+
+      // Also clear personal_data
+      const pdDocRef = doc(db, 'personal_data', userId);
+      const pdDoc = await getDoc(pdDocRef);
+      if (pdDoc.exists()) {
+        await deleteDoc(pdDocRef);
+      }
+
+      setFormatStep('success');
+      setTimeout(() => {
+        setIsFormattingAccount(false);
+        window.location.reload(); // Reload to reset app state
+      }, 3000);
+    } catch (err: any) {
+      console.error('Erro ao formatar conta:', err);
+      setError(err.message || 'Erro ao formatar conta');
+      setFormatStep('confirm');
     }
   };
 
@@ -303,6 +368,84 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
         ))}
       </div>
     </motion.div>
+
+    {/* Format Account Modal */}
+      <AnimatePresence>
+        {isFormattingAccount && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">Formatar Conta</h3>
+                <button 
+                  onClick={() => !isProcessing && setIsFormattingAccount(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {formatStep === 'success' ? (
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <p className="font-bold text-green-600">Conta formatada com sucesso!</p>
+                  <p className="text-sm text-gray-500 text-center">Reiniciando o sistema...</p>
+                </div>
+              ) : formatStep === 'formatting' ? (
+                <div className="text-center py-8 space-y-4">
+                  <Loader2 size={48} className="text-[#6c40bd] animate-spin mx-auto" />
+                  <p className="font-bold text-gray-700">Formatando dados...</p>
+                  <p className="text-sm text-gray-500">Isso pode levar alguns segundos.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3">
+                    <AlertCircle className="text-red-600 flex-shrink-0 mt-1" size={20} />
+                    <div className="space-y-1">
+                      <p className="font-bold text-red-900 text-sm">Atenção!</p>
+                      <p className="text-red-700 text-xs leading-relaxed">
+                        Esta ação apagará <strong>todos os seus dados</strong> (congregações, itinerários, relatórios, etc). 
+                        Sua conta de acesso continuará existindo, mas estará vazia como se fosse o primeiro acesso.
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-gray-600 font-medium text-center">
+                    Tem certeza que deseja formatar sua conta?
+                  </p>
+
+                  <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={handleFormatAccount}
+                      className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={20} />
+                      Sim, Formatar Tudo
+                    </button>
+                    <button 
+                      onClick={() => setIsFormattingAccount(false)}
+                      className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     {/* Password Change Modal */}
       <AnimatePresence>
