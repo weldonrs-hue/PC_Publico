@@ -629,7 +629,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
       // Find the index of the selected item in this filtered list
       const initialIndex = s302Events.findIndex(event => 
-        event.congregacao.nome === selectedItem.congregacao && 
+        event.congregacao?.nome === selectedItem.congregacao && 
         event.data === (selectedItem.dataEvento || selectedItem.semana)
       );
 
