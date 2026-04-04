@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   ChevronLeft, 
+  ChevronRight,
   Save, 
   Loader2,
   Printer,
@@ -15,7 +16,7 @@ import {
   Minus,
   ChevronDown
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -59,6 +60,16 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   const pdfMenuRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [showScrollArrows, setShowScrollArrows] = useState(false);
+
+  const scrollContainer = (direction: 'left' | 'right') => {
+    if (!containerRef.current) return;
+    const scrollAmount = containerRef.current.offsetWidth * 0.8;
+    containerRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  };
 
   useEffect(() => {
     const updateScale = () => {
@@ -69,9 +80,12 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const a4WidthPx = 1123;
       
       // Calculate scale to fit the container with some padding
-      // Allow scaling down for mobile and up for desktop
-      const newScale = Math.min(1.4, (containerWidth - 32) / a4WidthPx);
+      // Scale up for desktop, but keep at least 1.0 for mobile to allow horizontal scrolling
+      const newScale = Math.max(1, Math.min(1.4, (containerWidth - 32) / a4WidthPx));
       setScale(newScale);
+
+      // Check if scroll arrows should be shown
+      setShowScrollArrows(containerWidth < a4WidthPx);
     };
 
     const observer = new ResizeObserver(updateScale);
@@ -602,10 +616,39 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         </div>
       </div>
 
-      <div 
-        ref={containerRef}
-        className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:border-none w-full max-w-7xl print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center"
-      >
+      <div className="relative w-full max-w-7xl mx-auto">
+        {/* Mobile Scroll Arrows */}
+        <AnimatePresence>
+          {showScrollArrows && (
+            <>
+              <motion.button
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                onClick={() => scrollContainer('left')}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-lg border border-gray-200 text-[#512da8] md:hidden"
+                aria-label="Rolar para esquerda"
+              >
+                <ChevronLeft size={24} />
+              </motion.button>
+              <motion.button
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                onClick={() => scrollContainer('right')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-lg border border-gray-200 text-[#512da8] md:hidden"
+                aria-label="Rolar para direita"
+              >
+                <ChevronRight size={24} />
+              </motion.button>
+            </>
+          )}
+        </AnimatePresence>
+
+        <div 
+          ref={containerRef}
+          className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex justify-start md:justify-center custom-scrollbar scroll-smooth"
+        >
         <div 
           id="s303-report-container" 
           className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col print:w-[297mm] print:h-[210mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
@@ -950,6 +993,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
           </footer>
         </div>
       </div>
+    </div>
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');

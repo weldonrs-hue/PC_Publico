@@ -103,6 +103,8 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isFormattingAccount, setIsFormattingAccount] = useState(false);
   const [formatStep, setFormatStep] = useState<'confirm' | 'formatting' | 'success'>('confirm');
+  const [formatPassword, setFormatPassword] = useState('');
+  const [formatError, setFormatError] = useState<string | null>(null);
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'reauth' | 'deleting' | 'success'>('confirm');
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -229,6 +231,8 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
     } else if (id === 'formatar') {
       setIsFormattingAccount(true);
       setFormatStep('confirm');
+      setFormatPassword('');
+      setFormatError(null);
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
     }
@@ -271,10 +275,22 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
   };
 
   const handleFormatAccount = async () => {
+    if (!formatPassword) {
+      setFormatError('Por favor, insira sua senha para confirmar.');
+      return;
+    }
+
     setFormatStep('formatting');
-    setError(null);
+    setFormatError(null);
 
     try {
+      const user = auth.currentUser;
+      if (!user || !user.email) throw new Error('Usuário não autenticado');
+
+      // Re-authenticate user before formatting
+      const credential = EmailAuthProvider.credential(user.email, formatPassword);
+      await reauthenticateWithCredential(user, credential);
+
       const collectionsToClear = [
         'congregations',
         'substitutes',
@@ -318,7 +334,11 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       }, 3000);
     } catch (err: any) {
       console.error('Erro ao formatar conta:', err);
-      setError(err.message || 'Erro ao formatar conta');
+      if (err.code === 'auth/wrong-password') {
+        setFormatError('Senha incorreta. Por favor, tente novamente.');
+      } else {
+        setFormatError(err.message || 'Erro ao formatar conta');
+      }
       setFormatStep('confirm');
     }
   };
@@ -425,20 +445,41 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
                     Tem certeza que deseja formatar sua conta?
                   </p>
 
-                  <div className="flex flex-col gap-3">
-                    <button 
-                      onClick={handleFormatAccount}
-                      className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <Trash2 size={20} />
-                      Sim, Formatar Tudo
-                    </button>
-                    <button 
-                      onClick={() => setIsFormattingAccount(false)}
-                      className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-                    >
-                      Cancelar
-                    </button>
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase ml-1">Confirme sua Senha</label>
+                      <input 
+                        type="password"
+                        required
+                        value={formatPassword}
+                        onChange={(e) => setFormatPassword(e.target.value)}
+                        placeholder="Digite sua senha atual"
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition-all"
+                      />
+                    </div>
+
+                    {formatError && (
+                      <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm flex items-center gap-2">
+                        <AlertCircle size={16} />
+                        {formatError}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                      <button 
+                        onClick={handleFormatAccount}
+                        className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <Trash2 size={20} />
+                        Sim, Formatar Tudo
+                      </button>
+                      <button 
+                        onClick={() => setIsFormattingAccount(false)}
+                        className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
