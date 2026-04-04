@@ -48,11 +48,12 @@ service cloud.firestore {
 
     function isRoleAdmin() {
       return signedIn() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
     }
 
     function isAdmin() {
+      // Split admin check to avoid recursion in rules that use isAdmin
       return isEmailAdmin() || isRoleAdmin();
     }
 
@@ -87,7 +88,8 @@ service cloud.firestore {
 
     // Rules for users collection
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      // Use isEmailAdmin instead of isAdmin to avoid recursion when isRoleAdmin calls get()
+      allow read, write: if isOwner(userId) || isEmailAdmin();
       // Migration support: allow reading if email prefix matches
       allow read: if signedIn() && resource != null && 
                     isEmailPrefix(resource.data.get('numeroPessoal', ''));
@@ -95,7 +97,8 @@ service cloud.firestore {
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      allow read, write: if isOwner(dataId) || isAdmin() || isDocOwner();
+      // Allow if owner of the document ID (UID) or owner via userId field or admin
+      allow read, write: if signedIn() && (request.auth.uid == dataId || isAdmin() || isDocOwner());
       
       allow read: if signedIn() && isEmailPrefix(dataId);
       

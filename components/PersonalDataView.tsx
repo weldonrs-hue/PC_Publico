@@ -64,9 +64,14 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       try {
         // Try to get by userId as doc ID first
         const docRef = doc(db, 'personal_data', userId);
-        const docSnap = await getDoc(docRef);
+        let docSnap = null;
+        try {
+          docSnap = await getDoc(docRef);
+        } catch (error) {
+          console.warn('Initial getDoc(personal_data) failed, trying fallback query:', error);
+        }
         
-        if (docSnap.exists()) {
+        if (docSnap && docSnap.exists()) {
           const docData = docSnap.data() as any;
           const mergedData = { ...defaultData, ...docData };
           setInitialData(mergedData);
@@ -74,7 +79,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         } else {
           // Fallback: search by userId field
           const hasMigrated = sessionStorage.getItem(`pdMigrationAttempted_${userId}`);
-          if (hasMigrated) return;
+          if (hasMigrated) {
+            setLoading(false);
+            return;
+          }
 
           const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
           const querySnapshot = await getDocs(q);
@@ -87,12 +95,17 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             setFormData(mergedData);
             // Migrate to use userId as doc ID for future efficiency
             if (!isQuotaExceeded()) {
-              await setDoc(doc(db, 'personal_data', userId), { ...mergedData, userId });
+              try {
+                await setDoc(doc(db, 'personal_data', userId), { ...mergedData, userId });
+              } catch (error) {
+                console.warn('Failed to migrate personal_data doc:', error);
+              }
             }
           }
         }
       } catch (error) {
         if (auth.currentUser) {
+          console.error('Error fetching personal data:', error);
           handleFirestoreError(error, OperationType.GET, 'personal_data');
         }
       } finally {

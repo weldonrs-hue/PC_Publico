@@ -296,19 +296,22 @@ export default function Home() {
         }
       }
       
-      console.log(`fetchData: Starting for UID ${activeUid}`);
+      console.log(`fetchData: Starting for UID ${activeUid}. Auth UID: ${auth.currentUser?.uid}, Email: ${auth.currentUser?.email}`);
+      console.log(`fetchData: Provider data count: ${auth.currentUser?.providerData.length}`);
 
       try {
         // Fetch Personal Data if not already loaded or if it's been a while
         if (!personalData || isDashboard) {
           const pdDocRef = doc(db, 'personal_data', activeUid);
-          let pdDoc;
+          let pdDoc = null;
           try {
             pdDoc = await getDoc(pdDocRef);
             console.log(`fetchData: Personal data doc exists: ${pdDoc.exists()}`);
           } catch (error) {
-            console.error(`fetchData: Error getting personal_data/${activeUid}:`, error);
-            handleFirestoreError(error, OperationType.GET, `personal_data/${activeUid}`);
+            // Log but don't throw yet, as we have a fallback query
+            console.warn(`fetchData: Initial getDoc(personal_data/${activeUid}) failed:`, error);
+            // If it's a permission error, it might be because the doc doesn't exist 
+            // and we don't have list/get permissions on non-existent docs
           }
           
           if (pdDoc && pdDoc.exists()) {
@@ -322,11 +325,13 @@ export default function Home() {
             // Fallback: search by userId field
             const hasMigratedFallback = localStorage.getItem(`pdMigrationFallbackAttempted_${activeUid}`);
             if (!hasMigratedFallback && !quotaExceeded) {
+              console.log(`fetchData: Falling back to query for personal_data where userId == ${activeUid}`);
               const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
               let pdSnapshot;
               try {
                 pdSnapshot = await getDocs(pdQuery);
               } catch (error) {
+                console.error('fetchData: Fallback query failed:', error);
                 handleFirestoreError(error, OperationType.GET, 'personal_data (query by userId)');
               }
               
@@ -338,8 +343,11 @@ export default function Home() {
                 try {
                   await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
                 } catch (error) {
+                  console.error('fetchData: Failed to migrate personal_data doc:', error);
                   handleFirestoreError(error, OperationType.WRITE, `personal_data/${activeUid}`);
                 }
+              } else {
+                console.log('fetchData: No personal data found in fallback query.');
               }
             }
           }

@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { 
   FileText, 
   ChevronLeft, 
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Download, 
   Loader2,
   Printer,
@@ -32,15 +35,24 @@ interface Congregation {
   reuniaoMeioSemana: string;
 }
 
-interface S302NoticeViewProps {
+interface S302Event {
   congregacao: Congregation;
   data: string;
   substituteName?: string;
+}
+
+interface S302NoticeViewProps {
+  events: S302Event[];
+  initialIndex: number;
   userId: string;
   onBack: () => void;
 }
 
-export default function S302NoticeView({ congregacao, data, substituteName, userId, onBack }: S302NoticeViewProps) {
+export default function S302NoticeView({ events, initialIndex, userId, onBack }: S302NoticeViewProps) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const currentEvent = events[currentIndex];
+  const { congregacao, data, substituteName } = currentEvent;
+
   const [loading, setLoading] = useState(false);
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
@@ -90,21 +102,53 @@ export default function S302NoticeView({ congregacao, data, substituteName, user
 
       // Coordinates for S-302-T (Corrected based on user feedback)
       // 1. Congregação: direita 2mm (em relação aos 5mm anteriores = 7mm), elevar 10mm
-      const fullCongName = congregacao.cidade 
+      const fullCongName = (congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase())
         ? `${congregacao.nome}, ${congregacao.cidade}` 
         : congregacao.nome;
       drawText(fullCongName, 100 + (7 * mmToPt), 145 - (10 * mmToPt), 11, true);
 
       // 2. Visitante: direita 10mm (em relação aos 10mm anteriores = 20mm), descer 2mm (em relação à elevação de 18mm = elevar 16mm)
+      // Agora mais 5mm para a direita = 25mm. Depois mais 3mm = 28mm
       const visitorName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
-      drawText(visitorName, 100 + (20 * mmToPt), 185 - (16 * mmToPt), 11, true);
+      
+      // Lógica de redução de fonte para caber em 60mm
+      const maxWidthPt = 60 * mmToPt;
+      let visitorFontSize = 11;
+      let textWidth = boldFont.widthOfTextAtSize(visitorName, visitorFontSize);
+      
+      while (textWidth > maxWidthPt && visitorFontSize > 6) {
+        visitorFontSize -= 0.5;
+        textWidth = boldFont.widthOfTextAtSize(visitorName, visitorFontSize);
+      }
+      
+      drawText(visitorName, 100 + (28 * mmToPt), 185 - (16 * mmToPt), visitorFontSize, true);
 
       // 3. Data da Visita: direita 2mm (em relação aos 5mm anteriores = 7mm), descer 2mm (em relação à elevação de 25mm = elevar 23mm)
-      drawText(data, 100 + (7 * mmToPt), 225 - (23 * mmToPt), 11, true);
+      // Histórico: Turno 9 (21mm) -> Turno 10 (subir 0,5mm = 21,5mm) -> Turno 11 (subir 0,5mm = 22mm)
+      drawText(data, 100 + (7 * mmToPt), 225 - (22.0 * mmToPt), 11, true);
 
       // 4. Assinatura: direita 3mm (em relação aos 10mm anteriores = 13mm), descer 3mm (em relação à posição anterior = 225 - 7mm)
+      // Histórico: Turno 9 (5mm) -> Turno 10 (subir 0,5mm = 5,5mm) -> Turno 11 (subir 0,5mm = 6mm)
+      // Usar a mesma fonte (Dancing Script) e cor azul (#004aad) da carta de designação
       const scName = personalData?.nome || '';
-      drawText(scName, 100 + (13 * mmToPt), 225 - (7 * mmToPt), 10, false);
+      let signatureFont;
+      try {
+        // Tentativa de carregar a fonte Dancing Script para a assinatura
+        const fontUrl = 'https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.ttf';
+        const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+        signatureFont = await pdfDoc.embedFont(fontBytes);
+      } catch (e) {
+        console.warn('Falha ao carregar Dancing Script, usando TimesRomanItalic como fallback', e);
+        signatureFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+      }
+
+      firstPage.drawText(scName, {
+        x: 100 + (13 * mmToPt),
+        y: height - (225 - (6.0 * mmToPt)),
+        size: 18, // Aumentado um pouco para compensar a fonte manuscrita
+        font: signatureFont,
+        color: rgb(0, 74/255, 173/255),
+      });
 
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
@@ -125,20 +169,17 @@ export default function S302NoticeView({ congregacao, data, substituteName, user
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <button 
-            onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <h1 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="text-blue-600" size={20} />
-            S-302 Aviso de Visitas
-          </h1>
-          <div className="w-10" /> {/* Spacer */}
-        </div>
+      <div className="flex items-center gap-4 p-4 sticky top-0 bg-gray-50/80 backdrop-blur-md z-20 print:hidden">
+        <button 
+          onClick={onBack}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+          title="Voltar"
+        >
+          <ChevronLeft size={28} strokeWidth={3} />
+        </button>
+        <h2 className="text-2xl font-bold text-gray-800">
+          S-302 Aviso de Visitas
+        </h2>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
@@ -148,11 +189,65 @@ export default function S302NoticeView({ congregacao, data, substituteName, user
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
         >
-          <div className="bg-blue-600 p-4 text-white">
-            <h2 className="font-bold flex items-center gap-2">
+          <div className="bg-[#512da8] p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h2 className="font-bold flex items-center gap-2 shrink-0">
               <Calendar size={20} />
               Dados da Visita
             </h2>
+
+            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
+              <button 
+                onClick={() => setCurrentIndex(initialIndex)}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-white/20 transition-colors uppercase"
+                title="Voltar ao evento selecionado originalmente"
+              >
+                Início
+              </button>
+              
+              <div className="w-px h-4 bg-white/20 mx-1" />
+
+              <button
+                onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+                disabled={currentIndex === 0}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Anterior"
+              >
+                <ChevronsLeft size={18} />
+              </button>
+              
+              <div className="w-px h-4 bg-white/20 mx-1" />
+
+              <div className="px-4 flex flex-col items-center min-w-[100px]">
+                <span className="text-[9px] text-white/60 font-bold uppercase tracking-widest leading-none mb-0.5">
+                  Evento
+                </span>
+                <span className="text-sm font-bold leading-none">
+                  {currentIndex + 1} <span className="text-white/30 font-medium mx-1">/</span> {events.length}
+                </span>
+              </div>
+
+              <div className="w-px h-4 bg-white/20 mx-1" />
+
+              <button
+                onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
+                disabled={currentIndex === events.length - 1}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Próximo"
+              >
+                <ChevronsRight size={18} />
+              </button>
+            </div>
+
+            <div className="flex gap-2 shrink-0">
+              <button 
+                onClick={handleDownloadPDF}
+                disabled={generating}
+                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                PDF
+              </button>
+            </div>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1">
@@ -160,7 +255,10 @@ export default function S302NoticeView({ congregacao, data, substituteName, user
                 <MapPin size={12} /> Congregação
               </label>
               <p className="text-gray-800 font-medium">
-                {congregacao.nome}{congregacao.cidade ? `, ${congregacao.cidade}` : ''}
+                {congregacao.nome}
+                {(congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase()) 
+                  ? `, ${congregacao.cidade}` 
+                  : ''}
               </p>
             </div>
             <div className="space-y-1">
@@ -199,7 +297,7 @@ export default function S302NoticeView({ congregacao, data, substituteName, user
           <button
             onClick={handleDownloadPDF}
             disabled={generating}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+            className="flex-1 bg-[#512da8] hover:bg-[#4527a0] text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {generating ? (
               <Loader2 size={24} className="animate-spin" />

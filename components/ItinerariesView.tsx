@@ -134,7 +134,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [showS303, setShowS303] = useState(false);
   const [s303Params, setS303Params] = useState<{congregacao: Congregation, data: string, substituto?: string} | null>(null);
   const [showS302, setShowS302] = useState(false);
-  const [s302Params, setS302Params] = useState<{congregacao: Congregation, data: string, substituto?: string} | null>(null);
+  const [s302Params, setS302Params] = useState<{events: any[], initialIndex: number} | null>(null);
   const [showAppointmentLetter, setShowAppointmentLetter] = useState(false);
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
   
@@ -614,12 +614,29 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
   const handleS302Click = () => {
     if (selectedItem && selectedItem.congregacao) {
-      const cong = congregations.find(c => c.nome === selectedItem.congregacao);
-      if (cong) {
+      // Filter all itineraries that have a congregation and map to the format S302NoticeView expects
+      const s302Events = itineraries
+        .filter(item => item.congregacao)
+        .map(item => {
+          const cong = congregations.find(c => c.nome === item.congregacao);
+          return {
+            congregacao: cong,
+            data: item.dataEvento || item.semana,
+            substituteName: item.substituto
+          };
+        })
+        .filter(event => event.congregacao); // Ensure we found the congregation object
+
+      // Find the index of the selected item in this filtered list
+      const initialIndex = s302Events.findIndex(event => 
+        event.congregacao.nome === selectedItem.congregacao && 
+        event.data === (selectedItem.dataEvento || selectedItem.semana)
+      );
+
+      if (s302Events.length > 0) {
         setS302Params({
-          congregacao: cong,
-          data: selectedItem.dataEvento || selectedItem.semana,
-          substituto: selectedItem.substituto
+          events: s302Events,
+          initialIndex: initialIndex !== -1 ? initialIndex : 0
         });
         setShowS302(true);
         setModalMode(null);
@@ -849,9 +866,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     return (
       <S302NoticeView 
         userId={userId}
-        congregacao={s302Params.congregacao}
-        data={s302Params.data}
-        substituteName={s302Params.substituto}
+        events={s302Params.events}
+        initialIndex={s302Params.initialIndex}
         onBack={() => setShowS302(false)}
       />
     );

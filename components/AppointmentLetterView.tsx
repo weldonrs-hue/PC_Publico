@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { 
   ChevronLeft, 
   ChevronRight,
@@ -477,11 +478,13 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                     </div>
 
                     {signatureImage ? (
-                      <div className="h-16 flex items-center justify-center mb-[-10px]">
-                        <img 
+                      <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full">
+                        <Image 
                           src={signatureImage} 
                           alt="Assinatura" 
-                          className="max-h-full max-w-full object-contain"
+                          fill 
+                          className="object-contain"
+                          referrerPolicy="no-referrer"
                         />
                       </div>
                     ) : (
