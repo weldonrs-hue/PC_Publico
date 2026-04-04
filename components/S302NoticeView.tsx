@@ -151,7 +151,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       });
 
       const modifiedPdfBytes = await pdfDoc.save();
-      const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
