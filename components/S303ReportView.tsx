@@ -33,10 +33,11 @@ interface S303ReportViewProps {
     estado: string;
   };
   visitDate: string;
+  substituteName?: string;
   onBack: () => void;
 }
 
-export default function S303ReportView({ userId, congregation, visitDate, onBack }: S303ReportViewProps) {
+export default function S303ReportView({ userId, congregation, visitDate, substituteName, onBack }: S303ReportViewProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [reportText, setReportText] = useState('');
@@ -96,6 +97,40 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
   }, []);
 
   const isDirty = reportText !== initialReportText;
+
+  const AutoScalingHeaderData = ({ text, baseFontSize = 18 }: { text: string, baseFontSize?: number }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [fontSize, setFontSize] = useState(baseFontSize);
+
+    useEffect(() => {
+      if (!containerRef.current) return;
+      
+      const container = containerRef.current;
+      let currentSize = baseFontSize;
+      container.style.fontSize = `${currentSize}px`;
+      
+      // Small delay to allow browser to render and measure
+      const timer = setTimeout(() => {
+        while (container.scrollWidth > container.clientWidth && currentSize > 8) {
+          currentSize -= 0.5;
+          container.style.fontSize = `${currentSize}px`;
+        }
+        setFontSize(currentSize);
+      }, 0);
+      
+      return () => clearTimeout(timer);
+    }, [text, baseFontSize]);
+
+    return (
+      <div 
+        ref={containerRef}
+        className="border-b border-black flex-grow h-[1.2em] px-2 font-medium whitespace-nowrap overflow-hidden"
+        style={{ fontSize: `${fontSize}px`, lineHeight: '1.2em' }}
+      >
+        {text}
+      </div>
+    );
+  };
 
   // Handle clicks outside PDF menu to close it
   useEffect(() => {
@@ -362,14 +397,24 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const reportColor = hexToRgb(textColor);
       const blackColor = rgb(0, 0, 0);
 
-      // Helper to draw header text (fixed size and color)
-      const drawHeader = (text: string, x: number, y: number) => {
+      // Coordinates (estimated in points from top-left)
+      const mmToPt = 2.83465;
+      const expansionPt = 4 * mmToPt;
+
+      // Helper to draw header text with auto-scaling
+      const drawHeader = (text: string, x: number, y: number, maxWidth: number = 180, overrideSize?: number) => {
         if (!text) return;
+        // User requested: if report font is 17, header should be 9 (offset of -8)
+        // EXCEPT for specific fields where overrideSize is passed
+        let size = overrideSize || Math.max(6, reportFontSize - 8); 
+        while (font.widthOfTextAtSize(text, size) > maxWidth && size > 5) {
+          size -= 0.5;
+        }
         firstPage.drawText(text, {
           x,
           y: height - y,
-          size: 10,
-          font: font, // Changed from boldFont to font
+          size,
+          font: font,
           color: blackColor,
         });
       };
@@ -386,10 +431,6 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
         });
       };
 
-      // Coordinates (estimated in points from top-left)
-      const mmToPt = 2.83465;
-      const expansionPt = 4 * mmToPt;
-      
       // Elevating by 23mm (Net result after elevating 20mm and raising 3mm)
       const yOffset = 65.2;
       const xOffset = 5.67; // 2mm general left shift
@@ -402,17 +443,20 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
       const yOffsetReport = 5.67; // 2mm up shift for report
 
       // Row 1
-      drawHeader(congregation.numero, 145 - xOffset, 128 - yOffset - yOffsetRow1);
-      drawHeader(visitDate, 415 - xOffset, 128 - yOffset - yOffsetRow1);
+      // User requested: 4 point reduction for "Número da congregação" and "Datas em que visitou"
+      drawHeader(congregation.numero, 145 - xOffset, 128 - yOffset - yOffsetRow1, 100, reportFontSize - 4);
+      drawHeader(visitDate, 415 - xOffset, 128 - yOffset - yOffsetRow1, 150, reportFontSize - 4);
 
       // Row 2
-      drawHeader(congregation.nome, 145 - xOffset, 153 - yOffset - yOffsetRow2);
-      drawHeader(congregation.cidade, 335 - xOffset, 153 - yOffset - yOffsetRow2);
-      drawHeader(congregation.estado, 525 - xOffset, 153 - yOffset - yOffsetRow2);
+      drawHeader(congregation.nome, 145 - xOffset, 153 - yOffset - yOffsetRow2, 180);
+      // User requested: Shift Cidade 10mm to the left (5mm + 5mm)
+      drawHeader(congregation.cidade, 335 - xOffset - (10 * mmToPt), 153 - yOffset - yOffsetRow2, 180);
+      drawHeader(congregation.estado, 525 - xOffset, 153 - yOffset - yOffsetRow2, 40);
 
       // Row 3
-      drawHeader(personalData?.nome || '', 110 - xOffset, 178 - yOffset - yOffsetRow3);
-      drawHeader(personalData?.circuito || '', 385 - xOffset, 178 - yOffset - yOffsetRow3);
+      const supName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
+      drawHeader(supName, 110 - xOffset, 178 - yOffset - yOffsetRow3, 250);
+      drawHeader(personalData?.circuito || '', 385 - xOffset, 178 - yOffset - yOffsetRow3, 100);
 
       // Report Text (Robust manual drawing to ensure it's NEVER blank)
       const maxWidth = 500 + (2 * expansionPt);
@@ -681,18 +725,14 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
             <div className="flex items-baseline w-full">
               <div className="flex items-baseline w-[45%]">
                 <span className="whitespace-nowrap pr-1 font-normal tracking-tight">Número da congregação:</span>
-                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
-                  {congregation.numero}
-                </div>
+                <AutoScalingHeaderData text={congregation.numero} />
               </div>
               <div className="flex items-baseline w-[55%] pl-8">
                 <span 
                   className="whitespace-nowrap pr-1 font-normal tracking-tight"
                   style={{ marginLeft: '-30px' }}
                 >Datas em que visitou:</span>
-                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
-                  {visitDate}
-                </div>
+                <AutoScalingHeaderData text={visitDate} />
               </div>
             </div>
 
@@ -700,9 +740,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
             <div className="flex items-baseline w-full">
               <div className="flex items-baseline w-[45%]">
                 <span className="whitespace-nowrap pr-1 font-normal tracking-tight">Nome da congregação:</span>
-                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
-                  {congregation.nome}
-                </div>
+                <AutoScalingHeaderData text={congregation.nome} />
               </div>
               <div className="flex items-baseline w-[55%] pl-8">
                 <div className="flex items-baseline w-[55%]">
@@ -710,18 +748,14 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
                     className="whitespace-nowrap pr-1 font-normal tracking-tight"
                     style={{ marginLeft: '-30px' }}
                   >Cidade:</span>
-                  <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
-                    {congregation.cidade}
-                  </div>
+                  <AutoScalingHeaderData text={congregation.cidade} />
                 </div>
                 <div className="flex items-baseline w-[45%] pl-4">
                   <span 
                     className="whitespace-nowrap pr-1 font-normal text-[16px] tracking-tighter"
                     style={{ marginLeft: '-12px' }}
                   >Província ou estado:</span>
-                  <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
-                    {congregation.estado}
-                  </div>
+                  <AutoScalingHeaderData text={congregation.estado} />
                 </div>
               </div>
             </div>
@@ -730,9 +764,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
             <div className="flex items-baseline w-full">
               <div className="flex items-baseline w-[45%]">
                 <span className="whitespace-nowrap pr-1 font-normal tracking-tight">Sup. de circuito:</span>
-                <div className="border-b border-black flex-grow h-[1.2em] px-2 font-medium">
-                  {personalData?.nome || ''}
-                </div>
+                <AutoScalingHeaderData text={substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '')} />
               </div>
               <div className="flex items-baseline w-[55%] pl-8">
                 <div className="flex items-baseline w-full">
@@ -740,12 +772,7 @@ export default function S303ReportView({ userId, congregation, visitDate, onBack
                     className="whitespace-nowrap pr-1 font-normal tracking-tight"
                     style={{ marginLeft: '-30px' }}
                   >Número do circuito:</span>
-                  <div 
-                    className="border-b border-black flex-grow h-[1.2em] px-2 font-medium"
-                    style={{ width: '180px', height: '19.2px' }}
-                  >
-                    {personalData?.circuito || ''}
-                  </div>
+                  <AutoScalingHeaderData text={personalData?.circuito || ''} />
                 </div>
               </div>
             </div>

@@ -20,12 +20,14 @@ import {
   Type,
   Printer,
   BarChart3,
-  FileDown
+  FileDown,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ActivityAnalysisView from './ActivityAnalysisView';
 import S303ReportView from './S303ReportView';
 import AppointmentLetterView from './AppointmentLetterView';
+import S302NoticeView from './S302NoticeView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -130,7 +132,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
   const [showS303, setShowS303] = useState(false);
-  const [s303Params, setS303Params] = useState<{congregacao: Congregation, data: string} | null>(null);
+  const [s303Params, setS303Params] = useState<{congregacao: Congregation, data: string, substituto?: string} | null>(null);
+  const [showS302, setShowS302] = useState(false);
+  const [s302Params, setS302Params] = useState<{congregacao: Congregation, data: string, substituto?: string} | null>(null);
   const [showAppointmentLetter, setShowAppointmentLetter] = useState(false);
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
   
@@ -599,9 +603,25 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       if (cong) {
         setS303Params({
           congregacao: cong,
-          data: selectedItem.dataEvento || selectedItem.semana
+          data: selectedItem.dataEvento || selectedItem.semana,
+          substituto: selectedItem.substituto
         });
         setShowS303(true);
+        setModalMode(null);
+      }
+    }
+  };
+
+  const handleS302Click = () => {
+    if (selectedItem && selectedItem.congregacao) {
+      const cong = congregations.find(c => c.nome === selectedItem.congregacao);
+      if (cong) {
+        setS302Params({
+          congregacao: cong,
+          data: selectedItem.dataEvento || selectedItem.semana,
+          substituto: selectedItem.substituto
+        });
+        setShowS302(true);
         setModalMode(null);
       }
     }
@@ -819,7 +839,20 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         userId={userId}
         congregation={s303Params.congregacao}
         visitDate={s303Params.data}
+        substituteName={s303Params.substituto}
         onBack={() => setShowS303(false)}
+      />
+    );
+  }
+
+  if (showS302 && s302Params) {
+    return (
+      <S302NoticeView 
+        userId={userId}
+        congregacao={s302Params.congregacao}
+        data={s302Params.data}
+        substituteName={s302Params.substituto}
+        onBack={() => setShowS302(false)}
       />
     );
   }
@@ -1015,36 +1048,36 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
             >
               {/* Modal Header */}
-              <div className="bg-[#512da8] p-4 text-white flex justify-between items-center">
-                <h3 className="font-bold flex items-center gap-2">
+              <div className="bg-[#512da8] p-3 text-white flex justify-between items-center">
+                <h3 className="font-bold flex items-center gap-2 text-sm">
                   {modalMode === 'actions' ? 'Opções do Evento' : 'Editar Evento'}
                 </h3>
                 <button 
                   onClick={() => setModalMode(null)}
                   className="p-1 hover:bg-white/20 rounded-full transition-colors"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
 
               {/* Modal Content */}
-              <div className="p-6">
+              <div className="p-4">
                 {modalMode === 'actions' ? (
-                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <p className="text-sm text-gray-500 mb-4">
+                  <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <p className="text-xs text-gray-500 mb-2">
                       Semana de <span className="font-bold text-[#512da8]">{selectedItem?.semana}</span>
                     </p>
                     
                     <button 
                       onClick={handleEditClick}
-                      className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-[#512da8] hover:bg-indigo-50 transition-all group"
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-[#512da8] hover:bg-indigo-50 transition-all group"
                     >
-                      <div className="bg-indigo-100 p-2 rounded-lg text-[#512da8] group-hover:bg-[#512da8] group-hover:text-white transition-colors">
-                        <Edit2 size={20} />
+                      <div className="bg-indigo-100 p-1.5 rounded-lg text-[#512da8] group-hover:bg-[#512da8] group-hover:text-white transition-colors">
+                        <Edit2 size={18} />
                       </div>
                       <div className="text-left">
-                        <div className="font-bold text-gray-800">Editar Evento</div>
-                        <div className="text-xs text-gray-500">Alterar informações existentes</div>
+                        <div className="font-bold text-sm text-gray-800">Editar Evento</div>
+                        <div className="text-[10px] text-gray-500 leading-tight">Alterar informações existentes</div>
                       </div>
                     </button>
 
@@ -1052,27 +1085,27 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       <>
                         <button 
                           onClick={handleAddClick}
-                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
                         >
-                          <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                            <Plus size={20} />
+                          <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                            <Plus size={18} />
                           </div>
                           <div className="text-left">
-                            <div className="font-bold text-gray-800">Adicionar Evento</div>
-                            <div className="text-xs text-gray-500">Adicionar evento na mesma semana</div>
+                            <div className="font-bold text-sm text-gray-800">Adicionar Evento</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Adicionar evento na mesma semana</div>
                           </div>
                         </button>
 
                         <button 
                           onClick={handleDeleteClick}
-                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-red-500 hover:bg-red-50 transition-all group"
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-red-500 hover:bg-red-50 transition-all group"
                         >
-                          <div className="bg-red-100 p-2 rounded-lg text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                            <Trash2 size={20} />
+                          <div className="bg-red-100 p-1.5 rounded-lg text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                            <Trash2 size={18} />
                           </div>
                           <div className="text-left">
-                            <div className="font-bold text-gray-800">Excluir Evento</div>
-                            <div className="text-xs text-gray-500">Remover evento desta semana</div>
+                            <div className="font-bold text-sm text-gray-800">Excluir Evento</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Remover evento desta semana</div>
                           </div>
                         </button>
                       </>
@@ -1080,43 +1113,56 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     {selectedItem?.congregacao && (
                       <>
-                        <div className="border-t border-gray-100 my-2 pt-2" />
+                        <div className="border-t border-gray-100 my-1 pt-1" />
                         <button 
                           onClick={handleAnalysisClick}
-                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-amber-500 hover:bg-amber-50 transition-all group"
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-amber-500 hover:bg-amber-50 transition-all group"
                         >
-                          <div className="bg-amber-100 p-2 rounded-lg text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                            <BarChart3 size={20} />
+                          <div className="bg-amber-100 p-1.5 rounded-lg text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <BarChart3 size={18} />
                           </div>
                           <div className="text-left">
-                            <div className="font-bold text-gray-800">Análise</div>
-                            <div className="text-xs text-gray-500">Análise das atividades da congregação</div>
+                            <div className="font-bold text-sm text-gray-800">Análise</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Análise das atividades da congregação</div>
                           </div>
                         </button>
 
                         <button 
                           onClick={handleS303Click}
-                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
                         >
-                          <div className="bg-blue-100 p-2 rounded-lg text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                            <FileDown size={20} />
+                          <div className="bg-blue-100 p-1.5 rounded-lg text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <FileDown size={18} />
                           </div>
                           <div className="text-left">
-                            <div className="font-bold text-gray-800">S-303 Relatório sobre a visita</div>
-                            <div className="text-xs text-gray-500">Relatório do superintendente de circuito</div>
+                            <div className="font-bold text-sm text-gray-800">S-303 Relatório sobre a visita</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Relatório do superintendente de circuito</div>
+                          </div>
+                        </button>
+
+                        <button 
+                          onClick={handleS302Click}
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                        >
+                          <div className="bg-orange-100 p-1.5 rounded-lg text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                            <FileText size={18} />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-sm text-gray-800">S-302 Aviso de Visitas</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Aviso oficial de visita ao circuito</div>
                           </div>
                         </button>
 
                         <button 
                           onClick={handleAppointmentLetterClick}
-                          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-gray-100 hover:border-purple-500 hover:bg-purple-50 transition-all group"
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-purple-500 hover:bg-purple-50 transition-all group"
                         >
-                          <div className="bg-purple-100 p-2 rounded-lg text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                            <Printer size={20} />
+                          <div className="bg-purple-100 p-1.5 rounded-lg text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                            <Printer size={18} />
                           </div>
                           <div className="text-left">
-                            <div className="font-bold text-gray-800">Carta de Designação/Remoção</div>
-                            <div className="text-xs text-gray-500">Gerar carta de designação ou remoção</div>
+                            <div className="font-bold text-sm text-gray-800">Carta de Designação/Remoção</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Gerar carta de designação ou remoção</div>
                           </div>
                         </button>
                       </>
