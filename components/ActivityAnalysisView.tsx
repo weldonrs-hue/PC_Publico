@@ -738,7 +738,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
       {/* Average Calculator Modal */}
       <AnimatePresence>
         {showExitConfirmation && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -786,7 +786,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
 
       <AnimatePresence>
         {calcModal && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
