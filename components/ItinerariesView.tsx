@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   X,
+  AlertCircle,
   Calendar,
   Info,
   Type,
@@ -145,7 +146,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   
   // Modal states
   const [selectedItem, setSelectedItem] = useState<ItineraryItem | null>(null);
-  const [modalMode, setModalMode] = useState<'actions' | 'edit' | null>(null);
+  const [modalMode, setModalMode] = useState<'actions' | 'edit' | 'confirmDelete' | null>(null);
   const defaultEditFormData: Partial<ItineraryItem> = {
     dataEvento: '',
     evento: '',
@@ -704,7 +705,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     }
   };
 
-  const handleDeleteClick = async () => {
+  const handleDeleteClick = () => {
+    setModalMode('confirmDelete');
+  };
+
+  const executeDelete = async () => {
     if (selectedItem && selectedItem.id) {
       setSaving(true);
       try {
@@ -1074,9 +1079,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
             >
               {/* Modal Header */}
-              <div className="bg-[#512da8] p-3 text-white flex justify-between items-center">
+              <div className={`${modalMode === 'confirmDelete' ? 'bg-red-600' : 'bg-[#512da8]'} p-3 text-white flex justify-between items-center transition-colors`}>
                 <h3 className="font-bold flex items-center gap-2 text-sm">
-                  {modalMode === 'actions' ? 'Opções do Evento' : 'Editar Evento'}
+                  {modalMode === 'actions' ? 'Opções do Evento' : modalMode === 'confirmDelete' ? 'Confirmar Exclusão' : 'Editar Evento'}
                 </h3>
                 <button 
                   onClick={() => setModalMode(null)}
@@ -1193,6 +1198,37 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         </button>
                       </>
                     )}
+                  </div>
+                ) : modalMode === 'confirmDelete' ? (
+                  <div className="space-y-6 py-2">
+                    <div className="flex flex-col items-center text-center gap-3">
+                      <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
+                        <AlertCircle size={40} />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-gray-900">Excluir este evento?</h4>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Esta ação não pode ser desfeita. O evento da semana <span className="font-bold text-gray-700">{selectedItem?.semana}</span> será removido.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setModalMode('actions')}
+                        disabled={saving}
+                        className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all text-sm disabled:opacity-50"
+                      >
+                        Não, Cancelar
+                      </button>
+                      <button 
+                        onClick={executeDelete}
+                        disabled={saving}
+                        className="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                      >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : 'Sim, Excluir'}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
