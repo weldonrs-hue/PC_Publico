@@ -19,8 +19,11 @@ const libreBaskerville = Libre_Baskerville({
 });
 
 export const metadata: Metadata = {
-  title: 'ProgCir Web - Gestão de Circuitos',
-  description: 'Plataforma administrativa para gestão de circuitos e congregações.',
+  title: 'ProgCir - Programador de Atividades do Circuito',
+  description: 'Sistema de gestão e programação das atividades do circuito',
+  icons: {
+    icon: '/ICO.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

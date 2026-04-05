@@ -118,8 +118,8 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       {/* Logo Section */}
       <div className="p-4 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center gap-3 mb-2 lg:mb-8">
-          <div className="bg-white w-8 h-8 lg:w-10 lg:h-10 rounded flex items-center justify-center flex-shrink-0">
-            <Square className="text-[#512da8] fill-[#512da8]" size={20} />
+          <div className="bg-white w-8 h-8 lg:w-10 lg:h-10 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <Image src="/ICO_2.png" alt="Logo" width={40} height={40} className="w-full h-full object-contain" />
           </div>
           <p className="text-[10px] lg:text-sm text-white font-extrabold uppercase tracking-widest hidden lg:block landscape:block">PROGCIR WEB</p>
         </div>
