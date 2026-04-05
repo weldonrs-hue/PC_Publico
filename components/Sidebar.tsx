@@ -68,6 +68,9 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
     if (itemView === 'dashboard') {
       return ['dashboard', 'congregations', 'personal_data'].includes(currentView);
     }
+    if (itemView === 'schools') {
+      return ['schools', 'pioneer_school'].includes(currentView);
+    }
     return currentView === itemView;
   };
 
