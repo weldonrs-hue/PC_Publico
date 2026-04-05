@@ -126,6 +126,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [viewDate, setViewDate] = useState(getLastMonday());
   const [initializing, setInitializing] = useState(false);
   const initializingRef = useRef(false);
@@ -207,6 +208,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     const element = document.getElementById('itinerary-table-container');
     if (!element) return;
 
+    setGenerating(true);
+
     const filename = `Itinerário - ${currentMonthLabel}.pdf`;
 
     try {
@@ -250,6 +253,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
       alert('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -939,10 +944,15 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           <div className="flex gap-2 print:hidden">
             <button 
               onClick={handleSavePDF}
-              className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
+              disabled={generating}
+              className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
-              <Save size={16} />
-              Salvar PDF
+              {generating ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <FileDown size={16} />
+              )}
+              {generating ? 'Gerando...' : 'Salvar PDF'}
             </button>
             <button 
               onClick={handlePrint}

@@ -108,6 +108,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [calcModal, setCalcModal] = useState<{
@@ -234,6 +235,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
     const element = document.getElementById('activity-analysis-form');
     if (!element) return;
 
+    setGenerating(true);
+
     // Format date for filename: (YYYY MM-DD)
     const formatDateForFilename = (dateStr: string) => {
       const parts = dateStr.split('/');
@@ -312,6 +315,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
       console.error('Erro ao gerar PDF:', error);
       const msg = error?.message || 'Erro desconhecido';
       alert(`Ocorreu um erro ao gerar o PDF: ${msg}. Tente novamente.`);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -357,10 +362,15 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
         <div className="flex gap-2 w-full sm:w-auto">
           <button 
             onClick={handleSavePDF} 
-            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
+            disabled={generating}
+            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm disabled:opacity-50"
           >
-            <FileDown size={18} className="text-[#512da8]" /> 
-            <span>Salvar PDF</span>
+            {generating ? (
+              <Loader2 size={18} className="animate-spin text-[#512da8]" />
+            ) : (
+              <FileDown size={18} className="text-[#512da8]" />
+            )}
+            <span>{generating ? 'Gerando...' : 'Salvar PDF'}</span>
           </button>
           <button 
             onClick={() => window.print()} 

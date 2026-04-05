@@ -169,17 +169,19 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <div className="flex items-center gap-4 p-4 sticky top-0 bg-gray-50/80 backdrop-blur-md z-20 print:hidden">
-        <button 
-          onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
-          title="Voltar"
-        >
-          <ChevronLeft size={28} strokeWidth={3} />
-        </button>
-        <h2 className="text-2xl font-bold text-gray-800">
-          S-302 Aviso de Visitas
-        </h2>
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg print:hidden gap-4 m-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <button 
+            onClick={onBack}
+            className="p-2 hover:bg-white/20 rounded-full transition-all text-white bg-white/10 shadow-md border border-white/20"
+            title="Voltar"
+          >
+            <ChevronLeft size={28} strokeWidth={3} />
+          </button>
+          <h2 className="text-2xl font-black text-white tracking-tight">
+            S-302 Aviso de Visitas
+          </h2>
+        </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
@@ -190,12 +192,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
         >
           <div className="bg-[#512da8] p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h2 className="font-bold flex items-center gap-2 shrink-0">
-              <Calendar size={20} />
-              Dados da Visita
-            </h2>
-
-            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
+            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto justify-between sm:justify-start">
               <button 
                 onClick={() => setCurrentIndex(initialIndex)}
                 className="px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-white/20 transition-colors uppercase"

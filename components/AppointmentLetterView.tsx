@@ -43,6 +43,7 @@ interface LetterData {
 
 export default function AppointmentLetterView({ userId, congregation, visitDate, onBack }: AppointmentLetterViewProps) {
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [personalData, setPersonalData] = useState<any>(null);
   const [letterData, setLetterData] = useState<LetterData>({
     ancianosDesignados: ['', '', '', ''],
@@ -155,6 +156,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     
     const filename = `Carta_Designacao_${congregation.nome}_${dateStr}.pdf`;
 
+    setGenerating(true);
     try {
       const dataUrl = await toPng(element, {
         quality: 1.0,
@@ -187,6 +189,8 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       pdf.save(filename);
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -272,10 +276,11 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
         <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
           <button 
             onClick={handleExportPDF}
-            className="bg-[#512da8] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
+            disabled={generating}
+            className="bg-[#512da8] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
           >
-            <FileDown size={16} />
-            <span>PDF</span>
+            {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+            <span>{generating ? 'Gerando...' : 'PDF'}</span>
           </button>
           <button 
             onClick={handlePrint}

@@ -39,6 +39,7 @@ interface S303ReportViewProps {
 
 export default function S303ReportView({ userId, congregation, visitDate, substituteName, onBack }: S303ReportViewProps) {
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [reportText, setReportText] = useState('');
   const [initialReportText, setInitialReportText] = useState('');
@@ -321,6 +322,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
 
     const filename = getFormattedFilename();
 
+    setGenerating(true);
     try {
       // Use a fixed width/height for capture to ensure margins are preserved
       // 297mm is approx 1122.5px at 96dpi
@@ -583,6 +585,8 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
       console.error('Erro ao preencher PDF original:', error);
       // Fallback to the HTML-to-PDF if something fails
       handleSavePDF();
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -614,10 +618,11 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
           <div className="relative" ref={pdfMenuRef}>
             <button 
               onClick={() => setShowPdfMenu(!showPdfMenu)}
-              className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
+              disabled={generating}
+              className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
             >
-              <FileDown size={16} />
-              <span>PDF</span>
+              {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+              <span>{generating ? 'Gerando...' : 'PDF'}</span>
               <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
             </button>
             
