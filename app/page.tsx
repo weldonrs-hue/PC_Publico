@@ -14,7 +14,6 @@ import SettingsView from '@/components/SettingsView';
 import UsersView from '@/components/UsersView';
 import CircuitStatisticsView from '@/components/CircuitStatisticsView';
 import SchoolsView from '@/components/SchoolsView';
-import PioneerSchoolView from '@/components/PioneerSchoolView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -84,11 +83,10 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools'>('dashboard');
   const [lastSubViews, setLastSubViews] = useState<{ [key: string]: string }>({
     dashboard: 'dashboard',
-    settings: 'settings',
-    schools: 'schools'
+    settings: 'settings'
   });
   const [personalData, setPersonalData] = useState<any>(null);
   const [congStats, setCongStats] = useState({ 
@@ -112,8 +110,6 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, dashboard: currentView }));
     } else if (['settings', 'users'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
-    } else if (['schools', 'pioneer_school'].includes(currentView)) {
-      setLastSubViews(prev => ({ ...prev, schools: currentView }));
     }
   }, [currentView]);
 
@@ -700,15 +696,7 @@ export default function Home() {
                 // Restore last visited sub-view in Settings
                 setCurrentView(lastSubViews.settings as any);
               }
-            } else if (view === 'schools') {
-              // If already in a Schools sub-view, reset to main schools
-              if (['schools', 'pioneer_school'].includes(currentView)) {
-                setCurrentView('schools');
-              } else {
-                // Restore last visited sub-view in Schools
-                setCurrentView(lastSubViews.schools as any);
-              }
-            } else if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users', 'statistics', 'schools', 'pioneer_school'].includes(view)) {
+            } else if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users', 'statistics', 'schools'].includes(view)) {
               setCurrentView(view as any);
             }
           }}
@@ -858,16 +846,6 @@ export default function Home() {
               congregations={congregations}
               personalData={personalData}
               onBack={() => setCurrentView('dashboard')} 
-              onViewChange={(view) => setCurrentView(view as any)}
-            />
-          )}
-
-          {currentView === 'pioneer_school' && (
-            <PioneerSchoolView 
-              userId={user.id}
-              onBack={() => setCurrentView('schools')}
-              congregations={congregations}
-              defaultCircuit={personalData?.circuito || ''}
             />
           )}
         </div>
