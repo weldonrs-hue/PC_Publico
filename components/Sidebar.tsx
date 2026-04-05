@@ -152,7 +152,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           "
         >
           {menuItems.map((item) => {
-            const isDisabled = ['schools', 'events', 'misc'].includes(item.view);
+            const isDisabled = ['events', 'misc'].includes(item.view);
             return (
               <Link
                 key={item.label}

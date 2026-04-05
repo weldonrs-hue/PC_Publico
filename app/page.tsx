@@ -13,6 +13,7 @@ import ItinerariesView from '@/components/ItinerariesView';
 import SettingsView from '@/components/SettingsView';
 import UsersView from '@/components/UsersView';
 import CircuitStatisticsView from '@/components/CircuitStatisticsView';
+import SchoolsView from '@/components/SchoolsView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -82,7 +83,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools'>('dashboard');
   const [lastSubViews, setLastSubViews] = useState<{ [key: string]: string }>({
     dashboard: 'dashboard',
     settings: 'settings'
@@ -695,7 +696,7 @@ export default function Home() {
                 // Restore last visited sub-view in Settings
                 setCurrentView(lastSubViews.settings as any);
               }
-            } else if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users', 'statistics'].includes(view)) {
+            } else if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users', 'statistics', 'schools'].includes(view)) {
               setCurrentView(view as any);
             }
           }}
@@ -834,6 +835,15 @@ export default function Home() {
           {currentView === 'statistics' && (
             <CircuitStatisticsView 
               userId={user.id}
+              personalData={personalData}
+              onBack={() => setCurrentView('dashboard')} 
+            />
+          )}
+
+          {currentView === 'schools' && (
+            <SchoolsView 
+              userId={user.id}
+              congregations={congregations}
               personalData={personalData}
               onBack={() => setCurrentView('dashboard')} 
             />

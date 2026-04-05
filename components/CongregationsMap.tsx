@@ -61,7 +61,7 @@ function MapControls({ congregations }: { congregations: any[] }) {
   const map = useMap();
 
   const handleResetView = useCallback(() => {
-    if (!congregations || congregations.length === 0) return;
+    if (!congregations || congregations.length === 0 || !map) return;
 
     const validPoints = congregations
       .map(c => c.coords)
@@ -70,11 +70,11 @@ function MapControls({ congregations }: { congregations: any[] }) {
     if (validPoints.length > 0) {
       try {
         const bounds = L.latLngBounds(validPoints);
+        // Disable animation to prevent '_leaflet_pos' errors during rapid updates or unmounting
         map.fitBounds(bounds, { 
           padding: [50, 50],
           maxZoom: 15,
-          animate: true,
-          duration: 1
+          animate: false
         });
       } catch (err) {
         console.warn('Error fitting map bounds:', err);
@@ -83,11 +83,13 @@ function MapControls({ congregations }: { congregations: any[] }) {
   }, [congregations, map]);
 
   useEffect(() => {
-    if (!congregations || congregations.length === 0) return;
+    if (!congregations || congregations.length === 0 || !map) return;
 
     const timer = setTimeout(() => {
-      map.invalidateSize();
-      handleResetView();
+      if (map) {
+        map.invalidateSize();
+        handleResetView();
+      }
     }, 500);
 
     return () => clearTimeout(timer);
