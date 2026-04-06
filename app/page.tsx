@@ -283,26 +283,31 @@ export default function Home() {
       // Use user.id as the primary source of truth for the UID
       const activeUid = user?.id;
       if (!activeUid) {
+        console.log('fetchData: No activeUid, skipping.');
         return;
       }
 
       // Ensure auth.currentUser is available and matches user.id
       // This prevents permission errors due to race conditions during auth state changes
       if (!auth.currentUser || auth.currentUser.uid !== activeUid) {
+        console.log(`fetchData: Waiting for auth.currentUser for UID ${activeUid}...`);
         let attempts = 0;
-        while ((!auth.currentUser || auth.currentUser.uid !== activeUid) && attempts < 20) {
+        while ((!auth.currentUser || auth.currentUser.uid !== activeUid) && attempts < 30) {
           await new Promise(resolve => setTimeout(resolve, 100));
           attempts++;
         }
         
         if (!auth.currentUser || auth.currentUser.uid !== activeUid) {
-          console.warn('fetchData: auth.currentUser not ready or UID mismatch after waiting');
+          console.warn(`fetchData: auth.currentUser not ready or UID mismatch after waiting. Auth UID: ${auth.currentUser?.uid}, activeUid: ${activeUid}`);
           return;
         }
       }
       
-      console.log(`fetchData: Starting for UID ${activeUid}. Auth UID: ${auth.currentUser?.uid}, Email: ${auth.currentUser?.email}`);
+      console.log(`fetchData: Starting for UID ${activeUid}. Auth UID: ${auth.currentUser?.uid}, Email: ${auth.currentUser?.email}, Verified: ${auth.currentUser?.emailVerified}`);
       console.log(`fetchData: Provider data count: ${auth.currentUser?.providerData.length}`);
+      if (auth.currentUser?.providerData.length > 0) {
+        console.log(`fetchData: First provider: ${auth.currentUser?.providerData[0].providerId}`);
+      }
 
       try {
         // Fetch Personal Data if not already loaded or if it's been a while
