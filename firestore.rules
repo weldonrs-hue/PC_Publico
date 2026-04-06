@@ -38,18 +38,17 @@ service cloud.firestore {
     
     function isEmailAdmin() {
       return signedIn() && 
-             "email" in request.auth.token &&
              (
-               (request.auth.token.email == "weldonrs@gmail.com" && request.auth.token.email_verified == true) ||
-               request.auth.token.email == "2283701@progcir.app" ||
-               request.auth.token.email == "2283701@progcir.com"
+               (request.auth.token.get('email', '') == "weldonrs@gmail.com" && request.auth.token.get('email_verified', false) == true) ||
+               request.auth.token.get('email', '') == "2283701@progcir.app" ||
+               request.auth.token.get('email', '') == "2283701@progcir.com"
              );
     }
 
     function isRoleAdmin() {
       return signedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
     }
 
     function isAdmin() {
@@ -62,22 +61,24 @@ service cloud.firestore {
 
     function isDocOwner() {
       return signedIn() && (
-        (resource != null && (resource.data.userId == request.auth.uid || resource.data.get('userId', '') == request.auth.uid)) ||
-        (request.resource != null && (request.resource.data.userId == request.auth.uid || request.resource.data.get('userId', '') == request.auth.uid))
+        (resource != null && (resource.data.get('userId', '') == request.auth.uid)) ||
+        (request.resource != null && (request.resource.data.get('userId', '') == request.auth.uid))
       );
     }
 
     function isEmailPrefix(prefix) {
       return signedIn() && 
-             "email" in request.auth.token &&
              prefix != null && 
              prefix != "" && 
-             request.auth.token.email.lower().matches("^" + prefix.lower() + "@.*");
+             request.auth.token.get('email', '').lower().matches("^" + prefix.lower() + "@.*");
     }
 
-    function isValidEmail(email) {
-      return email is string &&
-        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    function isOwnerByEmail() {
+      return signedIn() && (
+        resource.data.get('emailPessoal', '') == request.auth.token.get('email', '') ||
+        resource.data.get('emailJwpub', '') == request.auth.token.get('email', '') ||
+        request.auth.token.get('email', '').lower().matches("^" + resource.data.get('numeroPessoal', 'NON_EXISTENT').lower() + "@.*")
+      );
     }
 
     // Global admin access (Email-based only to avoid recursion)
@@ -92,20 +93,28 @@ service cloud.firestore {
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      // Allow read if document ID is UID, or if user is admin, or if document has matching userId field
+      // Allow read if document ID is UID, or if user is admin, or if document has matching userId field, or matches email prefix
       allow read: if signedIn() && (
         isAdmin() || 
         request.auth.uid == dataId || 
-        (resource != null && (resource.data.userId == request.auth.uid || resource.data.get('userId', '') == request.auth.uid)) ||
-        isEmailPrefix(dataId)
+        isEmailPrefix(dataId) ||
+        (resource != null && (
+          resource.data.get('userId', '') == request.auth.uid || 
+          (request.auth.token.get('email', '') != '' && (
+            resource.data.get('emailPessoal', '') == request.auth.token.get('email', '') ||
+            resource.data.get('emailJwpub', '') == request.auth.token.get('email', '') ||
+            request.auth.token.get('email', '').lower().matches("^" + resource.data.get('numeroPessoal', 'NON_EXISTENT').lower() + "@.*")
+          ))
+        ))
       );
       
       // Allow write if owner or admin
       allow write: if signedIn() && (
         isAdmin() || 
         request.auth.uid == dataId || 
-        (resource != null && (resource.data.userId == request.auth.uid || resource.data.get('userId', '') == request.auth.uid)) ||
-        (request.resource != null && (request.resource.data.userId == request.auth.uid || request.resource.data.get('userId', '') == request.auth.uid))
+        isEmailPrefix(dataId) ||
+        (resource != null && (resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail())) ||
+        (request.resource != null && (request.resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail()))
       );
     }
 

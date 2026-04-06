@@ -1,6 +1,7 @@
 'use client';
 // Force rebuild
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
@@ -120,13 +121,13 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       {/* Logo Section */}
       <div className="p-4 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
-          <div className="bg-gradient-to-br from-white via-white to-gray-100 p-2 rounded-2xl shadow-lg w-full">
-            <img 
+          <div className="bg-gradient-to-br from-white via-white to-gray-100 p-2 rounded-2xl shadow-lg w-full relative h-16">
+            <Image 
               src="/logo.png?v=3" 
               alt="Logo" 
-              width={180} 
-              height={60} 
-              className="w-full h-auto object-contain" 
+              fill
+              className="object-contain" 
+              priority
             />
           </div>
         </div>

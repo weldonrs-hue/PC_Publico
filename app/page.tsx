@@ -308,6 +308,14 @@ export default function Home() {
       if (auth.currentUser?.providerData.length > 0) {
         console.log(`fetchData: First provider: ${auth.currentUser?.providerData[0].providerId}`);
       }
+      
+      // Get ID token result to check claims
+      try {
+        const tokenResult = await auth.currentUser?.getIdTokenResult();
+        console.log('fetchData: Token claims:', JSON.stringify(tokenResult?.claims));
+      } catch (tokenErr) {
+        console.warn('fetchData: Failed to get token result:', tokenErr);
+      }
 
       try {
         // Fetch Personal Data if not already loaded or if it's been a while
