@@ -123,10 +123,11 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
         <div className="flex items-center justify-center mb-2 lg:mb-8">
           <div className="bg-gradient-to-br from-white via-white to-gray-100 p-2 rounded-2xl shadow-lg w-full">
             <Image 
-              src="/ICO_7.png" 
+              src="/ICO_7.png?v=2" 
               alt="Logo" 
               width={180} 
               height={60} 
+              unoptimized
               className="w-full h-auto object-contain" 
               priority
             />
