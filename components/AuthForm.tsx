@@ -126,7 +126,7 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
               className="w-16 h-16 bg-gradient-to-br from-white via-white to-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-purple-100 overflow-hidden"
             >
               <img 
-            src="/logo.png?v=3" 
+            src="/android-chrome-512x512.png" 
             alt="Logo" 
             width={64} 
             height={64} 
