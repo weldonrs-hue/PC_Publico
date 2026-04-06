@@ -127,6 +127,20 @@
         "photoURL": { "type": "string", "description": "Base64 encoded profile picture" }
       },
       "required": ["email", "role"]
+    },
+    "pioneer_school_student": {
+      "title": "Pioneer School Student",
+      "description": "Details of a student invited to the pioneer school",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "circuito": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "nome", "congregacao", "circuito"]
     }
   },
   "firestore": {
@@ -157,6 +171,10 @@
     "/users/{userId}": {
       "schema": "user",
       "description": "Collection of user profiles"
+    },
+    "/pioneer_school_students/{studentId}": {
+      "schema": "pioneer_school_student",
+      "description": "Collection of students invited to the pioneer school"
     }
   }
 }
