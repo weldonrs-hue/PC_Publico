@@ -232,7 +232,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           if (nome && congregation) {
             parsedStudents.push({
               nome,
-              congregacao,
+              congregacao: congregation,
               circuito: defaultCircuit || '',
               userId,
               createdAt: new Date()
