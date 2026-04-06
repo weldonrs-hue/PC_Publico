@@ -49,11 +49,10 @@ service cloud.firestore {
     function isRoleAdmin() {
       return signedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isAdmin() {
-      // Split admin check to avoid recursion in rules that use isAdmin
       return isEmailAdmin() || isRoleAdmin();
     }
 
@@ -88,22 +87,26 @@ service cloud.firestore {
 
     // Rules for users collection
     match /users/{userId} {
-      // Use isEmailAdmin instead of isAdmin to avoid recursion when isRoleAdmin calls get()
       allow read, write: if isOwner(userId) || isEmailAdmin();
-      // Migration support: allow reading if email prefix matches
-      allow read: if signedIn() && resource != null && 
-                    isEmailPrefix(resource.data.get('numeroPessoal', ''));
     }
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      // Allow if owner of the document ID (UID) or owner via userId field or admin
-      allow read, write: if signedIn() && (request.auth.uid == dataId || isAdmin() || isDocOwner());
+      // Allow read if document ID is UID, or if user is admin, or if document has matching userId field
+      allow read: if signedIn() && (
+        request.auth.uid == dataId || 
+        isAdmin() || 
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
+        isEmailPrefix(dataId)
+      );
       
-      allow read: if signedIn() && isEmailPrefix(dataId);
-      
-      // Only admins can list all personal data
-      allow list: if isAdmin();
+      // Allow write if owner or admin
+      allow write: if signedIn() && (
+        request.auth.uid == dataId || 
+        isAdmin() || 
+        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
+        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid)
+      );
     }
 
     // Rules for other collections
