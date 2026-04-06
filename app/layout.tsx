@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   title: 'ProgCir - Programador de Atividades do Circuito',
   description: 'Sistema de gestão e programação das atividades do circuito',
   icons: {
-    icon: '/ICO.png',
+    icon: '/ICO_6.png',
   },
 };
 
