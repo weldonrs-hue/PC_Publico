@@ -124,9 +124,9 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
             <motion.div 
               initial={{ scale: 0.5 }}
               animate={{ scale: 1 }}
-              className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-purple-100 overflow-hidden"
+              className="w-16 h-16 bg-gradient-to-br from-white via-white to-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-purple-100 overflow-hidden"
             >
-              <Image src="/ICO_6.png" alt="Logo" width={64} height={64} className="w-full h-full object-contain p-1" />
+              <Image src="/ICO_7.png" alt="Logo" width={64} height={64} className="w-full h-full object-contain p-1" />
             </motion.div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">Acesso ao Sistema ProgCir</h1>
             <p className="text-gray-500 text-xs mt-1.5">
