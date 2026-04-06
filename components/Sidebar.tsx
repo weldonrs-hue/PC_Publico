@@ -8,7 +8,6 @@ import ImageCropper from './ImageCropper';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import Image from 'next/image';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
@@ -122,14 +121,12 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       <div className="p-4 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
           <div className="bg-gradient-to-br from-white via-white to-gray-100 p-2 rounded-2xl shadow-lg w-full">
-            <Image 
-              src="/ICO_7.png?v=2" 
+            <img 
+              src="/logo.png?v=3" 
               alt="Logo" 
               width={180} 
               height={60} 
-              unoptimized
               className="w-full h-auto object-contain" 
-              priority
             />
           </div>
         </div>

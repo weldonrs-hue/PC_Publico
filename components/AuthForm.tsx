@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, ArrowRight, UserPlus, LogIn, AlertCircle, CheckCircle2 } from 'lucide-react';
-import Image from 'next/image';
 
 import { auth } from '@/lib/firebase';
 import { 
@@ -126,12 +125,11 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
               animate={{ scale: 1 }}
               className="w-16 h-16 bg-gradient-to-br from-white via-white to-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-purple-100 overflow-hidden"
             >
-              <Image 
-            src="/ICO_7.png?v=2" 
+              <img 
+            src="/logo.png?v=3" 
             alt="Logo" 
             width={64} 
             height={64} 
-            unoptimized
             className="w-full h-full object-contain p-1" 
           />
             </motion.div>
