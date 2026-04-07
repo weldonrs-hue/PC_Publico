@@ -123,8 +123,11 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       {/* Logo Section */}
       <div className="p-4 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
-          <div className="bg-white p-2 rounded-2xl shadow-lg w-full relative h-16 flex items-center justify-center border border-white/20">
-            <Logo size={48} />
+          <div className="bg-white p-2 rounded-2xl shadow-lg w-full relative h-16 flex items-center justify-center lg:justify-start lg:px-3 border border-white/20 gap-2 overflow-hidden">
+            <Logo size={38} className="shrink-0" />
+            <span className="text-[#512da8] font-bold text-base hidden lg:block whitespace-nowrap tracking-tight">
+              ProgCir Web
+            </span>
           </div>
         </div>
       </div>
