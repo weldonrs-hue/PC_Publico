@@ -22,6 +22,8 @@ const libreBaskerville = Libre_Baskerville({
 export const metadata: Metadata = {
   title: 'ProgCir - Programador de Atividades do Circuito',
   description: 'Sistema de gestão e programação das atividades do circuito',
+  themeColor: '#673ab7',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
