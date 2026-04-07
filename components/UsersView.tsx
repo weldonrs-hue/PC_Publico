@@ -278,7 +278,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-[#512da8]/10 flex items-center justify-center text-[#512da8] overflow-hidden border border-[#512da8]/5">
-                          {user.photoURL ? (
+                          {user.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
                             <Image 
                               src={user.photoURL} 
                               alt={user.nome || 'Usuário'} 

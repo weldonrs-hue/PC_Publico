@@ -39,7 +39,7 @@ service cloud.firestore {
     function isEmailAdmin() {
       return signedIn() && 
              (
-               (request.auth.token.get('email', '') == "weldonrs@gmail.com" && request.auth.token.get('email_verified', false) == true) ||
+               request.auth.token.get('email', '') == "weldonrs@gmail.com" ||
                request.auth.token.get('email', '') == "2283701@progcir.app" ||
                request.auth.token.get('email', '') == "2283701@progcir.com"
              );
@@ -81,19 +81,19 @@ service cloud.firestore {
       );
     }
 
-    // Global admin access (Email-based only to avoid recursion)
+    // Global admin access (Email-based only to avoid recursion and for better performance)
     match /{document=**} {
       allow read, write: if isEmailAdmin();
     }
 
     // Rules for users collection
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isEmailAdmin();
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      // Allow read if owner or admin
+      // Allow read if owner or admin or by email
       allow read: if signedIn() && (
         isAdmin() || 
         request.auth.uid == dataId || 
@@ -112,6 +112,11 @@ service cloud.firestore {
         (resource != null && (resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail())) ||
         (request.resource != null && (request.resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail()))
       );
+    }
+
+    // Allow collection queries for personal_data
+    match /personal_data {
+      allow list: if signedIn() && (isAdmin() || request.query.limit <= 10);
     }
 
     // Rules for other collections

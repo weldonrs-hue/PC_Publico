@@ -753,7 +753,7 @@ export default function Home() {
                     className="relative w-12 h-12 md:w-16 md:h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner cursor-pointer group/avatar overflow-hidden flex-shrink-0"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    {user?.photoURL ? (
+                    {user?.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
                       <Image 
                         src={user.photoURL} 
                         alt="Profile" 

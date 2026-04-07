@@ -482,7 +482,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                       />
                     </div>
 
-                    {signatureImage ? (
+                    {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
                       <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full">
                         <Image 
                           src={signatureImage} 
