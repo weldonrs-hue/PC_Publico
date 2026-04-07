@@ -40,11 +40,18 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [quotaExceeded, setQuotaExceeded] = useState(isQuotaExceeded());
-  const quotaExceededRef = useRef(isQuotaExceeded());
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const quotaExceededRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Initialize client-side state
+  useEffect(() => {
+    const isQuota = isQuotaExceeded();
+    setQuotaExceeded(isQuota);
+    quotaExceededRef.current = isQuota;
+  }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
