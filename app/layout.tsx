@@ -31,19 +31,17 @@ export const metadata: Metadata = {
   description: 'Sistema de gestão e programação das atividades do circuito',
   icons: {
     icon: [
-      { url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23673ab7"/><text y=".9em" font-size="90" fill="white">P</text></svg>', type: 'image/svg+xml' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/logo.png', type: 'image/png' },
+      { url: '/favicon3.ico', sizes: 'any' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: '/favicon3.ico',
     apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/logo.png', sizes: '180x180', type: 'image/png' },
     ],
     other: [
       {
         rel: 'apple-touch-icon-precomposed',
-        url: '/apple-touch-icon.png',
+        url: '/logo.png',
       },
     ],
   },
