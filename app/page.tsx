@@ -304,6 +304,8 @@ export default function Home() {
       }
       
       console.log(`fetchData: Starting for UID ${activeUid}. Auth UID: ${auth.currentUser?.uid}, Email: ${auth.currentUser?.email}, Verified: ${auth.currentUser?.emailVerified}`);
+      const emailPrefix = auth.currentUser?.email?.split('@')[0] || '';
+      console.log(`fetchData: Email prefix: ${emailPrefix}`);
       console.log(`fetchData: Provider data count: ${auth.currentUser?.providerData.length}`);
       if (auth.currentUser?.providerData.length > 0) {
         console.log(`fetchData: First provider: ${auth.currentUser?.providerData[0].providerId}`);
@@ -321,6 +323,7 @@ export default function Home() {
         // Fetch Personal Data if not already loaded or if it's been a while
         if (!personalData || isDashboard) {
           const pdDocRef = doc(db, 'personal_data', activeUid);
+          console.log(`fetchData: Attempting getDoc(personal_data/${activeUid})`);
           let pdDoc = null;
           try {
             pdDoc = await getDoc(pdDocRef);
@@ -328,8 +331,6 @@ export default function Home() {
           } catch (error) {
             // Log but don't throw yet, as we have a fallback query
             console.warn(`fetchData: Initial getDoc(personal_data/${activeUid}) failed:`, error);
-            // If it's a permission error, it might be because the doc doesn't exist 
-            // and we don't have list/get permissions on non-existent docs
           }
           
           if (pdDoc && pdDoc.exists()) {
@@ -348,6 +349,7 @@ export default function Home() {
               let pdSnapshot;
               try {
                 pdSnapshot = await getDocs(pdQuery);
+                console.log(`fetchData: Fallback query by userId result empty: ${pdSnapshot.empty}`);
               } catch (error) {
                 console.error('fetchData: Fallback query failed:', error);
                 handleFirestoreError(error, OperationType.GET, 'personal_data (query by userId)');

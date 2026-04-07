@@ -93,18 +93,14 @@ service cloud.firestore {
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      // Allow read if document ID is UID, or if user is admin, or if document has matching userId field, or matches email prefix
+      // Allow read if owner or admin
       allow read: if signedIn() && (
         isAdmin() || 
         request.auth.uid == dataId || 
         isEmailPrefix(dataId) ||
         (resource != null && (
           resource.data.get('userId', '') == request.auth.uid || 
-          (request.auth.token.get('email', '') != '' && (
-            resource.data.get('emailPessoal', '') == request.auth.token.get('email', '') ||
-            resource.data.get('emailJwpub', '') == request.auth.token.get('email', '') ||
-            request.auth.token.get('email', '').lower().matches("^" + resource.data.get('numeroPessoal', 'NON_EXISTENT').lower() + "@.*")
-          ))
+          isOwnerByEmail()
         ))
       );
       
