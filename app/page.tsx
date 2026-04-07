@@ -92,6 +92,35 @@ export default function Home() {
   }, [quotaExceeded]);
 
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school'>('dashboard');
+
+  // Browser back button support
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.view) {
+        setCurrentView(event.state.view);
+      } else {
+        setCurrentView('dashboard');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Set initial state if not already set
+    if (!window.history.state) {
+      window.history.replaceState({ view: 'dashboard' }, '', '');
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const changeView = (view: any, pushState = true) => {
+    if (view === currentView) return;
+    setCurrentView(view);
+    if (pushState) {
+      window.history.pushState({ view }, '', '');
+    }
+  };
+
   const [lastSubViews, setLastSubViews] = useState<{ [key: string]: string }>({
     dashboard: 'dashboard',
     settings: 'settings',
@@ -663,7 +692,7 @@ export default function Home() {
 
   const handlePersonalDataSave = () => {
     // Trigger re-fetch
-    setCurrentView('dashboard');
+    changeView('dashboard');
   };
 
   const handleLogout = async () => {
@@ -682,17 +711,17 @@ export default function Home() {
 
   const handleCardClick = (title: string) => {
     if (title === 'Dados Pessoais') {
-      setCurrentView('personal_data');
+      changeView('personal_data');
     } else if (title === 'Congregações') {
-      setCurrentView('congregations');
+      changeView('congregations');
     } else if (title === 'Substitutos') {
-      setCurrentView('substitutes');
+      changeView('substitutes');
     } else if (title === 'Itinerários') {
-      setCurrentView('itineraries');
+      changeView('itineraries');
     } else if (title === 'Estatísticas') {
-      setCurrentView('statistics');
+      changeView('statistics');
     } else if (title === 'Ajustes') {
-      setCurrentView('settings');
+      changeView('settings');
     }
   };
 
@@ -704,34 +733,34 @@ export default function Home() {
           user={user}
           personalData={personalData}
           currentView={currentView}
-          onBack={() => setCurrentView('dashboard')}
+          onBack={() => changeView('dashboard')}
           onViewChange={(view) => {
             if (view === 'dashboard') {
               // If already in a Circuito sub-view, reset to main dashboard
               if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
-                setCurrentView('dashboard');
+                changeView('dashboard');
               } else {
                 // Restore last visited sub-view in Circuito
-                setCurrentView(lastSubViews.dashboard as any);
+                changeView(lastSubViews.dashboard as any);
               }
             } else if (view === 'settings') {
               // If already in a Settings sub-view, reset to main settings
               if (['settings', 'users'].includes(currentView)) {
-                setCurrentView('settings');
+                changeView('settings');
               } else {
                 // Restore last visited sub-view in Settings
-                setCurrentView(lastSubViews.settings as any);
+                changeView(lastSubViews.settings as any);
               }
             } else if (view === 'schools') {
               // If already in a Schools sub-view, reset to main schools
               if (['schools', 'pioneer_school'].includes(currentView)) {
-                setCurrentView('schools');
+                changeView('schools');
               } else {
                 // Restore last visited sub-view in Schools
-                setCurrentView(lastSubViews.schools as any);
+                changeView(lastSubViews.schools as any);
               }
             } else if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users', 'statistics', 'schools', 'pioneer_school'].includes(view)) {
-              setCurrentView(view as any);
+              changeView(view as any);
             }
           }}
         />
@@ -812,7 +841,7 @@ export default function Home() {
                 congregations={congregations} 
                 onEdit={(cong) => {
                   setSelectedCongregation(cong);
-                  setCurrentView('congregations');
+                  changeView('congregations');
                 }}
               />
             </>
@@ -822,7 +851,7 @@ export default function Home() {
             <CongregationsView 
               userId={user.id} 
               onBack={() => {
-                setCurrentView('dashboard');
+                changeView('dashboard');
                 setSelectedCongregation(null);
               }} 
               initialCongregation={selectedCongregation}
@@ -832,7 +861,7 @@ export default function Home() {
           {currentView === 'personal_data' && (
             <PersonalDataView 
               userId={user.id}
-              onBack={() => setCurrentView('dashboard')} 
+              onBack={() => changeView('dashboard')} 
               onSave={handlePersonalDataSave}
             />
           )}
@@ -840,7 +869,7 @@ export default function Home() {
           {currentView === 'substitutes' && (
             <SubstitutesView 
               userId={user.id}
-              onBack={() => setCurrentView('dashboard')} 
+              onBack={() => changeView('dashboard')} 
             />
           )}
 
@@ -848,21 +877,21 @@ export default function Home() {
             <ItinerariesView 
               userId={user.id}
               user={user}
-              onBack={() => setCurrentView('dashboard')} 
+              onBack={() => changeView('dashboard')} 
             />
           )}
 
           {currentView === 'settings' && (
             <SettingsView 
               userId={user.id}
-              onBack={() => setCurrentView('dashboard')} 
-              onViewChange={(view) => setCurrentView(view as any)}
+              onBack={() => changeView('dashboard')} 
+              onViewChange={(view) => changeView(view as any)}
             />
           )}
 
           {currentView === 'users' && (
             <UsersView 
-              onBack={() => setCurrentView('settings')} 
+              onBack={() => changeView('settings')} 
             />
           )}
 
@@ -870,7 +899,7 @@ export default function Home() {
             <CircuitStatisticsView 
               userId={user.id}
               personalData={personalData}
-              onBack={() => setCurrentView('dashboard')} 
+              onBack={() => changeView('dashboard')} 
             />
           )}
 
@@ -879,15 +908,15 @@ export default function Home() {
               userId={user.id}
               congregations={congregations}
               personalData={personalData}
-              onBack={() => setCurrentView('dashboard')} 
-              onViewChange={(view) => setCurrentView(view as any)}
+              onBack={() => changeView('dashboard')} 
+              onViewChange={(view) => changeView(view as any)}
             />
           )}
 
           {currentView === 'pioneer_school' && (
             <PioneerSchoolView 
               userId={user.id}
-              onBack={() => setCurrentView('schools')}
+              onBack={() => changeView('schools')}
               congregations={congregations}
               defaultCircuit={personalData?.circuito || ''}
             />

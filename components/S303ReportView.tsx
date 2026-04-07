@@ -365,7 +365,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
   const handleFillOriginalPDF = async () => {
     try {
       // Fetch the original PDF
-      const response = await fetch('S-303.pdf');
+      const response = await fetch('/S-303.pdf');
       if (!response.ok) {
         throw new Error(`Erro ao baixar o PDF original: ${response.status} ${response.statusText}`);
       }
