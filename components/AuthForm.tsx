@@ -127,11 +127,12 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
               className="w-16 h-16 bg-gradient-to-br from-white via-white to-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-purple-100 overflow-hidden relative"
             >
               <Image 
-                src="/android-chrome-512x512.png" 
+                src="https://picsum.photos/seed/progcir/512/512" 
                 alt="Logo" 
                 fill
                 className="object-contain p-1" 
                 priority
+                referrerPolicy="no-referrer"
               />
             </motion.div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">Acesso ao Sistema ProgCir</h1>
