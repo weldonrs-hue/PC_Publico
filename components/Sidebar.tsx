@@ -27,6 +27,8 @@ interface SidebarProps {
   onViewChange: (view: any) => void;
 }
 
+import Logo from './Logo';
+
 export default function Sidebar({ onLogout, user, personalData, currentView, onBack, onViewChange }: SidebarProps) {
   const navRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,8 +123,8 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       {/* Logo Section */}
       <div className="p-4 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
-          <div className="bg-[#673ab7] p-2 rounded-2xl shadow-lg w-full relative h-16 flex items-center justify-center border border-white/20">
-            <span className="text-white text-3xl font-bold">P</span>
+          <div className="bg-white p-2 rounded-2xl shadow-lg w-full relative h-16 flex items-center justify-center border border-white/20">
+            <Logo size={48} />
           </div>
         </div>
       </div>
