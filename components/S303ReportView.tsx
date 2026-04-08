@@ -41,6 +41,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [reportText, setReportText] = useState('');
   const [initialReportText, setInitialReportText] = useState('');
   const [reportFontSize, setReportFontSize] = useState(16);
@@ -363,11 +364,14 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
   };
 
   const handleFillOriginalPDF = async () => {
+    setError(null);
+    setGenerating(true);
     try {
-      // Fetch the original PDF
-      const response = await fetch('/S-303.pdf');
+      // Fetch the original PDF using a more robust path
+      const pdfUrl = `${window.location.origin}/S-303.pdf`;
+      const response = await fetch(pdfUrl);
       if (!response.ok) {
-        throw new Error(`Erro ao baixar o PDF original: ${response.status} ${response.statusText}`);
+        throw new Error(`Erro ao baixar o PDF original (${response.status}): Verifique se /public/S-303.pdf existe.`);
       }
       const existingPdfBytes = await response.arrayBuffer();
       
@@ -583,8 +587,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
 
     } catch (error) {
       console.error('Erro ao preencher PDF original:', error);
-      // Fallback to the HTML-to-PDF if something fails
-      handleSavePDF();
+      setError(error instanceof Error ? error.message : 'Erro desconhecido ao gerar o PDF Original');
     } finally {
       setGenerating(false);
     }
@@ -664,6 +667,20 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
           </button>
         </div>
       </div>
+
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-7xl bg-red-50 border border-red-200 p-4 rounded-xl text-red-700 text-sm font-medium flex items-center gap-3"
+        >
+          <span className="text-lg">⚠️</span>
+          <div className="flex-grow">{error}</div>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
+            <Plus size={20} className="rotate-45" />
+          </button>
+        </motion.div>
+      )}
 
       <div className="relative w-full max-w-7xl mx-auto">
         {/* Mobile Scroll Arrows */}
