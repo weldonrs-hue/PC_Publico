@@ -87,8 +87,9 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
       const newScale = Math.max(1, Math.min(1.4, (containerWidth - 32) / a4WidthPx));
       setScale(newScale);
 
-      // Check if scroll arrows should be shown
-      setShowScrollArrows(containerWidth < a4WidthPx);
+      // Check if scroll arrows should be shown based on scaled width
+      const scaledWidth = a4WidthPx * newScale;
+      setShowScrollArrows(containerWidth < scaledWidth);
     };
 
     const observer = new ResizeObserver(updateScale);
@@ -713,25 +714,35 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
 
         <div 
           ref={containerRef}
-          className={`bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex ${showScrollArrows ? 'justify-start' : 'justify-center'} custom-scrollbar scroll-smooth`}
+          className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex justify-start custom-scrollbar scroll-smooth"
         >
-        <div 
-          id="s303-report-container" 
-          className="bg-white print:min-h-0 text-black print:m-0 flex flex-col print:w-[297mm] print:h-[210mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
-          style={{ 
-            fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
-            padding: '15mm',
-            width: '297mm',
-            minWidth: '297mm',
-            height: '210mm',
-            overflow: 'hidden',
-            boxSizing: 'border-box',
-            transform: `scale(${scale})`,
-            transformOrigin: 'top center',
-            marginBottom: `${(scale - 1) * 210}mm`, // Add margin at bottom to account for scaled height
-            transition: 'transform 0.2s ease-out, margin-bottom 0.2s ease-out'
-          }}
-        >
+          <div 
+            style={{ 
+              width: `${297 * scale}mm`, 
+              height: `${210 * scale}mm`,
+              minWidth: 'min-content',
+              display: 'flex',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}
+            className="print:w-full print:h-auto"
+          >
+            <div 
+              id="s303-report-container" 
+              className="bg-white print:min-h-0 text-black print:m-0 flex flex-col print:w-[297mm] print:h-[210mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
+              style={{ 
+                fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
+                padding: '15mm',
+                width: '297mm',
+                minWidth: '297mm',
+                height: '210mm',
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                transition: 'transform 0.2s ease-out'
+              }}
+            >
           <header className="mb-[5mm]">
             <h1 
               className="text-center font-bold text-[19px] tracking-tight leading-tight uppercase w-full"
@@ -1043,6 +1054,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
         </div>
       </div>
     </div>
+  </div>
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');

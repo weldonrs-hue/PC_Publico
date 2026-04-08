@@ -38,10 +38,11 @@ service cloud.firestore {
     
     function isEmailAdmin() {
       return signedIn() && 
+             request.auth.token.get('email_verified', false) == true &&
              (
-               request.auth.token.get('email', '') == "weldonrs@gmail.com" ||
-               request.auth.token.get('email', '') == "2283701@progcir.app" ||
-               request.auth.token.get('email', '') == "2283701@progcir.com"
+               request.auth.token.get('email', '').lower() == "weldonrs@gmail.com" ||
+               request.auth.token.get('email', '').lower() == "2283701@progcir.app" ||
+               request.auth.token.get('email', '').lower() == "2283701@progcir.com"
              );
     }
 
@@ -52,6 +53,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      // Use email-based admin check as primary to avoid extra gets and potential recursion
       return isEmailAdmin() || isRoleAdmin();
     }
 
@@ -94,12 +96,22 @@ service cloud.firestore {
     // Rules for personal_data
     match /personal_data/{dataId} {
       // Allow read if owner or admin or by email
-      allow read: if signedIn() && (
+      allow get: if signedIn() && (
         isAdmin() || 
         request.auth.uid == dataId || 
         isEmailPrefix(dataId) ||
         (resource != null && (
           resource.data.get('userId', '') == request.auth.uid || 
+          isOwnerByEmail()
+        ))
+      );
+
+      // Explicitly allow list queries filtered by userId
+      allow list: if signedIn() && (
+        isAdmin() || 
+        (request.query.limit <= 10 && (
+          // If the query is filtered by userId == auth.uid, it's allowed
+          resource.data.get('userId', '') == request.auth.uid ||
           isOwnerByEmail()
         ))
       );
@@ -114,10 +126,8 @@ service cloud.firestore {
       );
     }
 
-    // Allow collection queries for personal_data
-    match /personal_data {
-      allow list: if signedIn() && (isAdmin() || request.query.limit <= 10);
-    }
+    // Remove the separate collection-level match as it's now handled in the document match
+    // match /personal_data { ... }
 
     // Rules for other collections
     match /congregations/{id} {
