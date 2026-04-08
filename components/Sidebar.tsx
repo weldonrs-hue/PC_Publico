@@ -116,20 +116,16 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
   return (
     <aside className="
       fixed z-[1001] bg-[#512da8] text-white transition-all duration-500 ease-in-out
-      /* Mobile Portrait (< 768px): Bottom Bar */
-      portrait:bottom-0 portrait:left-0 portrait:right-0 portrait:h-20 portrait:flex-row portrait:w-full portrait:border-t portrait:border-white/10
-      /* Tablet Portrait (>= 768px): Side Bar */
-      portrait:md:top-0 portrait:md:bottom-0 portrait:md:left-0 portrait:md:w-64 portrait:md:h-auto portrait:md:flex-col portrait:md:border-t-0
-      /* Landscape: Side Bar */
-      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-20 landscape:md:w-64 landscape:flex-col
-      flex overflow-y-auto landscape:custom-scrollbar portrait:md:overflow-y-auto portrait:md:overflow-x-hidden
+      portrait:bottom-0 portrait:left-0 portrait:right-0 portrait:h-16 portrait:flex-row portrait:w-full
+      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-24 landscape:lg:w-56 landscape:flex-col
+      flex overflow-y-auto overflow-x-hidden landscape:custom-scrollbar
     ">
       {/* Logo Section */}
-      <div className="p-4 md:p-6 landscape:block portrait:md:block portrait:hidden">
-        <div className="flex items-center justify-center mb-2 md:mb-8">
-          <div className="bg-white p-2 rounded-2xl shadow-lg w-full relative h-16 flex items-center justify-center md:justify-start md:px-3 border border-white/20 gap-2 overflow-hidden">
+      <div className="p-4 lg:p-6 landscape:block portrait:hidden">
+        <div className="flex items-center justify-center mb-2 lg:mb-8">
+          <div className="bg-white p-2 rounded-2xl shadow-lg w-full relative h-16 flex items-center justify-center lg:justify-start lg:px-3 border border-white/20 gap-2 overflow-hidden">
             <Logo size={38} className="shrink-0" />
-            <span className="text-[#512da8] font-bold text-base hidden md:block whitespace-nowrap tracking-tight">
+            <span className="text-[#512da8] font-bold text-base hidden lg:block whitespace-nowrap tracking-tight">
               ProgCir Web
             </span>
           </div>
@@ -137,7 +133,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       </div>
 
       {/* Navigation Items */}
-      <div className="relative flex-1 flex items-center overflow-hidden">
+      <div className="relative flex-1 flex items-center landscape:items-start overflow-hidden landscape:overflow-visible">
         {/* Left Scroll Arrow (Portrait only) */}
         <AnimatePresence>
           {canScrollLeft && (
@@ -156,10 +152,9 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
         <nav 
           ref={navRef}
           className="
-            flex-1 px-2 md:px-4 
-            landscape:space-y-1 md:landscape:space-y-2 landscape:py-2 md:landscape:py-0
+            flex-1 px-2 lg:px-4 
+            landscape:flex landscape:flex-col landscape:space-y-1 lg:landscape:space-y-2 landscape:py-2 lg:landscape:py-0
             portrait:flex portrait:flex-row portrait:items-center portrait:px-2 portrait:space-y-0
-            portrait:md:flex-col portrait:md:space-y-2 portrait:md:py-4 portrait:md:px-4
             portrait:overflow-x-auto portrait:scrollbar-hide portrait:gap-1
           "
         >
@@ -176,19 +171,18 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
                 className={`
                   flex items-center rounded-xl transition-all group
                   landscape:justify-start
-                  landscape:gap-3 landscape:px-2 md:landscape:px-4 landscape:py-3 landscape:font-bold
-                  portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[70px] portrait:gap-1
-                  portrait:md:flex-row portrait:md:justify-start portrait:md:px-4 portrait:md:py-3 portrait:md:min-w-0 portrait:md:w-full
+                  landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
+                  portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[60px]
                   ${isActive(item.view) ? 'bg-[#673ab7] text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
                   ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : ''}
                 `}
                 title={isDisabled ? 'Função em desenvolvimento' : item.label}
               >
-                <item.icon size={22} className="flex-shrink-0" />
-                <span className="font-sans landscape:md:block portrait:md:block hidden text-sm lg:text-base">
+                <item.icon size={20} className="flex-shrink-0" />
+                <span className="font-sans landscape:block lg:block hidden text-[10px] lg:text-base">
                   {item.label}
                 </span>
-                <span className="portrait:block md:hidden landscape:hidden text-[9px] font-bold mt-1 truncate w-full text-center">
+                <span className="portrait:block lg:hidden landscape:hidden text-[9px] font-bold mt-1 truncate w-full text-center">
                   {item.label}
                 </span>
               </Link>
@@ -199,7 +193,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           <button
             onClick={onLogout}
             className="
-              portrait:flex landscape:hidden portrait:md:hidden flex-col items-center justify-center p-2 min-w-[70px] rounded-xl transition-all
+              portrait:flex landscape:hidden flex-col items-center justify-center p-2 min-w-[60px] rounded-xl transition-all
               text-white/70 hover:text-white hover:bg-white/10
             "
           >
@@ -227,8 +221,8 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       </div>
 
       {/* Support Section - Replacing Documentation with Logout */}
-      <div className="mt-auto landscape:flex portrait:md:flex portrait:hidden flex-col">
-        <div className="bg-[#4527a0] p-4 md:p-6 border-t border-white/10">
+      <div className="mt-auto landscape:flex portrait:hidden flex-col">
+        <div className="bg-[#4527a0] p-4 lg:p-6 border-t border-white/10">
           <div className="space-y-1">
             <button 
               onClick={onLogout}
@@ -237,7 +231,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
               <div className="w-5 h-5 flex items-center justify-center">
                 <LogOut size={18} />
               </div>
-              <span className="font-bold text-xs landscape:md:block portrait:md:block hidden">Sair do Sistema</span>
+              <span className="font-bold text-[10px] lg:text-xs landscape:block lg:block hidden">Sair do Sistema</span>
             </button>
 
             {/* Removed Back to Dashboard button as requested */}

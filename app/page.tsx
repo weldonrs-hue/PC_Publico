@@ -767,8 +767,8 @@ export default function Home() {
       </div>
       
       <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 
-        landscape:ml-20 landscape:md:ml-64 
-        portrait:md:ml-64 
+        landscape:ml-20 landscape:lg:ml-56 
+        portrait:md:ml-20 portrait:lg:ml-56 
         portrait:mb-20 portrait:md:mb-0 
         print:ml-0 print:mb-0 print:p-0">
         {quotaExceeded && (
