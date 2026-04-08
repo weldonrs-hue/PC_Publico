@@ -766,7 +766,11 @@ export default function Home() {
         />
       </div>
       
-      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 landscape:ml-24 landscape:lg:ml-56 portrait:mb-16 print:ml-0 print:mb-0 print:p-0">
+      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 
+        landscape:ml-20 landscape:md:ml-64 
+        portrait:md:ml-64 
+        portrait:mb-20 portrait:md:mb-0 
+        print:ml-0 print:mb-0 print:p-0">
         {quotaExceeded && (
           <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-pulse">
             ⚠️ Limite de cota do Firestore excedido. Alguns dados podem não carregar corretamente. Tente novamente mais tarde.
