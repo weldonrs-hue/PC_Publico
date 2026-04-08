@@ -713,11 +713,11 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
 
         <div 
           ref={containerRef}
-          className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex justify-start md:justify-center custom-scrollbar scroll-smooth"
+          className={`bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex ${showScrollArrows ? 'justify-start' : 'justify-center'} custom-scrollbar scroll-smooth`}
         >
         <div 
           id="s303-report-container" 
-          className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col print:w-[297mm] print:h-[210mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
+          className="bg-white print:min-h-0 text-black print:m-0 flex flex-col print:w-[297mm] print:h-[210mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
           style={{ 
             fontFamily: "'Arimo', Arial, Helvetica, sans-serif",
             padding: '15mm',
