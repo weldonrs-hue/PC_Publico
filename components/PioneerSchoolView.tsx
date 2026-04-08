@@ -14,7 +14,9 @@ import {
   ClipboardPaste,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Users,
+  LayoutList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -41,6 +43,58 @@ interface Student {
   createdAt: any;
 }
 
+interface WorkshopAssignment {
+  id: string;
+  scenarioId: number;
+  participants: string;
+  userId: string;
+}
+
+const WORKSHOP_DATA = [
+  {
+    id: 'workshop1',
+    label: 'WORKSHOP 1',
+    scenarios: [
+      { id: 1, text: 'Um casal se prepara para a pregação.' },
+      { id: 2, text: 'Primeira conversa na pregação de casa em casa' },
+      { id: 3, text: 'Primeira conversa na pregação de casa em casa' },
+    ]
+  },
+  {
+    id: 'workshop2',
+    label: 'WORKSHOP 2',
+    scenarios: [
+      { id: 4, text: 'Dentro de um transporte público ou sentado num lugar público.' },
+      { id: 5, text: 'Pregação num lugar público (na rua, num parque, no ponto de ônibus, numa loja ou em outro lugar)' },
+      { id: 6, text: 'O aluno pode escolher uma cena comum na região.' },
+    ]
+  },
+  {
+    id: 'workshop3',
+    label: 'WORKSHOP 3',
+    scenarios: [
+      { id: 7, text: 'Depois que tiveram a primeira conversa com um morador, um pioneiro experiente ajuda um novo publicador a planejar a revisita.' },
+      { id: 8, text: 'Pregação de casa em casa ou qualquer outra forma de testemunho público' },
+      { id: 9, text: 'Dois publicadores se preparam para fazer as revisitas do dia.' },
+      { id: 10, text: 'Revisitando pela primeira vez alguém que mostrou interesse.' },
+      { id: 11, text: 'No final da primeira conversa, o publicador combinou com o morador o dia e a hora para a revisita, mas depois não consegue encontrar o morador em casa.' },
+      { id: 12, text: 'Um publicador faz uma revisita para mostrar ao morador uma publicação sobre um assunto pelo qual o morador se interessou.' },
+      { id: 13, text: 'Um publicador conversa regularmente sobre a Bíblia com uma pessoa interessada sem ter deixado com ela nenhuma publicação. Desta vez, o publicador demonstra como é um estudo bíblico.' },
+      { id: 14, text: 'Ao fazer uma revisita, um publicador começa um estudo usando a brochura Seja Feliz para Sempre!' },
+    ]
+  },
+  {
+    id: 'workshop4',
+    label: 'WORKSHOP 4',
+    scenarios: [
+      { id: 15, text: 'Um publicador usa a brochura Seja Feliz para Sempre! para iniciar um estudo bíblico.' },
+      { id: 16, text: 'Forma correta de dirigir um estudo bíblico' },
+      { id: 17, text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.' },
+      { id: 18, text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.' },
+    ]
+  }
+];
+
 interface PioneerSchoolViewProps {
   userId: string;
   onBack: () => void;
@@ -49,7 +103,9 @@ interface PioneerSchoolViewProps {
 }
 
 export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
+  const [activeTab, setActiveTab] = useState<'students' | 'workshops'>('students');
   const [students, setStudents] = useState<Student[]>([]);
+  const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -103,7 +159,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       orderBy('nome', 'asc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeStudents = onSnapshot(q, (snapshot) => {
       const studentsData = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
@@ -115,8 +171,63 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Fetch workshop assignments
+    const qWorkshops = query(
+      collection(db, 'pioneer_school_workshops'),
+      where('userId', '==', userId)
+    );
+
+    const unsubscribeWorkshops = onSnapshot(qWorkshops, (snapshot) => {
+      const assignments: Record<number, { id: string, participants: string }> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        assignments[data.scenarioId] = {
+          id: doc.id,
+          participants: data.participants || ''
+        };
+      });
+      setWorkshopAssignments(assignments);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'pioneer_school_workshops');
+    });
+
+    return () => {
+      unsubscribeStudents();
+      unsubscribeWorkshops();
+    };
   }, [userId]);
+
+  const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
+    try {
+      const existing = workshopAssignments[scenarioId];
+      let currentParticipants = existing?.participants ? existing.participants.split('|') : [];
+      
+      // Ensure the array has enough space
+      const requiredLength = scenarioId === 5 ? 4 : 2;
+      while (currentParticipants.length < requiredLength) {
+        currentParticipants.push('');
+      }
+      
+      currentParticipants[index] = value;
+      const joinedParticipants = currentParticipants.join('|');
+
+      if (existing) {
+        await updateDoc(doc(db, 'pioneer_school_workshops', existing.id), {
+          participants: joinedParticipants,
+          updatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'pioneer_school_workshops'), {
+          scenarioId,
+          participants: joinedParticipants,
+          userId,
+          createdAt: new Date()
+        });
+      }
+    } catch (error) {
+      handleFirestoreError(error, workshopAssignments[scenarioId] ? OperationType.UPDATE : OperationType.CREATE, 'pioneer_school_workshops');
+    }
+  };
 
   const handleOpenModal = (student: Student | null = null) => {
     if (student) {
@@ -397,142 +508,230 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Escola do Serviço de Pioneiro</h2>
-            <p className="text-sm text-gray-500">Lista de alunos convidados</p>
+            <div className="flex items-center gap-4 mt-1">
+              <button 
+                onClick={() => setActiveTab('students')}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 ${activeTab === 'students' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+              >
+                <Users size={16} />
+                Lista de Alunos
+              </button>
+              <button 
+                onClick={() => setActiveTab('workshops')}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 ${activeTab === 'workshops' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+              >
+                <LayoutList size={16} />
+                Sessão de Treino
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Buscar aluno..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
-            />
-          </div>
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm font-bold whitespace-nowrap"
-            title="Importar da Área de Transferência"
-          >
-            <Plus size={20} className="text-gray-400" />
-            <span className="hidden sm:inline">Importar</span>
-          </button>
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap"
-          >
-            <UserPlus size={20} />
-            <span className="hidden sm:inline">Adicionar Aluno</span>
-          </button>
+          {activeTab === 'students' ? (
+            <>
+              <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Buscar aluno..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
+                />
+              </div>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm font-bold whitespace-nowrap"
+                title="Importar da Área de Transferência"
+              >
+                <Plus size={20} className="text-gray-400" />
+                <span className="hidden sm:inline">Importar</span>
+              </button>
+              <button
+                onClick={() => handleOpenModal()}
+                className="flex items-center gap-2 px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap"
+              >
+                <UserPlus size={20} />
+                <span className="hidden sm:inline">Adicionar Aluno</span>
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm">
+              <span className="text-sm font-bold text-[#f1c40f]">TURMA 1</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#37616b] text-white">
-                <th className="px-4 py-2 w-10">
-                  <input 
-                    type="checkbox" 
-                    className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
-                    checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
-                <th className="px-4 py-2 font-bold text-sm uppercase tracking-wider w-14">
-                  Nº
-                </th>
-                <th 
-                  className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                  onClick={() => handleSort('nome')}
-                >
-                  <div className="flex items-center">
-                    Nome do Aluno
-                    <SortIcon column="nome" />
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                  onClick={() => handleSort('congregacao')}
-                >
-                  <div className="flex items-center">
-                    Congregação
-                    <SortIcon column="congregacao" />
-                  </div>
-                </th>
-                <th 
-                  className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                  onClick={() => handleSort('circuito')}
-                >
-                  <div className="flex items-center">
-                    Circuito
-                    <SortIcon column="circuito" />
-                  </div>
-                </th>
-                <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <Loader2 className="animate-spin mx-auto text-[#4CAF50]" size={32} />
-                    <p className="mt-2 text-gray-500">Carregando alunos...</p>
-                  </td>
-                </tr>
-              ) : sortedStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    Nenhum aluno encontrado.
-                  </td>
-                </tr>
-              ) : (
-                sortedStudents.map((student, index) => (
-                  <tr 
-                    key={student.id} 
-                    className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
+      {activeTab === 'students' ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#37616b] text-white">
+                  <th className="px-4 py-2 w-10">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
+                      checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                  <th className="px-4 py-2 font-bold text-sm uppercase tracking-wider w-14">
+                    Nº
+                  </th>
+                  <th 
+                    className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
+                    onClick={() => handleSort('nome')}
                   >
-                    <td className="px-4 py-2">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
-                        checked={selectedStudents.includes(student.id)}
-                        onChange={() => toggleSelectStudent(student.id)}
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-sm font-medium text-gray-600">{index + 1}</td>
-                    <td className="px-6 py-2 text-sm font-bold text-gray-900">{student.nome}</td>
-                    <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
-                    <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
-                    <td className="px-6 py-2 text-sm">
-                      <div className="flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => handleOpenModal(student)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteClick(student.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                    <div className="flex items-center">
+                      Nome do Aluno
+                      <SortIcon column="nome" />
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
+                    onClick={() => handleSort('congregacao')}
+                  >
+                    <div className="flex items-center">
+                      Congregação
+                      <SortIcon column="congregacao" />
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
+                    onClick={() => handleSort('circuito')}
+                  >
+                    <div className="flex items-center">
+                      Circuito
+                      <SortIcon column="circuito" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <Loader2 className="animate-spin mx-auto text-[#4CAF50]" size={32} />
+                      <p className="mt-2 text-gray-500">Carregando alunos...</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : sortedStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      Nenhum aluno encontrado.
+                    </td>
+                  </tr>
+                ) : (
+                  sortedStudents.map((student, index) => (
+                    <tr 
+                      key={student.id} 
+                      className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
+                    >
+                      <td className="px-4 py-2">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
+                          checked={selectedStudents.includes(student.id)}
+                          onChange={() => toggleSelectStudent(student.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-sm font-medium text-gray-600">{index + 1}</td>
+                      <td className="px-6 py-2 text-sm font-bold text-gray-900">{student.nome}</td>
+                      <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
+                      <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
+                      <td className="px-6 py-2 text-sm">
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => handleOpenModal(student)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteClick(student.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#37616b] text-white">
+                  <th className="px-4 py-3 font-bold text-sm uppercase tracking-wider w-16 text-center border-r border-white/10">
+                    {/* Workshop Sidebar Header */}
+                  </th>
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10">
+                    Sessão de Treino
+                  </th>
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider">
+                    Participantes
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {WORKSHOP_DATA.map((workshop) => (
+                  workshop.scenarios.map((scenario, sIndex) => (
+                    <tr key={scenario.id} className={`${scenario.id % 2 === 0 ? 'bg-white' : 'bg-[#e8f1f3]'} border-b border-gray-100`}>
+                      {sIndex === 0 && (
+                        <td 
+                          rowSpan={workshop.scenarios.length} 
+                          className="bg-[#37616b] text-white font-bold text-[10px] uppercase tracking-widest text-center border-r border-white/10 relative overflow-hidden"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="rotate-[-90deg] whitespace-nowrap">
+                              {workshop.label}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 text-sm text-gray-800 border-r border-gray-200 font-medium leading-relaxed">
+                        <span className="font-bold mr-2">({scenario.id})</span>
+                        {scenario.text}
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className={`grid gap-2 ${scenario.id === 5 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2'}`}>
+                          {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => (
+                            <select
+                              key={idx}
+                              value={workshopAssignments[scenario.id]?.participants?.split('|')[idx] || ''}
+                              onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
+                              className="w-full bg-white/50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all appearance-none cursor-pointer"
+                            >
+                              <option value="">Participante {idx + 1}</option>
+                              {students.map((student) => (
+                                <option key={student.id} value={student.nome}>
+                                  {student.nome}
+                                </option>
+                              ))}
+                            </select>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Modal Adicionar/Editar */}
       <AnimatePresence>

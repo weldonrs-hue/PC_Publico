@@ -141,6 +141,19 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "nome", "congregacao", "circuito"]
+    },
+    "pioneer_school_workshop": {
+      "title": "Pioneer School Workshop",
+      "description": "Assignments of participants to workshop scenarios",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "scenarioId": { "type": "integer" },
+        "participants": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "scenarioId", "participants"]
     }
   },
   "firestore": {
@@ -175,6 +188,10 @@
     "/pioneer_school_students/{studentId}": {
       "schema": "pioneer_school_student",
       "description": "Collection of students invited to the pioneer school"
+    },
+    "/pioneer_school_workshops/{workshopId}": {
+      "schema": "pioneer_school_workshop",
+      "description": "Collection of workshop assignments"
     }
   }
 }
