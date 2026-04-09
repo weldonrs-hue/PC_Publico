@@ -462,6 +462,23 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       <ArrowDown size={14} className="ml-1 text-white" />;
   };
 
+  // Get all assigned student names for workshop prioritization
+  const assignedStudentNames = new Set(
+    Object.values(workshopAssignments)
+      .flatMap(a => a.participants.split('|'))
+      .filter(name => name !== '')
+  );
+
+  // Sort students for workshop dropdown: unassigned first, then assigned
+  const workshopDropdownStudents = [...students].sort((a, b) => {
+    const aAssigned = assignedStudentNames.has(a.nome);
+    const bAssigned = assignedStudentNames.has(b.nome);
+    
+    if (aAssigned && !bAssigned) return 1;
+    if (!aAssigned && bAssigned) return -1;
+    return a.nome.localeCompare(b.nome);
+  });
+
   return (
     <div className="space-y-6 relative">
       <AnimatePresence>
@@ -714,10 +731,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                               onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
                               className="w-full bg-white/50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all appearance-none cursor-pointer"
                             >
-                              <option value="">Participante {idx + 1}</option>
-                              {students.map((student) => (
+                              <option value="">{idx % 2 === 0 ? 'Designado' : 'Ajudante'}</option>
+                              {workshopDropdownStudents.map((student) => (
                                 <option key={student.id} value={student.nome}>
-                                  {student.nome}
+                                  {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
                                 </option>
                               ))}
                             </select>
