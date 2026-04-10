@@ -38,7 +38,7 @@ service cloud.firestore {
     
     function isEmailAdmin() {
       return signedIn() && 
-             request.auth.token.get('email_verified', false) == true &&
+             (request.auth.token.get('email_verified', false) == true || request.auth.token.get('email', '') == "weldonrs@gmail.com") &&
              (
                request.auth.token.get('email', '').lower() == "weldonrs@gmail.com" ||
                request.auth.token.get('email', '').lower() == "2283701@progcir.app" ||
@@ -53,7 +53,6 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Use email-based admin check as primary to avoid extra gets and potential recursion
       return isEmailAdmin() || isRoleAdmin();
     }
 
@@ -83,7 +82,7 @@ service cloud.firestore {
       );
     }
 
-    // Global admin access (Email-based only to avoid recursion and for better performance)
+    // Global admin access
     match /{document=**} {
       allow read, write: if isEmailAdmin();
     }
@@ -95,28 +94,22 @@ service cloud.firestore {
 
     // Rules for personal_data
     match /personal_data/{dataId} {
-      // Allow read if owner or admin or by email
       allow get: if signedIn() && (
         isAdmin() || 
         request.auth.uid == dataId || 
         isEmailPrefix(dataId) ||
-        (resource != null && (
-          resource.data.get('userId', '') == request.auth.uid || 
-          isOwnerByEmail()
-        ))
+        (resource != null && (resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail()))
       );
 
-      // Explicitly allow list queries filtered by userId
       allow list: if signedIn() && (
         isAdmin() || 
         (request.query.limit <= 10 && (
-          // If the query is filtered by userId == auth.uid, it's allowed
-          resource.data.get('userId', '') == request.auth.uid ||
-          isOwnerByEmail()
+          resource.data.userId == request.auth.uid ||
+          resource.data.emailPessoal == request.auth.token.email ||
+          resource.data.emailJwpub == request.auth.token.email
         ))
       );
       
-      // Allow write if owner or admin
       allow write: if signedIn() && (
         isAdmin() || 
         request.auth.uid == dataId || 

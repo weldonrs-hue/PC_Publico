@@ -84,7 +84,15 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             return;
           }
 
-          const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
+          // Use auth.currentUser.uid directly to be absolutely sure we are using the authenticated UID
+          const currentUid = auth.currentUser?.uid;
+          if (!currentUid) {
+            console.warn('fetchPersonalData: auth.currentUser disappeared during query setup');
+            setLoading(false);
+            return;
+          }
+
+          const q = query(collection(db, 'personal_data'), where('userId', '==', currentUid), limit(1));
           const querySnapshot = await getDocs(q);
           
           if (!querySnapshot.empty) {
@@ -106,7 +114,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       } catch (error) {
         if (auth.currentUser) {
           console.error('Error fetching personal data:', error);
-          handleFirestoreError(error, OperationType.GET, 'personal_data');
+          handleFirestoreError(error, OperationType.LIST, 'personal_data (query by userId)');
         }
       } finally {
         setLoading(false);

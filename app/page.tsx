@@ -381,14 +381,20 @@ export default function Home() {
             const hasMigratedFallback = localStorage.getItem(`pdMigrationFallbackAttempted_${activeUid}`);
             if (!hasMigratedFallback && !quotaExceeded) {
               console.log(`fetchData: Falling back to query for personal_data where userId == ${activeUid}`);
-              const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+              // Use auth.currentUser.uid directly to be absolutely sure we are using the authenticated UID
+              const currentUid = auth.currentUser?.uid;
+              if (!currentUid) {
+                console.warn('fetchData: auth.currentUser disappeared during query setup');
+                return;
+              }
+              const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', currentUid), limit(1));
               let pdSnapshot;
               try {
                 pdSnapshot = await getDocs(pdQuery);
                 console.log(`fetchData: Fallback query by userId result empty: ${pdSnapshot.empty}`);
               } catch (error) {
                 console.error('fetchData: Fallback query failed:', error);
-                handleFirestoreError(error, OperationType.GET, 'personal_data (query by userId)');
+                handleFirestoreError(error, OperationType.LIST, 'personal_data (query by userId)');
               }
               
               if (pdSnapshot && !pdSnapshot.empty) {

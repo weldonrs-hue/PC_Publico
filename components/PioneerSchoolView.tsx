@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   ChevronLeft, 
+  ChevronDown,
   Plus, 
   Edit2, 
   Trash2, 
@@ -55,42 +56,114 @@ const WORKSHOP_DATA = [
     id: 'workshop1',
     label: 'WORKSHOP 1',
     scenarios: [
-      { id: 1, text: 'Um casal se prepara para a pregação.' },
-      { id: 2, text: 'Primeira conversa na pregação de casa em casa' },
-      { id: 3, text: 'Primeira conversa na pregação de casa em casa' },
+      { 
+        id: 1, 
+        text: 'Um casal se prepara para a pregação.',
+        instructions: 'Instruções para a parte\nComo parte de sua adoração em família, um casal conversa sobre seus planos para pregar. Eles analisam a formação religiosa e cultural das pessoas na região em que planejam pregar e consideram duas ou três “Verdades que amamos ensinar” do Apêndice A da brochura Ame as Pessoas — Faça Discípulos, que talvez chamem a atenção das pessoas que encontrarem. Eles relembram que não é necessário decorar uma apresentação, porque seu foco deve ser mostrar interesse pessoal. Eles conversam sobre como usar a sugestão do Apêndice A da brochura Ame as Pessoas — Faça Discípulos para falar de uma verdade bíblica simples quando apropriado. No final, eles analisam vídeos e publicações do Kit de Ferramentas de Ensino que poderiam usar caso a pessoa demonstre ter a “disposição correta”. Ambos expressam seu desejo de tocar o coração das pessoas a quem pregam. (At 13:44-48; w18.10 12 §§ 3 4)'
+      },
+      { 
+        id: 2, 
+        text: 'Primeira conversa na pregação de casa em casa',
+        instructions: 'Instruções para a parte: \nDepois de mostrar interesse pessoal, um pioneiro fala sobre uma verdade bíblica que interessa à pessoa, usando uma das perguntas nas páginas 5 a 36 da Tradução do Novo Mundo ou um texto bíblico do Apêndice A da brochura Ame as Pessoas'
+      },
+      { 
+        id: 3, 
+        text: 'Primeira conversa na pregação de casa em casa',
+        instructions: 'Instruções para a parte:\nDepois que o publicador se apresenta, o morador o interrompe e diz muito bravo: “Ah, não! Hoje não!” O morador volta para dentro de casa. O publicador vai para o outro lado do palco e começa o seguinte monólogo: “As pessoas aqui são mal educadas e ficam se achando. Nunca mais vou bater nessa casa.” O publicador sai do palco. A demonstração continua com o instrutor perguntando ao morador: “Por que você reagiu desse jeito?” O morador reconhece que no passado gostava de conversar com as Testemunhas de Jeová e de ler as publicações delas. O morador conta que recentemente perdeu o emprego e seu plano de saúde, e que sua esposa foi diagnosticada com uma doença grave. Ele pede desculpas por sua frustração tê-lo feito ser mal educado.'
+      },
     ]
   },
   {
     id: 'workshop2',
     label: 'WORKSHOP 2',
     scenarios: [
-      { id: 4, text: 'Dentro de um transporte público ou sentado num lugar público.' },
-      { id: 5, text: 'Pregação num lugar público (na rua, num parque, no ponto de ônibus, numa loja ou em outro lugar)' },
-      { id: 6, text: 'O aluno pode escolher uma cena comum na região.' },
+      { 
+        id: 4, 
+        text: 'Dentro de um transporte público ou sentado num lugar público.',
+        instructions: 'Instruções para a parte:\nAo ler uma publicação bíblica, um publicador espontaneamente comenta um ponto interessante da publicação para a pessoa que está sentada ao seu lado ou que está próxima dele. Eles começam uma conversa agradável.'
+      },
+      { 
+        id: 5, 
+        text: 'Pregação num lugar público (na rua, num parque, no ponto de ônibus, numa loja ou em outro lugar)',
+        instructions: '5a: (2 min ou menos) Dois publicadores, trabalhando juntos, não escolhem bem as pessoas com quem vão tentar conversar. Eles tentam conversar com uma pessoa e depois com a outra (elas estão ocupadas atendendo algum cliente, falando no telefone, carregando sacolas pesadas ou em alguma outra atividade). Os publicadores tentam oferecer uma publicação, mas nenhuma pessoa aceita conversar.\n5b: (2 min ou menos) O primeiro publicador se aproxima de uma pessoa que não está ocupada e fala sobre o clima ou outro assunto. A pessoa responde e depois de falarem um pouco sobre esse assunto, o publicador direciona a conversa para um assunto bíblico, mas sem mencionar a Bíblia ou oferecer publicações.\n5c: (2 min ou menos) O segundo publicador se aproxima de uma pessoa e fala de forma amigável sobre o que a pessoa está fazendo. A pessoa responde de forma educada e, depois de uma conversa breve, o publicador introduz uma verdade bíblica dizendo: “Você sabia que . . . ?” ou “Já ouviu falar que . . . ?”. Daí, o publicador considera um texto bíblico relacionado do Apêndice A da brochura Ame as Pessoas. A pessoa mostra interesse, e eles combinam de se encontrar de novo.'
+      },
+      { 
+        id: 6, 
+        text: 'O aluno pode escolher uma cena comum na região.',
+        instructions: 'Instruções para a parte:\nUm publicador usa apenas a Bíblia ao reagir a uma das seguintes frases que um morador disse:\n● “Deus não existe!”\n● “Um parente meu acabou de falecer . . .”\n● “A Bíblia realmente vem de Deus?”\n● “As Testemunhas de Jeová são arrogantes por acreditarem que são a única religião verdadeira.”'
+      },
     ]
   },
   {
     id: 'workshop3',
     label: 'WORKSHOP 3',
     scenarios: [
-      { id: 7, text: 'Depois que tiveram a primeira conversa com um morador, um pioneiro experiente ajuda um novo publicador a planejar a revisita.' },
-      { id: 8, text: 'Pregação de casa em casa ou qualquer outra forma de testemunho público' },
-      { id: 9, text: 'Dois publicadores se preparam para fazer as revisitas do dia.' },
-      { id: 10, text: 'Revisitando pela primeira vez alguém que mostrou interesse.' },
-      { id: 11, text: 'No final da primeira conversa, o publicador combinou com o morador o dia e a hora para a revisita, mas depois não consegue encontrar o morador em casa.' },
-      { id: 12, text: 'Um publicador faz uma revisita para mostrar ao morador uma publicação sobre um assunto pelo qual o morador se interessou.' },
-      { id: 13, text: 'Um publicador conversa regularmente sobre a Bíblia com uma pessoa interessada sem ter deixado com ela nenhuma publicação. Desta vez, o publicador demonstra como é um estudo bíblico.' },
-      { id: 14, text: 'Ao fazer uma revisita, um publicador começa um estudo usando a brochura Seja Feliz para Sempre!' },
+      { 
+        id: 7, 
+        text: 'Depois que tiveram a primeira conversa com um morador, um pioneiro experiente ajuda um novo publicador a planejar a revisita.',
+        instructions: 'Instruções para a parte:\nDepois de passar a manhã toda na pregação, dois publicadores fazem um intervalo e falam sobre um morador que fez uma pergunta bem difícil. O novo publicador não se sente confiante para fazer a revisita e pede para o pioneiro a faça por ele. O pioneiro diz que confia no publicador, e juntos eles pesquisam sobre a pergunta do morador usando as publicações mais adequadas do Kit de Ferramentas de Ensino, do jw.org ou da BIBLIOTECA ON LINE da Torre de Vigilância®. Depois de pesquisarem juntos sobre o assunto, o pioneiro sugere um jeito simples de começar a conversa: “Eu gostei muito da nossa conversa semana passada. Eu me lembro que você fez uma pergunta interessante. Fiz uma pesquisa sobre o assunto e gostaria de mostrar pra você a resposta.” Então eles ensaiam, com o pioneiro fazendo o papel do morador. No final do ensaio, o novo publicador já se sente preparado para fazer a revisita, agradece ao pioneiro pelas sugestões e pergunta se ele gostaria de acompanhá-lo quando ele for fazer a revisita. O pioneiro aceita.'
+      },
+      { 
+        id: 8, 
+        text: 'Pregação de casa em casa ou qualquer outra forma de testemunho público',
+        instructions: '8a: (2 min ou menos) Demonstre como fazer da forma errada. Um publicador usa uma apresentação decorada. Ele(a)não se apresenta, mostra pouco interesse na pessoa, não deixa um assunto para considerar na próxima conversa e não combina uma revisita. O publicador simplesmente lê um texto bíblico, faz um breve comentário e então oferece uma publicação, mas o assunto dela não tem nada a ver com o que ele disse. A pessoa aceita a publicação e parece interessada. Mas o publicador não menciona nenhuma pergunta ou assunto para considerar na próxima conversa nem combina dia e horário específicos para conversarem de novo. Em vez disso, depois de entregar a publicação, ele rapidamente termina a conversa, desejando um bom dia para a pessoa.\n8b: (3 min ou menos) Demonstre como fazer da forma certa. Um publicador começa uma conversa mostrando interesse na pessoa. Depois que o morador responde favoravelmente e começa a participar na conversa, o publicador introduz uma verdade bíblica do Apêndice A da brochura Ame as Pessoas. Depois de ler e aplicar o(s) texto(s) bíblico(s) relacionado(s), o publicador faz uma pergunta ou menciona um tópico debaixo do mesmo assunto no Apêndice A para considerar na próxima conversa e combina dia e horário específicos para conversarem de novo. No final da demonstração, o publicador faz um pequeno monólogo sobre o que o morador disse e sobre não ver a hora de voltar e continuar a conversa no horário marcado.'
+      },
+      { 
+        id: 9, 
+        text: 'Dois publicadores se preparam para fazer as revisitas do dia.',
+        instructions: 'Instruções para a parte:\nCada publicador fala para o outro alguns detalhes importantes sobre o que planeja para fazer as revisitas. Ao fazerem isso, eles conversam sobre o que pode dar certo, e cada um dá uma boa ideia para o outro usar na sua revisita. Eles também ajudam um ao outro a se preparar para possíveis desafios, como, por exemplo, se outra pessoa atender; se o morador que ele quer revisitar não estiver em casa; e se o morador disser: “Estou ocupado agora” ou “Não estou interessado.” Depois disso, os dois publicadores decidem para quem vão ligar ou mandar mensagem primeiro e em que ordem vão fazer as revisitas para usar seu tempo da melhor maneira possível.'
+      },
+      { 
+        id: 10, 
+        text: 'Revisitando pela primeira vez alguém que mostrou interesse.',
+        instructions: 'Instrução para a parte:\nUm publicador começa a conversa: “Oi, [nome do morador]. Que bom que encontrei você hoje. Talvez você se lembre, meu nome é . . . Tudo bem com você?” O morador responde: “É, tô bem . . .” O publicador diz: “Que bom! Na última vez que eu estive aqui, nós conversamos sobre se Deus se importa com o sofrimento. Você disse que tem dúvidas sobre isso, principalmente depois que sua mãe sofreu um acidente de carro. Falando nisso, como ela está?” O morador responde: “Ela tem altos e baixos. Hoje ela está bem.” O publicador fala de forma bondosa: “Que bom que ela está bem. Não deve ser nada fácil para você enfrentar essa situação.” O morador admite: “Nem me fale, mas estou aguentando. Obrigado por se preocupar.” O publicador continua: “Depois que conversamos, eu fiquei pensando em vocês. Você talvez se lembre que, antes de ir embora, eu prometi voltar para responder por que Deus permite o sofrimento, mesmo tendo poder para acabar com ele. Se você quiser, eu posso mostrar a resposta da Bíblia para você.” O morador responde: “Ah sim, eu quero saber.” (w14 1/1 8)'
+      },
+      { 
+        id: 11, 
+        text: 'No final da primeira conversa, o publicador combinou com o morador o dia e a hora para a revisita, mas depois não consegue encontrar o morador em casa.',
+        instructions: 'Instruções para a parte:\nUm publicador (no palco) liga para um morador (fora do palco) para fazer uma revisita, e ele atende. Depois de se cumprimentarem, o publicador menciona que foi algumas vezes até a casa do morador, mas não o encontrou. O morador agradece a ligação e diz que recentemente tem trabalhado muito. O publicador reconhece a dificuldade do morador e pergunta se ele tem alguns minutos para responder à pergunta que ele fez no final da última conversa. O morador aceita. O publicador faz um resumo rápido do que eles conversaram da última vez e então usa um texto bíblico para responder à pergunta que ele deixou. Então, o publicador faz outra pergunta para ser respondida e sugere um horário conveniente para continuarem conversando. O morador diz que estará disponível no horário de almoço (ou à noite) para conversarem mais sobre o assunto. Eles combinam um horário específico. Depois de terminar a conversa, o publicador faz um monólogo, dizendo que, apesar de esse horário ser inconveniente pare ele, está fica feliz de finalmente ter conseguido falar com o morador e combinado outra revisita.'
+      },
+      { 
+        id: 12, 
+        text: 'Um publicador faz uma revisita para mostrar ao morador uma publicação sobre um assunto pelo qual o morador se interessou.',
+        instructions: 'Instruções para a parte:\nDepois de se apresentar e lembrar o morador da última conversa que tiveram, o publicador fala sobre algo numa publicação, relacionado ao assunto. A conversa continua, e o morador menciona um problema que ele está passando. Dessa vez, o publicador usa um smartphone ou \ntablet (se apropriado para a região) para mostrar para o morador o jw.org. O publicador mostra como navegar no site e mostra um artigo que fala sobre um problema específico do morador. (Se for mais apropriado para a região, o publicador pode demonstrar como usar a Tradução do Novo Mundo.) O morador agradece. O publicador então faz uma pergunta ou menciona um assunto para considerar na próxima visita. Eles marcam dia e hora para essa visita, e a demonstração termina.'
+      },
+      { 
+        id: 13, 
+        text: 'Um publicador conversa regularmente sobre a Bíblia com uma pessoa interessada sem ter deixado com ela nenhuma publicação. Desta vez, o publicador demonstra como é um estudo bíblico.',
+        instructions: 'Instruções para a parte:\nDepois de uma breve conversa sobre o que conversaram da última vez, o publicador mostra a brochura Seja Feliz para Sempre! ou a Bíblia e considera um assunto apropriado para o morador. Depois disso, o publicador faz uma pergunta (para considerar na próxima conversa) e pergunta se a pessoa deseja combinar um dia e horário específicos para continuarem conversando. A pessoa concorda e diz qual dia e horário é melhor para ela. Ela diz que talvez sua família também goste de aprender essas coisas com o publicador.'
+      },
+      { 
+        id: 14, 
+        text: 'Ao fazer uma revisita, um publicador começa um estudo usando a brochura Seja Feliz para Sempre!',
+        instructions: 'Instruções para a parte:\nDepois de brevemente se cumprimentarem e conversarem, o publicador dá a brochura para o morador e pede para ele dar uma olhada nas lições dela. Eles então conversam sobre a pergunta de ponto de vista na parte de trás da brochura. O publicador então explica brevemente os recursos da brochura e combina de voltar e considerar a primeira lição.'
+      },
     ]
   },
   {
     id: 'workshop4',
     label: 'WORKSHOP 4',
     scenarios: [
-      { id: 15, text: 'Um publicador usa a brochura Seja Feliz para Sempre! para iniciar um estudo bíblico.' },
-      { id: 16, text: 'Forma correta de dirigir um estudo bíblico' },
-      { id: 17, text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.' },
-      { id: 18, text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.' },
+      { 
+        id: 15, 
+        text: 'Um publicador usa a brochura Seja Feliz para Sempre! para iniciar um estudo bíblico.',
+        instructions: 'Instruções para a parte:\nO publicador destaca a pergunta de ponto de vista da parte de trás da brochura e então conversa com o morador sobre esses pontos. Antes de terminar a conversa, ele faz uma breve revisão do que o morador aprendeu. Impressionado, o morador aceita continuar a conversa na lição 01.'
+      },
+      { 
+        id: 16, 
+        text: 'Forma correta de dirigir um estudo bíblico',
+        instructions: 'Instruções para a parte:\nO publicador considera com o estudante as perguntas da lição 01, ponto 3, da brochura Seja Feliz para Sempre!. O publicador fala pouco e permite que o morador fique à vontade para se expressar. (Pr 20:5)'
+      },
+      { 
+        id: 17, 
+        text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.',
+        instructions: 'Instruções para a parte:\nInstrutor e estudante conversam sobre a lição 13, ponto 4. O estudante diz que acha que têm algo de bom em todas as religiões. Sem falar muito, o instrutor usa com jeito textos bíblicos, perguntas e o vídeo (sem mostrar durante a demonstração) para ajudar o estudante a raciocinar sobre o assunto. O estudante começa a perceber que o que ele achava não está de acordo com a Bíblia.'
+      },
+      { 
+        id: 18, 
+        text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.',
+        instructions: 'Instruções para a parte:\nInstrutor e estudante começam a conversar sobre a lição 22, ponto 4. O estudante diz que está preocupado se alguém ficar chateado ou irritado quando ele tentar contar o que está aprendendo da Bíblia a outros. Usando a lição 22, ponto 4, o instrutor com habilidade o deixa mais tranquilo, e o estudante agradece. O instrutor o elogia pelo seu desejo de falar sobre as boas novas a outros e o anima dizendo que ele vai conseguir fazer isso bem.'
+      },
     ]
   }
 ];
@@ -104,6 +177,7 @@ interface PioneerSchoolViewProps {
 
 export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
   const [activeTab, setActiveTab] = useState<'students' | 'workshops'>('students');
+  const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
   const [loading, setLoading] = useState(true);
@@ -528,14 +602,14 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             <div className="flex items-center gap-4 mt-1">
               <button 
                 onClick={() => setActiveTab('students')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 ${activeTab === 'students' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'students' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Users size={16} />
                 Lista de Alunos
               </button>
               <button 
                 onClick={() => setActiveTab('workshops')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 ${activeTab === 'workshops' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'workshops' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <LayoutList size={16} />
                 Sessão de Treino
@@ -584,7 +658,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       {activeTab === 'students' ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-[#37616b] text-white">
                   <th className="px-4 py-2 w-10">
@@ -688,16 +762,16 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-[#37616b] text-white">
                   <th className="px-4 py-3 font-bold text-sm uppercase tracking-wider w-16 text-center border-r border-white/10">
                     {/* Workshop Sidebar Header */}
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 min-w-[300px]">
                     Sessão de Treino
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[250px]">
                     Participantes
                   </th>
                 </tr>
@@ -719,25 +793,53 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                         </td>
                       )}
                       <td className="px-6 py-4 text-sm text-gray-800 border-r border-gray-200 font-medium leading-relaxed">
-                        <span className="font-bold mr-2">({scenario.id})</span>
-                        {scenario.text}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className={`grid gap-2 ${scenario.id === 5 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2'}`}>
-                          {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => (
-                            <select
-                              key={idx}
-                              value={workshopAssignments[scenario.id]?.participants?.split('|')[idx] || ''}
-                              onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                              className="w-full bg-white/50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all appearance-none cursor-pointer"
+                        <div 
+                          className="cursor-pointer hover:text-[#37616b] transition-colors group"
+                          onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
+                        >
+                          <span className="font-bold mr-2">({scenario.id})</span>
+                          {scenario.text}
+                          <div className="inline-block ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ChevronDown size={14} className={`transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                          </div>
+                        </div>
+                        
+                        <AnimatePresence>
+                          {expandedScenario === scenario.id && scenario.instructions && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
                             >
-                              <option value="">{idx % 2 === 0 ? 'Designado' : 'Ajudante'}</option>
-                              {workshopDropdownStudents.map((student) => (
-                                <option key={student.id} value={student.nome}>
-                                  {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
-                                </option>
-                              ))}
-                            </select>
+                              <div className="mt-3 p-3 bg-[#f0f7f8] border-l-4 border-[#37616b] rounded-r-lg text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">
+                                <p className="font-bold text-[#37616b] mb-1">Instruções para a parte:</p>
+                                {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-2">
+                          {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => (
+                            <div key={idx} className="relative">
+                              <select
+                                value={workshopAssignments[scenario.id]?.participants?.split('|')[idx] || ''}
+                                onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
+                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#37616b] focus:border-[#37616b] outline-none transition-all appearance-none cursor-pointer pr-8 shadow-sm hover:border-gray-300"
+                              >
+                                <option value="">Selecionar aluno...</option>
+                                {workshopDropdownStudents.map((student) => (
+                                  <option key={student.id} value={student.nome}>
+                                    {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <ChevronDown size={14} />
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </td>
