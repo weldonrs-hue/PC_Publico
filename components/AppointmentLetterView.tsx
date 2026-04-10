@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
 interface AppointmentLetterViewProps {
@@ -158,9 +158,9 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
     setGenerating(true);
     try {
-      const dataUrl = await toPng(element, {
-        quality: 1.0,
-        pixelRatio: 3,
+      const dataUrl = await toJpeg(element, {
+        quality: 0.85,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
         width: 793.7, // 210mm at 96dpi
         height: 1122.5, // 297mm at 96dpi
@@ -176,7 +176,8 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
+        compress: true
       });
 
       const scale = 0.95;
@@ -185,7 +186,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       const x = (210 - w) / 2;
       const y = (297 - h) / 2;
 
-      pdf.addImage(dataUrl, 'PNG', x, y, w, h);
+      pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
       pdf.save(filename);
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);

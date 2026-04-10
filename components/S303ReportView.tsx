@@ -20,7 +20,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
@@ -328,9 +328,9 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
     try {
       // Use a fixed width/height for capture to ensure margins are preserved
       // 297mm is approx 1122.5px at 96dpi
-      const dataUrl = await toPng(element, {
-        quality: 1.0,
-        pixelRatio: 3, // Higher quality for better text rendering
+      const dataUrl = await toJpeg(element, {
+        quality: 0.85,
+        pixelRatio: 2, // Sufficient resolution
         backgroundColor: '#ffffff',
         width: 1122.5,
         height: 793.7,
@@ -346,7 +346,8 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
+        compress: true
       });
 
       // Apply the 95% scale adjustment as requested by the user
@@ -357,7 +358,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
       const x = (297 - w) / 2;
       const y = (210 - h) / 2;
 
-      pdf.addImage(dataUrl, 'PNG', x, y, w, h);
+      pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
       pdf.save(filename);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);

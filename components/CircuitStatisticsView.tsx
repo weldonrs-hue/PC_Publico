@@ -269,17 +269,17 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
 
     try {
       // Import libraries
-      const { toPng } = await import('html-to-image');
+      const { toJpeg } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
       // Add a class to ensure print-specific styles are applied if needed
       element.classList.add('pdf-capture');
       
-      // Convert element to PNG image
+      // Convert element to JPEG image
       // html-to-image is much better at handling modern CSS like oklch
-      const dataUrl = await toPng(element, {
-        quality: 1.0,
-        pixelRatio: 2, // High resolution
+      const dataUrl = await toJpeg(element, {
+        quality: 0.85,
+        pixelRatio: 1.5, // Sufficient resolution
         backgroundColor: '#ffffff',
         style: {
           transform: 'scale(1)',
@@ -299,10 +299,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [pdfWidth, pdfHeight]
+        format: [pdfWidth, pdfHeight],
+        compress: true
       });
 
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       const pdfBlob = pdf.output('blob');
 
       const filename = `Circuito ${circuitName} - Estatísticas.pdf`;

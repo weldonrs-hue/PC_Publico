@@ -214,14 +214,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     const filename = `Itinerário - ${currentMonthLabel}.pdf`;
 
     try {
-      const { toPng } = await import('html-to-image');
+      const { toJpeg } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
       element.classList.add('pdf-capture');
       
-      const dataUrl = await toPng(element, {
-        quality: 1.0,
-        pixelRatio: 2,
+      const dataUrl = await toJpeg(element, {
+        quality: 0.85,
+        pixelRatio: 1.5,
         backgroundColor: '#ffffff',
         style: {
           transform: 'scale(1)',
@@ -234,14 +234,15 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
+        compress: true
       });
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       const pdfBlob = pdf.output('blob');
 
       // Standard download method (compatible with iframes)
