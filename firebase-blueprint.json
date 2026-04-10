@@ -137,6 +137,7 @@
         "nome": { "type": "string" },
         "congregacao": { "type": "string" },
         "circuito": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -150,6 +151,7 @@
         "userId": { "type": "string" },
         "scenarioId": { "type": "integer" },
         "participants": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

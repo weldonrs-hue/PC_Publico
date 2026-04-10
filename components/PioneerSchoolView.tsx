@@ -40,6 +40,7 @@ interface Student {
   nome: string;
   congregacao: string;
   circuito: string;
+  turma?: string;
   userId: string;
   createdAt: any;
 }
@@ -177,6 +178,7 @@ interface PioneerSchoolViewProps {
 
 export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
   const [activeTab, setActiveTab] = useState<'students' | 'workshops'>('students');
+  const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
@@ -202,7 +204,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   const [formData, setFormData] = useState({
     nome: '',
     congregacao: '',
-    circuito: defaultCircuit || ''
+    circuito: defaultCircuit || '',
+    turma: ''
   });
 
   const getCongregationLabel = (c: any) => {
@@ -248,7 +251,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     // Fetch workshop assignments
     const qWorkshops = query(
       collection(db, 'pioneer_school_workshops'),
-      where('userId', '==', userId)
+      where('userId', '==', userId),
+      where('turma', '==', selectedTurma)
     );
 
     const unsubscribeWorkshops = onSnapshot(qWorkshops, (snapshot) => {
@@ -269,7 +273,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       unsubscribeStudents();
       unsubscribeWorkshops();
     };
-  }, [userId]);
+  }, [userId, selectedTurma]);
 
   const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
     try {
@@ -295,6 +299,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           scenarioId,
           participants: joinedParticipants,
           userId,
+          turma: selectedTurma,
           createdAt: new Date()
         });
       }
@@ -309,17 +314,30 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       setFormData({
         nome: student.nome,
         congregacao: student.congregacao,
-        circuito: student.circuito
+        circuito: student.circuito,
+        turma: student.turma || ''
       });
     } else {
       setEditingStudent(null);
       setFormData({
         nome: '',
         congregacao: '',
-        circuito: defaultCircuit || ''
+        circuito: defaultCircuit || '',
+        turma: ''
       });
     }
     setIsModalOpen(true);
+  };
+
+  const handleUpdateTurma = async (studentId: string, newTurma: string) => {
+    try {
+      await updateDoc(doc(db, 'pioneer_school_students', studentId), {
+        turma: newTurma,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'pioneer_school_students');
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -543,15 +561,17 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       .filter(name => name !== '')
   );
 
-  // Sort students for workshop dropdown: unassigned first, then assigned
-  const workshopDropdownStudents = [...students].sort((a, b) => {
-    const aAssigned = assignedStudentNames.has(a.nome);
-    const bAssigned = assignedStudentNames.has(b.nome);
-    
-    if (aAssigned && !bAssigned) return 1;
-    if (!aAssigned && bAssigned) return -1;
-    return a.nome.localeCompare(b.nome);
-  });
+  // Sort students for workshop dropdown: filter by selected class, unassigned first, then assigned
+  const workshopDropdownStudents = [...students]
+    .filter(s => s.turma === selectedTurma)
+    .sort((a, b) => {
+      const aAssigned = assignedStudentNames.has(a.nome);
+      const bAssigned = assignedStudentNames.has(b.nome);
+      
+      if (aAssigned && !bAssigned) return 1;
+      if (!aAssigned && bAssigned) return -1;
+      return a.nome.localeCompare(b.nome);
+    });
 
   return (
     <div className="space-y-6 relative">
@@ -648,8 +668,23 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               </button>
             </>
           ) : (
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm">
-              <span className="text-sm font-bold text-[#f1c40f]">TURMA 1</span>
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
+              <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
+              <div className="flex gap-1">
+                {(['1', '2', '3'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setSelectedTurma(t)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      selectedTurma === t 
+                        ? 'bg-amber-100 text-amber-700 shadow-sm' 
+                        : 'text-gray-400 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -699,6 +734,15 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                       <SortIcon column="circuito" />
                     </div>
                   </th>
+                  <th 
+                    className="px-4 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors text-center"
+                    onClick={() => handleSort('turma')}
+                  >
+                    <div className="flex items-center justify-center">
+                      Turma
+                      <SortIcon column="turma" />
+                    </div>
+                  </th>
                   <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center">Ações</th>
                 </tr>
               </thead>
@@ -734,6 +778,22 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                       <td className="px-6 py-2 text-sm font-bold text-gray-900">{student.nome}</td>
                       <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
                       <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
+                      <td className="px-4 py-2 text-sm text-center">
+                        <select
+                          value={student.turma || ''}
+                          onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
+                          className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all ${
+                            student.turma 
+                              ? 'bg-amber-100 text-amber-700' 
+                              : 'bg-gray-100 text-gray-400 italic'
+                          }`}
+                        >
+                          <option value="">-</option>
+                          <option value="1">TURMA 1</option>
+                          <option value="2">TURMA 2</option>
+                          <option value="3">TURMA 3</option>
+                        </select>
+                      </td>
                       <td className="px-6 py-2 text-sm">
                         <div className="flex items-center justify-center gap-2">
                           <button 
@@ -914,6 +974,20 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none"
                     placeholder="Ex: PB-003"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Turma</label>
+                  <select
+                    value={formData.turma}
+                    onChange={(e) => setFormData({ ...formData, turma: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none bg-white"
+                  >
+                    <option value="">Nenhuma turma</option>
+                    <option value="1">Turma 1</option>
+                    <option value="2">Turma 2</option>
+                    <option value="3">Turma 3</option>
+                  </select>
                 </div>
 
                 <div className="pt-4 flex gap-3">

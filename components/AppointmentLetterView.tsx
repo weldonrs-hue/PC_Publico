@@ -268,7 +268,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             <ChevronLeft size={24} strokeWidth={2.5} />
           </button>
           <div className="min-w-0">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Carta de Designação/Remoção</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Carta de Designação/Cancelamento</h2>
             <p className="text-[10px] sm:text-xs text-gray-500 font-medium uppercase tracking-wider truncate">{congregation.nome} • {visitDate}</p>
           </div>
         </div>
@@ -381,7 +381,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </div>
               <div className="text-left pt-0 pl-12">
                 <p className="font-bold text-[15px] uppercase">AO CORPO DE ANCIÃOS</p>
-                <p className="text-[15px] italic">Ref.: Designações e remoções de anciãos e servos ministeriais</p>
+                <p className="text-[15px] italic">Ref.: Designações e cancelamentos de anciãos e servos ministeriais</p>
               </div>
             </div>
 
@@ -427,7 +427,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="mb-1 mt-[-30px]">Confirmo que <strong className="font-bold">removi</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
+                <p className="mb-1 mt-[-30px]">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
                 <div className="space-y-0">
                   {letterData.irmaosRemovidos.map((name, i) => (
                     <div key={i} className="border-b border-dotted border-[#bbb] h-[1.4rem] mb-[0.1rem] w-full flex items-end">

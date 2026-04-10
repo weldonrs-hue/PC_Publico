@@ -1192,8 +1192,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             <Printer size={18} />
                           </div>
                           <div className="text-left">
-                            <div className="font-bold text-sm text-gray-800">Carta de Designação/Remoção</div>
-                            <div className="text-[10px] text-gray-500 leading-tight">Gerar carta de designação ou remoção</div>
+                            <div className="font-bold text-sm text-gray-800">Carta de Designação/Cancelamento</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Gerar carta de designação ou cancelamento</div>
                           </div>
                         </button>
                       </>
