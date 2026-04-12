@@ -24,7 +24,7 @@ const regionalConventionProgram = [
       {
         period: 'Manhã',
         items: [
-          { id: 'm0', title: 'PRESIDENTE SEXTA MANHÃ', icon: User, isRole: true },
+          { id: 'm0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
           { id: 'm1', time: '9:20', title: 'Vídeo musical', icon: Music, noSpeaker: true },
           { id: 'm2', time: '9:30', title: 'Cântico 160 e oração', icon: Music },
           { 
@@ -63,10 +63,15 @@ const regionalConventionProgram = [
       {
         period: 'Tarde',
         items: [
-          { id: 't0', title: 'PRESIDENTE SEXTA TARDE', icon: User, isRole: true },
+          { id: 't0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
           { id: 't1', time: '1:35', title: 'Vídeo musical', icon: Music, noSpeaker: true },
           { id: 't2', time: '1:45', title: 'Cântico 23', icon: Music, noSpeaker: true },
-          { id: 't3', time: '1:50', title: 'O que Jesus ensinou sobre o sábado?', icon: BookOpen },
+          { 
+            id: 't3', 
+            time: '1:50', 
+            title: 'O que Jesus ensinou sobre o sábado?', 
+            icon: BookOpen 
+          },
           { 
             id: 't4',
             time: '2:10', 
@@ -80,7 +85,12 @@ const regionalConventionProgram = [
             ]
           },
           { id: 't5', time: '2:50', title: 'Cântico 76 e anúncios', icon: Info, noSpeaker: true },
-          { id: 't6', time: '3:00', title: '“Felizes os que lavam as suas vestes compridas”', icon: BookOpen },
+          { 
+            id: 't6', 
+            time: '3:00', 
+            title: '“Felizes os que lavam as suas vestes compridas”', 
+            icon: BookOpen 
+          },
           { id: 't7', time: '3:30', title: 'Cântico 155 e oração final', icon: Music }
         ]
       }
@@ -352,6 +362,11 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
     <div className="space-y-8 pb-12 print:p-0 print:space-y-4">
       {/* Print Styles */}
       <style jsx global>{`
+        /* Hide print elements on screen */
+        .print-hero, .print-day-title, .print-theme-text, .print-session-header, .print-item-row, .print-subitem-row {
+          display: none !important;
+        }
+
         @media print {
           @page {
             size: A4;
@@ -359,31 +374,111 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           }
           body {
             background: white !important;
-            -webkit-print-color-adjust: exact;
+            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
           }
-          .print-compact {
-            padding: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
+          
+          .print-container {
+            display: block !important;
+            width: 100% !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: none !important;
           }
-          .print-grid {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 20px !important;
+
+          .print-hero {
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            max-height: 150px !important;
+            object-fit: cover !important;
+            object-position: center 33% !important;
+            margin-bottom: 1rem !important;
           }
-          .print-item {
-            break-inside: avoid;
-            margin-bottom: 4px !important;
-            font-size: 10px !important;
+
+          .print-day-title {
+            display: block !important;
+            font-size: 24pt !important;
+            font-weight: 700 !important;
+            margin-bottom: 0.2rem !important;
+            line-height: 1 !important;
           }
-          .print-speaker {
-            font-weight: bold !important;
-            color: black !important;
-            border-bottom: 1px solid #eee !important;
+
+          .print-theme-text {
+            display: block !important;
+            font-size: 11pt !important;
+            font-style: italic !important;
+            color: #4b5563 !important;
+            margin-bottom: 1rem !important;
+          }
+
+          .print-session-header {
+            display: block !important;
+            font-size: 14pt !important;
+            font-weight: 800 !important;
+            margin-top: 1rem !important;
+            margin-bottom: 0.5rem !important;
+            text-transform: uppercase !important;
+            border-bottom: 2px solid !important;
+            padding-bottom: 2pt !important;
+          }
+
+          .print-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            border: 0.5pt solid #ccc !important;
+          }
+
+          .print-row {
+            display: flex !important;
+            border-bottom: 0.5pt solid #eee !important;
+            break-inside: avoid !important;
+            min-height: 22pt !important;
+            align-items: center !important;
+          }
+
+          .print-cell-time {
+            width: 45pt !important;
+            padding: 4pt !important;
+            font-size: 10pt !important;
+            border-right: 0.5pt solid #eee !important;
+            flex-shrink: 0 !important;
+            text-align: center !important;
+          }
+
+          .print-cell-content {
+            flex-grow: 1 !important;
+            padding: 4pt 8pt !important;
+            font-size: 10pt !important;
+          }
+
+          .print-cell-speaker {
+            width: 160pt !important;
+            padding: 4pt 8pt !important;
+            font-size: 10pt !important;
+            font-weight: 700 !important;
+            text-align: left !important;
+            flex-shrink: 0 !important;
+            border-right: 0.5pt solid #eee !important;
+          }
+
+          .print-title-bold {
+            font-weight: 700 !important;
+          }
+
+          .print-label-small {
+            font-size: 8pt !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            margin-right: 4pt !important;
+          }
+
+          .print-subitem-row {
+            background-color: #fafafa !important;
           }
         }
       `}</style>
@@ -400,31 +495,28 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
-              {currentDay.title}
+              Congresso Regional 2026
             </h2>
-            <p className="text-sm text-gray-500 font-medium">{currentDay.subtitle}</p>
+            <div className="flex items-center gap-4 mt-1">
+              {regionalConventionProgram.map((day, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleDayChange(idx)}
+                  className={`text-sm font-bold transition-all pb-1 border-b-2 whitespace-nowrap ${
+                    selectedDayIndex === idx 
+                      ? 'border-current' 
+                      : 'text-gray-400 border-transparent hover:text-gray-600'
+                  }`}
+                  style={{ color: selectedDayIndex === idx ? currentDay.color : undefined }}
+                >
+                  {day.day}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-4 self-start sm:self-center">
-          {/* Day Selector */}
-          <div className="flex bg-gray-100 p-1 rounded-2xl">
-            {regionalConventionProgram.map((day, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleDayChange(idx)}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                  selectedDayIndex === idx 
-                    ? 'bg-white shadow-sm' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-                style={{ color: selectedDayIndex === idx ? currentDay.color : undefined }}
-              >
-                {day.day}
-              </button>
-            ))}
-          </div>
-
           <button
             onClick={handlePrint}
             className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-600 bg-white shadow-md border border-gray-200"
@@ -446,45 +538,78 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           src={currentDay.headerImage} 
           alt="Congresso Regional"
           className="w-full h-full object-cover"
+          style={{ objectPosition: 'center 33%' }}
           referrerPolicy="no-referrer"
         />
       </motion.div>
+      <img 
+        src={currentDay.headerImage} 
+        alt="" 
+        className="print-hero"
+        referrerPolicy="no-referrer"
+      />
 
       {/* Theme Section */}
       <motion.div 
         key={`theme-${selectedDayIndex}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-sm text-center space-y-2 print:p-2 print:border-b-2 print:rounded-none"
+        className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-sm text-center space-y-2 no-print"
       >
-        <h2 className="hidden print:block text-xl font-bold mb-1" style={{ color: currentDay.color }}>
-          {currentDay.title}
-        </h2>
-        <p className="text-lg md:text-xl font-medium text-gray-600 italic print:text-sm">
+        <p className="text-lg md:text-xl font-medium text-gray-600 italic">
           {currentDay.theme}
         </p>
       </motion.div>
+
+      {/* Print Header Info */}
+      <div className="print-day-title-container">
+        <h1 className="print-day-title" style={{ color: currentDay.color }}>{currentDay.title}</h1>
+        <p className="print-theme-text">{currentDay.theme}</p>
+      </div>
 
       {/* Program Sessions - Combined into a single card */}
       <motion.div 
         key={`program-${selectedDayIndex}`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden print:shadow-none print:border-none print:rounded-none"
+        className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden print:bg-transparent print:border-none print:shadow-none print:rounded-none print-container"
       >
-        <div className="print:grid print:grid-cols-2 print:gap-x-8">
+        <div className="print-container">
           {currentDay.sessions.map((session, sIdx) => (
             <div key={sIdx} className={`${sIdx > 0 ? 'border-t border-gray-100' : ''} print:border-none`}>
-              <div className="bg-gray-50 px-8 py-6 border-b border-gray-100 flex items-center justify-between print:bg-transparent print:px-0 print:py-2 print:border-b-2">
-                <h5 className="text-xl font-black uppercase tracking-tight print:text-base" style={{ color: currentDay.color }}>{session.period}</h5>
-                <Calendar className="text-gray-400 no-print" size={20} />
+              <div className="bg-gray-50 px-8 py-6 border-b border-gray-100 flex items-center justify-between no-print">
+                <h5 className="text-xl font-black uppercase tracking-tight" style={{ color: currentDay.color }}>{session.period}</h5>
+                <Calendar className="text-gray-400" size={20} />
               </div>
-              <div className="p-6 md:p-8 space-y-8 print:p-0 print:space-y-2">
+              
+              {/* Print Session Header */}
+              <h2 className="print-session-header" style={{ color: currentDay.color }}>
+                {session.period}
+              </h2>
+
+              <div className="p-6 md:p-8 space-y-8 print:p-0 print:space-y-0 print:print-table">
                 {session.items.map((item, iIdx) => (
-                  <div key={iIdx} className="space-y-4 print:space-y-1 print:mb-2">
-                    <div className="flex flex-col sm:flex-row gap-4 md:gap-6 print:flex-row print:gap-2">
+                  <div key={iIdx} className="space-y-4 print:space-y-0 print:contents">
+                    {/* Print Item Row */}
+                    <div className="hidden print:flex print-row">
+                      <div className="print-cell-speaker" style={{ color: currentDay.color }}>
+                        {!item.noSpeaker && (speakers[item.id] || '')}
+                      </div>
+                      <div className="print-cell-time">{item.time || ''}</div>
+                      <div className="print-cell-content">
+                        <span className="print-title">
+                          {item.label && <span className="print-label-small" style={{ color: currentDay.color }}>{item.label} </span>}
+                          <span className={`${item.label || item.isRole ? '' : 'print-title-bold'} ${item.isRole ? 'text-[#512da8]' : ''}`}>
+                            {item.title}
+                          </span>
+                        </span>
+                        {item.subtitle && <div className="text-[8pt] italic font-medium mt-0.5">— {item.subtitle}</div>}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4 md:gap-6 no-print">
                       {/* Speaker Input - Left Side */}
-                      <div className="w-full sm:w-64 shrink-0 print:w-32">
+                      <div className="w-full sm:w-64 shrink-0">
                         {!item.noSpeaker && (
                           <div className="relative group">
                             <input 
@@ -492,34 +617,33 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                               placeholder="Orador..."
                               value={speakers[item.id] || ''}
                               onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 print:bg-transparent print:border-none print:p-0 print:font-bold print:text-black"
+                              className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
                               style={{ 
                                 borderColor: speakers[item.id] ? currentDay.color : undefined,
                                 borderWidth: speakers[item.id] ? '2px' : '1px'
                               }}
                             />
-                            <div className="hidden print:block border-b border-gray-300 w-full h-px mt-px"></div>
                           </div>
                         )}
                       </div>
 
-                      <div className="flex flex-1 gap-4 print:gap-2">
-                        <div className="w-12 shrink-0 text-right pt-1 print:w-8">
-                          <span className="text-sm font-bold text-gray-500 print:text-[10px]">
+                      <div className="flex flex-1 gap-4">
+                        <div className="w-12 shrink-0 text-right pt-1">
+                          <span className="text-sm font-bold text-gray-500">
                             {item.time || ''}
                           </span>
                         </div>
-                        <div className="flex-1 space-y-2 print:space-y-0">
+                        <div className="flex-1 space-y-2">
                           <div className="flex items-start gap-3">
                             <div className="flex-1">
-                              <h6 className="text-base leading-tight text-gray-800 print:text-[11px]">
-                                {item.label && <span className="font-bold mr-1 print:text-[10px]" style={{ color: currentDay.color }}>{item.label}</span>}
+                              <h6 className="text-base leading-tight text-gray-800">
+                                {item.label && <span className="font-bold mr-1" style={{ color: currentDay.color }}>{item.label}</span>}
                                 <span className={item.label || item.isRole ? 'font-medium' : 'font-bold'}>
-                                  {item.isRole ? <span className="text-[#512da8] font-bold print:text-black">{item.title}</span> : item.title}
+                                  {item.isRole ? <span className="text-[#512da8] font-bold">{item.title}</span> : item.title}
                                 </span>
                               </h6>
                               {item.subtitle && (
-                                <p className="text-sm text-gray-700 font-bold italic mt-1 print:text-[9px] print:mt-0">{item.subtitle}</p>
+                                <p className="text-sm text-gray-700 font-bold italic mt-1">{item.subtitle}</p>
                               )}
                             </div>
                           </div>
@@ -529,29 +653,43 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
                     {/* Subitems - Aligned with main items */}
                     {item.subitems && (
-                      <div className="space-y-4 pt-2 print:space-y-1 print:pt-0">
+                      <div className="space-y-4 pt-2 print:space-y-0 print:pt-0 print:w-full print:contents">
                         {item.subitems.map((sub, subIdx) => (
-                          <div key={subIdx} className="flex flex-col sm:flex-row gap-4 md:gap-6 print:flex-row print:gap-2">
-                            <div className="w-full sm:w-64 shrink-0 print:w-32">
+                          <div key={subIdx} className="flex flex-col sm:flex-row gap-4 md:gap-6 print:contents">
+                            {/* Print Subitem Layout */}
+                            <div className="hidden print:flex print-row print-subitem-row">
+                              <div className="print-cell-speaker" style={{ color: currentDay.color }}>
+                                {speakers[sub.id] || ''}
+                              </div>
+                              <div className="print-cell-time"></div>
+                              <div className="print-cell-content">
+                                <div className="italic font-semibold text-gray-700">
+                                  • {sub.title}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Speaker Input - Left Side (Hidden in Print) */}
+                            <div className="w-full sm:w-64 shrink-0 no-print">
                               <div className="relative group">
                                 <input 
                                   type="text"
                                   placeholder="Orador..."
                                   value={speakers[sub.id] || ''}
                                   onChange={(e) => handleSpeakerChange(sub.id, e.target.value)}
-                                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 print:bg-transparent print:border-none print:p-0 print:font-bold print:text-black"
+                                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
                                   style={{ 
                                     borderColor: speakers[sub.id] ? currentDay.color : undefined,
                                     borderWidth: speakers[sub.id] ? '2px' : '1px'
                                   }}
                                 />
-                                <div className="hidden print:block border-b border-gray-300 w-full h-px mt-px"></div>
                               </div>
                             </div>
-                            <div className="flex flex-1 gap-4 print:gap-2">
-                              <div className="w-12 shrink-0 print:w-8"></div>
-                              <div className="flex-1 pl-4 border-l-2 print:pl-2 print:border-l" style={{ borderColor: `${currentDay.color}20` }}>
-                                <p className="text-sm text-gray-700 font-semibold print:text-[10px]">• {sub.title}</p>
+                            
+                            <div className="flex flex-1 gap-4 no-print">
+                              <div className="w-12 shrink-0"></div>
+                              <div className="flex-1 pl-4 border-l-2" style={{ borderColor: `${currentDay.color}20` }}>
+                                <p className="text-sm text-gray-700 font-semibold">• {sub.title}</p>
                               </div>
                             </div>
                           </div>
