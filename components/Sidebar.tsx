@@ -68,10 +68,13 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
   // Determine if an item is active. For now, 'Circuito' is active for dashboard, congregations, and personal_data
   const isActive = (itemView: string) => {
     if (itemView === 'dashboard') {
-      return ['dashboard', 'congregations', 'personal_data'].includes(currentView);
+      return ['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView);
     }
     if (itemView === 'schools') {
       return ['schools', 'pioneer_school'].includes(currentView);
+    }
+    if (itemView === 'events') {
+      return ['events', 'regional_convention_program'].includes(currentView);
     }
     return currentView === itemView;
   };
@@ -159,7 +162,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           "
         >
           {menuItems.map((item) => {
-            const isDisabled = ['events', 'misc'].includes(item.view);
+            const isDisabled = ['misc'].includes(item.view);
             return (
               <Link
                 key={item.label}

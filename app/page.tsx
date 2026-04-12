@@ -15,6 +15,8 @@ import UsersView from '@/components/UsersView';
 import CircuitStatisticsView from '@/components/CircuitStatisticsView';
 import SchoolsView from '@/components/SchoolsView';
 import PioneerSchoolView from '@/components/PioneerSchoolView';
+import EventsView from '@/components/EventsView';
+import RegionalConventionView from '@/components/RegionalConventionView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -91,7 +93,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program'>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -146,6 +148,8 @@ export default function Home() {
   useEffect(() => {
     if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, dashboard: currentView }));
+    } else if (['events', 'regional_convention_program'].includes(currentView)) {
+      setLastSubViews(prev => ({ ...prev, events: currentView }));
     } else if (['settings', 'users'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
@@ -749,6 +753,14 @@ export default function Home() {
                 // Restore last visited sub-view in Circuito
                 changeView(lastSubViews.dashboard as any);
               }
+            } else if (view === 'events') {
+              // If already in an Events sub-view, reset to main events
+              if (['events', 'regional_convention_program'].includes(currentView)) {
+                changeView('events');
+              } else {
+                // Restore last visited sub-view in Events
+                changeView(lastSubViews.events || 'events');
+              }
             } else if (view === 'settings') {
               // If already in a Settings sub-view, reset to main settings
               if (['settings', 'users'].includes(currentView)) {
@@ -765,7 +777,7 @@ export default function Home() {
                 // Restore last visited sub-view in Schools
                 changeView(lastSubViews.schools as any);
               }
-            } else if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'settings', 'users', 'statistics', 'schools', 'pioneer_school'].includes(view)) {
+            } else {
               changeView(view as any);
             }
           }}
@@ -929,6 +941,21 @@ export default function Home() {
               onBack={() => changeView('schools')}
               congregations={congregations}
               defaultCircuit={personalData?.circuito || ''}
+            />
+          )}
+
+          {currentView === 'events' && (
+            <EventsView 
+              userId={user.id}
+              onBack={() => changeView('dashboard')}
+              onViewChange={changeView}
+            />
+          )}
+
+          {currentView === 'regional_convention_program' && (
+            <RegionalConventionView 
+              userId={user.id}
+              onBack={() => changeView('events')}
             />
           )}
         </div>

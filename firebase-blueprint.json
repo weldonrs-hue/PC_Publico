@@ -156,6 +156,19 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "scenarioId", "participants"]
+    },
+    "regional_convention_speakers": {
+      "title": "Regional Convention Speakers",
+      "description": "List of speakers for the regional convention program",
+      "type": "object",
+      "properties": {
+        "speakers": { 
+          "type": "object", 
+          "description": "Map of program item IDs to speaker names" 
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["speakers"]
     }
   },
   "firestore": {
@@ -194,6 +207,10 @@
     "/pioneer_school_workshops/{workshopId}": {
       "schema": "pioneer_school_workshop",
       "description": "Collection of workshop assignments"
+    },
+    "/regional_convention_speakers/{userId}": {
+      "schema": "regional_convention_speakers",
+      "description": "Collection of speaker assignments for regional conventions"
     }
   }
 }

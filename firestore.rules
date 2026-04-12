@@ -82,6 +82,22 @@ service cloud.firestore {
       );
     }
 
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidRegionalConventionSpeakers(data) {
+      return hasOnlyAllowedFields(['speakers', 'updatedAt']) &&
+             data.speakers is map &&
+             data.speakers.size() < 300 &&
+             (data.get('updatedAt', '') == '' || isValidDateString(data.updatedAt));
+    }
+
     // Global admin access
     match /{document=**} {
       allow read, write: if isEmailAdmin();
@@ -186,6 +202,11 @@ service cloud.firestore {
         (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
         isAdmin()
       );
+    }
+
+    match /regional_convention_speakers/{userId} {
+      allow read: if signedIn() && (isOwner(userId) || isAdmin());
+      allow write: if signedIn() && (isOwner(userId) || isAdmin()) && isValidRegionalConventionSpeakers(request.resource.data);
     }
   }
 }
