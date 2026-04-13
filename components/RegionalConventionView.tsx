@@ -493,16 +493,16 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           >
             <ChevronLeft size={28} strokeWidth={3} />
           </button>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold text-gray-800">
               Congresso Regional 2026
             </h2>
-            <div className="flex items-center gap-4 mt-1">
+            <div className="flex items-center gap-4 mt-1 overflow-x-auto scrollbar-hide pb-1">
               {regionalConventionProgram.map((day, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleDayChange(idx)}
-                  className={`text-sm font-bold transition-all pb-1 border-b-2 whitespace-nowrap ${
+                  className={`text-sm font-bold transition-all pb-1 border-b-2 whitespace-nowrap shrink-0 ${
                     selectedDayIndex === idx 
                       ? 'border-current' 
                       : 'text-gray-400 border-transparent hover:text-gray-600'
@@ -574,135 +574,139 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden print:bg-transparent print:border-none print:shadow-none print:rounded-none print-container"
       >
-        <div className="print-container">
-          {currentDay.sessions.map((session, sIdx) => (
-            <div key={sIdx} className={`${sIdx > 0 ? 'border-t border-gray-100' : ''} print:border-none`}>
-              <div className="bg-gray-50 px-8 py-6 border-b border-gray-100 flex items-center justify-between no-print">
-                <h5 className="text-xl font-black uppercase tracking-tight" style={{ color: currentDay.color }}>{session.period}</h5>
-                <Calendar className="text-gray-400" size={20} />
-              </div>
-              
-              {/* Print Session Header */}
-              <h2 className="print-session-header" style={{ color: currentDay.color }}>
-                {session.period}
-              </h2>
+        <div className="print-container overflow-x-auto custom-scrollbar">
+          <div className="min-w-[800px] md:min-w-full print:min-w-0">
+            {currentDay.sessions.map((session, sIdx) => (
+              <div key={sIdx} className="print:border-none">
+                <div className="bg-gray-50/50 px-8 py-4 border-y border-gray-100 flex items-center justify-between no-print first:border-t-0">
+                  <h5 className="text-lg font-black uppercase tracking-tight" style={{ color: currentDay.color }}>{session.period}</h5>
+                  <Calendar className="text-gray-400" size={18} />
+                </div>
+                
+                {/* Print Session Header */}
+                <h2 className="print-session-header" style={{ color: currentDay.color }}>
+                  {session.period}
+                </h2>
 
-              <div className="p-6 md:p-8 space-y-8 print:p-0 print:space-y-0 print:print-table">
-                {session.items.map((item, iIdx) => (
-                  <div key={iIdx} className="space-y-4 print:space-y-0 print:contents">
-                    {/* Print Item Row */}
-                    <div className="hidden print:flex print-row">
-                      <div className="print-cell-speaker" style={{ color: currentDay.color }}>
-                        {!item.noSpeaker && (speakers[item.id] || '')}
-                      </div>
-                      <div className="print-cell-time">{item.time || ''}</div>
-                      <div className="print-cell-content">
-                        <span className="print-title">
-                          {item.label && <span className="print-label-small" style={{ color: currentDay.color }}>{item.label} </span>}
-                          <span className={`${item.label || item.isRole ? '' : 'print-title-bold'} ${item.isRole ? 'text-[#512da8]' : ''}`}>
-                            {item.title}
-                          </span>
-                        </span>
-                        {item.subtitle && <div className="text-[8pt] italic font-medium mt-0.5">— {item.subtitle}</div>}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4 md:gap-6 no-print">
-                      {/* Speaker Input - Left Side */}
-                      <div className="w-full sm:w-64 shrink-0">
-                        {!item.noSpeaker && (
-                          <div className="relative group">
-                            <input 
-                              type="text"
-                              placeholder="Orador..."
-                              value={speakers[item.id] || ''}
-                              onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
-                              style={{ 
-                                borderColor: speakers[item.id] ? currentDay.color : undefined,
-                                borderWidth: speakers[item.id] ? '2px' : '1px'
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-1 gap-4">
-                        <div className="w-12 shrink-0 text-right pt-1">
-                          <span className="text-sm font-bold text-gray-500">
-                            {item.time || ''}
-                          </span>
+                <div className="p-6 md:p-8 space-y-8 print:p-0 print:space-y-0 print:print-table">
+                  <div className="space-y-8 print:space-y-0">
+                    {session.items.map((item, iIdx) => (
+                    <div key={iIdx} className="space-y-4 print:space-y-0 print:contents">
+                      {/* Print Item Row */}
+                      <div className="hidden print:flex print-row">
+                        <div className="print-cell-speaker" style={{ color: currentDay.color }}>
+                          {!item.noSpeaker && (speakers[item.id] || '')}
                         </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1">
-                              <h6 className="text-base leading-tight text-gray-800">
-                                {item.label && <span className="font-bold mr-1" style={{ color: currentDay.color }}>{item.label}</span>}
-                                <span className={item.label || item.isRole ? 'font-medium' : 'font-bold'}>
-                                  {item.isRole ? <span className="text-[#512da8] font-bold">{item.title}</span> : item.title}
-                                </span>
-                              </h6>
-                              {item.subtitle && (
-                                <p className="text-sm text-gray-700 font-bold italic mt-1">{item.subtitle}</p>
-                              )}
+                        <div className="print-cell-time">{item.time || ''}</div>
+                        <div className="print-cell-content">
+                          <span className="print-title">
+                            {item.label && <span className="print-label-small" style={{ color: currentDay.color }}>{item.label} </span>}
+                            <span className={`${item.label || item.isRole ? '' : 'print-title-bold'} ${item.isRole ? 'text-[#512da8]' : ''}`}>
+                              {item.title}
+                            </span>
+                          </span>
+                          {item.subtitle && <div className="text-[8pt] italic font-medium mt-0.5">— {item.subtitle}</div>}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-row gap-4 md:gap-6 no-print">
+                        {/* Speaker Input - Left Side */}
+                        <div className="w-64 shrink-0">
+                          {!item.noSpeaker && (
+                            <div className="relative group">
+                              <input 
+                                type="text"
+                                placeholder="Orador..."
+                                value={speakers[item.id] || ''}
+                                onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
+                                style={{ 
+                                  borderColor: speakers[item.id] ? currentDay.color : undefined,
+                                  borderWidth: speakers[item.id] ? '2px' : '1px'
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-1 gap-4">
+                          <div className="w-12 shrink-0 text-right pt-1">
+                            <span className="text-sm font-bold text-gray-500">
+                              {item.time || ''}
+                            </span>
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1">
+                                <h6 className="text-base leading-tight text-gray-800">
+                                  {item.label && <span className="font-bold mr-1" style={{ color: currentDay.color }}>{item.label}</span>}
+                                  <span className={item.label || item.isRole ? 'font-medium' : 'font-bold'}>
+                                    {item.isRole ? <span className="text-[#512da8] font-bold">{item.title}</span> : item.title}
+                                  </span>
+                                </h6>
+                                {item.subtitle && (
+                                  <p className="text-sm text-gray-700 font-bold italic mt-1">{item.subtitle}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Subitems - Aligned with main items */}
-                    {item.subitems && (
-                      <div className="space-y-4 pt-2 print:space-y-0 print:pt-0 print:w-full print:contents">
-                        {item.subitems.map((sub, subIdx) => (
-                          <div key={subIdx} className="flex flex-col sm:flex-row gap-4 md:gap-6 print:contents">
-                            {/* Print Subitem Layout */}
-                            <div className="hidden print:flex print-row print-subitem-row">
-                              <div className="print-cell-speaker" style={{ color: currentDay.color }}>
-                                {speakers[sub.id] || ''}
+                      {/* Subitems - Aligned with main items */}
+                      {item.subitems && (
+                        <div className="space-y-4 pt-2 print:space-y-0 print:pt-0 print:w-full print:contents">
+                          {item.subitems.map((sub, subIdx) => (
+                            <div key={subIdx} className="flex flex-row gap-4 md:gap-6 print:contents">
+                              {/* Print Subitem Layout */}
+                              <div className="hidden print:flex print-row print-subitem-row">
+                                <div className="print-cell-speaker" style={{ color: currentDay.color }}>
+                                  {speakers[sub.id] || ''}
+                                </div>
+                                <div className="print-cell-time"></div>
+                                <div className="print-cell-content">
+                                  <div className="italic font-semibold text-gray-700">
+                                    • {sub.title}
+                                  </div>
+                                </div>
                               </div>
-                              <div className="print-cell-time"></div>
-                              <div className="print-cell-content">
-                                <div className="italic font-semibold text-gray-700">
-                                  • {sub.title}
+
+                              {/* Speaker Input - Left Side (Hidden in Print) */}
+                              <div className="w-64 shrink-0 no-print">
+                                <div className="relative group">
+                                  <input 
+                                    type="text"
+                                    placeholder="Orador..."
+                                    value={speakers[sub.id] || ''}
+                                    onChange={(e) => handleSpeakerChange(sub.id, e.target.value)}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
+                                    style={{ 
+                                      borderColor: speakers[sub.id] ? currentDay.color : undefined,
+                                      borderWidth: speakers[sub.id] ? '2px' : '1px'
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="flex flex-1 gap-4 no-print">
+                                <div className="w-12 shrink-0"></div>
+                                <div className="flex-1 pl-4 border-l-2" style={{ borderColor: `${currentDay.color}20` }}>
+                                  <p className="text-sm text-gray-700 font-semibold">• {sub.title}</p>
                                 </div>
                               </div>
                             </div>
-
-                            {/* Speaker Input - Left Side (Hidden in Print) */}
-                            <div className="w-full sm:w-64 shrink-0 no-print">
-                              <div className="relative group">
-                                <input 
-                                  type="text"
-                                  placeholder="Orador..."
-                                  value={speakers[sub.id] || ''}
-                                  onChange={(e) => handleSpeakerChange(sub.id, e.target.value)}
-                                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
-                                  style={{ 
-                                    borderColor: speakers[sub.id] ? currentDay.color : undefined,
-                                    borderWidth: speakers[sub.id] ? '2px' : '1px'
-                                  }}
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="flex flex-1 gap-4 no-print">
-                              <div className="w-12 shrink-0"></div>
-                              <div className="flex-1 pl-4 border-l-2" style={{ borderColor: `${currentDay.color}20` }}>
-                                <p className="text-sm text-gray-700 font-semibold">• {sub.title}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
         </div>
-      </motion.div>
+      </div>
+    </motion.div>
 
       {/* Confirmation Modal */}
       <AnimatePresence>
