@@ -226,7 +226,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   const avgMeioSemana = calculateAverageReunioes(data.reunioes.meioSemana);
   const pubAtivosNum = parseInt(data.pubAtivos) || 0;
   const difference = avgFimSemana - pubAtivosNum;
-  const percentage = pubAtivosNum > 0 ? Math.round((difference / pubAtivosNum) * 100) : 0;
+  const percentageRaw = pubAtivosNum > 0 ? (difference / pubAtivosNum) * 100 : 0;
+  const percentageFormatted = percentageRaw.toFixed(1).replace('.', ',');
 
   // Calculate sum of studies automatically
   const totalEstudos = Object.values(data.ministério).reduce((acc, curr) => acc + (parseInt(curr.estudos) || 0), 0);
@@ -593,7 +594,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     { id: 'servos', label: 'Números de SERVOS MINISTERIAIS', color: 'text-[#512da8]' }
                   ].map((item, idx) => {
                     const val = item.id === 'mediaEstudos' ? totalEstudos : data.estatisticas[item.id as keyof AnalysisData['estatisticas']];
-                    const perc = pubAtivosNum > 0 ? Math.round((val / pubAtivosNum) * 100) : 0;
+                    const perc = pubAtivosNum > 0 ? (val / pubAtivosNum * 100).toFixed(1).replace('.', ',') : '0,0';
                     const average = pubAtivosNum > 0 ? (val / pubAtivosNum).toFixed(1).replace('.', ',') + '/pub' : '0,0/pub';
                     return (
                       <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-indigo-50/30 transition-colors`}>
@@ -732,7 +733,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
             <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Porcentagem sobre nº de publicadores (Fim de Semana)</label>
               <div className="text-2xl font-bold text-[#512da8]">
-                {percentage > 0 ? `+${percentage}%` : `${percentage}%`}
+                {percentageRaw > 0 ? `+${percentageFormatted}%` : `${percentageFormatted}%`}
               </div>
             </div>
           </div>
