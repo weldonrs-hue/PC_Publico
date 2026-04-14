@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Manrope, Libre_Baskerville } from 'next/font/google';
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import LGPDConsent from '@/components/LGPDConsent';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning className="bg-gray-50 font-sans">
         <ErrorBoundary>
           {children}
+          <LGPDConsent />
         </ErrorBoundary>
       </body>
     </html>

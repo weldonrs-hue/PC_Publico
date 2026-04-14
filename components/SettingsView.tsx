@@ -15,7 +15,9 @@ import {
   CheckCircle2,
   AlertCircle,
   UserX,
-  X
+  X,
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -87,6 +89,13 @@ const settingsButtons = [
     title: 'FORMATAR',
     subtitle: 'MINHA CONTA',
     color: 'bg-[#6c40bd]'
+  },
+  {
+    id: 'privacidade',
+    icon: ShieldCheck,
+    title: 'PRIVACIDADE',
+    subtitle: 'E PROTEÇÃO DE DADOS',
+    color: 'bg-[#6c40bd]'
   }
 ];
 
@@ -102,6 +111,7 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isFormattingAccount, setIsFormattingAccount] = useState(false);
+  const [isShowingPrivacy, setIsShowingPrivacy] = useState(false);
   const [formatStep, setFormatStep] = useState<'confirm' | 'formatting' | 'success'>('confirm');
   const [formatPassword, setFormatPassword] = useState('');
   const [formatError, setFormatError] = useState<string | null>(null);
@@ -233,6 +243,8 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       setFormatStep('confirm');
       setFormatPassword('');
       setFormatError(null);
+    } else if (id === 'privacidade') {
+      setIsShowingPrivacy(true);
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
     }
@@ -627,6 +639,95 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
                 </div>
               )}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Privacy Modal */}
+      <AnimatePresence>
+        {isShowingPrivacy && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
+            >
+              <div className="flex items-center justify-between sticky top-0 bg-white pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-100 p-2 rounded-xl text-green-600">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">Privacidade e LGPD</h3>
+                </div>
+                <button 
+                  onClick={() => setIsShowingPrivacy(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-6 text-sm text-gray-600 leading-relaxed">
+                <section className="space-y-2">
+                  <h4 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Compromisso com a Privacidade</h4>
+                  <p>
+                    O ProgCir Web está comprometido com a proteção dos dados pessoais processados no sistema, em total conformidade com a 
+                    <strong> Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.
+                  </p>
+                </section>
+
+                <section className="space-y-2">
+                  <h4 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Finalidade do Processamento</h4>
+                  <p>
+                    Os dados coletados (como nomes de congregações, oradores, itinerários e relatórios de serviço) são utilizados exclusivamente para 
+                    fins de organização e gestão das atividades do circuito. Não compartilhamos esses dados com terceiros para fins comerciais.
+                  </p>
+                </section>
+
+                <section className="space-y-2">
+                  <h4 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Seus Direitos</h4>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>Acesso:</strong> Você tem total acesso aos dados que insere no sistema.</li>
+                    <li><strong>Correção:</strong> Você pode editar qualquer informação a qualquer momento através das telas de gestão.</li>
+                    <li><strong>Exclusão:</strong> Você pode apagar todos os seus dados permanentemente usando a função "Formatar Conta" nestes Ajustes.</li>
+                    <li><strong>Portabilidade:</strong> Você pode exportar seus dados através das funções de impressão e geração de PDF.</li>
+                  </ul>
+                </section>
+
+                <section className="space-y-2">
+                  <h4 className="font-bold text-gray-900 uppercase tracking-wider text-xs">Segurança</h4>
+                  <p>
+                    Utilizamos a infraestrutura do Google Firebase para armazenamento seguro, com criptografia em trânsito e em repouso. 
+                    O acesso aos dados é restrito ao seu usuário autenticado via Google Auth.
+                  </p>
+                </section>
+
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                  <span className="text-xs font-medium">Para mais informações sobre a lei vigente:</span>
+                  <button 
+                    onClick={() => window.open('https://www.gov.br/esporte/pt-br/acesso-a-informacao/lgpd', '_blank')}
+                    className="flex items-center gap-1 text-[#6c40bd] font-bold text-xs hover:underline"
+                  >
+                    Portal LGPD <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <button 
+                  onClick={() => setIsShowingPrivacy(false)}
+                  className="w-full py-3 bg-[#6c40bd] text-white font-bold rounded-xl hover:bg-[#5a35a0] transition-colors shadow-lg"
+                >
+                  Entendi
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

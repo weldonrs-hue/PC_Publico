@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+// CSS is already imported in globals.css
 import { Maximize, Navigation } from 'lucide-react';
 
 // Fix for Leaflet marker icons in Next.js
