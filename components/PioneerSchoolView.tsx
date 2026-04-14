@@ -412,9 +412,11 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
         
         for (let i = 0; i < recordStarts.length; i++) {
           const currentMatch = recordStarts[i];
+          if (!currentMatch) continue;
+          
           const nextMatch = recordStarts[i + 1];
-          const startIdx = currentMatch.index!;
-          const endIdx = nextMatch ? nextMatch.index : normalizedText.length;
+          const startIdx = currentMatch.index;
+          const endIdx = nextMatch?.index !== undefined ? nextMatch.index : normalizedText.length;
           const recordText = normalizedText.substring(startIdx, endIdx).trim();
           
           const idMatch = recordText.match(/^(\d+)\s+(\d{7,8})\b/);
@@ -422,9 +424,9 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           
           const afterId = recordText.substring(idMatch[0].length).trim();
           const dateMatch = afterId.match(/(\d{2}\/\d{2}\/\d{4})/);
-          if (!dateMatch) continue;
+          if (!dateMatch || dateMatch.index === undefined) continue;
           
-          const dateIdx = dateMatch.index!;
+          const dateIdx = dateMatch.index;
           const nameAndCong = afterId.substring(0, dateIdx).trim();
           const lastParenIdx = nameAndCong.lastIndexOf('(');
           if (lastParenIdx === -1) continue;

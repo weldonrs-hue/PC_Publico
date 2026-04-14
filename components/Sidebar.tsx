@@ -76,6 +76,9 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
     if (itemView === 'events') {
       return ['events', 'regional_convention_program'].includes(currentView);
     }
+    if (itemView === 'misc') {
+      return ['misc', 'text_editor'].includes(currentView);
+    }
     return currentView === itemView;
   };
 
@@ -162,7 +165,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
           "
         >
           {menuItems.map((item) => {
-            const isDisabled = ['misc'].includes(item.view);
+            const isDisabled = [].includes(item.view as never);
             return (
               <Link
                 key={item.label}

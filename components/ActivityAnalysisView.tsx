@@ -594,6 +594,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                   ].map((item, idx) => {
                     const val = item.id === 'mediaEstudos' ? totalEstudos : data.estatisticas[item.id as keyof AnalysisData['estatisticas']];
                     const perc = pubAtivosNum > 0 ? Math.round((val / pubAtivosNum) * 100) : 0;
+                    const average = pubAtivosNum > 0 ? (val / pubAtivosNum).toFixed(1).replace('.', ',') + '/pub' : '0,0/pub';
                     return (
                       <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-indigo-50/30 transition-colors`}>
                         <td className={`p-4 font-normal text-lg ${item.color}`}>{item.label}</td>
@@ -618,7 +619,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                         </td>
                         <td className="p-4 text-center">
                           <span className="font-bold text-xl text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-                            {perc}%
+                            {item.id === 'mediaEstudos' ? average : `${perc}%`}
                           </span>
                         </td>
                       </tr>

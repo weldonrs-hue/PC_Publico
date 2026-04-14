@@ -17,6 +17,8 @@ import SchoolsView from '@/components/SchoolsView';
 import PioneerSchoolView from '@/components/PioneerSchoolView';
 import EventsView from '@/components/EventsView';
 import RegionalConventionView from '@/components/RegionalConventionView';
+import MiscView from '@/components/MiscView';
+import TextEditor from '@/components/TextEditor';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -93,7 +95,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor'>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -154,6 +156,8 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
+    } else if (['misc', 'text_editor'].includes(currentView)) {
+      setLastSubViews(prev => ({ ...prev, misc: currentView }));
     }
   }, [currentView]);
 
@@ -777,6 +781,14 @@ export default function Home() {
                 // Restore last visited sub-view in Schools
                 changeView(lastSubViews.schools as any);
               }
+            } else if (view === 'misc') {
+              // If already in a Misc sub-view, reset to main misc
+              if (['misc', 'text_editor'].includes(currentView)) {
+                changeView('misc');
+              } else {
+                // Restore last visited sub-view in Misc
+                changeView(lastSubViews.misc || 'misc');
+              }
             } else {
               changeView(view as any);
             }
@@ -956,6 +968,18 @@ export default function Home() {
             <RegionalConventionView 
               userId={user.id}
               onBack={() => changeView('events')}
+            />
+          )}
+
+          {currentView === 'misc' && (
+            <MiscView 
+              onViewChange={(view) => changeView(view as any)}
+            />
+          )}
+
+          {currentView === 'text_editor' && (
+            <TextEditor 
+              onBack={() => changeView('misc')}
             />
           )}
         </div>
