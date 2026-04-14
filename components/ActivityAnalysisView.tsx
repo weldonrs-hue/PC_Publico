@@ -510,8 +510,9 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="p-4 text-left font-bold text-gray-600">CATEGORIA</th>
-                    <th className="p-4 text-center font-bold text-gray-600 w-36">Nº RELATANDO</th>
-                    <th className="p-4 text-center font-bold text-gray-600 w-36">Nº DE ESTUDOS</th>
+                    <th className="p-4 text-center font-bold text-gray-600 w-32">Nº RELATANDO</th>
+                    <th className="p-4 text-center font-bold text-gray-600 w-32">Nº DE ESTUDOS</th>
+                    <th className="p-4 text-center font-bold text-gray-600 w-28">MÉDIA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -520,45 +521,57 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     { id: 'pioneirosAuxiliares', label: 'PIONEIROS AUXILIARES', bg: 'bg-teal-50/30' },
                     { id: 'pioneirosRegulares', label: 'PIONEIROS REGULARES', bg: 'bg-white' },
                     { id: 'pioneirosEspeciais', label: 'PIONEIROS ESPECIAIS', bg: 'bg-teal-50/30' }
-                  ].map((item) => (
-                    <tr key={item.id} className={`${item.bg} hover:bg-teal-50/50 transition-colors`}>
-                      <td className="p-4 font-bold text-gray-700 text-lg">{item.label}</td>
-                      <td className="p-2">
-                        <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
-                          <input 
-                            type="number"
-                            value={data.ministério[item.id as keyof AnalysisData['ministério']].relatando}
-                            onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'relatando', e.target.value)}
-                            className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
-                          />
-                          <button 
-                            onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
-                            className="absolute right-1.5 p-1.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
-                            title="Calcular média"
-                          >
-                            <Calculator size={16} />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="p-2">
-                        <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
-                          <input 
-                            type="number"
-                            value={data.ministério[item.id as keyof AnalysisData['ministério']].estudos}
-                            onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'estudos', e.target.value)}
-                            className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
-                          />
-                          <button 
-                            onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
-                            className="absolute right-1.5 p-1.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
-                            title="Calcular média"
-                          >
-                            <Calculator size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  ].map((item) => {
+                    const itemData = data.ministério[item.id as keyof AnalysisData['ministério']];
+                    const relatandoNum = parseInt(itemData.relatando) || 0;
+                    const estudosNum = parseInt(itemData.estudos) || 0;
+                    const avg = relatandoNum > 0 ? (estudosNum / relatandoNum).toFixed(1).replace('.', ',') : '0,0';
+
+                    return (
+                      <tr key={item.id} className={`${item.bg} hover:bg-teal-50/50 transition-colors`}>
+                        <td className="p-4 font-bold text-gray-700 text-lg">{item.label}</td>
+                        <td className="p-2">
+                          <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
+                            <input 
+                              type="number"
+                              value={itemData.relatando}
+                              onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'relatando', e.target.value)}
+                              className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
+                            />
+                            <button 
+                              onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
+                              className="absolute right-1.5 p-1.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
+                              title="Calcular média"
+                            >
+                              <Calculator size={16} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-2">
+                          <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
+                            <input 
+                              type="number"
+                              value={itemData.estudos}
+                              onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'estudos', e.target.value)}
+                              className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
+                            />
+                            <button 
+                              onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
+                              className="absolute right-1.5 p-1.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
+                              title="Calcular média"
+                            >
+                              <Calculator size={16} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className="font-bold text-lg text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                            {avg}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
