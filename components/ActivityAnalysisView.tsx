@@ -192,6 +192,11 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
     }));
   };
 
+  const formatCurrency = (value: string) => {
+    const num = parseFloat(value.replace(',', '.')) || 0;
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const updateTable = (section: 'donativos' | 'reunioes', field: string, index: number, value: string) => {
     setIsDirty(true);
     setData(prev => {
@@ -348,9 +353,9 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
 
   return (
     <>
-      <div className="space-y-6 max-w-5xl mx-auto pb-12">
+      <div className="space-y-3 max-w-5xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-2.5 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-3">
         <div className="flex items-center gap-4">
           <button 
             onClick={handleBack}
@@ -385,7 +390,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
       </div>
 
       <div className="overflow-x-auto pb-4">
-        <div id="activity-analysis-form" className="min-w-[800px] space-y-6 bg-white p-[8mm] shadow-2xl border border-gray-200 print:shadow-none print:border-none print:p-0 print:space-y-4 font-sans text-gray-900 overflow-hidden leading-tight print:min-w-0">
+        <div id="activity-analysis-form" className="min-w-[800px] space-y-3 bg-white p-[5mm] shadow-2xl border border-gray-200 print:shadow-none print:border-none print:p-0 print:space-y-2 font-sans text-gray-900 overflow-hidden leading-tight print:min-w-0">
         <style jsx global>{`
           @media print {
             @page {
@@ -468,14 +473,14 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           <p className="text-lg text-gray-500 font-medium">{data.congregacao} — {data.dataVisita}</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Left Column */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-3">
           {/* Top Info */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-1">
               <label className="text-sm font-bold text-[#512da8] uppercase mb-1 block tracking-tight">Congregação</label>
-              <div className="p-3 bg-indigo-50/50 rounded-xl font-bold text-gray-800 border border-indigo-100 text-xl">
+              <div className="p-3 bg-indigo-50/50 rounded-xl font-bold text-gray-800 border border-indigo-100 text-base">
                 {data.congregacao}
               </div>
             </div>
@@ -488,12 +493,12 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                   setIsDirty(true);
                   setData({...data, pubAtivos: e.target.value});
                 }}
-                className="w-full p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 focus:border-[#512da8] focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-bold text-center text-2xl text-[#512da8]"
+                className="w-full p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 focus:border-[#512da8] focus:ring-2 focus:ring-indigo-200 outline-none transition-all font-bold text-center text-lg text-[#512da8]"
               />
             </div>
             <div>
               <label className="text-sm font-bold text-[#512da8] uppercase mb-1 block tracking-tight">Data da visita</label>
-              <div className="p-3 bg-indigo-50/50 rounded-xl font-bold text-gray-800 border border-indigo-100 text-center text-xl">
+              <div className="p-3 bg-indigo-50/50 rounded-xl font-bold text-gray-800 border border-indigo-100 text-center text-base">
                 {data.dataVisita}
               </div>
             </div>
@@ -501,18 +506,18 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
 
           {/* Ministry Activities */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
+            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-2.5 text-white flex items-center gap-2">
               <Users size={20} />
-              <h3 className="font-bold text-lg uppercase tracking-widest">Atividades Gerais do Ministério (média mensal)</h3>
+              <h3 className="font-bold text-base uppercase tracking-widest">Atividades Gerais do Ministério (média mensal)</h3>
             </div>
             <div className="p-0">
               <table className="w-full text-base">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-4 text-left font-bold text-gray-600">CATEGORIA</th>
-                    <th className="p-4 text-center font-bold text-gray-600 w-32">Nº RELATANDO</th>
-                    <th className="p-4 text-center font-bold text-gray-600 w-32">Nº DE ESTUDOS</th>
-                    <th className="p-4 text-center font-bold text-gray-600 w-28">MÉDIA</th>
+                    <th className="p-2 text-left font-bold text-gray-600">CATEGORIA</th>
+                    <th className="p-2 text-center font-bold text-gray-600 w-32">Nº RELATANDO</th>
+                    <th className="p-2 text-center font-bold text-gray-600 w-32">Nº DE ESTUDOS</th>
+                    <th className="p-2 text-center font-bold text-gray-600 w-28">MÉDIA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -529,43 +534,43 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
 
                     return (
                       <tr key={item.id} className={`${item.bg} hover:bg-teal-50/50 transition-colors`}>
-                        <td className="p-4 font-bold text-gray-700 text-lg">{item.label}</td>
-                        <td className="p-2">
+                        <td className="p-2 font-bold text-gray-700 text-base">{item.label}</td>
+                        <td className="p-1">
                           <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
                             <input 
                               type="number"
                               value={itemData.relatando}
                               onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'relatando', e.target.value)}
-                              className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
+                              className="w-full p-1.5 bg-transparent text-center font-bold outline-none text-sm text-gray-800"
                             />
                             <button 
                               onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
-                              className="absolute right-1.5 p-1.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
+                              className="absolute right-1 p-0.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
                               title="Calcular média"
                             >
-                              <Calculator size={16} />
+                              <Calculator size={14} />
                             </button>
                           </div>
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <div className="relative flex items-center bg-white rounded-xl border border-gray-200 shadow-sm focus-within:border-[#512da8] focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
                             <input 
                               type="number"
                               value={itemData.estudos}
                               onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'estudos', e.target.value)}
-                              className="w-full p-2.5 bg-transparent text-center font-bold outline-none text-xl text-gray-800"
+                              className="w-full p-1.5 bg-transparent text-center font-bold outline-none text-sm text-gray-800"
                             />
                             <button 
                               onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
-                              className="absolute right-1.5 p-1.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
+                              className="absolute right-1 p-0.5 text-gray-400 hover:text-[#512da8] hover:bg-indigo-50 rounded-lg transition-all"
                               title="Calcular média"
                             >
-                              <Calculator size={16} />
+                              <Calculator size={14} />
                             </button>
                           </div>
                         </td>
-                        <td className="p-4 text-center">
-                          <span className="font-bold text-lg text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                        <td className="p-2 text-center">
+                          <span className="font-bold text-base text-gray-400 bg-gray-100 px-3 py-0.5 rounded-full">
                             {avg}
                           </span>
                         </td>
@@ -579,30 +584,30 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
 
           {/* Congregation Stats */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
+            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-2.5 text-white flex items-center gap-2">
               <BarChart3 size={20} />
-              <h3 className="font-bold text-lg uppercase tracking-widest">Estatísticas da Congregação</h3>
+              <h3 className="font-bold text-base uppercase tracking-widest">Estatísticas da Congregação</h3>
             </div>
             <div className="p-0">
               <table className="w-full text-base">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-4 text-left font-bold text-gray-600">DESCRIÇÃO</th>
-                    <th className="p-4 text-center font-bold text-gray-600 w-44">QUANTIDADE</th>
-                    <th className="p-4 text-center font-bold text-gray-600 w-32">PORCENTAGEM</th>
+                    <th className="p-2 text-left font-bold text-gray-600">DESCRIÇÃO</th>
+                    <th className="p-2 text-center font-bold text-gray-600 w-44">QUANTIDADE</th>
+                    <th className="p-2 text-center font-bold text-gray-600 w-32">PORCENTAGEM</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {[
                     { id: 'mediaEstudos', label: 'Média mensal de Estudos Bíblicos', color: 'text-gray-700', isAuto: true },
                     { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos', color: 'text-gray-700' },
-                    { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES desde a última visita', color: 'text-emerald-600' },
-                    { id: 'reativados', label: 'Quantos foram REATIVADOS desde a última visita', color: 'text-emerald-600' },
-                    { id: 'readmitidos', label: 'Quantos foram READMITIDOS desde a última visita', color: 'text-emerald-600' },
-                    { id: 'batizados', label: 'Quantos foram BATIZADOS desde a última visita', color: 'text-amber-600' },
-                    { id: 'irregulares', label: 'Número de IRREGULARES desde a última visita', color: 'text-red-600' },
-                    { id: 'inativos', label: 'Quantos ficaram INATIVOS desde a última visita', color: 'text-red-600' },
-                    { id: 'removidos', label: 'Quantos ficaram REMOVIDOS desde a última visita', color: 'text-red-600' },
+                    { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES*', color: 'text-emerald-600' },
+                    { id: 'reativados', label: 'Quantos foram REATIVADOS*', color: 'text-emerald-600' },
+                    { id: 'readmitidos', label: 'Quantos foram READMITIDOS*', color: 'text-emerald-600' },
+                    { id: 'batizados', label: 'Quantos foram BATIZADOS*', color: 'text-amber-600' },
+                    { id: 'irregulares', label: 'Número de IRREGULARES*', color: 'text-red-600' },
+                    { id: 'inativos', label: 'Quantos ficaram INATIVOS*', color: 'text-red-600' },
+                    { id: 'removidos', label: 'Quantos ficaram REMOVIDOS*', color: 'text-red-600' },
                     { id: 'anciaos', label: 'Número de ANCIÃOS', color: 'text-[#512da8]' },
                     { id: 'servos', label: 'Números de SERVOS MINISTERIAIS', color: 'text-[#512da8]' }
                   ].map((item, idx) => {
@@ -611,28 +616,28 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                     const average = pubAtivosNum > 0 ? (val / pubAtivosNum).toFixed(1).replace('.', ',') + '/pub' : '0,0/pub';
                     return (
                       <tr key={item.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-indigo-50/30 transition-colors`}>
-                        <td className={`p-4 font-normal text-lg ${item.color}`}>{item.label}</td>
-                        <td className="p-2">
-                          <div className="flex items-center justify-center gap-4 bg-white rounded-xl border border-gray-200 p-1 shadow-sm">
+                        <td className={`p-2 font-normal text-base ${item.color}`}>{item.label}</td>
+                        <td className="p-1">
+                          <div className="flex items-center justify-center gap-3 bg-white rounded-xl border border-gray-200 p-0.5 shadow-sm">
                             <button 
                               onClick={() => !item.isAuto && updateEstatistica(item.id as keyof AnalysisData['estatisticas'], -1)}
                               disabled={item.isAuto}
-                              className={`p-1.5 rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white transition-all active:scale-90 ${item.isAuto ? 'opacity-20 cursor-not-allowed' : ''}`}
+                              className={`p-1 rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white transition-all active:scale-90 ${item.isAuto ? 'opacity-20 cursor-not-allowed' : ''}`}
                             >
-                              <Minus size={16} />
+                              <Minus size={14} />
                             </button>
-                            <span className="font-bold text-2xl min-w-[40px] text-center text-gray-800">{val}</span>
+                            <span className="font-bold text-lg min-w-[35px] text-center text-gray-800">{val}</span>
                             <button 
                               onClick={() => !item.isAuto && updateEstatistica(item.id as keyof AnalysisData['estatisticas'], 1)}
                               disabled={item.isAuto}
-                              className={`p-1.5 rounded-lg bg-teal-100 text-teal-600 hover:bg-teal-600 hover:text-white transition-all active:scale-90 ${item.isAuto ? 'opacity-20 cursor-not-allowed' : ''}`}
+                              className={`p-1 rounded-lg bg-teal-100 text-teal-600 hover:bg-teal-600 hover:text-white transition-all active:scale-90 ${item.isAuto ? 'opacity-20 cursor-not-allowed' : ''}`}
                             >
-                              <Plus size={16} />
+                              <Plus size={14} />
                             </button>
                           </div>
                         </td>
-                        <td className="p-4 text-center">
-                          <span className="font-bold text-xl text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                        <td className="p-2 text-center">
+                          <span className="font-bold text-base text-gray-400 bg-gray-100 px-3 py-0.5 rounded-full">
                             {item.id === 'mediaEstudos' ? average : `${perc}%`}
                           </span>
                         </td>
@@ -641,50 +646,55 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                   })}
                 </tbody>
               </table>
+              <div className="p-2 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-500 italic">
+                * Desde a última visita
+              </div>
             </div>
           </div>
         </div>
 
         {/* Right Column */}
-        <div className="space-y-6">
+        <div className="space-y-3">
           {/* Donations */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
+            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-2.5 text-white flex items-center gap-2">
               <DollarSign size={20} />
-              <h3 className="font-bold text-lg uppercase tracking-widest">Donativos</h3>
+              <h3 className="font-bold text-base uppercase tracking-widest">Donativos</h3>
             </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+            <div className="p-2.5 space-y-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase text-center block tracking-widest">Congregação</label>
                   {data.donativos.congregacao.map((v, i) => (
                     <input 
                       key={i}
                       value={v}
                       onChange={(e) => updateTable('donativos', 'congregacao', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-xl font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      onBlur={(e) => updateTable('donativos', 'congregacao', i, formatCurrency(e.target.value))}
+                      className="w-full p-1.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-base font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                       placeholder="0,00"
                     />
                   ))}
-                  <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
+                  <div className="pt-1.5 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
                     <span className="text-xs font-bold text-gray-400 tracking-widest">TOTAL</span>
-                    <span className="font-bold text-2xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.congregacao)}</span>
+                    <span className="font-bold text-lg text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.congregacao)}</span>
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-400 uppercase text-center block tracking-widest">Obra Mundial</label>
                   {data.donativos.obraMundial.map((v, i) => (
                     <input 
                       key={i}
                       value={v}
                       onChange={(e) => updateTable('donativos', 'obraMundial', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-xl font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      onBlur={(e) => updateTable('donativos', 'obraMundial', i, formatCurrency(e.target.value))}
+                      className="w-full p-1.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-base font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                       placeholder="0,00"
                     />
                   ))}
-                  <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
+                  <div className="pt-1.5 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
                     <span className="text-xs font-bold text-gray-400 tracking-widest">TOTAL</span>
-                    <span className="font-bold text-2xl text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.obraMundial)}</span>
+                    <span className="font-bold text-lg text-[#512da8]">R$ {calculateTotalDonativos(data.donativos.obraMundial)}</span>
                   </div>
                 </div>
               </div>
@@ -693,13 +703,13 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
 
           {/* Meetings */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-4 text-white flex items-center gap-2">
+            <div className="bg-gradient-to-r from-[#4a7c74] to-[#5a8c84] p-2.5 text-white flex items-center gap-2">
               <Users size={18} />
               <h3 className="font-bold text-base uppercase tracking-widest">Reuniões</h3>
             </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+            <div className="p-2.5 space-y-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase text-center block tracking-widest">Meio de Semana</label>
                   {data.reunioes.meioSemana.map((v, i) => (
                     <input 
@@ -707,15 +717,15 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                       type="number"
                       value={v}
                       onChange={(e) => updateTable('reunioes', 'meioSemana', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-1.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                     />
                   ))}
-                  <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
+                  <div className="pt-1.5 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
                     <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Média</span>
                     <span className="font-bold text-base text-teal-600">{avgMeioSemana}</span>
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase text-center block tracking-widest">Fim de Semana</label>
                   {data.reunioes.fimSemana.map((v, i) => (
                     <input 
@@ -723,10 +733,10 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                       type="number"
                       value={v}
                       onChange={(e) => updateTable('reunioes', 'fimSemana', i, e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
+                      className="w-full p-1.5 bg-gray-50 rounded-xl border border-gray-100 text-center text-sm font-bold outline-none focus:border-[#512da8] focus:bg-white transition-all"
                     />
                   ))}
-                  <div className="pt-3 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
+                  <div className="pt-1.5 border-t-2 border-dashed border-gray-100 flex flex-col items-center">
                     <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Média</span>
                     <span className="font-bold text-base text-teal-600">{avgFimSemana}</span>
                   </div>
@@ -736,16 +746,16 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 gap-4">
-            <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
+          <div className="grid grid-cols-1 gap-2.5">
+            <div className="bg-white p-3 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Diferença entre publicadores e média de Fim de Semana</label>
-              <div className={`text-2xl font-bold ${difference >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              <div className={`text-lg font-bold ${difference >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {difference > 0 ? `+${difference}` : difference}
               </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
+            <div className="bg-white p-3 rounded-2xl shadow-md border-t-4 border-indigo-500 text-center space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Porcentagem sobre nº de publicadores (Fim de Semana)</label>
-              <div className="text-2xl font-bold text-[#512da8]">
+              <div className="text-lg font-bold text-[#512da8]">
                 {percentageRaw > 0 ? `+${percentageFormatted}%` : `${percentageFormatted}%`}
               </div>
             </div>
