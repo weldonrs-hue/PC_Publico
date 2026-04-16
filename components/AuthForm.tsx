@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
-import { User, Lock, ArrowRight, UserPlus, LogIn, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Lock, ArrowRight, UserPlus, LogIn, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
 
 import { auth } from '@/lib/firebase';
 import { 
@@ -11,6 +11,8 @@ import {
   createUserWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
+
+import TermsAndPrivacy from './TermsAndPrivacy';
 
 interface AuthFormProps {
   onLoginSuccess: (user: any) => void;
@@ -23,6 +25,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showTerms, setShowTerms] = useState(false);
+  const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
 
   const [formData, setFormData] = useState({
     usuario: '',
@@ -234,7 +238,7 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+          <div className="mt-6 pt-4 border-t border-gray-100 text-center space-y-4">
             <button
               onClick={() => {
                 setIsLogin(!isLogin);
@@ -255,9 +259,38 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
                 </>
               )}
             </button>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400">
+                <button 
+                  type="button"
+                  onClick={() => { setTermsType('terms'); setShowTerms(true); }}
+                  className="hover:text-[#6c40bd] hover:underline transition-colors"
+                >
+                  Termos de Uso
+                </button>
+                <div className="w-1 h-1 bg-gray-300 rounded-full" />
+                <button 
+                  type="button"
+                  onClick={() => { setTermsType('privacy'); setShowTerms(true); }}
+                  className="hover:text-[#6c40bd] hover:underline transition-colors"
+                >
+                  Política de Privacidade
+                </button>
+              </div>
+              <p className="text-[9px] text-gray-400/80 flex items-center justify-center gap-1">
+                <Shield size={10} /> Sistema Seguro e Protegido
+              </p>
+            </div>
           </div>
         </div>
       </motion.div>
+
+      <TermsAndPrivacy 
+        isOpen={showTerms} 
+        onClose={() => setShowTerms(false)} 
+        initialTab={termsType}
+      />
     </div>
   );
 }

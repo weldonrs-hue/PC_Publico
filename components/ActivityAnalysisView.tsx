@@ -364,7 +364,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
 
   return (
     <>
-      <div className="space-y-4 max-w-5xl mx-auto pb-12 font-[var(--font-inter)]">
+      <div className="space-y-4 max-w-7xl mx-auto pb-12 font-[var(--font-inter)] px-2 sm:px-4">
         {/* Header - Navigation & Actions */}
         <header className="no-print w-full bg-[#f9f9ff] text-[#4f46e5] font-[var(--font-manrope)] antialiased tracking-tight border border-[#c7c4d8]/30 flex flex-col sm:flex-row justify-between items-center px-6 py-4 rounded-2xl shadow-sm gap-4">
           <div className="flex items-center gap-4">
@@ -405,8 +405,8 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           </div>
         </header>
 
-        <div className="overflow-x-auto pb-4 flex justify-center">
-          <main id="activity-analysis-form" className="a4-page relative bg-white shadow-2xl border border-[#c7c4d8]/20 print:shadow-none print:border-none print:m-0 w-[1137.33px]">
+        <div className="w-full overflow-x-auto pb-4 custom-scrollbar lg:flex lg:justify-center">
+          <main id="activity-analysis-form" className="a4-page relative bg-white shadow-2xl border border-[#c7c4d8]/20 print:shadow-none print:border-none print:m-0 w-[1137.33px] shrink-0">
             <style jsx global>{`
               .a4-page {
                 width: 1137.33px;
@@ -671,7 +671,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                   <div className="flex items-center mb-4 editorial-line pl-3">
                     <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">Donativos</h2>
                   </div>
-                  <div className="grid grid-cols-2 gap-6 bg-white border border-[#c7c4d8]/40 rounded-xl shadow-sm p-5">
+                  <div className="grid grid-cols-2 gap-6 bg-[#DEE8FF] border-2 border-[#3525cd]/10 rounded-xl shadow-sm p-5">
                     {/* Congregação Column */}
                     <div className="flex flex-col">
                       <h3 className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest text-center mb-4">Congregação</h3>
@@ -688,7 +688,6 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                         ))}
                       </div>
                       <div className="pt-4 border-t border-dashed border-[#c7c4d8]/50 text-center">
-                        <p className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest mb-1">Total</p>
                         <p className="font-[var(--font-manrope)] font-bold text-xl text-[#3525cd] leading-tight">
                           <span className="text-xs block mb-0.5">R$</span>
                           {calculateTotalDonativos(data.donativos.congregacao)}
@@ -712,7 +711,6 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                         ))}
                       </div>
                       <div className="pt-4 border-t border-dashed border-[#c7c4d8]/50 text-center">
-                        <p className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest mb-1">Total</p>
                         <p className="font-[var(--font-manrope)] font-bold text-xl text-[#512da8] leading-tight">
                           <span className="text-xs block mb-0.5">R$</span>
                           {calculateTotalDonativos(data.donativos.obraMundial)}
@@ -727,7 +725,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                   <div className="flex items-center mb-4 editorial-line pl-3">
                     <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">Reuniões</h2>
                   </div>
-                  <div className="grid grid-cols-2 gap-6 bg-white border border-[#c7c4d8]/40 rounded-xl shadow-sm p-5">
+                  <div className="grid grid-cols-2 gap-6 bg-[#DEE8FF] border-2 border-[#512da8]/10 rounded-xl shadow-sm p-5">
                     {/* Meio de Semana Column */}
                     <div className="flex flex-col">
                       <h3 className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest text-center mb-4">Meio de Semana</h3>

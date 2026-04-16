@@ -34,7 +34,6 @@ import {
   ListOrdered,
   IndentDecrease,
   IndentIncrease,
-  LineHeight,
   Minus,
   ClipboardPaste,
   Link as LinkIcon,

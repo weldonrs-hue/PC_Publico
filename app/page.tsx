@@ -38,6 +38,7 @@ import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { Camera, User } from 'lucide-react';
 import ImageCropper from '@/components/ImageCropper';
+import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -49,6 +50,8 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
 
   // Initialize client-side state
   useEffect(() => {
@@ -986,11 +989,21 @@ export default function Home() {
 
 
         {/* Footer */}
-        <footer className="mt-auto p-8 border-t border-gray-200 flex justify-between items-center text-xs text-gray-500 print:hidden">
+        <footer className="mt-auto p-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center text-xs text-gray-400 print:hidden gap-4">
           <p>© 2024 ProgCir Web - Gestão de Circuitos</p>
           <div className="flex gap-6">
-            <a className="hover:text-[#6c40bd] transition-colors" href="#">Termos de Uso</a>
-            <a className="hover:text-[#6c40bd] transition-colors" href="#">Privacidade</a>
+            <button 
+              onClick={() => { setTermsType('terms'); setShowTerms(true); }}
+              className="hover:text-[#6c40bd] transition-colors"
+            >
+              Termos de Uso
+            </button>
+            <button 
+              onClick={() => { setTermsType('privacy'); setShowTerms(true); }}
+              className="hover:text-[#6c40bd] transition-colors"
+            >
+              Privacidade
+            </button>
           </div>
         </footer>
       </main>
@@ -1001,6 +1014,11 @@ export default function Home() {
           onCancel={() => setImageToCrop(null)} 
         />
       )}
+      <TermsAndPrivacy 
+        isOpen={showTerms} 
+        onClose={() => setShowTerms(false)} 
+        initialTab={termsType}
+      />
     </div>
   );
 }
