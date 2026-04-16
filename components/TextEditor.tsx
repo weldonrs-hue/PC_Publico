@@ -49,10 +49,18 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import 'react-quill-new/dist/quill.snow.css';
 
-const ReactQuill = dynamic(() => import('react-quill-new'), { 
-  ssr: false,
-  loading: () => <div className="h-[500px] w-full bg-gray-50 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Carregando Editor...</div>
-});
+const ReactQuill = dynamic(
+  async () => {
+    const { default: RQ } = await import('react-quill-new');
+    return function QuillWrapper({ forwardedRef, ...props }: any) {
+      return <RQ ref={forwardedRef} {...props} />;
+    };
+  },
+  { 
+    ssr: false,
+    loading: () => <div className="h-[500px] w-full bg-gray-50 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Carregando Editor...</div>
+  }
+);
 
 interface TextEditorProps {
   onBack: () => void;
@@ -730,7 +738,7 @@ export default function TextEditor({ onBack }: TextEditorProps) {
         >
           <div className="wordpad-editor flex-1 h-full">
             <ReactQuill 
-              ref={quillRef}
+              forwardedRef={quillRef}
               theme="snow" 
               value={content} 
               onChange={setContent}
