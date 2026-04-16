@@ -164,14 +164,14 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
                     {onEdit && (
                       <button 
                         onClick={() => onEdit(cong)}
-                        className="w-full py-1.5 bg-[#E67E22] text-white text-[10px] font-bold rounded hover:bg-[#d35400] transition-colors"
+                        className="w-full py-2 bg-violet-600 text-white text-[10px] font-bold rounded-lg hover:bg-violet-700 transition-colors shadow-sm"
                       >
                         Editar Detalhes
                       </button>
                     )}
                     <button 
                       onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${cong.coords[0]},${cong.coords[1]}`, '_blank')}
-                      className="w-full py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                      className="w-full py-2 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
                     >
                       <Navigation size={12} />
                       Como Chegar

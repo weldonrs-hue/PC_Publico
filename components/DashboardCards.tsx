@@ -6,33 +6,28 @@ import { motion } from 'motion/react';
 const cards = [
   {
     title: 'Dados Pessoais',
-    color: '#4CAF50',
+    color: '#7C3AED', // Violet
     icon: Contact,
-    content: 'Início no Circuito:',
   },
   {
     title: 'Congregações',
-    color: '#E67E22',
+    color: '#8B5CF6', // Indigo
     icon: Store,
-    stats: { congregações: '', grupos: '' },
   },
   {
     title: 'Substitutos',
-    color: '#C2185B',
+    color: '#A78BFA', // Soft Purple
     icon: UserRound,
-    content: 'Registrados:',
   },
   {
     title: 'Itinerários',
-    color: '#7B1FA2',
+    color: '#6D28D9', // Deep Purple
     icon: Map,
-    content: 'Evento:',
   },
   {
     title: 'Estatísticas',
-    color: '#03A9F4',
+    color: '#4C1D95', // Darker Purple
     icon: BarChart3,
-    content: 'Congregações contabilizadas:',
   },
 ];
 
@@ -56,7 +51,7 @@ export default function DashboardCards({
   user
 }: DashboardCardsProps) {
   return (
-    <div className="grid grid-cols-1 landscape:grid-cols-2 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
       {cards.map((card, index) => (
         <motion.div
           key={card.title}
@@ -64,40 +59,63 @@ export default function DashboardCards({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
           onClick={() => onCardClick?.(card.title)}
-          className="flex bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer h-24 border border-gray-100 group"
+          className="relative group cursor-pointer"
         >
-          <div className="w-4 h-full flex-shrink-0" style={{ backgroundColor: card.color }}></div>
-          <div className="flex-1 flex items-center px-6 gap-6">
-            <div className="group-hover:scale-110 transition-transform flex-shrink-0" style={{ color: card.color }}>
-              <card.icon size={32} />
-            </div>
-            <div className="text-left flex flex-col justify-center overflow-hidden">
-              <div className="font-extrabold text-sm leading-tight tracking-wider uppercase truncate" style={{ color: card.color }}>
-                {card.title}
+          {/* Background Glow */}
+          <div 
+            className="absolute inset-0 blur-xl opacity-0 group-hover:opacity-15 transition-opacity duration-500 rounded-3xl"
+            style={{ backgroundColor: card.color }}
+          />
+          
+          <div className="relative flex bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden shadow-sm border border-white/50 hover:border-violet-200/50 hover:bg-white transition-all duration-300 h-28 group">
+            {/* Accent Line */}
+            <div className="w-1.5 h-full opacity-40 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: card.color }}></div>
+            
+            <div className="flex-1 flex items-center px-6 gap-5">
+              <div 
+                className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-inner"
+                style={{ backgroundColor: `${card.color}15`, color: card.color }}
+              >
+                <card.icon size={28} strokeWidth={2.5} />
               </div>
-              <div className="mt-0.5">
-                {card.title === 'Congregações' ? (
-                  <div className="flex flex-col text-[10px] font-bold leading-tight tracking-wide uppercase opacity-80" style={{ color: card.color }}>
-                    <p>Congregações: <span className="font-normal">{congregationCount}</span></p>
-                    <p>Grupos: <span className="font-normal">{groupCount}</span></p>
-                  </div>
-                ) : card.title === 'Dados Pessoais' ? (
-                  <div className="flex flex-col text-[10px] font-bold leading-tight tracking-wide uppercase opacity-80" style={{ color: card.color }}>
-                    <p>Viajante: <span className="font-normal lowercase">{user?.usuario || '---'}@progcir.app</span></p>
-                    {user?.role === 'admin' && (
-                      <p className="text-amber-600 font-black mt-0.5">Administrador</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="font-bold text-[10px] leading-tight tracking-wide uppercase opacity-80 truncate" style={{ color: card.color }}>
-                    {card.title === 'Itinerários' ? 'EVENTO ATUAL: ' : card.content} 
-                    <span className="font-normal">
-                      {card.title === 'Substitutos' ? substituteCount : 
-                       card.title === 'Itinerários' ? (currentEvent || 'Nenhum evento') : 
-                       card.title === 'Estatísticas' ? analyzedCongregationsCount : ''}
-                    </span>
-                  </div>
-                )}
+
+              <div className="text-left flex flex-col justify-center overflow-hidden">
+                <div className="font-black text-xs leading-none tracking-[0.15em] uppercase truncate mb-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                  {card.title}
+                </div>
+                
+                <div className="flex flex-col">
+                  {card.title === 'Congregações' ? (
+                    <div className="space-y-0.5">
+                      <p className="text-[11px] font-bold text-gray-700 leading-none">
+                        CONG: <span className="text-violet-600">{congregationCount}</span>
+                      </p>
+                      <p className="text-[11px] font-bold text-gray-700 leading-none">
+                        GRUPOS: <span className="text-violet-600">{groupCount}</span>
+                      </p>
+                    </div>
+                  ) : card.title === 'Dados Pessoais' ? (
+                    <div className="space-y-0.5">
+                      <p className="text-[11px] font-bold text-gray-700 truncate leading-none">
+                        {user?.usuario || 'usuário'}
+                      </p>
+                      {user?.role === 'admin' && (
+                        <p className="text-[9px] text-violet-500 font-extrabold tracking-widest uppercase">Admin</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] font-bold text-gray-700 leading-none">
+                      <span className="opacity-50 uppercase text-[9px] block mb-0.5">
+                        {card.title === 'Itinerários' ? 'EVENTO ATUAL' : 'TOTAL'}
+                      </span>
+                      <span className="text-violet-600 truncate block">
+                        {card.title === 'Substitutos' ? `${substituteCount} Registrados` : 
+                         card.title === 'Itinerários' ? (currentEvent || 'Nenhum evento') : 
+                         card.title === 'Estatísticas' ? `${analyzedCongregationsCount} Analisadas` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

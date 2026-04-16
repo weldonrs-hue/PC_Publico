@@ -26,17 +26,17 @@ export default function SecondarySection({ congregations, onEdit }: SecondarySec
       >
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <MapPin className="text-[#E67E22]" size={20} />
-            <h5 className="font-headline font-bold text-lg">Visão Geográfica do Circuito</h5>
+            <MapPin className="text-violet-600" size={20} />
+            <h5 className="font-headline font-bold text-lg text-gray-800 tracking-tight">Visão Geográfica do Circuito</h5>
           </div>
         </div>
         
-        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 h-[600px]">
+        <div className="bg-white p-2 rounded-3xl shadow-sm border border-gray-100 h-[600px] hover:shadow-lg transition-shadow duration-500">
           <CongregationsMap congregations={congregations} onEdit={onEdit} />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100">
-          <MapPin size={14} className="text-[#E67E22]" />
+        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50/80 backdrop-blur-sm p-3 rounded-2xl border border-gray-100/50">
+          <MapPin size={14} className="text-violet-500" />
           <span>
             Mostrando {
               congregations.filter(c => {
