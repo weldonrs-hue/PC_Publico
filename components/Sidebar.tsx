@@ -121,19 +121,27 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
 
   return (
     <aside className="
-      fixed z-[1001] bg-[#512da8] text-white transition-all duration-500 ease-in-out
+      fixed z-[1001] bg-gradient-to-b from-[#2E1065] via-[#4C1D95] to-[#5B21B6] text-white transition-all duration-500 ease-in-out
       portrait:bottom-0 portrait:left-0 portrait:right-0 portrait:h-16 portrait:flex-row portrait:w-full
-      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-24 landscape:lg:w-56 landscape:flex-col
-      flex overflow-y-auto overflow-x-hidden landscape:custom-scrollbar
+      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-24 landscape:lg:w-60 landscape:flex-col
+      flex overflow-y-auto overflow-x-hidden landscape:custom-scrollbar shadow-2xl
     ">
       {/* Logo Section */}
       <div className="p-4 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
-          <div className="bg-white p-2 rounded-2xl shadow-lg w-full relative h-16 flex items-center justify-center lg:justify-start lg:px-3 border border-white/20 gap-2 overflow-hidden">
-            <Logo size={38} className="shrink-0" />
-            <span className="text-[#512da8] font-bold text-base hidden lg:block whitespace-nowrap tracking-tight">
-              ProgCir Web
-            </span>
+          <div className="bg-white/10 backdrop-blur-md p-2 rounded-2xl shadow-xl w-full relative h-16 flex items-center justify-center lg:justify-start lg:px-3 border border-white/20 gap-3 overflow-hidden group">
+            <div className="relative">
+              <div className="absolute inset-0 bg-[#C084FC] blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
+              <Logo size={38} className="shrink-0 relative z-10" />
+            </div>
+            <div className="flex flex-col hidden lg:flex">
+              <span className="text-white font-black text-lg leading-tight tracking-tight uppercase">
+                ProgCir
+              </span>
+              <span className="text-[#A855F7] font-bold text-[10px] uppercase tracking-[0.2em] leading-none">
+                Web Interface
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -148,7 +156,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               onClick={() => scroll('left')}
-              className="landscape:hidden absolute left-0 z-10 h-full px-1 bg-gradient-to-r from-[#512da8] to-transparent text-white/80"
+              className="landscape:hidden absolute left-0 z-10 h-full px-1 bg-gradient-to-r from-[#4C1D95] to-transparent text-white/80"
             >
               <ChevronLeft size={20} />
             </motion.button>
@@ -175,11 +183,13 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
                   if (!isDisabled) onViewChange(item.view);
                 }}
                 className={`
-                  flex items-center rounded-xl transition-all group
+                  flex items-center rounded-xl transition-all duration-300 group relative overflow-hidden
                   landscape:justify-start
                   landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
-                  portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[60px]
-                  ${isActive(item.view) ? 'bg-[#673ab7] text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+                  portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[70px]
+                  ${isActive(item.view) 
+                    ? 'bg-gradient-to-r from-white/15 to-transparent border-l-4 border-[#C084FC] text-white shadow-lg' 
+                    : 'text-white/60 hover:text-white hover:bg-white/5 active:scale-95'}
                   ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : ''}
                 `}
                 title={isDisabled ? 'Função em desenvolvimento' : item.label}
@@ -218,7 +228,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 10 }}
               onClick={() => scroll('right')}
-              className="landscape:hidden absolute right-0 z-10 h-full px-1 bg-gradient-to-l from-[#512da8] to-transparent text-white/80"
+              className="landscape:hidden absolute right-0 z-10 h-full px-1 bg-gradient-to-l from-[#2E1065] to-transparent text-white/80"
             >
               <ChevronRight size={20} />
             </motion.button>
@@ -228,19 +238,17 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
 
       {/* Support Section - Replacing Documentation with Logout */}
       <div className="mt-auto landscape:flex portrait:hidden flex-col">
-        <div className="bg-[#4527a0] p-4 lg:p-6 border-t border-white/10">
+        <div className="bg-black/20 p-4 lg:p-6 border-t border-white/5 backdrop-blur-md">
           <div className="space-y-1">
             <button 
               onClick={onLogout}
-              className="flex items-center landscape:justify-start justify-center gap-3 text-white/70 hover:text-white hover:bg-white/5 transition-all w-full group p-2 rounded-lg"
+              className="flex items-center landscape:justify-start justify-center gap-3 text-white/50 hover:text-white hover:bg-red-500/10 transition-all w-full group p-2 rounded-xl group"
             >
-              <div className="w-5 h-5 flex items-center justify-center">
-                <LogOut size={18} />
+              <div className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg group-hover:bg-red-500/20 transition-all">
+                <LogOut size={16} />
               </div>
-              <span className="font-bold text-[10px] lg:text-xs landscape:block lg:block hidden">Sair do Sistema</span>
+              <span className="font-bold text-[10px] lg:text-xs landscape:block lg:block hidden tracking-wide">Finalizar Sessão</span>
             </button>
-
-            {/* Removed Back to Dashboard button as requested */}
           </div>
         </div>
       </div>
