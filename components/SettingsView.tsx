@@ -53,49 +53,56 @@ const settingsButtons = [
     icon: FolderPlus,
     title: 'CRIAR ESTRUTURA',
     subtitle: 'DE PASTAS DO CIRCUITO',
-    color: 'bg-[#6c40bd]'
+    color: '#6c40bd',
+    gradient: 'from-[#6c40bd] to-[#5a35a0]'
   },
   {
     id: 'usuarios',
     icon: Users,
-    title: 'EXIBIR',
+    title: 'EXIBIR USUÁRIOS',
     subtitle: 'USUÁRIOS DO SISTEMA',
-    color: 'bg-[#6c40bd]'
+    color: '#4C1D95',
+    gradient: 'from-[#4C1D95] to-[#2E1065]'
   },
   {
     id: 'senha',
     icon: Lock,
-    title: 'ALTERAR',
-    subtitle: 'MINHA SENHA',
-    color: 'bg-[#6c40bd]'
+    title: 'ALTERAR SENHA',
+    subtitle: 'SEGURANÇA DA CONTA',
+    color: '#8B5CF6',
+    gradient: 'from-[#8B5CF6] to-[#7C3AED]'
   },
   {
     id: 'resgatar',
     icon: RefreshCw,
     title: 'RESGATAR DADOS',
     subtitle: 'DA PLANILHA ANTERIOR',
-    color: 'bg-[#6c40bd]'
+    color: '#5B21B6',
+    gradient: 'from-[#5B21B6] to-[#4C1D95]'
   },
   {
     id: 'impressora',
     icon: Printer,
-    title: 'ESCOLHER E',
-    subtitle: 'CONFIGURAR IMPRESSORA',
-    color: 'bg-[#6c40bd]'
+    title: 'CONFIGURAR IMPRESSORA',
+    subtitle: 'AJUSTES DE IMPRESSÃO',
+    color: '#7C3AED',
+    gradient: 'from-[#7C3AED] to-[#6d28d9]'
   },
   {
     id: 'formatar',
     icon: Trash2,
-    title: 'FORMATAR',
-    subtitle: 'MINHA CONTA',
-    color: 'bg-[#6c40bd]'
+    title: 'FORMATAR CONTA',
+    subtitle: 'LIMPAR TODOS OS DADOS',
+    color: '#4C1D95',
+    gradient: 'from-[#4C1D95] to-[#5B21B6]'
   },
   {
     id: 'privacidade',
     icon: ShieldCheck,
     title: 'PRIVACIDADE',
-    subtitle: 'E PROTEÇÃO DE DADOS',
-    color: 'bg-[#6c40bd]'
+    subtitle: 'PROTEÇÃO DE DADOS (LGPD)',
+    color: '#6c40bd',
+    gradient: 'from-[#6c40bd] to-[#5a35a0]'
   }
 ];
 
@@ -245,6 +252,10 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       setFormatError(null);
     } else if (id === 'privacidade') {
       setIsShowingPrivacy(true);
+    } else if (id === 'impressora') {
+      if (typeof window !== 'undefined') {
+        window.print();
+      }
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
     }
@@ -367,37 +378,61 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
         <h2 className="text-2xl font-bold text-gray-900">Ajustes do Sistema</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {settingsButtons
           .filter(btn => {
             if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
             return true;
           })
-          .map((btn, index) => (
-            <button
-              key={index}
-              onClick={() => handleButtonClick(btn.id)}
-              disabled={isCreatingFolders || btn.id === 'resgatar' || btn.id === 'impressora'}
-              className={`flex items-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden group border border-gray-100 h-24 ${(isCreatingFolders || btn.id === 'resgatar' || btn.id === 'impressora') ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-            <div className="w-4 h-full bg-[#6c40bd] flex-shrink-0" />
-            <div className="flex-1 flex items-center px-6 gap-6">
-              <div className="text-[#6c40bd] group-hover:scale-110 transition-transform">
-                <btn.icon size={32} />
-              </div>
-              <div className="text-left flex flex-col justify-center">
-                <div className="font-extrabold text-[#6c40bd] text-sm leading-tight tracking-wider uppercase">
-                  {btn.title}
-                </div>
-                {btn.subtitle && (
-                  <div className="font-bold text-[#6c40bd] text-[10px] leading-tight tracking-wide uppercase opacity-80">
-                    {btn.subtitle}
-                  </div>
+          .map((btn, index) => {
+            const isDisabled = isCreatingFolders || btn.id === 'resgatar' || (btn.id === 'impressora' && !isDesktop);
+            return (
+              <motion.div
+                key={btn.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => !isDisabled && handleButtonClick(btn.id)}
+                className={`relative group h-28 ${
+                  isDisabled 
+                    ? 'cursor-not-allowed grayscale-[0.8] opacity-60' 
+                    : 'cursor-pointer'
+                }`}
+              >
+                {/* Background Glow */}
+                {!isDisabled && (
+                  <div 
+                    className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-[2rem]"
+                    style={{ backgroundColor: btn.color }}
+                  />
                 )}
-              </div>
-            </div>
-          </button>
-        ))}
+                
+                <div className="relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:border-transparent transition-all duration-300 h-full group">
+                  <div className={`w-2 h-full bg-gradient-to-b ${btn.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
+                  <div className="flex-1 flex items-center px-6 gap-6">
+                    <div 
+                      className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
+                        isDisabled 
+                          ? 'bg-gray-100 text-gray-400' 
+                          : `bg-gradient-to-br ${btn.gradient} group-hover:scale-110 group-hover:rotate-3`
+                      }`}
+                    >
+                      <btn.icon size={30} strokeWidth={2.5} className={`${isDisabled ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
+                    </div>
+                    <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
+                      <div className={`font-black text-xs md:text-sm leading-tight uppercase mb-1 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
+                        {btn.title}
+                      </div>
+                      <div className={`text-[9px] font-bold uppercase tracking-widest transition-opacity ${isDisabled ? 'text-gray-300' : 'text-gray-400 opacity-80 group-hover:opacity-100'}`}>
+                        {btn.subtitle}
+                        {btn.id === 'impressora' && !isDesktop && " (Apenas PC)"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
       </div>
     </motion.div>
 

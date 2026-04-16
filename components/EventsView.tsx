@@ -14,28 +14,32 @@ const events = [
   {
     id: 'regional_convention',
     title: 'CONGRESSO REGIONAL',
-    color: '#7C3AED',
+    color: '#10B981', // Emerald
+    gradient: 'from-emerald-500 to-teal-600',
     icon: Landmark,
     inactive: false
   },
   {
     id: 'circuit_assembly_supt',
     title: 'ASSEMBLEIA DE CIRCUITO COM O SUPERINTENDENTE',
-    color: '#8B5CF6',
+    color: '#F59E0B', // Amber
+    gradient: 'from-amber-500 to-orange-600',
     icon: Store,
     inactive: true
   },
   {
     id: 'circuit_assembly_branch',
     title: 'ASSEMBLEIA DE CIRCUITO COM REPRESENTANTE DE BETEL',
-    color: '#A78BFA',
+    color: '#F43F5E', // Rose
+    gradient: 'from-rose-500 to-pink-600',
     icon: Store,
     inactive: true
   },
   {
     id: 'special_meeting',
     title: 'REUNIÃO ESPECIAL COM OS PIONEIROS E MISSIONÁRIOS',
-    color: '#6D28D9',
+    color: '#8B5CF6', // Violet
+    gradient: 'from-violet-500 to-purple-600',
     icon: Users,
     inactive: true
   },
@@ -56,7 +60,7 @@ export default function EventsView({ userId, onBack, onViewChange }: EventsViewP
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {events.map((event, index) => (
           <motion.div
             key={event.title}
@@ -66,34 +70,41 @@ export default function EventsView({ userId, onBack, onViewChange }: EventsViewP
             onClick={() => handleEventClick(event)}
             className={`relative group h-28 ${
               event.inactive 
-                ? 'cursor-not-allowed grayscale-[0.5] opacity-60' 
+                ? 'cursor-not-allowed grayscale-[0.8] opacity-60' 
                 : 'cursor-pointer'
             }`}
           >
             {/* Background Glow */}
             {!event.inactive && (
               <div 
-                className="absolute inset-0 blur-xl opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-3xl"
+                className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-[2rem]"
                 style={{ backgroundColor: event.color }}
               />
             )}
             
-            <div className="relative flex bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden shadow-sm border border-white hover:border-violet-100 hover:bg-white transition-all duration-300 h-full group">
-              <div className="w-1.5 h-full opacity-30 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: event.inactive ? '#9ca3af' : event.color }}></div>
+            <div className="relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:border-transparent transition-all duration-300 h-full group">
+              <div className={`w-2 h-full bg-gradient-to-b ${event.inactive ? 'from-gray-400 to-gray-600' : event.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
               <div className="flex-1 flex items-center px-6 gap-6">
                 <div 
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-105"
-                  style={{ backgroundColor: `${event.color}10`, color: event.inactive ? '#9ca3af' : event.color }}
+                  className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
+                    event.inactive 
+                      ? 'bg-gray-100 text-gray-400' 
+                      : `bg-gradient-to-br ${event.gradient} group-hover:scale-110 group-hover:rotate-3`
+                  }`}
                 >
-                  <event.icon size={26} strokeWidth={2.5} />
+                  <event.icon size={30} strokeWidth={2.5} className={`${event.inactive ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
                 </div>
-                <div className="text-left flex flex-col justify-center overflow-hidden">
-                  <div className="font-black text-[11px] leading-tight tracking-[0.05em] uppercase text-gray-800">
+                <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
+                  <div className={`font-black text-xs md:text-sm leading-tight uppercase mb-1 transition-colors ${event.inactive ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
                     {event.title}
                   </div>
-                  {event.inactive && (
-                    <span className="text-[9px] font-black text-gray-400 mt-2 uppercase tracking-[0.2em]">
+                  {event.inactive ? (
+                    <span className="text-[9px] font-black text-violet-500/60 uppercase tracking-[0.3em] font-mono">
                       Em breve
+                    </span>
+                  ) : (
+                    <span className={`text-[9px] font-bold uppercase tracking-widest ${event.inactive ? 'text-gray-300' : 'text-gray-400'}`}>
+                      Ver Programação
                     </span>
                   )}
                 </div>
