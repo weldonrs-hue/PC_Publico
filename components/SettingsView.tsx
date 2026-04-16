@@ -73,22 +73,6 @@ const settingsButtons = [
     gradient: 'from-[#8B5CF6] to-[#7C3AED]'
   },
   {
-    id: 'resgatar',
-    icon: RefreshCw,
-    title: 'RESGATAR DADOS',
-    subtitle: 'DA PLANILHA ANTERIOR',
-    color: '#5B21B6',
-    gradient: 'from-[#5B21B6] to-[#4C1D95]'
-  },
-  {
-    id: 'impressora',
-    icon: Printer,
-    title: 'CONFIGURAR IMPRESSORA',
-    subtitle: 'DEFINIR PADRÃO DO SISTEMA',
-    color: '#7C3AED',
-    gradient: 'from-[#7C3AED] to-[#6d28d9]'
-  },
-  {
     id: 'formatar',
     icon: Trash2,
     title: 'FORMATAR CONTA',
@@ -253,10 +237,6 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       setFormatError(null);
     } else if (id === 'privacidade') {
       setIsShowingPrivacy(true);
-    } else if (id === 'impressora') {
-      if (typeof window !== 'undefined') {
-        window.print();
-      }
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
     }
@@ -386,7 +366,7 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
             return true;
           })
           .map((btn, index) => {
-            const isDisabled = isCreatingFolders || btn.id === 'resgatar' || (btn.id === 'impressora' && !isDesktop);
+            const isDisabled = isCreatingFolders;
             return (
               <motion.div
                 key={btn.id}
@@ -426,7 +406,6 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
                       </div>
                       <div className={`text-[9px] font-bold uppercase tracking-widest transition-opacity ${isDisabled ? 'text-gray-300' : 'text-gray-400 opacity-80 group-hover:opacity-100'}`}>
                         {btn.subtitle}
-                        {btn.id === 'impressora' && !isDesktop && " (Apenas PC)"}
                       </div>
                     </div>
                   </div>
