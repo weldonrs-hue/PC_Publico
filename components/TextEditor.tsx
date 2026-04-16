@@ -230,7 +230,7 @@ export default function TextEditor({ onBack }: TextEditorProps) {
           const { Quill } = await import('react-quill-new');
           if (Quill) {
             // Register Fonts
-            const Font = Quill.import('formats/font');
+            const Font = Quill.import('formats/font') as any;
             Font.whitelist = [
               'arial',
               'courier-new',
@@ -244,7 +244,7 @@ export default function TextEditor({ onBack }: TextEditorProps) {
             Quill.register(Font, true);
 
             // Register Sizes
-            const Size = Quill.import('formats/size');
+            const Size = Quill.import('formats/size') as any;
             Size.whitelist = ['small', 'large', 'huge'];
             Quill.register(Size, true);
           }
