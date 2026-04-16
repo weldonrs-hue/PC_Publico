@@ -84,7 +84,7 @@ const settingsButtons = [
     id: 'impressora',
     icon: Printer,
     title: 'CONFIGURAR IMPRESSORA',
-    subtitle: 'AJUSTES DE IMPRESSÃO',
+    subtitle: 'DEFINIR PADRÃO DO SISTEMA',
     color: '#7C3AED',
     gradient: 'from-[#7C3AED] to-[#6d28d9]'
   },
@@ -147,7 +147,8 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
 
     // Detect if desktop
     const checkDesktop = () => {
-      setIsDesktop(window.innerWidth >= 1024);
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsDesktop(!isMobile);
     };
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
