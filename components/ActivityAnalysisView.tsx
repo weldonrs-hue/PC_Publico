@@ -560,7 +560,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
                                     className="absolute right-0 opacity-0 group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
                                   >
-                                    <Calculator size={14} />
+                                    <Calculator size={18} />
                                   </button>
                                 </div>
                               </td>
@@ -576,7 +576,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
                                     className="absolute right-0 opacity-0 group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
                                   >
-                                    <Calculator size={14} />
+                                    <Calculator size={18} />
                                   </button>
                                 </div>
                               </td>
@@ -854,13 +854,18 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
             >
               <div className="bg-[#512da8] p-4 text-white flex justify-between items-center">
                 <h3 className="font-bold flex items-center gap-2">
-                  <Calculator size={18} /> Calcular Média
+                  <Calculator size={24} /> Calcular Média
                 </h3>
                 <button onClick={() => setCalcModal(null)} className="hover:bg-white/20 p-1 rounded-full">
                   <X size={20} />
                 </button>
               </div>
               <div className="p-6 space-y-4">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 bg-indigo-50 text-[#512da8] rounded-2xl flex items-center justify-center shadow-sm">
+                    <Calculator size={36} />
+                  </div>
+                </div>
                 <div className="text-center">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Categoria</p>
                   <p className="font-bold text-gray-800">{calcModal.label}</p>
