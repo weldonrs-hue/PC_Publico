@@ -11,7 +11,10 @@ import {
   X,
   Image as ImageIcon,
   Trash2,
-  Upload
+  Upload,
+  Maximize2,
+  Minimize2,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
@@ -57,8 +60,18 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   const letterRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [scale, setScale] = useState(1);
+  const [zoom, setZoom] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('progcir_appointment_letter_zoom');
+      return saved ? parseInt(saved, 10) : 100;
+    }
+    return 100;
+  });
   const [showScrollArrows, setShowScrollArrows] = useState(false);
+
+  useEffect(() => {
+    sessionStorage.setItem('progcir_appointment_letter_zoom', zoom.toString());
+  }, [zoom]);
 
   const scrollContainer = (direction: 'left' | 'right') => {
     if (!containerRef.current) return;
@@ -72,15 +85,25 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   useEffect(() => {
     const updateScale = () => {
       if (!containerRef.current) return;
+      
+      // Only auto-calculate if not in session already
+      if (sessionStorage.getItem('progcir_appointment_letter_zoom')) return;
+
       const containerWidth = containerRef.current.offsetWidth;
       
       // A4 width in pixels at 96dpi is ~794px (210mm)
       const a4WidthPx = 794;
       
-      // Calculate scale to fit the container with some padding
-      // Scale up for desktop, but keep at least 1.0 for mobile to allow horizontal scrolling
-      const newScale = Math.max(1, Math.min(1.5, (containerWidth - 32) / a4WidthPx));
-      setScale(newScale);
+      // Check if it's 1080p range (approx 1920 width)
+      const is1080p = window.innerWidth >= 1800 && window.innerWidth <= 2000;
+      
+      if (is1080p) {
+        setZoom(125); // 125% as requested (25% zoom)
+      } else {
+        // Calculate auto scale to fit the container with some padding
+        const newScale = Math.max(1, Math.min(1.5, (containerWidth - 32) / a4WidthPx));
+        setZoom(Math.round(newScale * 100));
+      }
 
       // Check if scroll arrows should be shown
       setShowScrollArrows(containerWidth < a4WidthPx);
@@ -274,22 +297,55 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
-          <button 
-            onClick={handleExportPDF}
-            disabled={generating}
-            className="bg-[#512da8] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-          >
-            {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
-            <span>{generating ? 'Gerando...' : 'PDF'}</span>
-          </button>
-          <button 
-            onClick={handlePrint}
-            className="bg-[#512da8] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
-          >
-            <Printer size={16} />
-            <span className="hidden sm:inline">Imprimir</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
+          {/* Zoom Controls */}
+          <div className="flex items-center gap-1 sm:gap-2 bg-gray-100 p-1 rounded-xl border border-gray-200">
+            <button 
+              onClick={() => setZoom(Math.max(25, zoom - 25))}
+              className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-[#512da8] disabled:opacity-30"
+              disabled={zoom <= 25}
+              title="Diminuir zoom"
+            >
+              <Minimize2 size={16} />
+            </button>
+            <div className="min-w-[45px] sm:min-w-[60px] text-center">
+              <span className="text-[10px] sm:text-xs font-bold text-gray-600">{zoom}%</span>
+            </div>
+            <button 
+              onClick={() => setZoom(Math.min(200, zoom + 25))}
+              className="p-1.5 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-[#512da8] disabled:opacity-30"
+              disabled={zoom >= 200}
+              title="Aumentar zoom"
+            >
+              <Maximize2 size={16} />
+            </button>
+            <div className="w-[1px] h-4 bg-gray-300 mx-0.5 sm:mx-1"></div>
+            <button 
+              onClick={() => setZoom(25)}
+              className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all ${zoom === 25 ? 'bg-[#512da8] text-white shadow-sm' : 'text-gray-500 hover:bg-white'}`}
+              title="Zoom 25%"
+            >
+              25%
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleExportPDF}
+              disabled={generating}
+              className="bg-[#512da8] text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
+            >
+              {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+              <span>{generating ? '...' : 'PDF'}</span>
+            </button>
+            <button 
+              onClick={handlePrint}
+              className="bg-[#512da8] text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
+            >
+              <Printer size={16} />
+              <span className="hidden sm:inline">Imprimir</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -325,25 +381,33 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
         <div 
           ref={containerRef}
-          className="bg-white shadow-xl rounded-lg overflow-x-auto border border-gray-200 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex justify-start md:justify-center custom-scrollbar scroll-smooth"
+          className="bg-white shadow-xl rounded-lg overflow-auto border border-gray-200 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex flex-col items-start custom-scrollbar scroll-smooth"
         >
-        <div 
-          id="appointment-letter-container"
-          className="bg-white print:min-h-0 mx-auto text-black print:m-0 flex flex-col print:w-[210mm] print:h-[297mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
-          style={{ 
-            fontFamily: "'Times New Roman', Times, serif",
-            padding: '12.7mm',
-            width: '210mm',
-            minWidth: '210mm',
-            height: '297mm',
-            overflow: 'hidden',
-            boxSizing: 'border-box',
-            transform: `scale(${scale})`,
-            transformOrigin: 'top center',
-            marginBottom: `${(scale - 1) * 297}mm`, // Add margin at bottom to account for scaled height
-            transition: 'transform 0.2s ease-out, margin-bottom 0.2s ease-out'
-          }}
-        >
+          <div 
+            className="flex flex-col items-center py-10 print:py-0 mx-auto"
+            style={{ 
+              width: `${(210 * zoom) / 100}mm`,
+              minWidth: '100%',
+              transition: 'width 0.2s ease-out'
+            }}
+          >
+            <div 
+              id="appointment-letter-container"
+              className="bg-white print:min-h-0 text-black print:m-0 flex flex-col print:w-[210mm] print:h-[297mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
+              style={{ 
+                fontFamily: "'Times New Roman', Times, serif",
+                padding: '12.7mm',
+                width: '210mm',
+                minWidth: '210mm',
+                height: '297mm',
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                transform: `scale(${zoom / 100})`,
+                transformOrigin: 'top center',
+                marginBottom: `${(zoom / 100 - 1) * 297}mm`,
+                transition: 'transform 0.2s ease-out, margin-bottom 0.2s ease-out'
+              }}
+            >
           <article 
             ref={letterRef}
             className="w-full h-full flex flex-col"
@@ -514,6 +578,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
         </div>
       </div>
     </div>
+  </div>
 
       {/* Signature Font Import */}
       <style jsx global>{`
