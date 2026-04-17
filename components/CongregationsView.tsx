@@ -312,7 +312,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
       <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-violet-600 bg-white shadow-md border border-gray-200"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-amber-600 bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
           <ChevronLeft size={28} strokeWidth={3} />
@@ -341,20 +341,20 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       placeholder="Buscar por nome ou número..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                     />
                   </div>
                   <div className="flex bg-gray-100 p-1 rounded-lg">
                     <button 
                       onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                       title="Ver Lista"
                     >
                       <List size={20} />
                     </button>
                     <button 
                       onClick={() => setViewMode('map')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                       title="Ver Mapa"
                     >
                       <MapIcon size={20} />
@@ -366,14 +366,14 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     href="https://hub.jw.org/meetings/pt?q=%7B%22meetingType%22:%22meetings%22,%22location%22:%22Sua%20localiza%C3%A7%C3%A3o%22%7D"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full md:w-auto bg-white text-violet-600 border border-violet-200 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-violet-50 transition-colors shadow-sm"
+                    className="w-full md:w-auto bg-white text-amber-600 border border-amber-200 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors shadow-sm"
                   >
                     <ExternalLink size={20} />
                     Buscar no JW.org
                   </a>
                   <button 
                     onClick={handleAddNew}
-                    className="w-full md:w-auto bg-violet-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-violet-700 transition-colors shadow-lg shadow-violet-200 active:scale-95"
+                    className="w-full md:w-auto bg-amber-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-700 transition-colors shadow-lg shadow-amber-200 active:scale-95"
                   >
                     <Plus size={20} />
                     Nova Congregação
@@ -384,7 +384,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
             {/* List or Map Grid */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-violet-500" size={48} />
+                <Loader2 className="animate-spin text-amber-500" size={48} />
               </div>
             ) : viewMode === 'map' ? (
               <motion.div 
@@ -399,7 +399,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                   />
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <MapPin size={14} className="text-violet-500" />
+                  <MapPin size={14} className="text-amber-500" />
                   <span>
                     Mostrando {
                       filteredCongregations.filter(c => {
@@ -416,11 +416,11 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                   filteredCongregations.map((cong) => (
                     <div 
                       key={cong.id}
-                      className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-violet-500/5 transition-all group"
+                      className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-amber-500/5 transition-all group"
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition-all duration-300 shadow-inner">
+                          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 shadow-inner">
                             <Store size={22} />
                           </div>
                           <div>
@@ -457,8 +457,8 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         </div>
                         {cong.gps ? (
                           <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-violet-500" />
-                            <span className="text-xs font-mono text-violet-600">{cong.gps}</span>
+                            <MapPin size={14} className="text-amber-500" />
+                            <span className="text-xs font-mono text-amber-600">{cong.gps}</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
@@ -477,7 +477,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <div className="grid grid-cols-2 gap-2 mt-4">
                         <button 
                           onClick={() => handleEdit(cong)}
-                          className="py-2.5 text-xs font-bold text-violet-600 border border-violet-100 rounded-xl hover:bg-violet-600 hover:text-white transition-all"
+                          className="py-2.5 text-xs font-bold text-amber-600 border border-amber-100 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
                         >
                           Ver Detalhes
                         </button>
@@ -508,7 +508,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
             exit={{ opacity: 0, x: -20 }}
             className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-5 text-white flex justify-between items-center">
+            <div className="bg-gradient-to-r from-amber-600 to-orange-700 p-5 text-white flex justify-between items-center">
               <h3 className="font-bold">
                 {selectedCong ? 'Editar Congregação' : 'Nova Congregação'}
               </h3>
@@ -563,7 +563,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         required
                         value={formData.nome}
                         onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                         placeholder="Ex: Central"
                       />
                     </div>
@@ -573,7 +573,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         required
                         value={formData.numero}
                         onChange={(e) => setFormData({...formData, numero: e.target.value.replace(/\D/g, '').slice(0, 6)})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                         placeholder="000000"
                       />
                     </div>
@@ -582,7 +582,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <input 
                         value={formData.parte}
                         onChange={(e) => setFormData({...formData, parte: e.target.value.toUpperCase().slice(0, 1)})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors text-center"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-center"
                         placeholder="A"
                         maxLength={1}
                       />
@@ -594,7 +594,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.endereco}
                       onChange={(e) => setFormData({...formData, endereco: e.target.value})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                     />
                   </div>
 
@@ -606,14 +606,14 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                           value={formData.cep}
                           onChange={(e) => setFormData({...formData, cep: formatCEP(e.target.value)})}
                           onBlur={handleCEPSearch}
-                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors pr-8"
+                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors pr-8"
                           placeholder="00000-000"
                           maxLength={9}
                         />
                         <button 
                           type="button"
                           onClick={handleCEPSearch}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-violet-600 hover:text-violet-800"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-600 hover:text-amber-800"
                         >
                           {isSearchingCEP ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                         </button>
@@ -624,7 +624,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <input 
                         value={formData.cidade}
                         onChange={(e) => setFormData({...formData, cidade: e.target.value.toUpperCase()})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                         placeholder="CIDADE"
                       />
                     </div>
@@ -633,7 +633,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <input 
                         value={formData.estado}
                         onChange={(e) => setFormData({...formData, estado: e.target.value.toUpperCase().replace(/[^A-Z]/g, '')})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors text-center"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-center"
                         placeholder="UF"
                         maxLength={2}
                       />
@@ -645,7 +645,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.gps || ''}
                       onChange={(e) => setFormData({...formData, gps: e.target.value})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                       placeholder="Ex: -23.5505, -46.6333"
                     />
                   </div>
@@ -661,7 +661,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.coordenador}
                       onChange={(e) => setFormData({...formData, coordenador: e.target.value})}
-                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                     />
                   </div>
                   <div className="space-y-1">
@@ -669,7 +669,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.telefone}
                       onChange={(e) => setFormData({...formData, telefone: formatPhone(e.target.value)})}
-                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                       placeholder="(00) 00000-0000"
                       maxLength={15}
                     />
@@ -686,7 +686,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                   <button 
                     type="button"
                     onClick={handleAddGroup}
-                    className="flex items-center gap-1 text-xs font-bold text-violet-600 hover:bg-violet-50 px-3 py-1.5 rounded-xl transition-all border border-violet-100"
+                    className="flex items-center gap-1 text-xs font-bold text-amber-600 hover:bg-amber-50 px-3 py-1.5 rounded-xl transition-all border border-amber-100"
                   >
                     <Plus size={14} /> Adicionar Grupo
                   </button>
@@ -699,7 +699,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         value={grupo}
                         onChange={(e) => handleGroupChange(index, e.target.value)}
                         placeholder={`Nome do Grupo ${index + 1}`}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors pr-8"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors pr-8"
                       />
                       <button 
                         type="button"
@@ -726,7 +726,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-3 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-700 transition-all shadow-lg shadow-violet-200 flex items-center gap-2 active:scale-95"
+                  className="px-8 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 flex items-center gap-2 active:scale-95"
                 >
                   <Save size={20} />
                   Salvar Congregação
