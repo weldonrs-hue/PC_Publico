@@ -59,7 +59,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import 'react-quill-new/dist/quill.snow.css';
 import { GoogleGenAI } from "@google/genai";
 import { jsPDF } from 'jspdf';
-import htmlToDocx from 'html-to-docx';
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -571,20 +570,26 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
 
     setIsProcessing('export_docx');
     try {
-      const contentBlob = await htmlToDocx(content, null, {
-        table: { row: { cantSplit: true } },
-        footer: true,
-        pageNumber: true,
-      }, undefined);
+      const response = await fetch('/api/export-docx', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ html: content, title }),
+      });
+
+      if (!response.ok) throw new Error('Falha na geração do arquivo');
+
+      const contentBlob = await response.blob();
       
       const downloadLink = document.createElement('a');
-      downloadLink.href = URL.createObjectURL(contentBlob as Blob);
+      downloadLink.href = URL.createObjectURL(contentBlob);
       downloadLink.download = `${title}.docx`;
       downloadLink.click();
       showNotification('Word (DOCX) exportado com sucesso', 'success');
     } catch (error) {
       console.error(error);
-      showNotification('Erro ao exportar Word', 'error');
+      showNotification('Erro ao exportar Word. Tente novamente.', 'error');
     } finally {
       setIsProcessing(null);
     }
