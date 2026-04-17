@@ -129,18 +129,10 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       {/* Logo Section */}
       <div className="p-4 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
-          <div className="bg-white/10 backdrop-blur-md p-2 rounded-2xl shadow-xl w-full relative h-16 flex items-center justify-center lg:justify-start lg:px-3 border border-white/20 gap-3 overflow-hidden group">
+          <div className="bg-white/10 backdrop-blur-md p-2 rounded-2xl shadow-xl w-full relative h-16 flex items-center lg:px-4 border border-white/20 overflow-hidden group">
             <div className="relative">
               <div className="absolute inset-0 bg-[#C084FC] blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
-              <Logo size={38} className="shrink-0 relative z-10" />
-            </div>
-            <div className="flex flex-col hidden lg:flex">
-              <span className="text-white font-black text-lg leading-tight tracking-tight uppercase">
-                ProgCir
-              </span>
-              <span className="text-[#A855F7] font-bold text-[10px] uppercase tracking-[0.2em] leading-none">
-                Web Interface
-              </span>
+              <Logo iconSize={34} textSize="text-xl" className="relative z-10" showText={true} />
             </div>
           </div>
         </div>
