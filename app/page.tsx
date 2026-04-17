@@ -982,6 +982,7 @@ export default function Home() {
 
           {currentView === 'text_editor' && (
             <TextEditor 
+              userId={user?.id}
               onBack={() => changeView('misc')}
             />
           )}

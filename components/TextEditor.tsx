@@ -44,10 +44,24 @@ import {
   ChevronDown,
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  Zap,
+  Languages,
+  Wand2,
+  History,
+  Layout,
+  Clock,
+  ExternalLink,
+  Table as TableIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import 'react-quill-new/dist/quill.snow.css';
+import { GoogleGenAI } from "@google/genai";
+import { jsPDF } from 'jspdf';
+import htmlToDocx from 'html-to-docx';
+import { db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 const ReactQuill = dynamic(
   async () => {
@@ -63,20 +77,121 @@ const ReactQuill = dynamic(
 );
 
 interface TextEditorProps {
+  userId: string;
   onBack: () => void;
 }
 
-export default function TextEditor({ onBack }: TextEditorProps) {
+export default function TextEditor({ userId, onBack }: TextEditorProps) {
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('Documento Sem Título');
   const [isSaving, setIsSaving] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'ai' } | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<{title: string, date: string, content: string}[]>([]);
 
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const aiClient = useMemo(() => new GoogleGenAI({ 
+    apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || '' 
+  }), []);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'ai' = 'info') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleAIAssist = async (type: string, customPrompt?: string) => {
+    if (!content && !customPrompt) {
+      showNotification('Adicione algum texto para o assistente analisar', 'error');
+      return;
+    }
+
+    setIsAiGenerating(true);
+    setIsProcessing('ai');
+    showNotification('O assistente está processando seu texto...', 'ai');
+
+    try {
+      const quill = quillRef.current?.getEditor();
+      const selection = quill?.getSelection();
+      const selectedText = selection ? quill.getText(selection.index, selection.length) : quill.getText();
+      
+      let systemInstruction = "Você é um assistente de redação profissional especializado em textos formais para organizações religiosas (Testemunhas de Jeová). Seu tom deve ser respeitoso, claro e equilibrado.";
+      let prompt = "";
+
+      switch (type) {
+        case 'fix':
+          prompt = `Corrija a gramática e ortografia do seguinte texto, mantendo o sentido original: "${selectedText}"`;
+          break;
+        case 'formal':
+          prompt = `Reescreva o seguinte texto em um tom mais formal e polido, adequado para uma carta oficial do circuito: "${selectedText}"`;
+          break;
+        case 'summarize':
+          prompt = `Faça um resumo direto e conciso dos pontos principais deste texto: "${selectedText}"`;
+          break;
+        case 'expand':
+          prompt = `Desenvolva mais este ponto, adicionando detalhes pertinentes e mantendo o tom espiritual: "${selectedText}"`;
+          break;
+        case 'custom':
+          prompt = `${customPrompt}\n\nTexto base: "${selectedText}"`;
+          break;
+        default:
+          prompt = customPrompt || "";
+      }
+
+      const response = await aiClient.models.generateContent({
+        model: "gemini-3-flash-preview",
+        systemInstruction,
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+
+      const result = response.text;
+      
+      if (result) {
+        if (selection && selection.length > 0) {
+          quill.deleteText(selection.index, selection.length);
+          quill.insertText(selection.index, result);
+        } else {
+          setContent(prev => prev + `<p><br></p><p><strong>Sugestão da IA:</strong></p><p>${result.replace(/\n/g, '</p><p>')}</p>`);
+        }
+        showNotification('IA: Processamento concluído com sucesso!', 'success');
+      }
+    } catch (error) {
+      console.error('AI Error:', error);
+      showNotification('Erro ao processar com IA. Verifique sua conexão.', 'error');
+    } finally {
+      setIsAiGenerating(false);
+      setIsProcessing(null);
+      setShowAIModal(false);
+      setAiPrompt('');
+    }
+  };
+
+  const templates = [
+    {
+      id: 'announcement',
+      name: 'Anúncio de Visita',
+      content: '<h2>ANÚNCIO À CONGREGAÇÃO</h2><p>Temos o prazer de anunciar que o superintendente de circuito, <strong>[Nome]</strong>, visitará nossa congregação na semana de <strong>[Data]</strong> a <strong>[Data]</strong>.</p><p>Convidamos todos a apoiarem as reuniões para o serviço de campo durante essa semana especial de atividade espiritual.</p>'
+    },
+    {
+      id: 'invitation',
+      name: 'Convite para Reunião Especial',
+      content: '<h1>CONVITE ESPECIAL</h1><p>Convidamos todos os irmãos e pessoas interessadas para a reunião especial que será realizada no <strong>[Local]</strong> em <strong>[Data]</strong> às <strong>[Horário]</strong>.</p><p>O tema do discurso público será: <strong>"[Tema]"</strong>.</p>'
+    },
+    {
+      id: 'report',
+      name: 'Relatório Trimestral',
+      content: '<h2>RELATÓRIO DE ATIVIDADES</h2><p><strong>Circuito:</strong> [Número]<br><strong>Período:</strong> [Mês/Ano]</p><p>Resumo das atividades realizadas no último trimestre conforme as orientações recebidas.</p><ul><li>Reuniões com anciãos: [Total]</li><li>Escolas realizadas: [Lista]</li><li>Destaques espirituais: [Texto]</li></ul>'
+    }
+  ];
+
+  const applyTemplate = (templateContent: string) => {
+    setContent(templateContent);
+    setShowTemplates(false);
+    showNotification('Template aplicado com sucesso!', 'success');
   };
 
   const handleClearAll = async () => {
@@ -103,17 +218,34 @@ export default function TextEditor({ onBack }: TextEditorProps) {
     setIsProcessing('save');
     
     try {
-      // Simulate async saving
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Always save to localStorage as backup
       localStorage.setItem('progcir_wordpad_content', content);
       localStorage.setItem('progcir_wordpad_title', title);
+
+      // If we have a userId, save to Firebase
+      if (userId) {
+        const docName = title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const docRef = doc(db, 'documents', `${userId}_${docName}`);
+        await setDoc(docRef, {
+          title,
+          content,
+          userId,
+          updatedAt: new Date().toISOString(),
+          wordCount,
+          charCount
+        });
+      } else {
+        // Simulate progress for local save
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       showNotification('Documento salvo com sucesso', 'success');
     } catch (error) {
-      showNotification('Erro ao salvar documento', 'error');
+      console.error('Save error:', error);
+      showNotification('Erro ao salvar documento no servidor', 'error');
     } finally {
       setIsSaving(false);
       setIsProcessing(null);
-      // Keep the "SALVO" badge for a bit longer if needed, but we have notification now
     }
   };
   const [zoom, setZoom] = useState(100);
@@ -386,13 +518,79 @@ export default function TextEditor({ onBack }: TextEditorProps) {
       document.body.appendChild(element);
       element.click();
       document.body.removeChild(element);
-      showNotification('Download concluído', 'success');
+      showNotification('Backup HTML concluído', 'success');
     } catch (error) {
-      showNotification('Erro ao realizar download', 'error');
+      showNotification('Erro ao realizar backup', 'error');
     } finally {
       setIsProcessing(null);
     }
   };
+
+  const handleExportPDF = async () => {
+    if (!content || content === '<p><br></p>') {
+      showNotification('O documento está vazio', 'info');
+      return;
+    }
+    
+    setIsProcessing('export_pdf');
+    try {
+      const doc = new jsPDF({
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      // Simple implementation of HTML to PDF
+      const titleText = title.toUpperCase();
+      doc.setFontSize(22);
+      doc.text(titleText, 105, 20, { align: 'center' });
+      
+      doc.setFontSize(11);
+      const margin = 20;
+      const width = 170;
+      
+      // We use a simplified text extraction for PDF to avoid layout issues in this demo
+      const text = plainText;
+      const splitText = doc.splitTextToSize(text, width);
+      doc.text(splitText, margin, 40);
+      
+      doc.save(`${title}.pdf`);
+      showNotification('PDF exportado com sucesso', 'success');
+    } catch (error) {
+      console.error(error);
+      showNotification('Erro ao exportar PDF', 'error');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    if (!content || content === '<p><br></p>') {
+      showNotification('O documento está vazio', 'info');
+      return;
+    }
+
+    setIsProcessing('export_docx');
+    try {
+      const contentBlob = await htmlToDocx(content, null, {
+        table: { row: { cantSplit: true } },
+        footer: true,
+        pageNumber: true,
+      }, undefined);
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = URL.createObjectURL(contentBlob as Blob);
+      downloadLink.download = `${title}.docx`;
+      downloadLink.click();
+      showNotification('Word (DOCX) exportado com sucesso', 'success');
+    } catch (error) {
+      console.error(error);
+      showNotification('Erro ao exportar Word', 'error');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const readingTime = Math.ceil(wordCount / 200); // Average 200 words per minute
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] -m-4 md:-m-8 bg-[#f8f9fa]">
@@ -406,11 +604,13 @@ export default function TextEditor({ onBack }: TextEditorProps) {
             className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-[3000] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border backdrop-blur-md ${
               notification.type === 'success' ? 'bg-green-500/90 border-green-400 text-white' :
               notification.type === 'error' ? 'bg-red-500/90 border-red-400 text-white' :
+              notification.type === 'ai' ? 'bg-indigo-600/90 border-indigo-400 text-white' :
               'bg-blue-500/90 border-blue-400 text-white'
             }`}
           >
             {notification.type === 'success' && <CheckCircle2 size={18} />}
             {notification.type === 'error' && <AlertCircle size={18} />}
+            {notification.type === 'ai' && <Sparkles size={18} className="animate-pulse" />}
             {notification.type === 'info' && <Loader2 size={18} className="animate-spin" />}
             <span className="text-sm font-bold tracking-wide">{notification.message}</span>
           </motion.div>
@@ -469,7 +669,49 @@ export default function TextEditor({ onBack }: TextEditorProps) {
 
         {/* Menu Bar Row */}
         <div className="flex items-center px-4 py-0.5 bg-white border-b border-gray-200 overflow-x-auto no-scrollbar">
-          {['File', 'Edit', 'View', 'Insert', 'Format', 'Tools', 'Table'].map((menu) => (
+          <div className="flex items-center gap-1 group relative">
+            <button 
+              className="px-3 py-1 text-[12px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition-colors flex items-center gap-1.5"
+              onClick={() => setShowAIModal(true)}
+            >
+              <Sparkles size={14} className="text-blue-600" />
+              Assistente IA
+            </button>
+          </div>
+          <div className="w-[1px] h-4 bg-gray-200 mx-2"></div>
+          <div className="flex items-center group relative">
+            <button 
+              className="px-3 py-1 text-[12px] text-gray-700 hover:bg-gray-100 rounded transition-colors flex items-center gap-1.5"
+              onClick={() => setShowTemplates(!showTemplates)}
+            >
+              <Layout size={14} />
+              Templates
+              <ChevronDown size={12} />
+            </button>
+            <AnimatePresence>
+              {showTemplates && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2"
+                >
+                  <div className="text-[10px] font-bold text-gray-400 p-2 uppercase tracking-widest">Modelos Disponíveis</div>
+                  {templates.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => applyTemplate(t.content)}
+                      className="w-full text-left px-3 py-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex flex-col gap-0.5"
+                    >
+                      <span className="font-bold text-gray-800">{t.name}</span>
+                      <span className="text-[10px] text-gray-500">Clique para aplicar este modelo</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          {['Edit', 'View', 'Insert', 'Format', 'Tools', 'Table'].map((menu) => (
             <button 
               key={menu}
               className="px-3 py-1 text-[12px] text-gray-700 hover:bg-gray-100 rounded transition-colors"
@@ -589,7 +831,7 @@ export default function TextEditor({ onBack }: TextEditorProps) {
           </div>
 
           {/* Group: Ferramentas (Custom Buttons - NOT in Quill Toolbar) */}
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 border-l border-gray-300 pl-1 ml-1">
             <button 
               type="button"
               onClick={() => setShowSearch(!showSearch)}
@@ -600,20 +842,44 @@ export default function TextEditor({ onBack }: TextEditorProps) {
             >
               <Search size={16} />
             </button>
-            <button 
-              type="button"
-              onClick={handleDownload}
-              disabled={isProcessing === 'download'}
-              className={`p-1.5 rounded text-gray-600 transition-all ${isProcessing === 'download' ? 'bg-gray-100' : 'hover:bg-gray-200'}`}
-              title="Exportar HTML"
-              aria-label="Exportar como HTML"
-            >
-              {isProcessing === 'download' ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
+            
+            {/* Export Dropdown */}
+            <div className="relative group">
+              <button 
+                type="button"
+                className="p-1.5 rounded text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
+                title="Exportar Documento"
+              >
                 <Download size={16} />
-              )}
-            </button>
+                <ChevronDown size={12} />
+              </button>
+              <div className="absolute top-full right-0 mt-1 hidden group-hover:block w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-1">
+                <button 
+                  onClick={handleExportPDF}
+                  disabled={isProcessing === 'export_pdf'}
+                  className="w-full text-left px-3 py-2 hover:bg-red-50 rounded-lg text-xs transition-colors flex items-center gap-2"
+                >
+                  <FileText size={14} className="text-red-600" />
+                  Exportar PDF (A4)
+                </button>
+                <button 
+                  onClick={handleExportDocx}
+                  disabled={isProcessing === 'export_docx'}
+                  className="w-full text-left px-3 py-2 hover:bg-blue-50 rounded-lg text-xs transition-colors flex items-center gap-2"
+                >
+                  <Monitor size={14} className="text-blue-600" />
+                  Exportar Word (DOCX)
+                </button>
+                <button 
+                  onClick={handleDownload}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg text-xs transition-colors flex items-center gap-2 border-t border-gray-100 mt-1"
+                >
+                  <Code size={14} className="text-gray-500" />
+                  Backup HTML
+                </button>
+              </div>
+            </div>
+
             <button 
               type="button"
               onClick={() => setShowClearConfirm(true)}
@@ -695,7 +961,94 @@ export default function TextEditor({ onBack }: TextEditorProps) {
       </AnimatePresence>
 
       {/* Editor Workspace */}
-      <div className="flex-1 bg-[#e6e6e6] overflow-y-auto custom-scrollbar p-4 md:p-8 flex flex-col items-center">
+      <div className="flex-1 bg-[#e6e6e6] overflow-y-auto custom-scrollbar p-4 md:p-8 flex flex-col items-center relative">
+        <AnimatePresence>
+          {showAIModal && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 z-[4000] flex items-center justify-center p-4"
+            >
+              <div 
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
+                onClick={() => !isAiGenerating && setShowAIModal(false)}
+              />
+              <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-indigo-100">
+                <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md">
+                      <Sparkles className="text-white" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-white uppercase tracking-wider text-sm">Assistente de Redação IA</h3>
+                      <p className="text-indigo-100 text-[10px] font-medium opacity-80 uppercase tracking-[0.2em]">Melhore seu texto com Gemini 3.0</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowAIModal(false)}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
+                  >
+                    <ChevronDown size={20} />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => handleAIAssist('fix')}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 transition-all group"
+                    >
+                      <Zap className="text-amber-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-gray-700">Corrigir Gramática</span>
+                    </button>
+                    <button 
+                      onClick={() => handleAIAssist('formal')}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 transition-all group"
+                    >
+                      <CheckCircle2 className="text-blue-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-gray-700">Tom Formal</span>
+                    </button>
+                    <button 
+                      onClick={() => handleAIAssist('summarize')}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 transition-all group"
+                    >
+                      <Layout className="text-indigo-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-gray-700">Resumir Texto</span>
+                    </button>
+                    <button 
+                      onClick={() => handleAIAssist('expand')}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gray-50 hover:bg-indigo-50 border border-gray-100 hover:border-indigo-200 transition-all group"
+                    >
+                      <Wand2 className="text-purple-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-gray-700">Expandir Pontos</span>
+                    </button>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Comando Personalizado</label>
+                    <div className="relative">
+                      <textarea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder="Ex: 'Traduza para espanhol' ou 'Transforme em lista de tópicos'..."
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none min-h-[100px] resize-none"
+                      />
+                      <button 
+                        onClick={() => handleAIAssist('custom', aiPrompt)}
+                        disabled={!aiPrompt.trim() || isAiGenerating}
+                        className="absolute bottom-4 right-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white p-2.5 rounded-xl shadow-lg transition-all"
+                      >
+                        {isAiGenerating ? <Loader2 size={20} className="animate-spin" /> : <ChevronLeft className="rotate-180" size={20} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex items-center gap-4 mb-4 bg-white/80 backdrop-blur px-4 py-1.5 rounded-full shadow-sm border border-gray-200 text-[10px] font-bold text-gray-500">
           <button 
             type="button" 
@@ -768,6 +1121,16 @@ export default function TextEditor({ onBack }: TextEditorProps) {
           <div className="flex items-center gap-1">
             <span className="font-bold text-blue-700">{charCount}</span>
             <span className="text-gray-500">caracteres</span>
+          </div>
+          <div className="w-[1px] h-3 bg-gray-300"></div>
+          <div className="flex items-center gap-1">
+            <span className="font-bold text-indigo-600">{readingTime}</span>
+            <span className="text-gray-500">min. de leitura</span>
+          </div>
+          <div className="w-[1px] h-3 bg-gray-300"></div>
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <Clock size={12} />
+            <span>Editado em {new Date().toLocaleTimeString()}</span>
           </div>
         </div>
         
