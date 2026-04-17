@@ -142,8 +142,13 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
 
     try {
       const quill = quillRef.current?.getEditor();
-      const selection = quill?.getSelection();
-      const selectedText = selection ? quill.getText(selection.index, selection.length) : quill.getText();
+      if (!quill) return;
+      
+      const selection = quill.getSelection();
+      // Safely handle selection which can be null
+      const selectedText = (selection && typeof selection.index === 'number') 
+        ? quill.getText(selection.index, selection.length) 
+        : quill.getText();
       
       let systemInstruction = "Você é um assistente de redação profissional especializado em textos formais para organizações religiosas (Testemunhas de Jeová). Seu tom deve ser respeitoso, claro e equilibrado.";
       let prompt = "";
@@ -179,7 +184,8 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
       const result = response.text;
       
       if (result) {
-        if (selection && selection.length > 0) {
+        // Double check selection before modifications
+        if (selection && typeof selection.index === 'number' && typeof selection.length === 'number' && selection.length > 0) {
           quill.deleteText(selection.index, selection.length);
           quill.insertText(selection.index, result);
         } else {
@@ -870,10 +876,9 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Search Bar */}
-      <AnimatePresence>
+        {/* Search Bar */}
+        <AnimatePresence>
         {showSearch && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
