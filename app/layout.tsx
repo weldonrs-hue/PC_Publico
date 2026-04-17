@@ -32,7 +32,10 @@ export const metadata: Metadata = {
   description: 'Sistema de gestão e programação das atividades do circuito',
   icons: {
     icon: [
-      { url: '/LogoNovo.svg', type: 'image/svg+xml' },
+      { url: '/ProgCir_Ico.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/ProgCir_Ico.svg', type: 'image/svg+xml' },
     ],
   },
 };

@@ -19,35 +19,16 @@ export default function Logo({
 }: LogoProps) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {/* Refined Circuit/Tech Icon */}
+      {/* Brand Icon - Using the new ProgCir_Ico.svg */}
       <div 
-        className="relative flex-shrink-0" 
+        className="relative flex-shrink-0 flex items-center justify-center" 
         style={{ width: iconSize, height: iconSize }}
       >
-        <svg
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full drop-shadow-md"
-        >
-          {/* Main Circuit Hexagon/Shape */}
-          <path
-            d="M50 5L90 25V75L50 95L10 75V25L50 5Z"
-            fill="#C0A9E2"
-            fillOpacity="0.8"
-          />
-          {/* Internal Circuit Path */}
-          <path
-            d="M30 35H70M30 50H70M30 65H55"
-            stroke="#4C1D95"
-            strokeWidth="6"
-            strokeLinecap="round"
-          />
-          {/* Tech Nodes/Dots */}
-          <circle cx="70" cy="65" r="8" fill="#9C7FC7" />
-          <circle cx="30" cy="35" r="4" fill="white" />
-          <circle cx="70" cy="50" r="4" fill="white" />
-        </svg>
+        <img 
+          src="/ProgCir_Ico.svg" 
+          alt="ProgCir Logo"
+          className="w-full h-full object-contain drop-shadow-md"
+        />
       </div>
 
       {/* Text Component with the specific Prog/Cir/Web style */}
