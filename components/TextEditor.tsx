@@ -143,8 +143,10 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
 
       const response = await aiClient.models.generateContent({
         model: "gemini-3-flash-preview",
-        systemInstruction,
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          systemInstruction
+        }
       });
 
       const result = response.text;
