@@ -26,6 +26,7 @@ const CongregationsMap = dynamic(() => import('./CongregationsMap'), {
   ssr: false,
   loading: () => <div className="h-[600px] w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Carregando Mapa...</div>
 });
+import {
   AnimatePresence,
   motion
 } from 'motion/react';
@@ -651,7 +652,6 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       placeholder="Ex: -23.5505, -46.6333"
                     />
                   </div>
-                </div>
                 </div>
 
                 {/* Contact Info */}
