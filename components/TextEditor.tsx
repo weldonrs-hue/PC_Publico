@@ -64,7 +64,34 @@ import { doc, setDoc } from 'firebase/firestore';
 
 const ReactQuill = dynamic(
   async () => {
-    const { default: RQ } = await import('react-quill-new');
+    const { Quill, default: RQ } = await import('react-quill-new');
+    
+    // Register custom fonts and sizes with Quill BEFORE returning the component
+    if (Quill) {
+      try {
+        // Register Fonts
+        const Font = Quill.import('formats/font') as any;
+        Font.whitelist = [
+          'arial',
+          'courier-new',
+          'georgia',
+          'lucida',
+          'tahoma',
+          'times-new-roman',
+          'trebuchet',
+          'verdana'
+        ];
+        Quill.register(Font, true);
+
+        // Register Sizes
+        const Size = Quill.import('formats/size') as any;
+        Size.whitelist = ['small', 'large', 'huge'];
+        Quill.register(Size, true);
+      } catch (e) {
+        console.error('Error registering Quill formats:', e);
+      }
+    }
+
     return function QuillWrapper({ forwardedRef, ...props }: any) {
       return <RQ ref={forwardedRef} {...props} />;
     };
@@ -362,45 +389,10 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
     if (quill) quill.history.redo();
   };
 
-  // Register custom fonts and sizes with Quill
-  useEffect(() => {
-    const registerQuillBase = async () => {
-      if (typeof window !== 'undefined') {
-        try {
-          // Use the same package as the dynamic import
-          const { Quill } = await import('react-quill-new');
-          if (Quill) {
-            // Register Fonts
-            const Font = Quill.import('formats/font') as any;
-            Font.whitelist = [
-              'arial',
-              'courier-new',
-              'georgia',
-              'lucida',
-              'tahoma',
-              'times-new-roman',
-              'trebuchet',
-              'verdana'
-            ];
-            Quill.register(Font, true);
-
-            // Register Sizes
-            const Size = Quill.import('formats/size') as any;
-            Size.whitelist = ['small', 'large', 'huge'];
-            Quill.register(Size, true);
-          }
-        } catch (e) {
-          console.error('Error registering Quill formats:', e);
-        }
-      }
-    };
-    registerQuillBase();
-  }, []);
-
   // Memoize modules and formats to prevent unnecessary re-renders of ReactQuill
   const modules = useMemo(() => ({
     toolbar: {
-      container: "#wordpad-toolbar",
+      container: "#wordpad-toolbar-v2",
     },
     history: {
       delay: 2000,
@@ -729,60 +721,48 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
         </div>
                 {/* Ribbon Toolbar Row */}
         <div className="flex items-center bg-[#f3f2f1] px-2 py-1 overflow-visible gap-1 relative z-20">
-          {/* Group: Ações Rápidas (Custom Buttons - NOT in Quill Toolbar) */}
-          <div className="flex items-center gap-0.5 border-r border-gray-300 pr-1 mr-1">
-            <button 
-              type="button"
-              onClick={handleSave} 
-              disabled={isProcessing === 'save'}
-              className={`p-1.5 rounded transition-all ${isProcessing === 'save' ? 'bg-blue-50' : 'hover:bg-gray-200'}`}
-              title="Salvar Agora (Ctrl+S)"
-              aria-label="Salvar documento"
-            >
-              {isProcessing === 'save' ? (
-                <Loader2 size={16} className="text-blue-600 animate-spin" />
-              ) : (
-                <Save size={16} className="text-blue-600" />
-              )}
-            </button>
-            <button 
-              type="button" 
-              onClick={handlePrint} 
-              disabled={isProcessing === 'print'}
-              className={`p-1.5 rounded transition-all ${isProcessing === 'print' ? 'bg-gray-100' : 'hover:bg-gray-200'}`}
-              title="Imprimir (Ctrl+P)"
-              aria-label="Imprimir documento"
-            >
-              {isProcessing === 'print' ? (
-                <Loader2 size={16} className="text-gray-600 animate-spin" />
-              ) : (
-                <Printer size={16} className="text-gray-600" />
-              )}
-            </button>
-            <button 
-              type="button" 
-              onClick={handleUndo} 
-              className="p-1.5 hover:bg-gray-200 rounded transition-all" 
-              title="Desfazer (Ctrl+Z)"
-              aria-label="Desfazer última ação"
-            >
-              <Undo2 size={16} className="text-gray-600" />
-            </button>
-            <button 
-              type="button" 
-              onClick={handleRedo} 
-              className="p-1.5 hover:bg-gray-200 rounded transition-all" 
-              title="Refazer (Ctrl+Y)"
-              aria-label="Refazer última ação"
-            >
-              <Redo2 size={16} className="text-gray-600" />
-            </button>
-          </div>
+          <div id="wordpad-toolbar-v2" className="flex items-center gap-1">
+            {/* Group: Ações (Merge Undo/Redo/Save/Print) */}
+            <div className="flex items-center gap-0.5 border-r border-gray-300 pr-1 mr-1">
+              <button 
+                type="button" 
+                onClick={handleSave} 
+                disabled={isProcessing === 'save'}
+                className="p-1.5 hover:bg-gray-200 rounded transition-all text-blue-600"
+                title="Salvar (Ctrl+S)"
+              >
+                {isProcessing === 'save' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              </button>
+              <button 
+                type="button" 
+                onClick={handlePrint} 
+                className="p-1.5 hover:bg-gray-200 rounded transition-all text-gray-600"
+                title="Imprimir (Ctrl+P)"
+              >
+                <Printer size={16} />
+              </button>
+              <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
+              <button 
+                type="button" 
+                onClick={handleUndo} 
+                className="p-1.5 hover:bg-gray-200 rounded transition-all text-gray-600"
+                title="Desfazer (Ctrl+Z)"
+              >
+                <Undo2 size={16} />
+              </button>
+              <button 
+                type="button" 
+                onClick={handleRedo} 
+                className="p-1.5 hover:bg-gray-200 rounded transition-all text-gray-600"
+                title="Refazer (Ctrl+Y)"
+              >
+                <Redo2 size={16} />
+              </button>
+            </div>
 
-          <div id="wordpad-toolbar" className="flex items-center gap-1">
             {/* Group: Fonte */}
             <div className="flex items-center gap-1 border-r border-gray-300 pr-1 mr-1">
-              <select className="ql-font" style={{ width: '130px' }} aria-label="Fonte">
+              <select className="ql-font border-none" defaultValue="arial" aria-label="Fonte">
                 <option value="arial">Arial</option>
                 <option value="courier-new">Courier New</option>
                 <option value="georgia">Georgia</option>
@@ -792,48 +772,40 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
                 <option value="trebuchet">Trebuchet MS</option>
                 <option value="verdana">Verdana</option>
               </select>
-              <select className="ql-size" style={{ width: '70px' }} aria-label="Tamanho da fonte" defaultValue="">
-                <option value="small">Pequeno</option>
+              <select className="ql-size border-none" defaultValue="" aria-label="Tamanho">
+                <option value="small">Small</option>
                 <option value="">Normal</option>
-                <option value="large">Grande</option>
-                <option value="huge">Muito Grande</option>
+                <option value="large">Large</option>
+                <option value="huge">Huge</option>
               </select>
-              
-              <div className="flex items-center gap-0.5 ml-1">
-                <button type="button" className="ql-bold" title="Negrito (Ctrl+B)" aria-label="Negrito"></button>
-                <button type="button" className="ql-italic" title="Itálico (Ctrl+I)" aria-label="Itálico"></button>
-                <button type="button" className="ql-underline" title="Sublinhado (Ctrl+U)" aria-label="Sublinhado"></button>
-                <button type="button" className="ql-strike" title="Tachado" aria-label="Tachado"></button>
-                <div className="w-[1px] h-4 bg-gray-300 mx-0.5" aria-hidden="true"></div>
-                <button type="button" className="ql-script" value="sub" title="Subscrito" aria-label="Subscrito"></button>
-                <button type="button" className="ql-script" value="super" title="Sobrescrito" aria-label="Sobrescrito"></button>
-                <div className="w-[1px] h-4 bg-gray-300 mx-0.5" aria-hidden="true"></div>
-                <select className="ql-color" title="Cor da Fonte" aria-label="Cor da fonte"></select>
-                <select className="ql-background" title="Cor de Realce" aria-label="Cor de realce"></select>
-                <button type="button" className="ql-clean" title="Limpar Formatação" aria-label="Limpar formatação"></button>
-              </div>
+            </div>
+
+            {/* Group: Estilo */}
+            <div className="flex items-center gap-0.5 border-r border-gray-300 pr-1 mr-1">
+              <button type="button" className="ql-bold" title="Negrito"></button>
+              <button type="button" className="ql-italic" title="Itálico"></button>
+              <button type="button" className="ql-underline" title="Sublinhado"></button>
+              <button type="button" className="ql-strike" title="Tachado"></button>
+              <div className="w-[1px] h-4 bg-gray-200 mx-0.5" aria-hidden="true"></div>
+              <select className="ql-color" title="Cor"></select>
+              <select className="ql-background" title="Fundo"></select>
             </div>
 
             {/* Group: Parágrafo */}
             <div className="flex items-center gap-0.5 border-r border-gray-300 pr-1 mr-1">
-              <button type="button" className="ql-list" value="ordered" title="Lista Numerada" aria-label="Lista numerada"></button>
-              <button type="button" className="ql-list" value="bullet" title="Lista com Marcadores" aria-label="Lista com marcadores"></button>
-              <div className="w-[1px] h-4 bg-gray-300 mx-0.5" aria-hidden="true"></div>
-              <button type="button" className="ql-indent" value="-1" title="Diminuir Recuo" aria-label="Diminuir recuo"></button>
-              <button type="button" className="ql-indent" value="+1" title="Aumentar Recuo" aria-label="Aumentar recuo"></button>
-              <div className="w-[1px] h-4 bg-gray-300 mx-0.5" aria-hidden="true"></div>
-              <button type="button" className="ql-align" value="" title="Alinhar à Esquerda" aria-label="Alinhar à esquerda"></button>
-              <button type="button" className="ql-align" value="center" title="Centralizar" aria-label="Centralizar"></button>
-              <button type="button" className="ql-align" value="right" title="Alinhar à Direita" aria-label="Alinhar à direita"></button>
-              <button type="button" className="ql-align" value="justify" title="Justificar" aria-label="Justificar"></button>
+              <button type="button" className="ql-list" value="ordered" title="Lista Numerada"></button>
+              <button type="button" className="ql-list" value="bullet" title="Lista com Marcadores"></button>
+              <button type="button" className="ql-align" value="" title="Esquerda"></button>
+              <button type="button" className="ql-align" value="center" title="Centralizado"></button>
+              <button type="button" className="ql-align" value="right" title="Direita"></button>
+              <button type="button" className="ql-align" value="justify" title="Justificado"></button>
             </div>
 
             {/* Group: Inserir */}
             <div className="flex items-center gap-0.5 border-r border-gray-300 pr-1 mr-1">
-              <button type="button" className="ql-link" title="Inserir Link" aria-label="Inserir link"></button>
-              <button type="button" className="ql-image" title="Inserir Imagem" aria-label="Inserir imagem"></button>
-              <button type="button" className="ql-video" title="Inserir Vídeo" aria-label="Inserir vídeo"></button>
-              <button type="button" className="ql-code-block" title="Bloco de Código" aria-label="Bloco de código"></button>
+              <button type="button" className="ql-link" title="Link"></button>
+              <button type="button" className="ql-image" title="Imagem"></button>
+              <button type="button" className="ql-video" title="Vídeo"></button>
             </div>
           </div>
 
@@ -1056,35 +1028,6 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
           )}
         </AnimatePresence>
 
-        <div className="flex items-center gap-4 mb-4 bg-white/80 backdrop-blur px-4 py-1.5 rounded-full shadow-sm border border-gray-200 text-[10px] font-bold text-gray-500">
-          <button 
-            type="button" 
-            onClick={() => setZoom(Math.max(50, zoom - 10))} 
-            className="hover:text-blue-600 transition-colors"
-            aria-label="Diminuir zoom"
-          >
-            <Minimize2 size={12} />
-          </button>
-          <span aria-live="polite">ZOOM: {zoom}%</span>
-          <button 
-            type="button" 
-            onClick={() => setZoom(Math.min(150, zoom + 10))} 
-            className="hover:text-blue-600 transition-colors"
-            aria-label="Aumentar zoom"
-          >
-            <Maximize2 size={12} />
-          </button>
-          <div className="w-[1px] h-3 bg-gray-300 mx-1" aria-hidden="true"></div>
-          <button 
-            type="button" 
-            onClick={() => setZoom(100)} 
-            className="hover:text-blue-600 transition-colors"
-            aria-label="Resetar zoom para 100%"
-          >
-            RESET
-          </button>
-        </div>
-
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0, scale: zoom / 100 }}
@@ -1183,9 +1126,11 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
         .wordpad-editor .ql-editor {
           padding: 0 !important;
           min-height: 100%;
+          font-family: Arial, sans-serif;
+          font-size: 14px;
         }
         
-        #wordpad-toolbar button, #wordpad-toolbar .ql-picker {
+        #wordpad-toolbar-v2 button, #wordpad-toolbar-v2 .ql-picker {
           border: 1px solid transparent !important;
           background: transparent !important;
           padding: 2px !important;
@@ -1198,17 +1143,17 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
           transition: all 0.1s !important;
           position: relative;
         }
-        #wordpad-toolbar .ql-picker.ql-font {
+        #wordpad-toolbar-v2 .ql-picker.ql-font {
           width: 130px !important;
         }
-        #wordpad-toolbar .ql-picker.ql-size {
+        #wordpad-toolbar-v2 .ql-picker.ql-size {
           width: 70px !important;
         }
-        #wordpad-toolbar button:hover, #wordpad-toolbar .ql-picker:hover {
+        #wordpad-toolbar-v2 button:hover, #wordpad-toolbar-v2 .ql-picker:hover {
           background-color: #e2e2e2 !important;
           border-color: #bbb !important;
         }
-        #wordpad-toolbar button.ql-active, #wordpad-toolbar .ql-picker.ql-expanded {
+        #wordpad-toolbar-v2 button.ql-active, #wordpad-toolbar-v2 .ql-picker.ql-expanded {
           background-color: #cde6f7 !important;
           border-color: #2b88d8 !important;
           color: #2b579a !important;
@@ -1216,13 +1161,17 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
         }
         
         /* Ensure italic button works correctly */
-        #wordpad-toolbar button.ql-italic.ql-active {
+        #wordpad-toolbar-v2 button.ql-italic.ql-active {
           font-style: italic !important;
         }
 
-        /* Hide the original selects to prevent duplication if Quill fails to hide them */
-        #wordpad-toolbar select {
+        /* Aggressively hide original selects to prevent duplication */
+        #wordpad-toolbar-v2 select {
           display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          position: absolute !important;
+          pointer-events: none !important;
         }
 
         /* Picker Options Z-Index and Positioning */
