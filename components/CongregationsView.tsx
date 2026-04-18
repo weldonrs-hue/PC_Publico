@@ -1037,7 +1037,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
                   <Store className="text-amber-600 shrink-0" size={20} />
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    Copie e cole a lista de congregações no formato completo (incluindo número entre parênteses, endereços e coordenador). O sistema identificará automaticamente cada registro.
+                    Vá no site JW.Hub &gt; CONSULTAS &gt; Contatos. Faça a pesquisa em Categoria: Congregação. Tipo de contato: Congregação. Pesquisar em: Meu circuito. Depois de pesquisar clique em Exibir todos os detalhes. Depois selecione todos os dados da página e cole aqui. O aplicativo selecionará os itens correspondentes. Obs: Esse método é menos exato que usar Colar Dados em Nova Congregação.
                   </p>
                 </div>
 
