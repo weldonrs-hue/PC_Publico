@@ -294,90 +294,183 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     setIsImporting(true);
 
     try {
-      const entries = bulkText.split(/\n(?=.*?\(\d+\)\nCongregação)/g);
       const batch = writeBatch(db);
-      
       let importedCount = 0;
 
-      for (const entry of entries) {
-        const lines = entry.split('\n').map(l => l.trim()).filter(l => l !== '');
-        if (lines.length < 5) continue;
+      // Check if it's CSV format (starts with the specific header)
+      const isCSV = bulkText.trim().startsWith('Congregação,"Circuito"') || bulkText.trim().startsWith('Congregação,Circuito');
 
-        const congregation: Partial<Congregation & { userId: string }> = {
-          userId,
-          grupos: []
-        };
-
-        // Header line: Name - UF (Number)
-        const headerMatch = lines[0].match(/^(.*?)\s+\((\d+)\)$/);
-        if (headerMatch) {
-          congregation.nome = headerMatch[1].replace(/\s+-\s+[A-Z]{2}$/, '');
-          congregation.numero = headerMatch[2];
-        }
-
-        // Find parts
-        const findValue = (label: string) => {
-          const idx = lines.findIndex(l => l.toLowerCase() === label.toLowerCase());
-          return idx !== -1 ? lines[idx + 1] : null;
-        };
-
-        const coordIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
-        if (coordIdx !== -1) {
-          // Skip the (Number) Name line
-          let currentIdx = coordIdx + 2;
+      if (isCSV) {
+        // Robust CSV Parser that handles newlines in quotes
+        const rows: string[][] = [];
+        let currentRow: string[] = [];
+        let currentCell = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < bulkText.length; i++) {
+          const char = bulkText[i];
+          const nextChar = bulkText[i + 1];
           
-          // Coordinator name (A/C ...)
-          if (lines[currentIdx]?.startsWith('A/C')) {
-            congregation.coordenador = lines[currentIdx].replace('A/C', '').trim();
-            currentIdx++;
-          }
-
-          // Address lines - until we find things like "Circuito", "Colih", "CEP"
-          const addressLines = [];
-          while (currentIdx < lines.length) {
-            const line = lines[currentIdx];
-            if (['circuito', 'colih', 'celular (correspondência)', 'lista de distribuição', 'telefone 1', 'telefone 2'].includes(line.toLowerCase())) break;
-            
-            // Check if it's CEP
-            if (line.match(/^\d{5}\s*-\s*\d{3}$/)) {
-              congregation.cep = line;
-            } else if (line.length === 2 && line === line.toUpperCase()) {
-              congregation.estado = line;
-            } else if (line === line.toUpperCase() && line.length > 2) {
-              congregation.cidade = line;
+          if (inQuotes) {
+            if (char === '"' && nextChar === '"') {
+              currentCell += '"';
+              i++;
+            } else if (char === '"') {
+              inQuotes = false;
             } else {
-              addressLines.push(line);
+              currentCell += char;
             }
-            currentIdx++;
+          } else {
+            if (char === '"') {
+              inQuotes = true;
+            } else if (char === ',') {
+              currentRow.push(currentCell.trim());
+              currentCell = '';
+            } else if (char === '\n') {
+              currentRow.push(currentCell.trim());
+              rows.push(currentRow);
+              currentRow = [];
+              currentCell = '';
+            } else if (char !== '\r') {
+              currentCell += char;
+            }
           }
-          congregation.endereco = addressLines.join(', ');
+        }
+        if (currentRow.length > 0 || currentCell !== '') {
+          currentRow.push(currentCell.trim());
+          rows.push(currentRow);
         }
 
-        // Phone
-        const phone = findValue('Celular (correspondência)');
-        if (phone) congregation.telefone = formatPhone(phone);
+        // Process rows (skip header)
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (row.length < 3) continue;
 
-        // Circuito/Parte
-        const circuito = findValue('Circuito');
-        if (circuito) {
-          const partMatch = circuito.match(/\s+([A-Z])$/);
+          const congregation: Partial<Congregation & { userId: string }> = {
+            userId,
+            grupos: [],
+            nome: row[0].replace(/\s+-\s+[A-Z]{2}$/, ''), // Clean "City - UF"
+            numero: row[2],
+          };
+
+          // Circuit Part
+          const circuitStr = row[1];
+          const partMatch = circuitStr.match(/\s+([A-Z])$/);
           if (partMatch) congregation.parte = partMatch[1];
+
+          // Address & Coordinator from column 9 (Endereço completo)
+          const fullAddress = row[9] || '';
+          const addressLines = fullAddress.split('\n').map(l => l.trim()).filter(l => l !== '');
+          
+          // Try to find coordinator
+          const coordLine = addressLines.find(l => l.startsWith('A/C'));
+          if (coordLine) {
+            congregation.coordenador = coordLine.replace('A/C', '').trim();
+          }
+
+          // Address components
+          congregation.cidade = row[16] || '';
+          congregation.estado = row[17] || '';
+          congregation.cep = row[14] ? (row[15] ? `${row[14]}-${row[15]}` : row[14]) : '';
+          
+          // Fallback if basic columns are empty
+          if (!congregation.cep && fullAddress.match(/\d{5}\s*-\s*\d{3}/)) {
+            const cepMatch = fullAddress.match(/\d{5}\s*-\s*\d{3}/);
+            if (cepMatch) congregation.cep = cepMatch[0];
+          }
+
+          const streetParts = [row[10], row[11], row[12], row[13]].filter(Boolean);
+          congregation.endereco = streetParts.length > 0 ? streetParts.join(', ') : '';
+
+          // Telefone
+          const phone = row[21] || row[22] || row[23];
+          if (phone) congregation.telefone = formatPhone(phone);
+
+          if (congregation.nome && congregation.numero) {
+            const docRef = doc(collection(db, 'congregations'));
+            batch.set(docRef, congregation);
+            importedCount++;
+          }
         }
 
-        if (congregation.nome && congregation.numero) {
-          const docRef = doc(collection(db, 'congregations'));
-          batch.set(docRef, congregation);
-          importedCount++;
+      } else {
+        // Fallback to previous multiline parser
+        const entries = bulkText.split(/\n(?=.*?\(\d+\)\nCongregação)/g);
+        for (const entry of entries) {
+          const lines = entry.split('\n').map(l => l.trim()).filter(l => l !== '');
+          if (lines.length < 5) continue;
+
+          const congregation: Partial<Congregation & { userId: string }> = {
+            userId,
+            grupos: []
+          };
+
+          const headerMatch = lines[0].match(/^(.*?)\s+\((\d+)\)$/);
+          if (headerMatch) {
+            congregation.nome = headerMatch[1].replace(/\s+-\s+[A-Z]{2}$/, '');
+            congregation.numero = headerMatch[2];
+          }
+
+          const findValue = (label: string) => {
+            const idx = lines.findIndex(l => l.toLowerCase() === label.toLowerCase());
+            return idx !== -1 ? lines[idx + 1] : null;
+          };
+
+          const coordIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
+          if (coordIdx !== -1) {
+            let currentIdx = coordIdx + 2;
+            if (lines[currentIdx]?.startsWith('A/C')) {
+              congregation.coordenador = lines[currentIdx].replace('A/C', '').trim();
+              currentIdx++;
+            }
+
+            const addressLines = [];
+            while (currentIdx < lines.length) {
+              const line = lines[currentIdx];
+              if (['circuito', 'colih', 'celular (correspondência)', 'lista de distribuição', 'telefone 1', 'telefone 2'].includes(line.toLowerCase())) break;
+              
+              if (line.match(/^\d{5}\s*-\s*\d{3}$/)) {
+                congregation.cep = line;
+              } else if (line.length === 2 && line === line.toUpperCase()) {
+                congregation.estado = line;
+              } else if (line === line.toUpperCase() && line.length > 2) {
+                congregation.cidade = line;
+              } else {
+                addressLines.push(line);
+              }
+              currentIdx++;
+            }
+            congregation.endereco = addressLines.join(', ');
+          }
+
+          const phone = findValue('Celular (correspondência)');
+          if (phone) congregation.telefone = formatPhone(phone);
+
+          const circuito = findValue('Circuito');
+          if (circuito) {
+            const partMatch = circuito.match(/\s+([A-Z])$/);
+            if (partMatch) congregation.parte = partMatch[1];
+          }
+
+          if (congregation.nome && congregation.numero) {
+            const docRef = doc(collection(db, 'congregations'));
+            batch.set(docRef, congregation);
+            importedCount++;
+          }
         }
       }
 
-      await batch.commit();
-      setShowBulkImport(false);
-      setBulkText('');
-      alert(`${importedCount} congregações importadas com sucesso!`);
+      if (importedCount > 0) {
+        await batch.commit();
+        setShowBulkImport(false);
+        setBulkText('');
+        alert(`${importedCount} congregações importadas com sucesso!`);
+      } else {
+        alert('Nenhuma congregação válida encontrada para importação.');
+      }
     } catch (error) {
       console.error('Erro na importação em massa:', error);
-      alert('Erro ao importar dados. Verifique o formato.');
+      alert('Erro ao importar dados. Verifique o formato do texto colado.');
     } finally {
       setIsImporting(false);
     }
