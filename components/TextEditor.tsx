@@ -876,9 +876,10 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Search Bar */}
-        <AnimatePresence>
+      {/* Search Bar */}
+      <AnimatePresence>
         {showSearch && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
@@ -1116,7 +1117,103 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
         </div>
       </div>
 
-      <style jsx global>{`
+      {/* Processing Loader Modal */}
+      <AnimatePresence>
+        {isProcessing && isProcessing !== 'ai' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[5000] flex items-center justify-center bg-white/60 backdrop-blur-[2px]"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Processando...</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Templates Modal */}
+      <AnimatePresence>
+        {showTemplates && (
+          <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <FileText className="text-blue-600" />
+                  Templates Recomendados
+                </h3>
+                <button onClick={() => setShowTemplates(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <ChevronDown size={24} />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto custom-scrollbar grid grid-cols-1 md:grid-cols-2 gap-4">
+                {templates.map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => applyTemplate(template.content)}
+                    className="p-4 border border-gray-100 rounded-2xl hover:border-blue-300 hover:bg-blue-50 transition-all text-left flex flex-col gap-2 group"
+                  >
+                    <span className="font-bold text-gray-800 group-hover:text-blue-700">{template.name}</span>
+                    <div className="text-[10px] text-gray-400 line-clamp-3 overflow-hidden" dangerouslySetInnerHTML={{ __html: template.content }} />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* History Modal */}
+      <AnimatePresence>
+        {showHistory && (
+          <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Clock className="text-indigo-600" />
+                  Histórico Local
+                </h3>
+                <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <ChevronDown size={24} />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto custom-scrollbar space-y-3">
+                {history.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 italic">Nenhum histórico detectado neste dispositivo.</div>
+                ) : (
+                  history.map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => { setContent(item.content); setShowHistory(false); }}
+                      className="w-full p-4 border border-gray-100 rounded-2xl hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left flex justify-between items-center group"
+                    >
+                      <div>
+                        <div className="font-bold text-gray-800 group-hover:text-indigo-700">{item.title}</div>
+                        <div className="text-[10px] text-gray-400">{item.date}</div>
+                      </div>
+                      <ChevronLeft className="rotate-180 text-gray-300 group-hover:text-indigo-400 transition-colors" size={20} />
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <style dangerouslySetInnerHTML={{ __html: `
         .wordpad-editor .ql-toolbar.ql-snow {
           border: none;
           padding: 0;
@@ -1225,7 +1322,7 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
         }
         .ql-snow .ql-picker.ql-size .ql-picker-label[data-value=small]::before,
         .ql-snow .ql-picker.ql-size .ql-picker-item[data-value=small]::before {
-          content: '8pt';
+          content: '11pt';
         }
         .ql-snow .ql-picker.ql-size .ql-picker-label[data-value=large]::before,
         .ql-snow .ql-picker.ql-size .ql-picker-item[data-value=large]::before {
@@ -1236,9 +1333,9 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
           content: '18pt';
         }
         
-        .ql-size-small { font-size: 12px; }
-        .ql-size-large { font-size: 20px; }
-        .ql-size-huge { font-size: 28px; }
+        .ql-size-small { font-size: 11pt; }
+        .ql-size-large { font-size: 14pt; }
+        .ql-size-huge { font-size: 18pt; }
 
         /* Custom Fonts */
         .ql-font-arial { font-family: Arial, sans-serif; }
@@ -1323,7 +1420,7 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #a8a8a8;
         }
-      `}</style>
+      `}} />
       {/* Clear Confirmation Modal */}
       <AnimatePresence>
         {showClearConfirm && (
