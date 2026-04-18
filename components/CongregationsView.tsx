@@ -40,7 +40,6 @@ import {
   setDoc, 
   doc, 
   deleteDoc,
-  writeBatch,
   onSnapshot
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -111,9 +110,6 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchingCEP, setIsSearchingCEP] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [showBulkImport, setShowBulkImport] = useState(false);
-  const [bulkText, setBulkText] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
   
   const [formData, setFormData] = useState<Congregation>(defaultFormData);
 
@@ -225,330 +221,68 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     if (!pasteText.trim()) return;
 
     const lines = pasteText.split('\n').map(l => l.trim()).filter(l => l !== '');
-    const pastedData: Partial<Congregation> = {};
+    const newFormData = { ...formData };
 
-    // Use the logic from handleBulkImport for better parsing
-    // Line 1: Name - City/UF (Number)
-    const firstLineMatch = lines[0].match(/^(.*?)\s*-\s*(.*?)\s*\((\d+)\)$/);
-    if (firstLineMatch) {
-      pastedData.nome = firstLineMatch[1].trim();
-      pastedData.numero = firstLineMatch[3].trim();
-      
-      const cityStatePart = firstLineMatch[2].trim();
-      const stateMatch = cityStatePart.match(/\s+([A-Z]{2})$/);
-      if (stateMatch) {
-        pastedData.estado = stateMatch[1];
-        pastedData.cidade = cityStatePart.replace(stateMatch[0], '').trim();
-      } else if (cityStatePart.length === 2 && cityStatePart === cityStatePart.toUpperCase()) {
-        pastedData.estado = cityStatePart;
-        pastedData.cidade = pastedData.nome;
+    // 1. Nome da Congregação (Geralmente a 3ª linha no formato padrão)
+    if (lines.length > 2) {
+      // Se a primeira linha for "Congregação", o nome costuma estar na 3ª
+      if (lines[0].toLowerCase().includes('congregação')) {
+        newFormData.nome = lines[2];
       } else {
-        pastedData.cidade = cityStatePart;
+        newFormData.nome = lines[0];
       }
     }
 
-    const corresIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
-    if (corresIdx !== -1) {
-      let scanIdx = corresIdx + 2; 
-      if (lines[scanIdx]?.startsWith('A/C')) {
-        pastedData.coordenador = lines[scanIdx].replace('A/C', '').trim();
-        scanIdx++;
-      }
-      const addressParts: string[] = [];
-      const labels = ['circuito', 'colih', 'celular (correspondência)', 'telefone 1', 'telefone 2', 'lista de distribuição'];
-      while (scanIdx < lines.length) {
-        const currentLine = lines[scanIdx];
-        if (labels.includes(currentLine.toLowerCase())) break;
-        if (currentLine.match(/^\d{5}\s*-\s*\d{3}$/)) {
-          pastedData.cep = currentLine;
-        } else if (currentLine.length === 2 && currentLine === currentLine.toUpperCase()) {
-          pastedData.estado = currentLine;
-        } else if (currentLine === currentLine.toUpperCase() && currentLine.length > 2 && !currentLine.includes(',')) {
-          pastedData.cidade = currentLine;
-        } else {
-          addressParts.push(currentLine);
+    // 2. Endereço, Cidade, Estado, CEP
+    const addressIdx = lines.findIndex(l => l.toLowerCase() === 'endereço');
+    if (addressIdx !== -1) {
+      // O endereço costuma ter 3 ou 4 linhas após "Endereço"
+      // Ex: Rua, Bairro, Cidade/UF, CEP
+      const addrLine1 = lines[addressIdx + 1] || '';
+      const addrLine2 = lines[addressIdx + 2] || '';
+      const addrLine3 = lines[addressIdx + 3] || '';
+      const addrLine4 = lines[addressIdx + 4] || '';
+
+      // Tenta identificar Cidade, PB e CEP
+      const cityStateMatch = addrLine3.match(/^(.+),\s*([A-Z]{2})$/i);
+      if (cityStateMatch) {
+        newFormData.endereco = `${addrLine1}${addrLine2 ? ', ' + addrLine2 : ''}`;
+        newFormData.cidade = cityStateMatch[1].toUpperCase();
+        newFormData.estado = cityStateMatch[2].toUpperCase();
+        newFormData.cep = addrLine4.match(/^\d{5}-\d{3}$/) ? addrLine4 : '';
+      } else {
+        // Fallback se o formato for um pouco diferente
+        const cityStateMatch2 = addrLine2.match(/^(.+),\s*([A-Z]{2})$/i);
+        if (cityStateMatch2) {
+          newFormData.endereco = addrLine1;
+          newFormData.cidade = cityStateMatch2[1].toUpperCase();
+          newFormData.estado = cityStateMatch2[2].toUpperCase();
+          newFormData.cep = addrLine3.match(/^\d{5}-\d{3}$/) ? addrLine3 : '';
         }
-        scanIdx++;
       }
-      if (addressParts.length > 0) pastedData.endereco = addressParts.join(', ');
     }
 
-    const findVal = (label: string) => {
-      const idx = lines.findIndex(l => l.toLowerCase() === label.toLowerCase());
-      return idx !== -1 ? lines[idx + 1] : null;
-    };
-
-    const phone = findVal('Celular (correspondência)') || findVal('Telefone 1');
-    if (phone && !phone.toLowerCase().includes('lista')) pastedData.telefone = formatPhone(phone);
-
-    const circuit = findVal('Circuito');
-    if (circuit) {
-      const partMatch = circuit.match(/\s+([A-Z])$/);
-      if (partMatch) pastedData.parte = partMatch[1];
+    // 3. Telefone
+    const phoneIdx = lines.findIndex(l => l.toLowerCase() === 'telefone');
+    if (phoneIdx !== -1 && lines[phoneIdx + 1]) {
+      newFormData.telefone = formatPhone(lines[phoneIdx + 1]);
     }
 
-    // Check for existing congregation to update/merge
-    const existing = congregations.find(c => c.numero === pastedData.numero);
-    
-    if (existing) {
-      setSelectedCong(existing);
-      // Merge: keep existing data, but fill blanks with pasted data
-      const merged = { ...existing };
-      (Object.keys(pastedData) as Array<keyof Congregation>).forEach(key => {
-        if (!merged[key] && pastedData[key]) {
-          (merged as any)[key] = (pastedData as any)[key];
-        }
-      });
-      setFormData(merged);
-    } else {
-      setFormData({ ...formData, ...pastedData });
+    // 4. GPS
+    const gpsIdx = lines.findIndex(l => l.toLowerCase().includes('coordenadas gps'));
+    if (gpsIdx !== -1 && lines[gpsIdx + 1]) {
+      const gpsRaw = lines[gpsIdx + 1];
+      // Converte "-7.240467 -35.877171" para "-7.240467, -35.877171"
+      if (gpsRaw.includes(' ') && !gpsRaw.includes(',')) {
+        newFormData.gps = gpsRaw.replace(/\s+/g, ', ');
+      } else {
+        newFormData.gps = gpsRaw;
+      }
     }
 
+    setFormData(newFormData);
     setIsPasting(false);
     setPasteText('');
-  };
-
-  const handleBulkImport = async () => {
-    if (!bulkText.trim()) return;
-    setIsImporting(true);
-
-    try {
-      const batch = writeBatch(db);
-      let importedCount = 0;
-
-      // Check if it's CSV format (starts with the specific header)
-      const isCSV = bulkText.trim().startsWith('Congregação,"Circuito"') || bulkText.trim().startsWith('Congregação,Circuito');
-
-      if (isCSV) {
-        // Robust CSV Parser that handles newlines in quotes
-        const rows: string[][] = [];
-        let currentRow: string[] = [];
-        let currentCell = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < bulkText.length; i++) {
-          const char = bulkText[i];
-          const nextChar = bulkText[i + 1];
-          
-          if (inQuotes) {
-            if (char === '"' && nextChar === '"') {
-              currentCell += '"';
-              i++;
-            } else if (char === '"') {
-              inQuotes = false;
-            } else {
-              currentCell += char;
-            }
-          } else {
-            if (char === '"') {
-              inQuotes = true;
-            } else if (char === ',') {
-              currentRow.push(currentCell.trim());
-              currentCell = '';
-            } else if (char === '\n') {
-              currentRow.push(currentCell.trim());
-              rows.push(currentRow);
-              currentRow = [];
-              currentCell = '';
-            } else if (char !== '\r') {
-              currentCell += char;
-            }
-          }
-        }
-        if (currentRow.length > 0 || currentCell !== '') {
-          currentRow.push(currentCell.trim());
-          rows.push(currentRow);
-        }
-
-        // Process rows (skip header)
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
-          if (row.length < 3) continue;
-
-          const congregation: Partial<Congregation & { userId: string }> = {
-            userId,
-            grupos: [],
-            nome: row[0].replace(/\s+-\s+[A-Z]{2}$/, ''), // Clean "City - UF"
-            numero: row[2],
-          };
-
-          // Circuit Part
-          const circuitStr = row[1];
-          const partMatch = circuitStr.match(/\s+([A-Z])$/);
-          if (partMatch) congregation.parte = partMatch[1];
-
-          // Address & Coordinator from column 9 (Endereço completo)
-          const fullAddress = row[9] || '';
-          const addressLines = fullAddress.split('\n').map(l => l.trim()).filter(l => l !== '');
-          
-          // Try to find coordinator
-          const coordLine = addressLines.find(l => l.startsWith('A/C'));
-          if (coordLine) {
-            congregation.coordenador = coordLine.replace('A/C', '').trim();
-          }
-
-          // Address components
-          congregation.cidade = row[16] || '';
-          congregation.estado = row[17] || '';
-          congregation.cep = row[14] ? (row[15] ? `${row[14]}-${row[15]}` : row[14]) : '';
-          
-          // Fallback if basic columns are empty
-          if (!congregation.cep && fullAddress.match(/\d{5}\s*-\s*\d{3}/)) {
-            const cepMatch = fullAddress.match(/\d{5}\s*-\s*\d{3}/);
-            if (cepMatch) congregation.cep = cepMatch[0];
-          }
-
-          const streetParts = [row[10], row[11], row[12], row[13]].filter(Boolean);
-          congregation.endereco = streetParts.length > 0 ? streetParts.join(', ') : '';
-
-          // Telefone
-          const phone = row[21] || row[22] || row[23];
-          if (phone) congregation.telefone = formatPhone(phone);
-
-          if (congregation.nome && congregation.numero) {
-            const existing = congregations.find(c => c.numero === congregation.numero);
-            if (existing) {
-              const merged = { ...existing };
-              (Object.keys(congregation) as Array<keyof Congregation>).forEach(key => {
-                if (!merged[key] && (congregation as any)[key]) {
-                  (merged as any)[key] = (congregation as any)[key];
-                }
-              });
-              batch.set(doc(db, 'congregations', existing.id), merged);
-            } else {
-              const docRef = doc(collection(db, 'congregations'));
-              batch.set(docRef, congregation);
-            }
-            importedCount++;
-          }
-        }
-
-      } else {
-        // Multi-line parser
-        // Split entries based on the start of a record: "Name - City/UF (Number)" followed by "Congregação"
-        const entries = bulkText.split(/\n(?=[^\n]+\s*-\s*[^\n]+\s*\(\d+\)\nCongregação)/g);
-        
-        for (const entry of entries) {
-          const lines = entry.split('\n').map(l => l.trim()).filter(l => l !== '');
-          if (lines.length < 5) continue;
-
-          const congregation: Partial<Congregation & { userId: string }> = {
-            userId,
-            grupos: []
-          };
-
-          // 1. Process First Line: Name - City/UF (Number)
-          const firstLine = lines[0];
-          const firstLineMatch = firstLine.match(/^(.*?)\s*-\s*(.*?)\s*\((\d+)\)$/);
-          if (firstLineMatch) {
-            congregation.nome = firstLineMatch[1].trim();
-            congregation.numero = firstLineMatch[3].trim();
-            
-            const cityStatePart = firstLineMatch[2].trim();
-            // If it ends with 2 capital letters, that's likely the state
-            const stateMatch = cityStatePart.match(/\s+([A-Z]{2})$/);
-            if (stateMatch) {
-              congregation.estado = stateMatch[1];
-              congregation.cidade = cityStatePart.replace(stateMatch[0], '').trim();
-            } else if (cityStatePart.length === 2 && cityStatePart === cityStatePart.toUpperCase()) {
-              congregation.estado = cityStatePart;
-              // City will be same as name if not specified otherwise
-              congregation.cidade = congregation.nome;
-            } else {
-              congregation.cidade = cityStatePart;
-            }
-          }
-
-          // 2. Anchor at "Correspondência"
-          const corresIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
-          if (corresIdx !== -1) {
-            // Line after Correspondência is usually (Number) Name - City/UF
-            // Line after that is CCA (A/C ...)
-            let scanIdx = corresIdx + 2; 
-            
-            // Find coordinator
-            if (lines[scanIdx]?.startsWith('A/C')) {
-              congregation.coordenador = lines[scanIdx].replace('A/C', '').trim();
-              scanIdx++;
-            }
-
-            // Collect address parts until we find indicators of other blocks
-            const addressParts: string[] = [];
-            const labels = ['circuito', 'colih', 'celular (correspondência)', 'telefone 1', 'telefone 2', 'lista de distribuição'];
-            
-            while (scanIdx < lines.length) {
-              const currentLine = lines[scanIdx];
-              if (labels.includes(currentLine.toLowerCase())) break;
-
-              // Identify special fields instead of address
-              if (currentLine.match(/^\d{5}\s*-\s*\d{3}$/)) {
-                congregation.cep = currentLine;
-              } else if (currentLine.length === 2 && currentLine === currentLine.toUpperCase()) {
-                congregation.estado = currentLine;
-              } else if (currentLine === currentLine.toUpperCase() && currentLine.length > 2 && !currentLine.includes(',')) {
-                congregation.cidade = currentLine;
-              } else {
-                addressParts.push(currentLine);
-              }
-              scanIdx++;
-            }
-            
-            if (addressParts.length > 0) {
-              congregation.endereco = addressParts.join(', ');
-            }
-          }
-
-          // 3. Phone extraction fallback
-          const findValue = (label: string) => {
-            const idx = lines.findIndex(l => l.toLowerCase() === label.toLowerCase());
-            return idx !== -1 ? lines[idx + 1] : null;
-          };
-
-          const phoneValue = findValue('Celular (correspondência)') || findValue('Telefone 1');
-          if (phoneValue && !phoneValue.toLowerCase().includes('lista')) {
-            congregation.telefone = formatPhone(phoneValue);
-          }
-
-          // 4. Circuit extraction
-          const circuitValue = findValue('Circuito');
-          if (circuitValue) {
-            const partMatch = circuitValue.match(/\s+([A-Z])$/);
-            if (partMatch) congregation.parte = partMatch[1];
-          }
-
-          if (congregation.nome && congregation.numero) {
-            const existing = congregations.find(c => c.numero === congregation.numero);
-            if (existing) {
-              const merged = { ...existing };
-              (Object.keys(congregation) as Array<keyof Congregation>).forEach(key => {
-                if (!merged[key] && (congregation as any)[key]) {
-                  (merged as any)[key] = (congregation as any)[key];
-                }
-              });
-              batch.set(doc(db, 'congregations', existing.id), merged);
-            } else {
-              const docRef = doc(collection(db, 'congregations'));
-              batch.set(docRef, congregation);
-            }
-            importedCount++;
-          }
-        }
-      }
-
-      if (importedCount > 0) {
-        await batch.commit();
-        setShowBulkImport(false);
-        setBulkText('');
-        alert(`${importedCount} congregações importadas com sucesso!`);
-      } else {
-        alert('Nenhuma congregação válida encontrada para importação.');
-      }
-    } catch (error) {
-      console.error('Erro na importação em massa:', error);
-      alert('Erro ao importar dados. Verifique o formato do texto colado.');
-    } finally {
-      setIsImporting(false);
-    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -646,13 +380,6 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                   >
                     <Plus size={20} />
                     Nova Congregação
-                  </button>
-                  <button 
-                    onClick={() => setShowBulkImport(true)}
-                    className="w-full md:w-auto bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 active:scale-95"
-                  >
-                    <ClipboardPaste size={20} />
-                    Importação em Massa
                   </button>
                 </div>
               </div>
@@ -1045,81 +772,6 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           </motion.div>
         </div>
       )}
-
-      {/* Bulk Import Modal */}
-      <AnimatePresence>
-        {showBulkImport && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col gap-4 border border-indigo-100"
-            >
-              <div className="flex justify-between items-center border-b border-gray-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
-                    <ClipboardPaste size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-extrabold text-gray-800">Importação em Massa</h3>
-                    <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest">Cole seus dados do clipboard</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => !isImporting && setShowBulkImport(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
-                >
-                  <ChevronLeft className="rotate-90" size={24} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
-                  <Store className="text-amber-600 shrink-0" size={20} />
-                  <p className="text-xs text-amber-800 leading-relaxed">
-                    Vá no site JW.Hub &gt; CONSULTAS &gt; Contatos. Faça a pesquisa em Categoria: Congregação. Tipo de contato: Congregação. Pesquisar em: Meu circuito. Depois de pesquisar clique em Exibir todos os detalhes. Depois selecione todos os dados da página e cole aqui. O aplicativo selecionará os itens correspondentes. Obs: Esse método é menos exato que usar Colar Dados em Nova Congregação.
-                  </p>
-                </div>
-
-                <textarea 
-                  value={bulkText}
-                  onChange={(e) => setBulkText(e.target.value)}
-                  placeholder="Cole aqui a lista de congregações..."
-                  className="w-full h-80 p-4 text-xs bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 font-mono resize-none transition-all custom-scrollbar"
-                />
-
-                <div className="flex gap-3">
-                  <button 
-                    disabled={isImporting}
-                    onClick={() => setShowBulkImport(false)}
-                    className="flex-1 py-4 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    disabled={isImporting || !bulkText.trim()}
-                    onClick={handleBulkImport}
-                    className="flex-3 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isImporting ? (
-                      <>
-                        <Loader2 className="animate-spin" size={20} />
-                        <span>Processando Importação...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save size={20} />
-                        <span>Confirmar Importação em Massa</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
     </div>
   );
