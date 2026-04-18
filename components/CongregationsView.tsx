@@ -225,66 +225,85 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     if (!pasteText.trim()) return;
 
     const lines = pasteText.split('\n').map(l => l.trim()).filter(l => l !== '');
-    const newFormData = { ...formData };
+    const pastedData: Partial<Congregation> = {};
 
-    // 1. Nome da Congregação (Geralmente a 3ª linha no formato padrão)
-    if (lines.length > 2) {
-      // Se a primeira linha for "Congregação", o nome costuma estar na 3ª
-      if (lines[0].toLowerCase().includes('congregação')) {
-        newFormData.nome = lines[2];
+    // Use the logic from handleBulkImport for better parsing
+    // Line 1: Name - City/UF (Number)
+    const firstLineMatch = lines[0].match(/^(.*?)\s*-\s*(.*?)\s*\((\d+)\)$/);
+    if (firstLineMatch) {
+      pastedData.nome = firstLineMatch[1].trim();
+      pastedData.numero = firstLineMatch[3].trim();
+      
+      const cityStatePart = firstLineMatch[2].trim();
+      const stateMatch = cityStatePart.match(/\s+([A-Z]{2})$/);
+      if (stateMatch) {
+        pastedData.estado = stateMatch[1];
+        pastedData.cidade = cityStatePart.replace(stateMatch[0], '').trim();
+      } else if (cityStatePart.length === 2 && cityStatePart === cityStatePart.toUpperCase()) {
+        pastedData.estado = cityStatePart;
+        pastedData.cidade = pastedData.nome;
       } else {
-        newFormData.nome = lines[0];
+        pastedData.cidade = cityStatePart;
       }
     }
 
-    // 2. Endereço, Cidade, Estado, CEP
-    const addressIdx = lines.findIndex(l => l.toLowerCase() === 'endereço');
-    if (addressIdx !== -1) {
-      // O endereço costuma ter 3 ou 4 linhas após "Endereço"
-      // Ex: Rua, Bairro, Cidade/UF, CEP
-      const addrLine1 = lines[addressIdx + 1] || '';
-      const addrLine2 = lines[addressIdx + 2] || '';
-      const addrLine3 = lines[addressIdx + 3] || '';
-      const addrLine4 = lines[addressIdx + 4] || '';
-
-      // Tenta identificar Cidade, PB e CEP
-      const cityStateMatch = addrLine3.match(/^(.+),\s*([A-Z]{2})$/i);
-      if (cityStateMatch) {
-        newFormData.endereco = `${addrLine1}${addrLine2 ? ', ' + addrLine2 : ''}`;
-        newFormData.cidade = cityStateMatch[1].toUpperCase();
-        newFormData.estado = cityStateMatch[2].toUpperCase();
-        newFormData.cep = addrLine4.match(/^\d{5}-\d{3}$/) ? addrLine4 : '';
-      } else {
-        // Fallback se o formato for um pouco diferente
-        const cityStateMatch2 = addrLine2.match(/^(.+),\s*([A-Z]{2})$/i);
-        if (cityStateMatch2) {
-          newFormData.endereco = addrLine1;
-          newFormData.cidade = cityStateMatch2[1].toUpperCase();
-          newFormData.estado = cityStateMatch2[2].toUpperCase();
-          newFormData.cep = addrLine3.match(/^\d{5}-\d{3}$/) ? addrLine3 : '';
+    const corresIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
+    if (corresIdx !== -1) {
+      let scanIdx = corresIdx + 2; 
+      if (lines[scanIdx]?.startsWith('A/C')) {
+        pastedData.coordenador = lines[scanIdx].replace('A/C', '').trim();
+        scanIdx++;
+      }
+      const addressParts: string[] = [];
+      const labels = ['circuito', 'colih', 'celular (correspondência)', 'telefone 1', 'telefone 2', 'lista de distribuição'];
+      while (scanIdx < lines.length) {
+        const currentLine = lines[scanIdx];
+        if (labels.includes(currentLine.toLowerCase())) break;
+        if (currentLine.match(/^\d{5}\s*-\s*\d{3}$/)) {
+          pastedData.cep = currentLine;
+        } else if (currentLine.length === 2 && currentLine === currentLine.toUpperCase()) {
+          pastedData.estado = currentLine;
+        } else if (currentLine === currentLine.toUpperCase() && currentLine.length > 2 && !currentLine.includes(',')) {
+          pastedData.cidade = currentLine;
+        } else {
+          addressParts.push(currentLine);
         }
+        scanIdx++;
       }
+      if (addressParts.length > 0) pastedData.endereco = addressParts.join(', ');
     }
 
-    // 3. Telefone
-    const phoneIdx = lines.findIndex(l => l.toLowerCase() === 'telefone');
-    if (phoneIdx !== -1 && lines[phoneIdx + 1]) {
-      newFormData.telefone = formatPhone(lines[phoneIdx + 1]);
+    const findVal = (label: string) => {
+      const idx = lines.findIndex(l => l.toLowerCase() === label.toLowerCase());
+      return idx !== -1 ? lines[idx + 1] : null;
+    };
+
+    const phone = findVal('Celular (correspondência)') || findVal('Telefone 1');
+    if (phone && !phone.toLowerCase().includes('lista')) pastedData.telefone = formatPhone(phone);
+
+    const circuit = findVal('Circuito');
+    if (circuit) {
+      const partMatch = circuit.match(/\s+([A-Z])$/);
+      if (partMatch) pastedData.parte = partMatch[1];
     }
 
-    // 4. GPS
-    const gpsIdx = lines.findIndex(l => l.toLowerCase().includes('coordenadas gps'));
-    if (gpsIdx !== -1 && lines[gpsIdx + 1]) {
-      const gpsRaw = lines[gpsIdx + 1];
-      // Converte "-7.240467 -35.877171" para "-7.240467, -35.877171"
-      if (gpsRaw.includes(' ') && !gpsRaw.includes(',')) {
-        newFormData.gps = gpsRaw.replace(/\s+/g, ', ');
-      } else {
-        newFormData.gps = gpsRaw;
-      }
+    // Check for existing congregation to update/merge
+    const existing = congregations.find(c => c.numero === pastedData.numero);
+    
+    if (existing) {
+      setSelectedCong(existing);
+      // Merge: keep existing data, but fill blanks with pasted data
+      const merged = { ...existing };
+      (Object.keys(pastedData) as Array<keyof Congregation>).forEach(key => {
+        if (!merged[key] && pastedData[key]) {
+          (merged as any)[key] = (pastedData as any)[key];
+        }
+      });
+      setFormData(merged);
+    } else {
+      setFormData({ ...formData, ...pastedData });
     }
 
-    setFormData(newFormData);
     setIsPasting(false);
     setPasteText('');
   };
@@ -387,8 +406,19 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           if (phone) congregation.telefone = formatPhone(phone);
 
           if (congregation.nome && congregation.numero) {
-            const docRef = doc(collection(db, 'congregations'));
-            batch.set(docRef, congregation);
+            const existing = congregations.find(c => c.numero === congregation.numero);
+            if (existing) {
+              const merged = { ...existing };
+              (Object.keys(congregation) as Array<keyof Congregation>).forEach(key => {
+                if (!merged[key] && (congregation as any)[key]) {
+                  (merged as any)[key] = (congregation as any)[key];
+                }
+              });
+              batch.set(doc(db, 'congregations', existing.id), merged);
+            } else {
+              const docRef = doc(collection(db, 'congregations'));
+              batch.set(docRef, congregation);
+            }
             importedCount++;
           }
         }
@@ -487,8 +517,19 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           }
 
           if (congregation.nome && congregation.numero) {
-            const docRef = doc(collection(db, 'congregations'));
-            batch.set(docRef, congregation);
+            const existing = congregations.find(c => c.numero === congregation.numero);
+            if (existing) {
+              const merged = { ...existing };
+              (Object.keys(congregation) as Array<keyof Congregation>).forEach(key => {
+                if (!merged[key] && (congregation as any)[key]) {
+                  (merged as any)[key] = (congregation as any)[key];
+                }
+              });
+              batch.set(doc(db, 'congregations', existing.id), merged);
+            } else {
+              const docRef = doc(collection(db, 'congregations'));
+              batch.set(docRef, congregation);
+            }
             importedCount++;
           }
         }
