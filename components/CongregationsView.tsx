@@ -394,8 +394,10 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         }
 
       } else {
-        // Fallback to previous multiline parser
-        const entries = bulkText.split(/\n(?=.*?\(\d+\)\nCongregação)/g);
+        // Multi-line parser
+        // Split entries based on the start of a record: "Name - City/UF (Number)" followed by "Congregação"
+        const entries = bulkText.split(/\n(?=[^\n]+\s*-\s*[^\n]+\s*\(\d+\)\nCongregação)/g);
+        
         for (const entry of entries) {
           const lines = entry.split('\n').map(l => l.trim()).filter(l => l !== '');
           if (lines.length < 5) continue;
@@ -405,50 +407,82 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
             grupos: []
           };
 
-          const headerMatch = lines[0].match(/^(.*?)\s+\((\d+)\)$/);
-          if (headerMatch) {
-            congregation.nome = headerMatch[1].replace(/\s+-\s+[A-Z]{2}$/, '');
-            congregation.numero = headerMatch[2];
+          // 1. Process First Line: Name - City/UF (Number)
+          const firstLine = lines[0];
+          const firstLineMatch = firstLine.match(/^(.*?)\s*-\s*(.*?)\s*\((\d+)\)$/);
+          if (firstLineMatch) {
+            congregation.nome = firstLineMatch[1].trim();
+            congregation.numero = firstLineMatch[3].trim();
+            
+            const cityStatePart = firstLineMatch[2].trim();
+            // If it ends with 2 capital letters, that's likely the state
+            const stateMatch = cityStatePart.match(/\s+([A-Z]{2})$/);
+            if (stateMatch) {
+              congregation.estado = stateMatch[1];
+              congregation.cidade = cityStatePart.replace(stateMatch[0], '').trim();
+            } else if (cityStatePart.length === 2 && cityStatePart === cityStatePart.toUpperCase()) {
+              congregation.estado = cityStatePart;
+              // City will be same as name if not specified otherwise
+              congregation.cidade = congregation.nome;
+            } else {
+              congregation.cidade = cityStatePart;
+            }
           }
 
+          // 2. Anchor at "Correspondência"
+          const corresIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
+          if (corresIdx !== -1) {
+            // Line after Correspondência is usually (Number) Name - City/UF
+            // Line after that is CCA (A/C ...)
+            let scanIdx = corresIdx + 2; 
+            
+            // Find coordinator
+            if (lines[scanIdx]?.startsWith('A/C')) {
+              congregation.coordenador = lines[scanIdx].replace('A/C', '').trim();
+              scanIdx++;
+            }
+
+            // Collect address parts until we find indicators of other blocks
+            const addressParts: string[] = [];
+            const labels = ['circuito', 'colih', 'celular (correspondência)', 'telefone 1', 'telefone 2', 'lista de distribuição'];
+            
+            while (scanIdx < lines.length) {
+              const currentLine = lines[scanIdx];
+              if (labels.includes(currentLine.toLowerCase())) break;
+
+              // Identify special fields instead of address
+              if (currentLine.match(/^\d{5}\s*-\s*\d{3}$/)) {
+                congregation.cep = currentLine;
+              } else if (currentLine.length === 2 && currentLine === currentLine.toUpperCase()) {
+                congregation.estado = currentLine;
+              } else if (currentLine === currentLine.toUpperCase() && currentLine.length > 2 && !currentLine.includes(',')) {
+                congregation.cidade = currentLine;
+              } else {
+                addressParts.push(currentLine);
+              }
+              scanIdx++;
+            }
+            
+            if (addressParts.length > 0) {
+              congregation.endereco = addressParts.join(', ');
+            }
+          }
+
+          // 3. Phone extraction fallback
           const findValue = (label: string) => {
             const idx = lines.findIndex(l => l.toLowerCase() === label.toLowerCase());
             return idx !== -1 ? lines[idx + 1] : null;
           };
 
-          const coordIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
-          if (coordIdx !== -1) {
-            let currentIdx = coordIdx + 2;
-            if (lines[currentIdx]?.startsWith('A/C')) {
-              congregation.coordenador = lines[currentIdx].replace('A/C', '').trim();
-              currentIdx++;
-            }
-
-            const addressLines = [];
-            while (currentIdx < lines.length) {
-              const line = lines[currentIdx];
-              if (['circuito', 'colih', 'celular (correspondência)', 'lista de distribuição', 'telefone 1', 'telefone 2'].includes(line.toLowerCase())) break;
-              
-              if (line.match(/^\d{5}\s*-\s*\d{3}$/)) {
-                congregation.cep = line;
-              } else if (line.length === 2 && line === line.toUpperCase()) {
-                congregation.estado = line;
-              } else if (line === line.toUpperCase() && line.length > 2) {
-                congregation.cidade = line;
-              } else {
-                addressLines.push(line);
-              }
-              currentIdx++;
-            }
-            congregation.endereco = addressLines.join(', ');
+          const phoneValue = findValue('Celular (correspondência)') || findValue('Telefone 1');
+          if (phoneValue && !phoneValue.toLowerCase().includes('lista')) {
+            congregation.telefone = formatPhone(phoneValue);
           }
 
-          const phone = findValue('Celular (correspondência)');
-          if (phone) congregation.telefone = formatPhone(phone);
-
-          const circuito = findValue('Circuito');
-          if (circuito) {
-            const partMatch = circuito.match(/\s+([A-Z])$/);
+          // 4. Circuit extraction
+          const circuitValue = findValue('Circuito');
+          if (circuitValue) {
+            const partMatch = circuitValue.match(/\s+([A-Z])$/);
             if (partMatch) congregation.parte = partMatch[1];
           }
 
