@@ -184,7 +184,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       <div className="flex items-center gap-4">
         <button 
           onClick={handleBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#4CAF50] bg-white shadow-md border border-gray-200"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-emerald-600 bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
           <ChevronLeft size={28} strokeWidth={3} />
@@ -199,7 +199,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
       >
-        <div className="bg-[#4CAF50] p-4 text-white">
+        <div className="bg-emerald-600 p-4 text-white">
           <h3 className="font-bold flex items-center gap-2">
             Informações de Perfil
           </h3>
@@ -207,7 +207,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="animate-spin text-[#4CAF50]" size={48} />
+            <Loader2 className="animate-spin text-emerald-600" size={48} />
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
@@ -221,7 +221,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   required
                   value={formData.nome}
                   onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                   placeholder="Seu nome completo"
                 />
               </div>
@@ -232,7 +232,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 <input 
                   value={formData.nomeEsposa}
                   onChange={(e) => setFormData({...formData, nomeEsposa: e.target.value})}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                   placeholder="Nome da esposa (se houver)"
                 />
               </div>
@@ -246,7 +246,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
               <input 
                 value={formData.endereco}
                 onChange={(e) => setFormData({...formData, endereco: e.target.value})}
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                 placeholder="Rua, número, bairro..."
               />
             </div>
@@ -260,7 +260,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 <input 
                   value={formData.cidade}
                   onChange={(e) => setFormData({...formData, cidade: e.target.value.toUpperCase()})}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                   placeholder="CIDADE"
                 />
               </div>
@@ -273,14 +273,14 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     value={formData.cep}
                     onChange={(e) => setFormData({...formData, cep: formatCEP(e.target.value)})}
                     onBlur={handleCepSearch}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all pr-10"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all pr-10"
                     placeholder="00000-000"
                     maxLength={9}
                   />
                   <button 
                     type="button"
                     onClick={handleCepSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#4CAF50]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-500"
                   >
                     <Search size={18} />
                   </button>
@@ -294,7 +294,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   value={formData.uf}
                   onChange={(e) => setFormData({...formData, uf: e.target.value.toUpperCase().replace(/[^A-Z]/g, '')})}
                   maxLength={2}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all text-center"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all text-center"
                   placeholder="UF"
                 />
               </div>
@@ -306,7 +306,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   value={formData.circuito}
                   onChange={(e) => setFormData({...formData, circuito: formatCircuito(e.target.value)})}
                   maxLength={6}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all text-center"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all text-center"
                   placeholder="AB-123"
                 />
               </div>
@@ -323,7 +323,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     type="email"
                     value={formData.emailJwpub}
                     onChange={(e) => setFormData({...formData, emailJwpub: e.target.value})}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                     placeholder="usuario@jwpub.org"
                   />
                 </div>
@@ -335,7 +335,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     type="email"
                     value={formData.emailPessoal}
                     onChange={(e) => setFormData({...formData, emailPessoal: e.target.value})}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                     placeholder="exemplo@email.com"
                   />
                 </div>
@@ -349,7 +349,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   <input 
                     value={formData.telefoneCircuito}
                     onChange={(e) => setFormData({...formData, telefoneCircuito: formatBRPhone(e.target.value)})}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                     placeholder="(00) 00000-0000"
                     maxLength={15}
                   />
@@ -361,7 +361,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   <input 
                     value={formData.telefonePessoal}
                     onChange={(e) => setFormData({...formData, telefonePessoal: formatBRPhone(e.target.value)})}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#4CAF50] transition-all"
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all"
                     placeholder="(00) 00000-0000"
                     maxLength={15}
                   />
@@ -375,7 +375,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 disabled={!hasChanges}
                 className={`px-10 py-3 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 ${
                   hasChanges 
-                    ? 'bg-[#4CAF50] text-white hover:bg-[#3d8b40]' 
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                 }`}
               >
@@ -403,7 +403,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   handleSubmit();
                   onBack();
                 }}
-                className="w-full py-3 bg-[#4CAF50] text-white font-bold rounded-xl hover:bg-[#3d8b40] transition-colors"
+                className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors"
               >
                 Salvar e Sair
               </button>

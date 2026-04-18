@@ -40,6 +40,7 @@ import {
   setDoc, 
   doc, 
   deleteDoc,
+  writeBatch,
   onSnapshot
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -110,6 +111,9 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchingCEP, setIsSearchingCEP] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
   
   const [formData, setFormData] = useState<Congregation>(defaultFormData);
 
@@ -285,6 +289,100 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     setPasteText('');
   };
 
+  const handleBulkImport = async () => {
+    if (!bulkText.trim()) return;
+    setIsImporting(true);
+
+    try {
+      const entries = bulkText.split(/\n(?=.*?\(\d+\)\nCongregação)/g);
+      const batch = writeBatch(db);
+      
+      let importedCount = 0;
+
+      for (const entry of entries) {
+        const lines = entry.split('\n').map(l => l.trim()).filter(l => l !== '');
+        if (lines.length < 5) continue;
+
+        const congregation: Partial<Congregation & { userId: string }> = {
+          userId,
+          grupos: []
+        };
+
+        // Header line: Name - UF (Number)
+        const headerMatch = lines[0].match(/^(.*?)\s+\((\d+)\)$/);
+        if (headerMatch) {
+          congregation.nome = headerMatch[1].replace(/\s+-\s+[A-Z]{2}$/, '');
+          congregation.numero = headerMatch[2];
+        }
+
+        // Find parts
+        const findValue = (label: string) => {
+          const idx = lines.findIndex(l => l.toLowerCase() === label.toLowerCase());
+          return idx !== -1 ? lines[idx + 1] : null;
+        };
+
+        const coordIdx = lines.findIndex(l => l.toLowerCase() === 'correspondência');
+        if (coordIdx !== -1) {
+          // Skip the (Number) Name line
+          let currentIdx = coordIdx + 2;
+          
+          // Coordinator name (A/C ...)
+          if (lines[currentIdx]?.startsWith('A/C')) {
+            congregation.coordenador = lines[currentIdx].replace('A/C', '').trim();
+            currentIdx++;
+          }
+
+          // Address lines - until we find things like "Circuito", "Colih", "CEP"
+          const addressLines = [];
+          while (currentIdx < lines.length) {
+            const line = lines[currentIdx];
+            if (['circuito', 'colih', 'celular (correspondência)', 'lista de distribuição', 'telefone 1', 'telefone 2'].includes(line.toLowerCase())) break;
+            
+            // Check if it's CEP
+            if (line.match(/^\d{5}\s*-\s*\d{3}$/)) {
+              congregation.cep = line;
+            } else if (line.length === 2 && line === line.toUpperCase()) {
+              congregation.estado = line;
+            } else if (line === line.toUpperCase() && line.length > 2) {
+              congregation.cidade = line;
+            } else {
+              addressLines.push(line);
+            }
+            currentIdx++;
+          }
+          congregation.endereco = addressLines.join(', ');
+        }
+
+        // Phone
+        const phone = findValue('Celular (correspondência)');
+        if (phone) congregation.telefone = formatPhone(phone);
+
+        // Circuito/Parte
+        const circuito = findValue('Circuito');
+        if (circuito) {
+          const partMatch = circuito.match(/\s+([A-Z])$/);
+          if (partMatch) congregation.parte = partMatch[1];
+        }
+
+        if (congregation.nome && congregation.numero) {
+          const docRef = doc(collection(db, 'congregations'));
+          batch.set(docRef, congregation);
+          importedCount++;
+        }
+      }
+
+      await batch.commit();
+      setShowBulkImport(false);
+      setBulkText('');
+      alert(`${importedCount} congregações importadas com sucesso!`);
+    } catch (error) {
+      console.error('Erro na importação em massa:', error);
+      alert('Erro ao importar dados. Verifique o formato.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -315,7 +413,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
       <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-violet-600 bg-white shadow-md border border-gray-200"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-amber-600 bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
           <ChevronLeft size={28} strokeWidth={3} />
@@ -344,20 +442,20 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       placeholder="Buscar por nome ou número..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                     />
                   </div>
                   <div className="flex bg-gray-100 p-1 rounded-lg">
                     <button 
                       onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                       title="Ver Lista"
                     >
                       <List size={20} />
                     </button>
                     <button 
                       onClick={() => setViewMode('map')}
-                      className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                       title="Ver Mapa"
                     >
                       <MapIcon size={20} />
@@ -369,17 +467,24 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     href="https://hub.jw.org/meetings/pt?q=%7B%22meetingType%22:%22meetings%22,%22location%22:%22Sua%20localiza%C3%A7%C3%A3o%22%7D"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full md:w-auto bg-white text-violet-600 border border-violet-200 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-violet-50 transition-colors shadow-sm"
+                    className="w-full md:w-auto bg-white text-amber-600 border border-amber-200 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors shadow-sm"
                   >
                     <ExternalLink size={20} />
                     Buscar no JW.org
                   </a>
                   <button 
                     onClick={handleAddNew}
-                    className="w-full md:w-auto bg-violet-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-violet-700 transition-colors shadow-lg shadow-violet-200 active:scale-95"
+                    className="w-full md:w-auto bg-amber-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-700 transition-colors shadow-lg shadow-amber-200 active:scale-95"
                   >
                     <Plus size={20} />
                     Nova Congregação
+                  </button>
+                  <button 
+                    onClick={() => setShowBulkImport(true)}
+                    className="w-full md:w-auto bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 active:scale-95"
+                  >
+                    <ClipboardPaste size={20} />
+                    Importação em Massa
                   </button>
                 </div>
               </div>
@@ -387,7 +492,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
             {/* List or Map Grid */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-violet-500" size={48} />
+                <Loader2 className="animate-spin text-amber-500" size={48} />
               </div>
             ) : viewMode === 'map' ? (
               <motion.div 
@@ -402,7 +507,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                   />
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <MapPin size={14} className="text-violet-500" />
+                  <MapPin size={14} className="text-amber-500" />
                   <span>
                     Mostrando {
                       filteredCongregations.filter(c => {
@@ -419,11 +524,11 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                   filteredCongregations.map((cong) => (
                     <div 
                       key={cong.id}
-                      className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-violet-500/5 transition-all group"
+                      className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-amber-500/5 transition-all group"
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition-all duration-300 shadow-inner">
+                          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 shadow-inner">
                             <Store size={22} />
                           </div>
                           <div>
@@ -460,8 +565,8 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         </div>
                         {cong.gps ? (
                           <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-violet-500" />
-                            <span className="text-xs font-mono text-violet-600">{cong.gps}</span>
+                            <MapPin size={14} className="text-amber-500" />
+                            <span className="text-xs font-mono text-amber-600">{cong.gps}</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
@@ -480,7 +585,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <div className="grid grid-cols-2 gap-2 mt-4">
                         <button 
                           onClick={() => handleEdit(cong)}
-                          className="py-2.5 text-xs font-bold text-violet-600 border border-violet-100 rounded-xl hover:bg-violet-600 hover:text-white transition-all"
+                          className="py-2.5 text-xs font-bold text-amber-600 border border-amber-100 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
                         >
                           Ver Detalhes
                         </button>
@@ -511,7 +616,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
             exit={{ opacity: 0, x: -20 }}
             className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-5 text-white flex justify-between items-center">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-5 text-white flex justify-between items-center">
               <h3 className="font-bold">
                 {selectedCong ? 'Editar Congregação' : 'Nova Congregação'}
               </h3>
@@ -566,7 +671,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         required
                         value={formData.nome}
                         onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                         placeholder="Ex: Central"
                       />
                     </div>
@@ -576,7 +681,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         required
                         value={formData.numero}
                         onChange={(e) => setFormData({...formData, numero: e.target.value.replace(/\D/g, '').slice(0, 6)})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                         placeholder="000000"
                       />
                     </div>
@@ -585,7 +690,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <input 
                         value={formData.parte}
                         onChange={(e) => setFormData({...formData, parte: e.target.value.toUpperCase().slice(0, 1)})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors text-center"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-center"
                         placeholder="A"
                         maxLength={1}
                       />
@@ -597,7 +702,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.endereco}
                       onChange={(e) => setFormData({...formData, endereco: e.target.value})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                     />
                   </div>
 
@@ -606,17 +711,17 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <label className="text-xs font-bold text-gray-500 uppercase">CEP</label>
                       <div className="relative">
                         <input 
-                          value={formData.cep}
+                           value={formData.cep}
                           onChange={(e) => setFormData({...formData, cep: formatCEP(e.target.value)})}
                           onBlur={handleCEPSearch}
-                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors pr-8"
+                          className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors pr-8"
                           placeholder="00000-000"
                           maxLength={9}
                         />
                         <button 
                           type="button"
                           onClick={handleCEPSearch}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-violet-600 hover:text-violet-800"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-600 hover:text-amber-800"
                         >
                           {isSearchingCEP ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                         </button>
@@ -627,7 +732,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <input 
                         value={formData.cidade}
                         onChange={(e) => setFormData({...formData, cidade: e.target.value.toUpperCase()})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                         placeholder="CIDADE"
                       />
                     </div>
@@ -636,7 +741,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                       <input 
                         value={formData.estado}
                         onChange={(e) => setFormData({...formData, estado: e.target.value.toUpperCase().replace(/[^A-Z]/g, '')})}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors text-center"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-center"
                         placeholder="UF"
                         maxLength={2}
                       />
@@ -648,7 +753,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.gps || ''}
                       onChange={(e) => setFormData({...formData, gps: e.target.value})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                       placeholder="Ex: -23.5505, -46.6333"
                     />
                   </div>
@@ -664,7 +769,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.coordenador}
                       onChange={(e) => setFormData({...formData, coordenador: e.target.value})}
-                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                     />
                   </div>
                   <div className="space-y-1">
@@ -672,7 +777,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <input 
                       value={formData.telefone}
                       onChange={(e) => setFormData({...formData, telefone: formatPhone(e.target.value)})}
-                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors"
+                      className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
                       placeholder="(00) 00000-0000"
                       maxLength={15}
                     />
@@ -689,7 +794,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                   <button 
                     type="button"
                     onClick={handleAddGroup}
-                    className="flex items-center gap-1 text-xs font-bold text-violet-600 hover:bg-violet-50 px-3 py-1.5 rounded-xl transition-all border border-violet-100"
+                    className="flex items-center gap-1 text-xs font-bold text-amber-600 hover:bg-amber-50 px-3 py-1.5 rounded-xl transition-all border border-amber-100"
                   >
                     <Plus size={14} /> Adicionar Grupo
                   </button>
@@ -702,7 +807,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                         value={grupo}
                         onChange={(e) => handleGroupChange(index, e.target.value)}
                         placeholder={`Nome do Grupo ${index + 1}`}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 transition-colors pr-8"
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors pr-8"
                       />
                       <button 
                         type="button"
@@ -729,7 +834,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-3 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-700 transition-all shadow-lg shadow-violet-200 flex items-center gap-2 active:scale-95"
+                  className="px-8 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 flex items-center gap-2 active:scale-95"
                 >
                   <Save size={20} />
                   Salvar Congregação
@@ -772,6 +877,81 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           </motion.div>
         </div>
       )}
+
+      {/* Bulk Import Modal */}
+      <AnimatePresence>
+        {showBulkImport && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col gap-4 border border-indigo-100"
+            >
+              <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                    <ClipboardPaste size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-gray-800">Importação em Massa</h3>
+                    <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest">Cole seus dados do clipboard</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => !isImporting && setShowBulkImport(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"
+                >
+                  <ChevronLeft className="rotate-90" size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
+                  <Store className="text-amber-600 shrink-0" size={20} />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    Copie e cole a lista de congregações no formato completo (incluindo número entre parênteses, endereços e coordenador). O sistema identificará automaticamente cada registro.
+                  </p>
+                </div>
+
+                <textarea 
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  placeholder="Cole aqui a lista de congregações..."
+                  className="w-full h-80 p-4 text-xs bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 font-mono resize-none transition-all custom-scrollbar"
+                />
+
+                <div className="flex gap-3">
+                  <button 
+                    disabled={isImporting}
+                    onClick={() => setShowBulkImport(false)}
+                    className="flex-1 py-4 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    disabled={isImporting || !bulkText.trim()}
+                    onClick={handleBulkImport}
+                    className="flex-3 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={20} />
+                        <span>Processando Importação...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={20} />
+                        <span>Confirmar Importação em Massa</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

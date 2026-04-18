@@ -213,7 +213,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="animate-spin text-[#512da8]" size={48} />
+        <Loader2 className="animate-spin text-sky-500" size={48} />
         <p className="text-gray-500 font-medium">Calculando estatísticas do circuito...</p>
       </div>
     );
@@ -222,11 +222,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   if (!stats || congCount === 0) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
-        <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8]">
+        <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-sky-500">
           <div className="flex items-center gap-4">
             <button 
               onClick={onBack} 
-              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+              className="p-2 hover:bg-gray-100 rounded-full transition-all text-sky-600 bg-white shadow-md border border-gray-200"
               title="Voltar ao Painel"
             >
               <ChevronLeft size={28} strokeWidth={3} />
@@ -237,7 +237,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center space-y-4">
           <BarChart3 className="mx-auto text-gray-300" size={64} />
           <p className="text-gray-500 font-medium">Nenhuma análise de atividade encontrada para as congregações.</p>
-          <button onClick={onBack} className="px-6 py-2 bg-[#512da8] text-white rounded-xl font-bold hover:bg-[#4527a0] transition-all">
+          <button onClick={onBack} className="px-6 py-2 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-700 transition-all">
             Voltar ao Painel
           </button>
         </div>
@@ -399,11 +399,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         }
       `}</style>
       {/* Header - Hidden in Print */}
-      <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-[#512da8] print:hidden gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-sky-500 print:hidden gap-4">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={onBack} 
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-sky-600 bg-white shadow-md border border-gray-200"
             title="Voltar ao Painel"
           >
             <ChevronLeft size={28} strokeWidth={3} />
@@ -417,9 +417,9 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm disabled:opacity-50"
           >
             {generating ? (
-              <Loader2 size={18} className="animate-spin text-[#512da8]" />
+              <Loader2 size={18} className="animate-spin text-sky-600" />
             ) : (
-              <FileDown size={18} className="text-[#512da8]" />
+              <FileDown size={18} className="text-sky-600" />
             )}
             <span>{generating ? 'Gerando...' : 'Salvar PDF'}</span>
           </button>
@@ -427,7 +427,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             onClick={() => window.print()} 
             className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
           >
-            <Printer size={18} className="text-[#512da8]" /> 
+            <Printer size={18} className="text-sky-600" /> 
             <span>Imprimir</span>
           </button>
         </div>
@@ -439,7 +439,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         
         {/* Document Title - Visible only in PDF/Print */}
         <div className="hidden print:block text-center pt-2 pb-4">
-          <h1 className="text-4xl font-bold tracking-tight text-[#512da8]">Estatísticas do Circuito</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-sky-600">Estatísticas do Circuito</h1>
         </div>
 
         {/* Summary Line */}

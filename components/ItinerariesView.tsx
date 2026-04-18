@@ -900,7 +900,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       <div className="flex items-center gap-4 print:hidden">
         <button 
           onClick={handleBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-violet-600 bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
           <ChevronLeft size={28} strokeWidth={3} />
@@ -915,7 +915,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
       >
-        <div className="bg-[#512da8] p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+        <div className="bg-violet-600 p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
           <div className="flex items-center gap-4">
             <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
               <button 
@@ -972,7 +972,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="animate-spin text-[#512da8]" size={48} />
+            <Loader2 className="animate-spin text-violet-600" size={48} />
           </div>
         ) : (
           <div className="overflow-x-auto pb-8" id="itinerary-table-container">
@@ -980,7 +980,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               <table className="w-full text-left border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-100 border-b border-gray-300">
-                    <th className="p-3 text-xs font-bold text-white uppercase tracking-wider border-r border-white/20 w-24 bg-[#512da8] text-center">Semana</th>
+                    <th className="p-3 text-xs font-bold text-white uppercase tracking-wider border-r border-white/20 w-24 bg-violet-600 text-center">Semana</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-40 text-center">Data do Evento</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Evento</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Observações</th>
@@ -999,11 +999,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       >
                         <td className={`p-2 border-r border-gray-300 ${current ? 'bg-amber-200/30' : ''}`}>
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`text-sm font-black text-center p-1 rounded ${current ? 'text-[#512da8]' : 'text-gray-900'}`}>
+                            <span className={`text-sm font-black text-center p-1 rounded ${current ? 'text-violet-600' : 'text-gray-900'}`}>
                               {item.semana}
                             </span>
                             {current && (
-                              <span className="text-[9px] font-black bg-[#512da8] text-white px-1.5 py-0.5 rounded uppercase tracking-wider print:hidden">
+                              <span className="text-[9px] font-black bg-violet-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wider print:hidden">
                                 HOJE
                               </span>
                             )}
@@ -1080,7 +1080,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
             >
               {/* Modal Header */}
-              <div className={`${modalMode === 'confirmDelete' ? 'bg-red-600' : 'bg-[#512da8]'} p-3 text-white flex justify-between items-center transition-colors`}>
+              <div className={`${modalMode === 'confirmDelete' ? 'bg-red-600' : 'bg-violet-600'} p-3 text-white flex justify-between items-center transition-colors`}>
                 <h3 className="font-bold flex items-center gap-2 text-sm">
                   {modalMode === 'actions' ? 'Opções do Evento' : modalMode === 'confirmDelete' ? 'Confirmar Exclusão' : 'Editar Evento'}
                 </h3>
@@ -1097,14 +1097,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                 {modalMode === 'actions' ? (
                   <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                     <p className="text-xs text-gray-500 mb-2">
-                      Semana de <span className="font-bold text-[#512da8]">{selectedItem?.semana}</span>
+                      Semana de <span className="font-bold text-violet-600">{selectedItem?.semana}</span>
                     </p>
                     
                     <button 
                       onClick={handleEditClick}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-[#512da8] hover:bg-indigo-50 transition-all group"
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-violet-600 hover:bg-violet-50 transition-all group"
                     >
-                      <div className="bg-indigo-100 p-1.5 rounded-lg text-[#512da8] group-hover:bg-[#512da8] group-hover:text-white transition-colors">
+                      <div className="bg-violet-100 p-1.5 rounded-lg text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition-colors">
                         <Edit2 size={18} />
                       </div>
                       <div className="text-left">
@@ -1234,7 +1234,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                 ) : (
                   <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                     <div className="text-center pb-1 border-b border-gray-100 mb-2">
-                      <h4 className="text-base font-bold text-[#512da8]">
+                      <h4 className="text-base font-bold text-violet-600">
                         {selectedItem && getWeekRangeDisplay(selectedItem.semana)}
                       </h4>
                     </div>
@@ -1263,7 +1263,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           }
                           setEditFormData({ ...editFormData, ...updates });
                         }}
-                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                       >
                         {TIPOS_EVENTO.map(t => (
                           <option key={t} value={t}>{t}</option>
@@ -1280,7 +1280,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           <select 
                             value={editFormData.dataInicialDia}
                             onChange={(e) => setEditFormData({ ...editFormData, dataInicialDia: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
                           >
                             {DIAS_SEMANA.map(d => (
                               <option key={d} value={d}>{d}</option>
@@ -1300,7 +1300,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           <select 
                             value={editFormData.dataTerminoDia}
                             onChange={(e) => setEditFormData({ ...editFormData, dataTerminoDia: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
                           >
                             {DIAS_SEMANA.map(d => (
                               <option key={d} value={d}>{d}</option>
@@ -1331,7 +1331,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                               congregacao: cong ? cong.nome : ''
                             });
                           }}
-                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione um grupo...</option>
                           {congregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome }))).map((g, idx) => (
@@ -1352,7 +1352,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             value={editFormData.outroEvento}
                             onChange={(e) => setEditFormData({ ...editFormData, outroEvento: e.target.value })}
                             placeholder="Digite ou selecione um evento..."
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                           />
                           <datalist id="outros-eventos-list">
                             {OUTROS_EVENTOS.map((oe, idx) => (
@@ -1371,7 +1371,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         <select 
                           value={editFormData.congregacao}
                           onChange={(e) => setEditFormData({ ...editFormData, congregacao: e.target.value })}
-                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione uma congregação...</option>
                           {congregations.map(c => (
@@ -1392,7 +1392,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             value={editFormData.substituto}
                             onChange={(e) => setEditFormData({ ...editFormData, substituto: e.target.value })}
                             placeholder="Digite ou selecione um substituto..."
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                           />
                           <datalist id="substitutes-list">
                             {substitutes.map(s => (
@@ -1412,7 +1412,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         onChange={(e) => setEditFormData({ ...editFormData, observacoes: e.target.value })}
                         placeholder="..."
                         rows={2}
-                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-[#512da8] outline-none transition-all resize-none bg-white text-gray-900 text-sm font-medium"
+                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all resize-none bg-white text-gray-900 text-sm font-medium"
                       />
                     </div>
 
@@ -1425,7 +1425,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </button>
                       <button 
                         onClick={handleFormSave}
-                        className="flex-1 py-2 rounded-lg font-bold bg-[#512da8] text-white hover:bg-[#4527a0] shadow-lg shadow-indigo-200 transition-all text-sm"
+                        className="flex-1 py-2 rounded-lg font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-indigo-200 transition-all text-sm"
                       >
                         Confirmar
                       </button>
@@ -1462,8 +1462,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           padding: 20px !important;
         }
 
-        .pdf-capture .bg-\[\#512da8\] {
-          background-color: #512da8 !important;
+        .pdf-capture .bg-\[#violet-600\] {
+          background-color: #7c3aed !important;
           color: white !important;
         }
 

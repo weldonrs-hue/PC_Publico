@@ -176,7 +176,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
       <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#C2185B] bg-white shadow-md border border-gray-200"
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-rose-600 bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
           <ChevronLeft size={28} strokeWidth={3} />
@@ -204,12 +204,12 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                   placeholder="Buscar por nome ou congregação..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#C2185B] transition-colors"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500 transition-colors"
                 />
               </div>
               <button 
                 onClick={handleAddNew}
-                className="w-full md:w-auto bg-[#C2185B] text-white px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#ad1457] transition-colors shadow-md"
+                className="w-full md:w-auto bg-rose-600 text-white px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-rose-700 transition-colors shadow-md"
               >
                 <Plus size={20} />
                 Novo Substituto
@@ -219,7 +219,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
             {/* List Grid */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-[#C2185B]" size={48} />
+                <Loader2 className="animate-spin text-rose-500" size={48} />
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -231,7 +231,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-[#C2185B]/10 rounded-lg flex items-center justify-center text-[#C2185B]">
+                          <div className="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-rose-600">
                             <UserRound size={20} />
                           </div>
                           <div>
@@ -270,7 +270,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
 
                       <button 
                         onClick={() => handleEdit(sub)}
-                        className="w-full mt-4 py-2 text-xs font-bold text-[#C2185B] border border-[#C2185B]/20 rounded-lg hover:bg-[#C2185B] hover:text-white transition-all"
+                        className="w-full mt-4 py-2 text-xs font-bold text-rose-600 border border-rose-100 rounded-lg hover:bg-rose-600 hover:text-white transition-all"
                       >
                         Ver Detalhes
                       </button>
@@ -293,7 +293,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
             exit={{ opacity: 0, x: -20 }}
             className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden max-w-2xl mx-auto"
           >
-            <div className="bg-[#C2185B] p-4 text-white">
+            <div className="bg-rose-600 p-4 text-white">
               <h3 className="font-bold">
                 {selectedSub ? 'Editar Substituto' : 'Novo Substituto'}
               </h3>
@@ -307,7 +307,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                     required
                     value={formData.nome}
                     onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#C2185B]"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500"
                     placeholder="Nome do Superintendente Substituto"
                   />
                 </div>
@@ -318,7 +318,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                     required
                     value={formData.congregacaoId}
                     onChange={(e) => handleCongregationChange(e.target.value)}
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#C2185B]"
+                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500"
                   >
                     <option value="">Selecione uma congregação...</option>
                     {congregations.map(cong => (
@@ -359,7 +359,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-2 bg-[#C2185B] text-white font-bold rounded-lg hover:bg-[#ad1457] transition-colors shadow-md flex items-center gap-2"
+                  className="px-8 py-2 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors shadow-md flex items-center gap-2"
                 >
                   <Save size={20} />
                   Salvar Substituto
