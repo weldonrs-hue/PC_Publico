@@ -334,6 +334,11 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
       newFormData.numero = (numberMatch[1] || numberMatch[0].replace(/\D/g, '')).trim();
     }
 
+    const parteMatch = text.match(/Parte\s*([A-C])/i);
+    if (parteMatch) {
+      newFormData.parte = parteMatch[1].toUpperCase();
+    }
+
     if (congregacaoIdx !== -1) {
       // Procura o nome nas próximas linhas, pulando idiomas conhecidos
       const idiomas = ['português', 'espanhol', 'inglês', 'libras', 'francês', 'italiano', 'alemão', 'guarani', 'chinês', 'japonês'];
@@ -438,6 +443,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         let cidade = '';
         let estado = '';
         let endereco = '';
+        let cep = '';
 
         // Prioridade 1: Padrão de Correspondência (Hub)
         const corrIdx = bLines.findIndex(l => l.toLowerCase().includes('correspondência'));
@@ -559,7 +565,9 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         
         if (!nome || !numero) continue;
         
-        const cep = block.match(/(\d{5}-\d{3})/)?.[1] || '';
+        if (!cep) {
+          cep = block.match(/(\d{5}-\d{3})/)?.[1] || '';
+        }
         
         let telefone = '';
         const telIdx = bLines.findIndex(l => l.toLowerCase().startsWith('telefone') || l.toLowerCase().startsWith('celular'));
