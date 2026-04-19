@@ -18,7 +18,8 @@ import {
   Navigation,
   ClipboardPaste,
   Map as MapIcon,
-  List
+  List,
+  X
 } from 'lucide-react';
 
 // Dynamically import map to avoid SSR issues
@@ -40,7 +41,8 @@ import {
   setDoc, 
   doc, 
   deleteDoc,
-  onSnapshot
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
@@ -110,6 +112,12 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchingCEP, setIsSearchingCEP] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<number | null>(null);
   
   const [formData, setFormData] = useState<Congregation>(defaultFormData);
 
@@ -120,11 +128,14 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
   };
 
   const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
+    let numbers = value.replace(/\D/g, '');
+    // Se começar com 55 e tiver 12 ou 13 dígitos, remove o 55 (DDI do Brasil)
+    if (numbers.startsWith('55') && (numbers.length === 12 || numbers.length === 13)) {
+      numbers = numbers.slice(2);
+    }
     if (numbers.length <= 2) return numbers;
-    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
-    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+    if (numbers.length <= 10) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
   };
 
   const handleCEPSearch = async () => {
@@ -220,69 +231,269 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
   const handlePasteData = () => {
     if (!pasteText.trim()) return;
 
-    const lines = pasteText.split('\n').map(l => l.trim()).filter(l => l !== '');
+    const text = pasteText;
     const newFormData = { ...formData };
-
-    // 1. Nome da Congregação (Geralmente a 3ª linha no formato padrão)
-    if (lines.length > 2) {
-      // Se a primeira linha for "Congregação", o nome costuma estar na 3ª
-      if (lines[0].toLowerCase().includes('congregação')) {
-        newFormData.nome = lines[2];
-      } else {
-        newFormData.nome = lines[0];
-      }
-    }
-
-    // 2. Endereço, Cidade, Estado, CEP
-    const addressIdx = lines.findIndex(l => l.toLowerCase() === 'endereço');
-    if (addressIdx !== -1) {
-      // O endereço costuma ter 3 ou 4 linhas após "Endereço"
-      // Ex: Rua, Bairro, Cidade/UF, CEP
-      const addrLine1 = lines[addressIdx + 1] || '';
-      const addrLine2 = lines[addressIdx + 2] || '';
-      const addrLine3 = lines[addressIdx + 3] || '';
-      const addrLine4 = lines[addressIdx + 4] || '';
-
-      // Tenta identificar Cidade, PB e CEP
-      const cityStateMatch = addrLine3.match(/^(.+),\s*([A-Z]{2})$/i);
-      if (cityStateMatch) {
-        newFormData.endereco = `${addrLine1}${addrLine2 ? ', ' + addrLine2 : ''}`;
-        newFormData.cidade = cityStateMatch[1].toUpperCase();
-        newFormData.estado = cityStateMatch[2].toUpperCase();
-        newFormData.cep = addrLine4.match(/^\d{5}-\d{3}$/) ? addrLine4 : '';
-      } else {
-        // Fallback se o formato for um pouco diferente
-        const cityStateMatch2 = addrLine2.match(/^(.+),\s*([A-Z]{2})$/i);
-        if (cityStateMatch2) {
-          newFormData.endereco = addrLine1;
-          newFormData.cidade = cityStateMatch2[1].toUpperCase();
-          newFormData.estado = cityStateMatch2[2].toUpperCase();
-          newFormData.cep = addrLine3.match(/^\d{5}-\d{3}$/) ? addrLine3 : '';
+    
+    // Regexes para capturar os dados
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+    const congregacaoIdx = lines.findIndex(l => l.toLowerCase().includes('congregação'));
+    
+    const addressMatch = text.match(/Endereço\s*\n+([^\n]+)/i);
+    if (addressMatch) {
+      const addrLinesInternal = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+      const addrIdx = addrLinesInternal.findIndex(l => l.toLowerCase() === 'endereço');
+      
+      if (addrIdx !== -1) {
+        const addrLinesSub = addrLinesInternal.slice(addrIdx + 1, addrIdx + 5);
+        // Procura a linha com Cidade, UF (ex: "Campina Grande, PB")
+        const cityLineIdx = addrLinesSub.findIndex(l => l.includes(',') && l.match(/[A-ZÀ-Ú\s]+,\s*[A-Z]{2}$/i));
+        
+        if (cityLineIdx !== -1) {
+          const [city, state] = addrLinesSub[cityLineIdx].split(',').map(s => s.trim());
+          newFormData.cidade = city.toUpperCase();
+          newFormData.estado = state.toUpperCase();
+          
+          // O que vier antes da cidade no bloco de endereço é o endereço completo (Rua + Bairro)
+          newFormData.endereco = addrLinesSub.slice(0, cityLineIdx).join(', ');
+        } else {
+          // Fallback se não encontrar o padrão Cidade, UF no bloco
+          newFormData.endereco = addrLinesSub[0] || '';
         }
       }
     }
 
-    // 3. Telefone
-    const phoneIdx = lines.findIndex(l => l.toLowerCase() === 'telefone');
-    if (phoneIdx !== -1 && lines[phoneIdx + 1]) {
-      newFormData.telefone = formatPhone(lines[phoneIdx + 1]);
+    const numberMatch = text.match(/Nº\s*(\d+)/i) || text.match(/\((\d{4,6})\)/);
+    if (numberMatch) {
+      newFormData.numero = (numberMatch[1] || numberMatch[0].replace(/\D/g, '')).trim();
     }
 
-    // 4. GPS
-    const gpsIdx = lines.findIndex(l => l.toLowerCase().includes('coordenadas gps'));
-    if (gpsIdx !== -1 && lines[gpsIdx + 1]) {
-      const gpsRaw = lines[gpsIdx + 1];
-      // Converte "-7.240467 -35.877171" para "-7.240467, -35.877171"
-      if (gpsRaw.includes(' ') && !gpsRaw.includes(',')) {
-        newFormData.gps = gpsRaw.replace(/\s+/g, ', ');
-      } else {
-        newFormData.gps = gpsRaw;
+    if (congregacaoIdx !== -1) {
+      // Procura o nome nas próximas linhas, pulando idiomas conhecidos
+      const idiomas = ['português', 'espanhol', 'inglês', 'libras', 'francês', 'italiano', 'alemão', 'guarani', 'chinês', 'japonês'];
+      for (let i = 1; i <= 3; i++) {
+        const candidate = lines[congregacaoIdx + i];
+        if (candidate && !idiomas.some(id => candidate.toLowerCase().includes(id)) && !candidate.startsWith('Nº') && !candidate.includes(' mi)')) {
+          // Trata os padrões: "Nome - Cidade UF" ou "Nome - UF"
+          let cleanName = candidate;
+          
+          // Remove número entre parênteses se houver (ex: "Central - Campina Grande PB (14738)")
+          cleanName = cleanName.replace(/\(\d+\)/, '').trim();
+
+          if (cleanName.includes(' - ')) {
+             const parts = cleanName.split(' - ');
+             cleanName = parts[0].trim();
+             
+             // Extração de backup para cidade/estado se ainda não encontrados
+             const extraInfo = parts[1].trim();
+             const stateMatch = extraInfo.match(/\s([A-Z]{2})$/) || extraInfo.match(/^([A-Z]{2})$/);
+             
+             if (stateMatch) {
+               const state = stateMatch[stateMatch.length - 1];
+               const city = extraInfo.replace(state, '').trim();
+               
+               if (city) {
+                 // Padrão: Nome - Cidade UF
+                 if (!newFormData.cidade) newFormData.cidade = city.toUpperCase();
+                 if (!newFormData.estado) newFormData.estado = state.toUpperCase();
+               } else {
+                 // Padrão: Nome - UF (Onde Nome == Cidade)
+                 if (!newFormData.cidade) newFormData.cidade = cleanName.toUpperCase();
+                 if (!newFormData.estado) newFormData.estado = state.toUpperCase();
+               }
+             }
+          }
+          newFormData.nome = cleanName;
+          break;
+        }
+      }
+    }
+
+    const cepMatch = text.match(/(\d{5}-\d{3})/);
+    if (cepMatch) newFormData.cep = cepMatch[1];
+
+    const linesArr = text.split('\n').map(l => l.trim());
+    const telIdx = linesArr.findIndex(l => l.toLowerCase().startsWith('telefone') || l.toLowerCase().startsWith('celular'));
+    if (telIdx !== -1) {
+      let tel = '';
+      const lineContent = linesArr[telIdx].replace(/telefone|celular/i, '').replace(/[:\s]/g, '');
+      if (lineContent.replace(/\D/g, '').length >= 8) {
+        tel = linesArr[telIdx].replace(/telefone|celular/i, '').replace(/^[:\s]+/, '');
+      } else if (linesArr[telIdx + 1] && linesArr[telIdx + 1].replace(/\D/g, '').length >= 8) {
+        tel = linesArr[telIdx + 1];
+      }
+      if (tel) newFormData.telefone = formatPhone(tel);
+    }
+    
+    const coordMatch = text.match(/(?:Coordenador|CCA)[\s:]*([A-ZÀ-Ú\s]+)/i);
+    if (coordMatch && !coordMatch[1].toLowerCase().includes('corpo')) {
+      newFormData.coordenador = coordMatch[1].trim();
+    }
+
+    const gpsMatch = text.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)|(-?\d+\.\d+)\s+(-?\d+\.\d+)/);
+    if (gpsMatch) {
+      if (gpsMatch[1] && gpsMatch[2]) {
+        newFormData.gps = `${gpsMatch[1]}, ${gpsMatch[2]}`;
+      } else if (gpsMatch[3] && gpsMatch[4]) {
+        newFormData.gps = `${gpsMatch[3]}, ${gpsMatch[4]}`;
       }
     }
 
     setFormData(newFormData);
     setIsPasting(false);
     setPasteText('');
+  };
+
+  const handleBulkImport = async () => {
+    if (!importText.trim()) return;
+    setIsImporting(true);
+    setImportError(null);
+    setImportSuccess(null);
+
+    try {
+      // Divide o texto em blocos de congregação
+      // O delimitador comum é o cabeçalho "Congregação"
+      const blocks = importText.split(/(?=Congregação)/i).filter(b => b.trim().length > 20);
+      
+      if (blocks.length === 0) {
+        setImportError('Nenhum dado de congregação identificado. Certifique-se de copiar as congregações do JW.org ou Hub.');
+        setIsImporting(false);
+        return;
+      }
+
+      const batch = writeBatch(db);
+      let count = 0;
+
+      for (const block of blocks) {
+        const bLines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
+        
+        const enderecoMatch = block.match(/Endereço\s*\n+([^\n]+)/i);
+        let endereco = '';
+        let cidade = '';
+        let estado = '';
+        
+        if (enderecoMatch) {
+          const addrIdx = bLines.findIndex(l => l.toLowerCase() === 'endereço');
+          if (addrIdx !== -1) {
+            const addrLinesSub = bLines.slice(addrIdx + 1, addrIdx + 5);
+            const cityLineIdx = addrLinesSub.findIndex(l => l.includes(',') && l.match(/[A-ZÀ-Ú\s]+,\s*[A-Z]{2}$/i));
+            
+            if (cityLineIdx !== -1) {
+              const parts = addrLinesSub[cityLineIdx].split(',');
+              cidade = parts[0].trim().toUpperCase();
+              estado = parts[1].trim().toUpperCase();
+              endereco = addrLinesSub.slice(0, cityLineIdx).join(', ');
+            } else {
+              endereco = addrLinesSub[0] || '';
+            }
+          }
+        }
+
+        const cIdx = bLines.findIndex(l => l.toLowerCase().includes('congregação'));
+        let nome = '';
+        
+        if (cIdx !== -1) {
+          const idiomas = ['português', 'espanhol', 'inglês', 'libras', 'francês', 'italiano', 'alemão', 'guarani', 'chinês', 'japonês'];
+          for (let i = 1; i <= 3; i++) {
+            const candidate = bLines[cIdx + i];
+            if (candidate && !idiomas.some(id => candidate.toLowerCase().includes(id)) && !candidate.startsWith('Nº') && !candidate.includes(' mi)')) {
+              let cleanName = candidate;
+              
+              cleanName = cleanName.replace(/\(\d+\)/, '').trim();
+
+              if (cleanName.includes(' - ')) {
+                const parts = cleanName.split(' - ');
+                cleanName = parts[0].trim();
+                
+                const extraInfo = parts[1].trim();
+                const stateMatch = extraInfo.match(/\s([A-Z]{2})$/) || extraInfo.match(/^([A-Z]{2})$/);
+                
+                if (stateMatch) {
+                  const state = stateMatch[stateMatch.length - 1];
+                  const city = extraInfo.replace(state, '').trim();
+                  
+                  if (city) {
+                    if (!cidade) cidade = city.toUpperCase();
+                    if (!estado) estado = state.toUpperCase();
+                  } else {
+                    if (!cidade) cidade = cleanName.toUpperCase();
+                    if (!estado) estado = state.toUpperCase();
+                  }
+                }
+              }
+              nome = cleanName;
+              break;
+            }
+          }
+        }
+
+        const numeroMatch = block.match(/Nº\s*(\d+)/i) || block.match(/\((\d{4,6})\)/);
+        const numero = numeroMatch ? (numeroMatch[1] || numeroMatch[0].replace(/\D/g, '')).trim() : '';
+        const parte = block.match(/Parte\s*([A-C])/i)?.[1]?.toUpperCase() || 'A';
+        
+        if (!nome || !numero) continue;
+        
+        const cep = block.match(/(\d{5}-\d{3})/)?.[1] || '';
+        
+        let telefone = '';
+        const telIdx = bLines.findIndex(l => l.toLowerCase().startsWith('telefone') || l.toLowerCase().startsWith('celular'));
+        if (telIdx !== -1) {
+          let tel = '';
+          const lineContent = bLines[telIdx].replace(/telefone|celular/i, '').replace(/[:\s]/g, '');
+          if (lineContent.replace(/\D/g, '').length >= 8) {
+            tel = bLines[telIdx].replace(/telefone|celular/i, '').replace(/^[:\s]+/, '');
+          } else if (bLines[telIdx + 1] && bLines[telIdx + 1].replace(/\D/g, '').length >= 8) {
+            tel = bLines[telIdx + 1];
+          }
+          if (tel) {
+            telefone = formatPhone(tel);
+          }
+        }
+
+        const coordMatch = block.match(/(?:Coordenador|CCA)[\s:]*([A-ZÀ-Ú\s]+)/i);
+        const coordenador = (coordMatch && !coordMatch[1].toLowerCase().includes('corpo')) ? coordMatch[1].trim() : '';
+        
+        const gpsMatch = block.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)|(-?\d+\.\d+)\s+(-?\d+\.\d+)/);
+        let gps = '';
+        if (gpsMatch) {
+          gps = gpsMatch[1] && gpsMatch[2] ? `${gpsMatch[1]}, ${gpsMatch[2]}` : `${gpsMatch[3]}, ${gpsMatch[4]}`;
+        }
+
+        const newDocRef = doc(collection(db, 'congregations'));
+        batch.set(newDocRef, {
+          nome,
+          numero,
+          parte,
+          endereco,
+          cidade,
+          estado,
+          cep,
+          telefone,
+          coordenador,
+          gps,
+          grupos: [],
+          userId,
+          createdAt: new Date()
+        });
+        count++;
+      }
+
+      if (count > 0) {
+        await batch.commit();
+        setImportSuccess(count);
+        setImportText('');
+        setTimeout(() => {
+          setIsImportModalOpen(false);
+          setImportSuccess(null);
+        }, 2000);
+      } else {
+        setImportError('Nenhum registro válido foi encontrado no texto colado.');
+      }
+    } catch (error) {
+      console.error('Erro na importação em massa:', error);
+      setImportError('Ocorreu um erro ao processar os dados. Verifique o formato e tente novamente.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -374,6 +585,13 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <ExternalLink size={20} />
                     Buscar no JW.org
                   </a>
+                  <button 
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="w-full md:w-auto bg-white text-amber-600 border border-amber-200 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors shadow-sm"
+                  >
+                    <ClipboardPaste size={20} />
+                    Importação em Massa
+                  </button>
                   <button 
                     onClick={handleAddNew}
                     className="w-full md:w-auto bg-amber-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-700 transition-colors shadow-lg shadow-amber-200 active:scale-95"
@@ -772,6 +990,96 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           </motion.div>
         </div>
       )}
+
+      {/* Modal Importar em Massa */}
+      <AnimatePresence>
+        {isImportModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100"
+            >
+              <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-6 text-white flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <ClipboardPaste size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">Importação em Massa</h3>
+                    <p className="text-xs text-white/80">Adicione várias congregações de uma vez</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsImportModalOpen(false)}
+                  className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                  <h4 className="text-sm font-bold text-amber-800 mb-1">Como usar:</h4>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    1. Vá ao JW.org ou Hub de Reuniões.<br />
+                    2. Localize as congregações do seu circuito.<br />
+                    3. Selecione e copie o texto completo das congregações.<br />
+                    4. Cole no campo abaixo e clique em &quot;Processar e Importar&quot;.
+                  </p>
+                </div>
+
+                <textarea 
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="Cole aqui os dados das congregações..."
+                  className="w-full h-64 p-4 text-sm bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all font-mono"
+                />
+
+                {importError && (
+                  <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium animate-in fade-in slide-in-from-top-2">
+                    {importError}
+                  </div>
+                )}
+
+                {importSuccess && (
+                  <div className="p-4 bg-green-50 border border-green-100 rounded-xl text-green-600 text-sm font-bold flex items-center gap-2 animate-in zoom-in">
+                    <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center">✓</div>
+                    {importSuccess} congregações importadas com sucesso!
+                  </div>
+                )}
+
+                <div className="flex gap-4 pt-2">
+                  <button 
+                    onClick={() => setIsImportModalOpen(false)}
+                    className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleBulkImport}
+                    disabled={isImporting || !importText.trim()}
+                    className="flex-3 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                  >
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={20} />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={20} />
+                        Processar e Importar
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
