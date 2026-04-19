@@ -238,6 +238,73 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
     const congregacaoIdx = lines.findIndex(l => l.toLowerCase().includes('congregação'));
     
+    // Prioridade 1: Padrão de Correspondência (Mais preciso em exportações do Hub)
+    const corrIdx = lines.findIndex(l => l.toLowerCase().includes('correspondência'));
+    if (corrIdx !== -1) {
+      const targetLine = lines[corrIdx].includes('(') ? lines[corrIdx] : lines[corrIdx + 1];
+      if (targetLine) {
+        const corrMatch = targetLine.match(/\((\d+)\)\s*(.*?)\s*-\s*(.*)/);
+        if (corrMatch) {
+          newFormData.numero = corrMatch[1];
+          const rawName = corrMatch[2].trim();
+          const rawInfo = corrMatch[3].trim();
+          
+          const stateMatch = rawInfo.match(/\s([A-Z]{2})$/) || rawInfo.match(/^([A-Z]{2})$/);
+          if (stateMatch) {
+            const state = stateMatch[stateMatch.length - 1];
+            const city = rawInfo.replace(state, '').trim();
+            if (city) {
+              newFormData.cidade = city.toUpperCase();
+              newFormData.estado = state.toUpperCase();
+              newFormData.nome = rawName;
+            } else {
+              newFormData.cidade = rawName.toUpperCase();
+              newFormData.estado = state.toUpperCase();
+              newFormData.nome = rawName;
+            }
+          }
+        }
+      }
+    }
+
+    // Prioridade 2: Busca por A/C (Aos Cuidados) - CCA e Endereço
+    const acIdx = lines.findIndex(l => l.toUpperCase().startsWith('A/C'));
+    if (acIdx !== -1) {
+      // Coordenador (remover prefixo A/C)
+      const coordName = lines[acIdx].replace(/A\/C[\s:]*/i, '').trim();
+      if (!newFormData.coordenador || newFormData.coordenador.includes('Corpo')) {
+        newFormData.coordenador = coordName;
+      }
+      
+      // Endereço (as duas próximas linhas após A/C)
+      if (!newFormData.endereco) {
+        const addrLine1 = lines[acIdx + 1] || '';
+        const addrLine2 = lines[acIdx + 2] || '';
+        
+        // Verifica se a linha 2 contém cidade/estado
+        const cityStateMatch = addrLine2.match(/([A-ZÀ-Ú\s]+),\s*([A-Z]{2})/i);
+        if (cityStateMatch) {
+          newFormData.endereco = addrLine1;
+          newFormData.cidade = cityStateMatch[1].trim().toUpperCase();
+          newFormData.estado = cityStateMatch[2].trim().toUpperCase();
+        } else {
+          newFormData.endereco = `${addrLine1}, ${addrLine2}`.trim().replace(/,$/, '');
+        }
+      }
+      
+      // CEP (procura nas linhas próximas ao A/C se ainda não tiver)
+      if (!newFormData.cep) {
+        for (let i = 1; i <= 4; i++) {
+          const l = lines[acIdx + i];
+          const cepM = l?.match(/(\d{5}-\d{3})/);
+          if (cepM) {
+            newFormData.cep = cepM[1];
+            break;
+          }
+        }
+      }
+    }
+
     const addressMatch = text.match(/Endereço\s*\n+([^\n]+)/i);
     if (addressMatch) {
       const addrLinesInternal = text.split('\n').map(l => l.trim()).filter(l => l !== '');
@@ -324,7 +391,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
       if (tel) newFormData.telefone = formatPhone(tel);
     }
     
-    const coordMatch = text.match(/(?:Coordenador|CCA)[\s:]*([A-ZÀ-Ú\s]+)/i);
+    const coordMatch = text.match(/(?:Coordenador|CCA|A\/C)[\s:]*([A-ZÀ-Ú\s]+)/i);
     if (coordMatch && !coordMatch[1].toLowerCase().includes('corpo')) {
       newFormData.coordenador = coordMatch[1].trim();
     }
@@ -366,10 +433,68 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
       for (const block of blocks) {
         const bLines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
         
-        const enderecoMatch = block.match(/Endereço\s*\n+([^\n]+)/i);
-        let endereco = '';
+        let nome = '';
+        let numero = '';
         let cidade = '';
         let estado = '';
+        let endereco = '';
+
+        // Prioridade 1: Padrão de Correspondência (Hub)
+        const corrIdx = bLines.findIndex(l => l.toLowerCase().includes('correspondência'));
+        if (corrIdx !== -1) {
+          const targetLine = bLines[corrIdx].includes('(') ? bLines[corrIdx] : bLines[corrIdx + 1];
+          if (targetLine) {
+            const corrMatch = targetLine.match(/\((\d+)\)\s*(.*?)\s*-\s*(.*)/);
+            if (corrMatch) {
+              numero = corrMatch[1];
+              const rawName = corrMatch[2].trim();
+              const rawInfo = corrMatch[3].trim();
+              
+              const stateMatch = rawInfo.match(/\s([A-Z]{2})$/) || rawInfo.match(/^([A-Z]{2})$/);
+              if (stateMatch) {
+                const state = stateMatch[stateMatch.length - 1];
+                const city = rawInfo.replace(state, '').trim();
+                nome = rawName;
+                estado = state.toUpperCase();
+                cidade = city ? city.toUpperCase() : rawName.toUpperCase();
+              }
+            }
+          }
+        }
+
+        const acIdx = bLines.findIndex(l => l.toUpperCase().startsWith('A/C'));
+        if (acIdx !== -1) {
+          const coordName = bLines[acIdx].replace(/A\/C[\s:]*/i, '').trim();
+          if (!nome) {
+            // Tenta usar o nome do coordenador como fallback ou extrair info da linha A/C
+          }
+          
+          if (!endereco && bLines[acIdx + 1]) {
+            const addrLine1 = bLines[acIdx + 1] || '';
+            const addrLine2 = bLines[acIdx + 2] || '';
+            const csMatch = addrLine2.match(/([A-ZÀ-Ú\s]+),\s*([A-Z]{2})/i);
+            if (csMatch) {
+              endereco = addrLine1;
+              if (!cidade) cidade = csMatch[1].trim().toUpperCase();
+              if (!estado) estado = csMatch[2].trim().toUpperCase();
+            } else {
+              endereco = `${addrLine1}, ${addrLine2}`.trim().replace(/,$/, '');
+            }
+          }
+          
+          if (!cep) {
+            for (let i = 1; i <= 4; i++) {
+              const cepM = bLines[acIdx + i]?.match(/(\d{5}-\d{3})/);
+              if (cepM) {
+                // If we find a CEP here, we update it and remove it from the address if it was captured there
+                cep = cepM[1];
+                break;
+              }
+            }
+          }
+        }
+
+        const enderecoMatch = block.match(/Endereço\s*\n+([^\n]+)/i);
         
         if (enderecoMatch) {
           const addrIdx = bLines.findIndex(l => l.toLowerCase() === 'endereço');
@@ -379,8 +504,8 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
             
             if (cityLineIdx !== -1) {
               const parts = addrLinesSub[cityLineIdx].split(',');
-              cidade = parts[0].trim().toUpperCase();
-              estado = parts[1].trim().toUpperCase();
+              if (!cidade) cidade = parts[0].trim().toUpperCase();
+              if (!estado) estado = parts[1].trim().toUpperCase();
               endereco = addrLinesSub.slice(0, cityLineIdx).join(', ');
             } else {
               endereco = addrLinesSub[0] || '';
@@ -389,9 +514,8 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         }
 
         const cIdx = bLines.findIndex(l => l.toLowerCase().includes('congregação'));
-        let nome = '';
         
-        if (cIdx !== -1) {
+        if (!nome && cIdx !== -1) {
           const idiomas = ['português', 'espanhol', 'inglês', 'libras', 'francês', 'italiano', 'alemão', 'guarani', 'chinês', 'japonês'];
           for (let i = 1; i <= 3; i++) {
             const candidate = bLines[cIdx + i];
@@ -426,8 +550,11 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           }
         }
 
-        const numeroMatch = block.match(/Nº\s*(\d+)/i) || block.match(/\((\d{4,6})\)/);
-        const numero = numeroMatch ? (numeroMatch[1] || numeroMatch[0].replace(/\D/g, '')).trim() : '';
+        if (!numero) {
+          const numeroMatch = block.match(/Nº\s*(\d+)/i) || block.match(/\((\d{4,6})\)/);
+          numero = numeroMatch ? (numeroMatch[1] || numeroMatch[0].replace(/\D/g, '')).trim() : '';
+        }
+        
         const parte = block.match(/Parte\s*([A-C])/i)?.[1]?.toUpperCase() || 'A';
         
         if (!nome || !numero) continue;
@@ -449,8 +576,13 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           }
         }
 
-        const coordMatch = block.match(/(?:Coordenador|CCA)[\s:]*([A-ZÀ-Ú\s]+)/i);
-        const coordenador = (coordMatch && !coordMatch[1].toLowerCase().includes('corpo')) ? coordMatch[1].trim() : '';
+        const coordMatch = block.match(/(?:Coordenador|CCA|A\/C)[\s:]*([A-ZÀ-Ú\s]+)/i);
+        let coordenador = (coordMatch && !coordMatch[1].toLowerCase().includes('corpo')) ? coordMatch[1].trim() : '';
+        
+        // Refinamento final para o coordenador se veio do A/C
+        if (acIdx !== -1 && (!coordenador || coordenador.toLowerCase().includes('corpo'))) {
+           coordenador = bLines[acIdx].replace(/A\/C[\s:]*/i, '').trim();
+        }
         
         const gpsMatch = block.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)|(-?\d+\.\d+)\s+(-?\d+\.\d+)/);
         let gps = '';
