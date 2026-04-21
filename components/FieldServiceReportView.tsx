@@ -230,194 +230,214 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
   ];
 
   return (
-    <div className="bg-[#FDFCFB] min-h-screen flex flex-col font-sans text-[#1A1A1A]">
-      {/* Top Banner (Print Hidden) */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-orange-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm print:hidden">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="group flex items-center justify-center w-10 h-10 rounded-2xl bg-orange-50 text-orange-800/60 hover:text-[#880E4F] hover:bg-orange-100 transition-all"
-            title="Voltar"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          
-          <div className="h-8 w-px bg-orange-100" />
-        </div>
-
-        {/* Centered Month Navigation (Circuit Itinerary Style) */}
-        <div className="flex items-center bg-orange-50/50 p-1 rounded-2xl border border-orange-100 shadow-sm">
-          <button 
-            onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
-            className="w-10 h-10 flex items-center justify-center hover:bg-white hover:text-[#880E4F] hover:shadow-sm rounded-xl transition-all text-orange-800"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          
-          <div className="px-6 py-1 text-center min-w-[200px]">
-            <h1 className="text-lg font-black tracking-tight first-letter:uppercase text-[#880E4F] font-serif italic whitespace-nowrap">
-              {monthNames[currentMonth]} <span className="text-orange-300 not-italic font-sans ml-1 text-base">{currentYear}</span>
-            </h1>
-          </div>
-
-          <button 
-            onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
-            className="w-10 h-10 flex items-center justify-center hover:bg-white hover:text-[#880E4F] hover:shadow-sm rounded-xl transition-all text-orange-800"
-          >
-            <ChevronRight size={20} />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button onClick={handlePrint} className="p-2.5 text-orange-800 hover:bg-orange-50 rounded-xl transition-all" title="Imprimir">
-            <Printer size={20} />
-          </button>
-          <button onClick={handleExportPDF} className="p-2.5 text-orange-800 hover:bg-orange-50 rounded-xl transition-all" title="Exportar PDF">
-            <FileDown size={20} />
-          </button>
-          <button 
-            onClick={() => setShowSettings(true)}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#880E4F] text-white rounded-2xl hover:bg-[#AD1457] transition-all shadow-xl shadow-[#880E4F]/20 font-bold uppercase tracking-widest text-[10px]"
-          >
-            <Settings2 size={16} />
-            <span className="hidden sm:inline">Ajustes</span>
-          </button>
+    <div className="bg-[#FDFCFB] min-h-screen flex flex-col font-sans text-[#1A1A1A] p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Top Header Row (Back Button + Title) */}
+      <div className="flex items-center gap-4 print:hidden max-w-7xl mx-auto w-full">
+        <button 
+          onClick={onBack}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#880E4F] bg-white shadow-md border border-gray-200"
+          title="Voltar ao Painel"
+        >
+          <ChevronLeft size={28} strokeWidth={3} />
+        </button>
+        <div className="flex flex-col">
+          <h2 className="text-[10px] sm:text-[12px] font-black uppercase tracking-[0.2em] text-[#880E4F]/40 leading-none mb-1">Relatórios</h2>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-gray-800 whitespace-nowrap">Ministério de <span className="font-serif italic font-normal text-[#880E4F]">Pregação</span></h1>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-10 space-y-6 sm:space-y-10">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-6 print:grid-cols-5">
-          {[
-            { label: 'Meta Mensal', value: `${report.goal}:00`, color: 'text-gray-900', bg: 'bg-white' },
-            { label: 'Horas Feitas', value: minutesToTime(totalMinutesDone), color: 'text-white', bg: 'bg-[#880E4F]' },
-            { label: 'Faltam', value: minutesToTime(minutesRemaining), color: 'text-orange-900', bg: 'bg-orange-50' },
-            { label: 'P/ Turno', value: minutesToTime(Math.round(minutesPerShift)), color: 'text-gray-600', bg: 'bg-gray-50' },
-            { label: 'Meta Hoje', value: minutesToTime(Math.round(metaHoje)), color: 'text-white', bg: 'bg-[#1A1A1A]' },
-          ].map((stat, i) => (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              key={i} 
-              className={`${stat.bg} p-4 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-orange-100 shadow-xl shadow-orange-900/5 flex flex-col justify-center relative overflow-hidden group`}
-            >
-              <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] mb-0.5 sm:mb-1 relative z-10 ${stat.bg === 'bg-[#880E4F]' || stat.bg === 'bg-[#1A1A1A]' ? 'text-white/40' : 'text-[#880E4F]/40'}`}>
-                {stat.label}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-7xl mx-auto w-full bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
+      >
+        {/* Main Banner (Navigation & Actions) - Patterns from ItinerariesView */}
+        <div className="bg-[#880E4F] p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
+              <button 
+                onClick={() => setCurrentDate(new Date())}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/20 transition-colors uppercase"
+              >
+                Hoje
+              </button>
+              <div className="w-px h-4 bg-white/20 mx-1" />
+              <button 
+                onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+                title="Mês Anterior"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="px-3 text-sm font-black min-w-[140px] text-center capitalize font-serif italic">
+                {monthNames[currentMonth]} <span className="text-white/40 not-italic font-sans text-xs ml-1">{currentYear}</span>
               </span>
-              <span className={`text-2xl sm:text-4xl font-black font-mono tracking-tighter relative z-10 ${stat.color}`}>{stat.value}</span>
-              <div className={`absolute -right-4 -bottom-4 w-12 h-12 sm:w-20 sm:h-20 rounded-full opacity-10 transition-transform group-hover:scale-150 ${stat.bg === 'bg-[#880E4F]' || stat.bg === 'bg-[#1A1A1A]' ? 'bg-white' : 'bg-[#880E4F]'}`} />
-            </motion.div>
-          ))}
+              <button 
+                onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+                title="Próximo Mês"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-2 print:hidden items-center">
+            <button 
+              onClick={handleExportPDF}
+              className="bg-white/10 text-white p-2 sm:px-4 sm:py-1.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-colors flex items-center gap-2"
+              title="Exportar PDF"
+            >
+              <FileDown size={18} />
+              <span className="hidden md:inline">PDF</span>
+            </button>
+            <button 
+              onClick={handlePrint}
+              className="bg-white/10 text-white p-2 sm:px-4 sm:py-1.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white/20 transition-colors flex items-center gap-2"
+              title="Imprimir"
+            >
+              <Printer size={18} />
+              <span className="hidden md:inline">Imprimir</span>
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-1 hidden sm:block" />
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="bg-white text-[#880E4F] p-2 sm:px-5 sm:py-1.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-lg flex items-center gap-2"
+              title="Ajustes"
+            >
+              <Settings2 size={18} />
+              <span className="hidden md:inline">Ajustes</span>
+            </button>
+          </div>
         </div>
 
-        {/* Calendar Body */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
-          ref={calendarRef} 
-          className="bg-white rounded-3xl sm:rounded-[3rem] border border-orange-100 shadow-2xl shadow-orange-900/5 overflow-hidden p-3 sm:p-8 print:p-0 print:border-none print:shadow-none"
-        >
-          {/* Scrollable Container for Mobile */}
-          <div className="overflow-x-auto custom-scrollbar-wide">
-            <div className="min-w-[700px] lg:min-w-0">
-              {/* Weekday Labels (High Contrast - Maroon Row) */}
-              <div className="grid grid-cols-7 gap-x-px mb-2 bg-[#880E4F] rounded-t-2xl sm:rounded-t-3xl overflow-hidden border-2 border-[#880E4F]">
-                {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((day, idx) => (
-                  <div key={day} className={`text-center py-3 sm:py-4 ${idx === 6 ? 'bg-[#700B3F]' : 'bg-[#880E4F]'}`}>
-                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-white">
-                      {day}
-                    </span>
+        <div className="p-4 sm:p-8 space-y-6 sm:space-y-10">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-6 print:grid-cols-5">
+            {[
+              { label: 'Meta Mensal', value: `${report.goal}:00`, color: 'text-gray-900', bg: 'bg-white' },
+              { label: 'Horas Feitas', value: minutesToTime(totalMinutesDone), color: 'text-white', bg: 'bg-[#880E4F]' },
+              { label: 'Faltam', value: minutesToTime(minutesRemaining), color: 'text-orange-900', bg: 'bg-orange-50' },
+              { label: 'Cada Turno', value: minutesToTime(Math.round(minutesPerShift)), color: 'text-gray-600', bg: 'bg-gray-50' },
+              { label: 'Meta p/ Hoje', value: minutesToTime(Math.round(metaHoje)), color: 'text-white', bg: 'bg-[#1A1A1A]' },
+            ].map((stat, i) => (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                key={i} 
+                className={`${stat.bg} p-4 sm:p-6 rounded-2xl border border-orange-100 shadow-xl shadow-orange-900/5 flex flex-col justify-center relative overflow-hidden group ${i === 4 ? 'col-span-2 md:col-span-1' : 'col-span-1'}`}
+              >
+                <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] mb-0.5 sm:mb-1 relative z-10 ${stat.bg === 'bg-[#880E4F]' || stat.bg === 'bg-[#1A1A1A]' ? 'text-white/40' : 'text-[#880E4F]/40'}`}>
+                  {stat.label}
+                </span>
+                <span className={`text-xl sm:text-3xl font-black font-mono tracking-tighter relative z-10 ${stat.color}`}>{stat.value}</span>
+                <div className={`absolute -right-4 -bottom-4 w-12 h-12 sm:w-20 sm:h-20 rounded-full opacity-10 transition-transform group-hover:scale-150 ${stat.bg === 'bg-[#880E4F]' || stat.bg === 'bg-[#1A1A1A]' ? 'bg-white' : 'bg-[#880E4F]'}`} />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Calendar Body */}
+          <div ref={calendarRef} className="print:p-0 print:border-none print:shadow-none">
+            {/* Scrollable Container for Mobile */}
+            <div className="overflow-x-auto custom-scrollbar-wide">
+              <div className="min-w-[750px] lg:min-w-0">
+                {/* Weekday Labels (High Contrast - Maroon Row) */}
+                <div className="grid grid-cols-7 gap-x-px mb-2 bg-[#880E4F] rounded-t-2xl sm:rounded-t-3xl overflow-hidden border-2 border-[#880E4F]">
+                  {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((day, idx) => (
+                    <div key={day} className={`text-center py-3 sm:py-4 ${idx === 6 ? 'bg-[#700B3F]' : 'bg-[#880E4F]'}`}>
+                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-white">
+                        {day}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 border-2 border-[#880E4F] rounded-b-2xl sm:rounded-b-3xl overflow-hidden">
+                  {/* Main Calendar Grid */}
+                  <div className="grid grid-cols-7 gap-px bg-[#880E4F]">
+                    {/* Padding start (Days from previous month) */}
+                    {Array.from({ length: firstDay }).map((_, i) => {
+                      const prevMonthDate = new Date(currentYear, currentMonth, 0 - (firstDay - i - 1));
+                      return (
+                        <div key={`pad-${i}`} className="bg-gray-100 h-44 flex flex-col p-0 opacity-50 relative overflow-hidden border-r border-[#880E4F]/10">
+                          <div className="h-8 bg-gray-200/50 flex items-center justify-end px-3">
+                            <span className="text-[12px] font-black text-gray-400">
+                              {prevMonthDate.getDate().toString().padStart(2, '0')}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Days of current month */}
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                      const dayData = report.days[dateKey] || { hours: '', notes: '' };
+                      const isToday = isCurrentMonth && day === today.getDate();
+                      const isSunday = (firstDay + i) % 7 === 6;
+
+                      return (
+                        <div 
+                          key={day} 
+                          className={`bg-white h-44 flex flex-col relative group transition-all duration-300 border-r border-[#880E4F]/10 ${isToday ? 'bg-[#FCE4EC]/40' : (isSunday ? 'bg-orange-50/20' : 'hover:bg-gray-50')}`}
+                        >
+                          {/* Day Header Bar */}
+                          <div className={`h-8 sm:h-10 flex items-center justify-end px-2 sm:px-3 transition-colors ${isToday ? 'bg-[#880E4F]' : (isSunday ? 'bg-[#F8BBD0]/50 group-hover:bg-[#F8BBD0]/70' : 'bg-[#FCE4EC]/60 group-hover:bg-[#FCE4EC]/80')}`}>
+                            <span className={`text-sm sm:text-[18px] font-black tracking-widest ${isToday ? 'text-white' : 'text-[#880E4F]'}`}>
+                              {day.toString().padStart(2, '0')}
+                            </span>
+                          </div>
+                          <div className="flex-1 flex flex-col items-center justify-between px-0.5 pt-1 pb-6">
+                            <div className="w-full">
+                              <input 
+                                type="text" 
+                                value={dayData.hours}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val.length <= 5) updateDayData(dateKey, 'hours', val);
+                                }}
+                                placeholder="0:00"
+                                className={`w-full text-center text-3xl font-mono font-black tracking-tighter bg-transparent border-none outline-none transition-colors ${dayData.hours ? 'text-gray-900' : 'text-gray-50'} focus:text-[#880E4F] placeholder:text-gray-50`}
+                              />
+                            </div>
+                            
+                            <div className="w-full flex-grow flex flex-col justify-center px-0">
+                              <textarea 
+                                value={dayData.notes}
+                                onChange={(e) => updateDayData(dateKey, 'notes', e.target.value.slice(0, 50))}
+                                placeholder="..."
+                                rows={3}
+                                maxLength={50}
+                                className={`w-full text-center font-serif italic text-[15px] leading-tight text-gray-800 bg-transparent border-none outline-none placeholder:text-gray-50 focus:text-gray-950 resize-none overflow-hidden transition-all duration-500 h-[95px] mb-[-45px] ${dayData.notes ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 focus:opacity-100 focus:translate-y-0'}`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Padding end (Days from next month) */}
+                    {Array.from({ length: (7 - ((firstDay + daysInMonth) % 7)) % 7 }).map((_, i) => {
+                      const nextMonthDate = new Date(currentYear, currentMonth + 1, i + 1);
+                      return (
+                        <div key={`pad-end-${i}`} className="bg-gray-100 h-44 flex flex-col p-0 opacity-50 relative overflow-hidden border-r border-[#880E4F]/10">
+                          <div className="h-8 bg-gray-200/50 flex items-center justify-end px-3">
+                            <span className="text-[12px] font-black text-gray-400">
+                              {nextMonthDate.getDate().toString().padStart(2, '0')}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 border-2 border-[#880E4F] rounded-b-2xl sm:rounded-b-3xl overflow-hidden">
-                {/* Main Calendar Grid */}
-                <div className="grid grid-cols-7 gap-px bg-[#880E4F]">
-              {/* Padding start (Days from previous month) */}
-              {Array.from({ length: firstDay }).map((_, i) => {
-                const prevMonthDate = new Date(currentYear, currentMonth, 0 - (firstDay - i - 1));
-                return (
-                  <div key={`pad-${i}`} className="bg-gray-100 h-44 flex flex-col p-0 opacity-50 relative overflow-hidden">
-                    <div className="h-8 bg-gray-200/50 flex items-center justify-end px-3">
-                      <span className="text-[12px] font-black text-gray-400">
-                        {prevMonthDate.getDate().toString().padStart(2, '0')}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Days of current month */}
-              {Array.from({ length: daysInMonth }).map((_, i) => {
-                const day = i + 1;
-                const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                const dayData = report.days[dateKey] || { hours: '', notes: '' };
-                const isToday = isCurrentMonth && day === today.getDate();
-
-                const isSunday = (firstDay + i) % 7 === 6;
-
-                return (
-                  <div 
-                    key={day} 
-                    className={`bg-white h-44 flex flex-col relative group transition-all duration-300 ${isToday ? 'bg-[#FCE4EC]/40' : (isSunday ? 'bg-orange-50/20' : 'hover:bg-gray-50')}`}
-                  >
-                    {/* Day Header Bar (Reference image inspired) */}
-                    <div className={`h-10 flex items-center justify-end px-3 transition-colors ${isToday ? 'bg-[#880E4F]' : (isSunday ? 'bg-[#F8BBD0]/50 group-hover:bg-[#F8BBD0]/70' : 'bg-[#FCE4EC]/60 group-hover:bg-[#FCE4EC]/80')}`}>
-                      <span className={`text-[18px] font-black tracking-widest ${isToday ? 'text-white' : 'text-[#880E4F]'}`}>
-                        {day.toString().padStart(2, '0')}
-                      </span>
-                    </div>
-                    <div className="flex-1 flex flex-col items-center justify-between px-0.5 pt-1 pb-6">
-                      <div className="w-full">
-                        <input 
-                          type="text" 
-                          value={dayData.hours}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val.length <= 5) updateDayData(dateKey, 'hours', val);
-                          }}
-                          placeholder="0:00"
-                          className={`w-full text-center text-3xl font-mono font-black tracking-tighter bg-transparent border-none outline-none transition-colors ${dayData.hours ? 'text-gray-900' : 'text-gray-50'} focus:text-[#880E4F] placeholder:text-gray-50`}
-                        />
-                      </div>
-                      
-                      <div className="w-full flex-grow flex flex-col justify-center px-0">
-                        <textarea 
-                          value={dayData.notes}
-                          onChange={(e) => updateDayData(dateKey, 'notes', e.target.value.slice(0, 50))}
-                          placeholder="..."
-                          rows={3}
-                          maxLength={50}
-                          className={`w-full text-center font-serif italic text-[15px] leading-tight text-gray-800 bg-transparent border-none outline-none placeholder:text-gray-50 focus:text-gray-950 resize-none overflow-hidden transition-all duration-500 ${dayData.notes ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 focus:opacity-100 focus:translate-y-0'}`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Padding end (Days from next month) */}
-              {Array.from({ length: (7 - ((firstDay + daysInMonth) % 7)) % 7 }).map((_, i) => {
-                const nextMonthDate = new Date(currentYear, currentMonth + 1, i + 1);
-                return (
-                  <div key={`pad-end-${i}`} className="bg-gray-100 h-44 flex flex-col p-0 opacity-50 relative overflow-hidden">
-                    <div className="h-8 bg-gray-200/50 flex items-center justify-end px-3">
-                      <span className="text-[12px] font-black text-gray-400">
-                        {nextMonthDate.getDate().toString().padStart(2, '0')}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
-      </div>
-    </motion.div>
-  </div>
+      </motion.div>
 
       {/* Settings Modal (Responsive Fix) */}
       <AnimatePresence>

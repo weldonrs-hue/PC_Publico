@@ -6,7 +6,10 @@ import { motion } from 'motion/react';
 interface MiscViewProps {
   onViewChange: (view: string) => void;
   isAdmin?: boolean;
-  appConfig?: { reportEnabledForAll: boolean };
+  appConfig?: { 
+    reportEnabledForAll: boolean;
+    textEditorEnabledForAll: boolean;
+  };
 }
 
 const miscItems = [
@@ -43,7 +46,10 @@ export default function MiscView({ onViewChange, isAdmin, appConfig }: MiscViewP
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {miscItems.map((item, index) => {
           const isReport = item.id === 'field_service_report';
-          const isInactive = isReport && !isAdmin && !appConfig?.reportEnabledForAll;
+          const isTextEditor = item.id === 'text_editor';
+          
+          const isInactive = (isReport && !isAdmin && !appConfig?.reportEnabledForAll) ||
+                            (isTextEditor && !isAdmin && !appConfig?.textEditorEnabledForAll);
 
           return (
             <motion.div

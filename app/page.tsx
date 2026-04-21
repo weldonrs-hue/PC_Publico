@@ -149,7 +149,10 @@ export default function Home() {
   const [currentEvent, setCurrentEvent] = useState<string>('');
   const [congregations, setCongregations] = useState<any[]>([]);
   const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
-  const [appConfig, setAppConfig] = useState<{ reportEnabledForAll: boolean }>({ reportEnabledForAll: false });
+  const [appConfig, setAppConfig] = useState<{ 
+    reportEnabledForAll: boolean;
+    textEditorEnabledForAll: boolean;
+  }>({ reportEnabledForAll: false, textEditorEnabledForAll: false });
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
@@ -161,7 +164,7 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
-    } else if (['misc', 'text_editor'].includes(currentView)) {
+    } else if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
     }
   }, [currentView]);
@@ -318,16 +321,22 @@ export default function Home() {
       if (snap.exists()) {
         const data = snap.data();
         console.log('Home: App settings updated:', data);
-        setAppConfig({ reportEnabledForAll: !!data.reportEnabledForAll });
+        setAppConfig({ 
+          reportEnabledForAll: !!data.reportEnabledForAll,
+          textEditorEnabledForAll: !!data.textEditorEnabledForAll
+        });
       } else {
         console.log('Home: App settings doc not found.');
         if (user?.role === 'admin') {
           console.log('Home: Initializing app settings for admin...');
-          setDoc(configRef, { reportEnabledForAll: false }).catch(err => {
+          setDoc(configRef, { 
+            reportEnabledForAll: false,
+            textEditorEnabledForAll: false
+          }).catch(err => {
             console.error('Home: Failed to init app settings:', err);
           });
         }
-        setAppConfig({ reportEnabledForAll: false });
+        setAppConfig({ reportEnabledForAll: false, textEditorEnabledForAll: false });
       }
     }, (err) => {
       console.warn('Home: Error listening to app settings (likely permissions):', err);
@@ -820,7 +829,7 @@ export default function Home() {
               }
             } else if (view === 'misc') {
               // If already in a Misc sub-view, reset to main misc
-              if (['misc', 'text_editor'].includes(currentView)) {
+              if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
                 changeView('misc');
               } else {
                 // Restore last visited sub-view in Misc

@@ -77,7 +77,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       return ['events', 'regional_convention_program'].includes(currentView);
     }
     if (itemView === 'misc') {
-      return ['misc', 'text_editor'].includes(currentView);
+      return ['misc', 'text_editor', 'field_service_report'].includes(currentView);
     }
     return currentView === itemView;
   };
