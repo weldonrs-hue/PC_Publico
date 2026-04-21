@@ -514,14 +514,14 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             </div>
 
             {/* Closing */}
-            <div className="mt-8 relative group pr-[10mm]">
-              <div className="flex flex-col items-end mb-[58px]">
-                <div className="w-72 text-center relative">
-                  <p className="text-[15px] mt-0 pl-[61px] mb-[18px] text-left">Seu irmão,</p>
+            <div className="mt-8 relative group">
+              <div className="flex flex-col items-end mb-[58px] pr-[5mm]">
+                <div className="w-full max-w-[450px] px-4 text-center relative">
+                  <p className="text-[15px] mt-0 mb-[18px] text-left pl-4">Seu irmão,</p>
                   {/* Signature Block */}
-                  <div className="inline-block relative w-full flex flex-col items-center">
+                  <div className="inline-block relative w-full flex flex-col items-center overflow-visible">
                     {/* Signature Upload Controls */}
-                    <div className="absolute -left-10 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => fileInputRef.current?.click()}
                         className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
@@ -548,7 +548,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                     </div>
 
                     {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
-                      <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full">
+                      <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible">
                         <Image 
                           src={signatureImage} 
                           alt="Assinatura" 
@@ -562,8 +562,11 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                         type="text"
                         value={signatureName}
                         onChange={(e) => setSignatureName(e.target.value)}
-                        className="font-signature text-[32px] text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
-                        style={{ fontFamily: "'Dancing Script', cursive" }}
+                        className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
+                        style={{ 
+                          fontFamily: "'Dancing Script', cursive",
+                          fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
+                        }}
                       />
                     )}
                     <div className="border-t border-black w-full mx-auto mb-0"></div>
