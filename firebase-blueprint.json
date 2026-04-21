@@ -169,6 +169,29 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["speakers"]
+    },
+    "service_report": {
+      "title": "Field Service Report",
+      "description": "Monthly report of field service hours and goals",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "days": {
+          "type": "object",
+          "description": "Map of date strings to day data (hours and notes)"
+        },
+        "goal": { "type": "integer", "description": "Monthly hour goal" }
+      },
+      "required": ["days", "goal"]
+    },
+    "app_config": {
+      "title": "App Configuration",
+      "description": "Global application feature toggles and settings",
+      "type": "object",
+      "properties": {
+        "reportEnabledForAll": { "type": "boolean", "description": "Whether the field service report is enabled for all users" }
+      },
+      "required": ["reportEnabledForAll"]
     }
   },
   "firestore": {
@@ -211,6 +234,14 @@
     "/regional_convention_speakers/{userId}": {
       "schema": "regional_convention_speakers",
       "description": "Collection of speaker assignments for regional conventions"
+    },
+    "/service_reports/{reportId}": {
+      "schema": "service_report",
+      "description": "Collection of monthly service reports"
+    },
+    "/config/app_settings": {
+      "schema": "app_config",
+      "description": "Global app settings"
     }
   }
 }

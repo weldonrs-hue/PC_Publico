@@ -28,6 +28,7 @@ import {
   getDocs,
   doc, 
   getDoc,
+  setDoc,
   deleteDoc,
   writeBatch
 } from 'firebase/firestore';
@@ -45,6 +46,8 @@ interface SettingsViewProps {
   userId: string;
   onBack: () => void;
   onViewChange: (view: string) => void;
+  isAdmin?: boolean;
+  appConfig?: { reportEnabledForAll: boolean };
 }
 
 const settingsButtons = [
@@ -90,7 +93,7 @@ const settingsButtons = [
   }
 ];
 
-export default function SettingsView({ userId, onBack, onViewChange }: SettingsViewProps) {
+export default function SettingsView({ userId, onBack, onViewChange, isAdmin, appConfig }: SettingsViewProps) {
   const [pastaCircuito, setPastaCircuito] = useState<string>('Não configurada');
   const [circuito, setCircuito] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -239,6 +242,19 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
       setIsShowingPrivacy(true);
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
+    }
+  };
+
+  const handleToggleReportVisibility = async () => {
+    if (!isAdmin) return;
+    try {
+      const configRef = doc(db, 'config', 'app_settings');
+      await setDoc(configRef, { 
+        reportEnabledForAll: !appConfig?.reportEnabledForAll 
+      }, { merge: true });
+    } catch (err) {
+      console.error('Erro ao atualizar configuração global:', err);
+      alert('Erro ao atualizar configuração. Verifique suas permissões.');
     }
   };
 
@@ -414,6 +430,36 @@ export default function SettingsView({ userId, onBack, onViewChange }: SettingsV
             );
           })}
       </div>
+
+      {isAdmin && (
+        <section className="space-y-6 pt-10 border-t border-gray-100">
+           <div className="flex items-center gap-3">
+             <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
+               <ShieldCheck size={20} />
+             </div>
+             <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight">Configurações Globais (Admin)</h3>
+           </div>
+
+           <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+             <div className="flex items-center justify-between gap-4">
+               <div className="space-y-1">
+                 <h4 className="font-bold text-gray-900">Relatório de Pregação</h4>
+                 <p className="text-xs text-gray-500 max-w-md">
+                   Ao ativar esta opção, o Relatório de Pregação ficará visível e utilizável por todos os usuários do circuito. 
+                   Enquanto desativado, apenas administradores têm acesso.
+                 </p>
+               </div>
+               
+               <button 
+                 onClick={handleToggleReportVisibility}
+                 className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200 ${appConfig?.reportEnabledForAll ? 'bg-amber-500' : 'bg-gray-200'}`}
+               >
+                 <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${appConfig?.reportEnabledForAll ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
+               </button>
+             </div>
+           </div>
+        </section>
+      )}
     </motion.div>
 
     {/* Format Account Modal */}

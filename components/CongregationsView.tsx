@@ -270,16 +270,22 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     // Prioridade 2: Busca por A/C (Aos Cuidados) - CCA e Endereço
     const acIdx = lines.findIndex(l => l.toUpperCase().startsWith('A/C'));
     if (acIdx !== -1) {
-      // Coordenador (remover prefixo A/C)
+      // Coordenador (remover prefixo A/C do primeiro encontrado)
       const coordName = lines[acIdx].replace(/A\/C[\s:]*/i, '').trim();
       if (!newFormData.coordenador || newFormData.coordenador.includes('Corpo')) {
         newFormData.coordenador = coordName;
       }
       
-      // Endereço (as duas próximas linhas após A/C)
+      // Pula todas as linhas consecutivas que começam com A/C para encontrar o endereço
+      let lastAcIdx = acIdx;
+      while (lines[lastAcIdx + 1]?.toUpperCase().startsWith('A/C')) {
+        lastAcIdx++;
+      }
+      
+      // Endereço (as duas próximas linhas após o último A/C)
       if (!newFormData.endereco) {
-        const addrLine1 = lines[acIdx + 1] || '';
-        const addrLine2 = lines[acIdx + 2] || '';
+        const addrLine1 = lines[lastAcIdx + 1] || '';
+        const addrLine2 = lines[lastAcIdx + 2] || '';
         
         // Verifica se a linha 2 contém cidade/estado
         const cityStateMatch = addrLine2.match(/([A-ZÀ-Ú\s]+),\s*([A-Z]{2})/i);
@@ -294,8 +300,8 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
       
       // CEP (procura nas linhas próximas ao A/C se ainda não tiver)
       if (!newFormData.cep) {
-        for (let i = 1; i <= 4; i++) {
-          const l = lines[acIdx + i];
+        for (let i = 1; i <= 6; i++) {
+          const l = lines[lastAcIdx + i];
           const cepM = l?.match(/(\d{5}-\d{3})/);
           if (cepM) {
             newFormData.cep = cepM[1];
@@ -397,7 +403,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     }
     
     const coordMatch = text.match(/(?:Coordenador|CCA|A\/C)[\s:]*([A-ZÀ-Ú\s]+)/i);
-    if (coordMatch && !coordMatch[1].toLowerCase().includes('corpo')) {
+    if (coordMatch && (!newFormData.coordenador || newFormData.coordenador.includes('Corpo'))) {
       newFormData.coordenador = coordMatch[1].trim();
     }
 
@@ -444,6 +450,10 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         let estado = '';
         let endereco = '';
         let cep = '';
+        let coordenador = '';
+        let telefone = '';
+        let gps = '';
+        let parte = 'A';
 
         // Prioridade 1: Padrão de Correspondência (Hub)
         const corrIdx = bLines.findIndex(l => l.toLowerCase().includes('correspondência'));
@@ -471,13 +481,19 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         const acIdx = bLines.findIndex(l => l.toUpperCase().startsWith('A/C'));
         if (acIdx !== -1) {
           const coordName = bLines[acIdx].replace(/A\/C[\s:]*/i, '').trim();
-          if (!nome) {
-            // Tenta usar o nome do coordenador como fallback ou extrair info da linha A/C
+          if (!coordenador || coordenador.toLowerCase().includes('corpo')) {
+            coordenador = coordName;
           }
           
-          if (!endereco && bLines[acIdx + 1]) {
-            const addrLine1 = bLines[acIdx + 1] || '';
-            const addrLine2 = bLines[acIdx + 2] || '';
+          // Pula todas as linhas consecutivas que começam com A/C
+          let lastAcIdx = acIdx;
+          while (bLines[lastAcIdx + 1]?.toUpperCase().startsWith('A/C')) {
+            lastAcIdx++;
+          }
+          
+          if (!endereco && bLines[lastAcIdx + 1]) {
+            const addrLine1 = bLines[lastAcIdx + 1] || '';
+            const addrLine2 = bLines[lastAcIdx + 2] || '';
             const csMatch = addrLine2.match(/([A-ZÀ-Ú\s]+),\s*([A-Z]{2})/i);
             if (csMatch) {
               endereco = addrLine1;
@@ -489,10 +505,9 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           }
           
           if (!cep) {
-            for (let i = 1; i <= 4; i++) {
-              const cepM = bLines[acIdx + i]?.match(/(\d{5}-\d{3})/);
+            for (let i = 1; i <= 6; i++) {
+              const cepM = bLines[lastAcIdx + i]?.match(/(\d{5}-\d{3})/);
               if (cepM) {
-                // If we find a CEP here, we update it and remove it from the address if it was captured there
                 cep = cepM[1];
                 break;
               }
@@ -561,15 +576,15 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
           numero = numeroMatch ? (numeroMatch[1] || numeroMatch[0].replace(/\D/g, '')).trim() : '';
         }
         
-        const parte = block.match(/Parte\s*([A-C])/i)?.[1]?.toUpperCase() || 'A';
-        
+        const pMatch = block.match(/Parte\s*([A-C])/i);
+        if (pMatch) parte = pMatch[1].toUpperCase();
+
         if (!nome || !numero) continue;
         
         if (!cep) {
           cep = block.match(/(\d{5}-\d{3})/)?.[1] || '';
         }
         
-        let telefone = '';
         const telIdx = bLines.findIndex(l => l.toLowerCase().startsWith('telefone') || l.toLowerCase().startsWith('celular'));
         if (telIdx !== -1) {
           let tel = '';
@@ -585,15 +600,11 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         }
 
         const coordMatch = block.match(/(?:Coordenador|CCA|A\/C)[\s:]*([A-ZÀ-Ú\s]+)/i);
-        let coordenador = (coordMatch && !coordMatch[1].toLowerCase().includes('corpo')) ? coordMatch[1].trim() : '';
-        
-        // Refinamento final para o coordenador se veio do A/C
-        if (acIdx !== -1 && (!coordenador || coordenador.toLowerCase().includes('corpo'))) {
-           coordenador = bLines[acIdx].replace(/A\/C[\s:]*/i, '').trim();
+        if (coordMatch && (!coordenador || coordenador.toLowerCase().includes('corpo'))) {
+          coordenador = coordMatch[1].trim();
         }
         
         const gpsMatch = block.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)|(-?\d+\.\d+)\s+(-?\d+\.\d+)/);
-        let gps = '';
         if (gpsMatch) {
           gps = gpsMatch[1] && gpsMatch[2] ? `${gpsMatch[1]}, ${gpsMatch[2]}` : `${gpsMatch[3]}, ${gpsMatch[4]}`;
         }
@@ -1139,7 +1150,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100"
             >
               <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-6 text-white flex justify-between items-center">
                 <div className="flex items-center gap-3">
@@ -1159,7 +1170,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                 </button>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
                   <h4 className="text-sm font-bold text-amber-800 mb-1">Como usar:</h4>
                   <p className="text-xs text-amber-700 leading-relaxed">

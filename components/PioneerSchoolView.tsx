@@ -1101,7 +1101,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center gap-2">
@@ -1115,7 +1115,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 </button>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 <p className="text-sm text-gray-600">
                   Cole abaixo o texto copiado da sua lista (PDF ou Excel). O sistema irá identificar automaticamente o nome do aluno, a congregação e o circuito.
                 </p>

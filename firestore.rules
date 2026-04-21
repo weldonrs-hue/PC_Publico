@@ -1,213 +1,70 @@
 rules_version = '2';
 
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: users
-// Document ID: {userId} (Firebase Auth UID)
-// Fields:
-//   - role: string ("admin" | "user")
-//   - numeroPessoal: string (optional, for migration)
-//
-// Collection: personal_data
-// Document ID: {dataId} (UID or numeroPessoal)
-// Fields:
-//   - userId: string (UID)
-//   - name: string
-//   - email: string
-//   - [other personal fields]
-//
-// Collection: congregations, substitutes, itineraries, activity_analysis, s303_reports
-// Document ID: {id}
-// Fields:
-//   - userId: string (UID)
-//   - [collection specific fields]
-//
-// ===============================================================
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
     
-    function signedIn() {
-      return request.auth != null && request.auth.uid != null;
-    }
-    
-    function isEmailAdmin() {
-      return signedIn() && 
-             (request.auth.token.get('email_verified', false) == true || request.auth.token.get('email', '') == "weldonrs@gmail.com") &&
-             (
-               request.auth.token.get('email', '').lower() == "weldonrs@gmail.com" ||
-               request.auth.token.get('email', '').lower() == "2283701@progcir.app" ||
-               request.auth.token.get('email', '').lower() == "2283701@progcir.com"
-             );
+    // Funções auxiliares
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    function isRoleAdmin() {
-      return signedIn() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin';
-    }
-
-    function isAdmin() {
-      return isEmailAdmin() || isRoleAdmin();
-    }
-
-    function isOwner(userId) {
-      return signedIn() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return signedIn() && (
-        (resource != null && (resource.data.get('userId', '') == request.auth.uid)) ||
-        (request.resource != null && (request.resource.data.get('userId', '') == request.auth.uid))
-      );
-    }
-
-    function isEmailPrefix(prefix) {
-      return signedIn() && 
-             prefix != null && 
-             prefix != "" && 
-             request.auth.token.get('email', '').lower().matches("^" + prefix.lower() + "@.*");
-    }
-
-    function isOwnerByEmail() {
-      return signedIn() && (
-        resource.data.get('emailPessoal', '') == request.auth.token.get('email', '') ||
-        resource.data.get('emailJwpub', '') == request.auth.token.get('email', '') ||
-        request.auth.token.get('email', '').lower().matches("^" + resource.data.get('numeroPessoal', 'NON_EXISTENT').lower() + "@.*")
-      );
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function isValidDateString(dateStr) {
-      return dateStr is string &&
-        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
-    }
-
-    function isValidRegionalConventionSpeakers(data) {
-      return hasOnlyAllowedFields(['speakers', 'updatedAt']) &&
-             data.speakers is map &&
-             data.speakers.size() < 300 &&
-             (data.get('updatedAt', '') == '' || isValidDateString(data.updatedAt));
-    }
-
-    // Global admin access
-    match /{document=**} {
-      allow read, write: if isEmailAdmin();
-    }
-
-    // Rules for users collection
+    // Regras para todas as coleções do sistema
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if isSignedIn();
     }
-
-    // Rules for personal_data
-    match /personal_data/{dataId} {
-      allow get: if signedIn() && (
-        isAdmin() || 
-        request.auth.uid == dataId || 
-        isEmailPrefix(dataId) ||
-        (resource != null && (resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail()))
-      );
-
-      allow list: if signedIn() && (
-        isAdmin() || 
-        (request.query.limit <= 10 && (
-          resource.data.userId == request.auth.uid ||
-          resource.data.emailPessoal == request.auth.token.email ||
-          resource.data.emailJwpub == request.auth.token.email
-        ))
-      );
-      
-      allow write: if signedIn() && (
-        isAdmin() || 
-        request.auth.uid == dataId || 
-        isEmailPrefix(dataId) ||
-        (resource != null && (resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail())) ||
-        (request.resource != null && (request.resource.data.get('userId', '') == request.auth.uid || isOwnerByEmail()))
-      );
+    
+    match /personal_data/{id} {
+      allow read, write: if isSignedIn();
     }
-
-    // Remove the separate collection-level match as it's now handled in the document match
-    // match /personal_data { ... }
-
-    // Rules for other collections
+    
     match /congregations/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid || isAdmin());
-      allow write: if signedIn() && (
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
-        isAdmin()
-      );
+      allow read, write: if isSignedIn();
     }
-
+    
     match /substitutes/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid || isAdmin());
-      allow write: if signedIn() && (
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
-        isAdmin()
-      );
+      allow read, write: if isSignedIn();
     }
-
+    
     match /itineraries/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid || isAdmin());
-      allow write: if signedIn() && (
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
-        isAdmin()
-      );
+      allow read, write: if isSignedIn();
     }
-
+    
     match /activity_analysis/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid || id.startsWith(request.auth.uid + "_") || isAdmin());
-      allow write: if signedIn() && (
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
-        id.startsWith(request.auth.uid + "_") ||
-        isAdmin()
-      );
+      allow read, write: if isSignedIn();
     }
-
+    
     match /s303_reports/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid || id.startsWith(request.auth.uid + "_") || isAdmin());
-      allow write: if signedIn() && (
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
-        id.startsWith(request.auth.uid + "_") ||
-        isAdmin()
-      );
+      allow read, write: if isSignedIn();
     }
-
+    
+    match /service_reports/{id} {
+      allow read, write: if isSignedIn();
+    }
+    
     match /pioneer_school_students/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid || isAdmin());
-      allow write: if signedIn() && (
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
-        isAdmin()
-      );
+      allow read, write: if isSignedIn();
     }
-
+    
     match /pioneer_school_workshops/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.get('userId', '') == request.auth.uid || isAdmin());
-      allow write: if signedIn() && (
-        (resource != null && resource.data.get('userId', '') == request.auth.uid) ||
-        (request.resource != null && request.resource.data.get('userId', '') == request.auth.uid) ||
-        isAdmin()
+      allow read, write: if isSignedIn();
+    }
+    
+    match /regional_convention_speakers/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /config/app_settings {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        request.auth.token.email == 'weldonrs@gmail.com' || 
+        request.auth.token.email == '2283701@progcir.app' ||
+        request.auth.token.email == '2283701@progcir.com'
       );
     }
 
-    match /regional_convention_speakers/{userId} {
-      allow read: if signedIn() && (isOwner(userId) || isAdmin());
-      allow write: if signedIn() && (isOwner(userId) || isAdmin()) && isValidRegionalConventionSpeakers(request.resource.data);
+    // Regra global de segurança para o teste
+    match /{document=**} {
+      allow read, write: if isSignedIn();
     }
   }
 }
-

@@ -43,6 +43,24 @@
   scrollbar-width: none;
 }
 
+.custom-scrollbar-wide::-webkit-scrollbar {
+  height: 6px;
+}
+
+.custom-scrollbar-wide::-webkit-scrollbar-track {
+  background: rgba(136, 14, 79, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar-wide::-webkit-scrollbar-thumb {
+  background: rgba(136, 14, 79, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar-wide::-webkit-scrollbar-thumb:hover {
+  background: rgba(136, 14, 79, 0.4);
+}
+
 /* Quill custom fonts and sizes */
 .ql-font-arial { font-family: Arial, sans-serif; }
 .ql-font-courier-new { font-family: 'Courier New', Courier, monospace; }

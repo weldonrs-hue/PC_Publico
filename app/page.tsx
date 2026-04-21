@@ -19,6 +19,7 @@ import EventsView from '@/components/EventsView';
 import RegionalConventionView from '@/components/RegionalConventionView';
 import MiscView from '@/components/MiscView';
 import TextEditor from '@/components/TextEditor';
+import FieldServiceReportView from '@/components/FieldServiceReportView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -98,7 +99,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report'>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -148,6 +149,7 @@ export default function Home() {
   const [currentEvent, setCurrentEvent] = useState<string>('');
   const [congregations, setCongregations] = useState<any[]>([]);
   const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
+  const [appConfig, setAppConfig] = useState<{ reportEnabledForAll: boolean }>({ reportEnabledForAll: false });
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
@@ -305,6 +307,34 @@ export default function Home() {
       if (unsubUser) unsubUser();
     };
   }, []);
+
+  // Monitorar configuração global do app
+  useEffect(() => {
+    if (!user?.id || quotaExceeded) return;
+    
+    console.log('Home: Setting up app_settings listener...');
+    const configRef = doc(db, 'config', 'app_settings');
+    const unsubConfig = onSnapshot(configRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        console.log('Home: App settings updated:', data);
+        setAppConfig({ reportEnabledForAll: !!data.reportEnabledForAll });
+      } else {
+        console.log('Home: App settings doc not found.');
+        if (user?.role === 'admin') {
+          console.log('Home: Initializing app settings for admin...');
+          setDoc(configRef, { reportEnabledForAll: false }).catch(err => {
+            console.error('Home: Failed to init app settings:', err);
+          });
+        }
+        setAppConfig({ reportEnabledForAll: false });
+      }
+    }, (err) => {
+      console.warn('Home: Error listening to app settings (likely permissions):', err);
+    });
+
+    return () => unsubConfig();
+  }, [user?.id, user?.role, quotaExceeded]);
 
   useEffect(() => {
     const activeUid = user?.id || auth.currentUser?.uid;
@@ -600,21 +630,25 @@ export default function Home() {
         }
 
         if (shouldFetchStats && !quotaExceeded) {
-          let congSnap, subSnap, itinSnap, analysisSnap;
+          let congSnap: any, subSnap: any, itinSnap: any, analysisSnap: any;
           try {
-            [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
-              getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
-              getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
-              getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))),
-              getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid)))
+            console.log(`fetchData: Fetching stats for ${activeUid}...`);
+            const results = await Promise.all([
+              getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))).catch(e => { console.error('Congregations fetch failed:', e); throw e; }),
+              getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))).catch(e => { console.error('Substitutes fetch failed:', e); throw e; }),
+              getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))).catch(e => { console.error('Itineraries fetch failed:', e); throw e; }),
+              getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid))).catch(e => { console.error('Analysis fetch failed:', e); throw e; })
             ]);
+            [congSnap, subSnap, itinSnap, analysisSnap] = results;
+            console.log('fetchData: Stats fetched successfully');
           } catch (error) {
+            console.error('fetchData: Promise.all for stats failed:', error);
             handleFirestoreError(error, OperationType.GET, 'dashboard_stats');
             return;
           }
 
           let groups = 0;
-          congSnap.docs.forEach((doc) => {
+          congSnap.docs.forEach((doc: any) => {
             const data = doc.data();
             if (data.grupos && Array.isArray(data.grupos)) {
               groups += data.grupos.length;
@@ -623,7 +657,7 @@ export default function Home() {
 
           // Count unique congregations with analysis
           const analyzedCongs = new Set();
-          analysisSnap.docs.forEach(doc => {
+          analysisSnap.docs.forEach((doc: any) => {
             const data = doc.data();
             if (data.congregacao) {
               analyzedCongs.add(data.congregacao);
@@ -631,7 +665,7 @@ export default function Home() {
           });
 
           const analysesByCong: { [key: string]: any } = {};
-          analysisSnap.docs.forEach((doc) => {
+          analysisSnap.docs.forEach((doc: any) => {
             const data = doc.data();
             const cong = data.congregacao;
             if (!analysesByCong[cong]) {
@@ -665,7 +699,7 @@ export default function Home() {
 
           // Find current event
           let foundEvent = '';
-          itinSnap.docs.forEach((doc) => {
+          itinSnap.docs.forEach((doc: any) => {
             const data = doc.data();
             if (isCurrentWeek(data.semana)) {
               foundEvent = data.evento || '';
@@ -921,6 +955,8 @@ export default function Home() {
           {currentView === 'settings' && (
             <SettingsView 
               userId={user.id}
+              isAdmin={user.role === 'admin'}
+              appConfig={appConfig}
               onBack={() => changeView('dashboard')} 
               onViewChange={(view) => changeView(view as any)}
             />
@@ -976,12 +1012,21 @@ export default function Home() {
 
           {currentView === 'misc' && (
             <MiscView 
+              isAdmin={user?.role === 'admin'}
+              appConfig={appConfig}
               onViewChange={(view) => changeView(view as any)}
             />
           )}
 
           {currentView === 'text_editor' && (
             <TextEditor 
+              userId={user?.id}
+              onBack={() => changeView('misc')}
+            />
+          )}
+
+          {currentView === 'field_service_report' && (
+            <FieldServiceReportView 
               userId={user?.id}
               onBack={() => changeView('misc')}
             />
