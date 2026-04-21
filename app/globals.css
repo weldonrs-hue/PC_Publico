@@ -4,6 +4,7 @@
 @theme {
   --font-sans: var(--font-inter);
   --font-headline: var(--font-manrope);
+  --font-signature: var(--font-signature);
 }
 
 @layer base {

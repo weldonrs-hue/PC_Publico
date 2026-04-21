@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   FileText, 
   ChevronLeft, 
@@ -13,12 +13,17 @@ import {
   Calendar,
   MapPin,
   User,
-  Hash
+  Hash,
+  Upload,
+  Trash2
 } from 'lucide-react';
+import Image from 'next/image';
 import { motion } from 'motion/react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+
+import { toPng } from 'html-to-image';
 
 interface Congregation {
   id?: string;
@@ -56,6 +61,11 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const [loading, setLoading] = useState(false);
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+  
+  // Signature States (Similar to AppointmentLetterView)
+  const [signatureName, setSignatureName] = useState('');
+  const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchPersonalData = async () => {
@@ -63,7 +73,9 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         const docRef = doc(db, 'personal_data', userId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setPersonalData(docSnap.data());
+          const pData = docSnap.data();
+          setPersonalData(pData);
+          if (!signatureName) setSignatureName(pData.nome || '');
         }
       } catch (error) {
         console.error('Error fetching personal data:', error);
@@ -72,9 +84,32 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
     fetchPersonalData();
   }, [userId]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSignatureImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleDownloadPDF = async () => {
     setGenerating(true);
     try {
+      // Ensure fonts are loaded before generation
+      try {
+        await document.fonts.load('16px "Dancing Script"');
+        const font = new FontFace('Dancing Script', 'url(https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.woff2)');
+        await font.load();
+        document.fonts.add(font);
+      } catch (e) {
+        console.warn('Erro ao carregar fonte para PDF:', e);
+      }
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const response = await fetch('/S-302_T.pdf');
       if (!response.ok) {
         throw new Error('Erro ao carregar o modelo PDF S-302-T');
@@ -84,8 +119,8 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       const pages = pdfDoc.getPages();
       const firstPage = pages[0];
       const { height } = firstPage.getSize();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
       const drawText = (text: string, x: number, y: number, size = 10, isBold = false) => {
         if (!text) return;
@@ -130,25 +165,73 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       // 4. Assinatura: direita 3mm (em relação aos 10mm anteriores = 13mm), descer 3mm (em relação à posição anterior = 225 - 7mm)
       // Histórico: Turno 9 (5mm) -> Turno 10 (subir 0,5mm = 5,5mm) -> Turno 11 (subir 0,5mm = 6mm)
       // Usar a mesma fonte (Dancing Script) e cor azul (#004aad) da carta de designação
-      const scName = personalData?.nome || '';
-      let signatureFont;
-      try {
-        // Tentativa de carregar a fonte Dancing Script para a assinatura
-        const fontUrl = 'https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.ttf';
-        const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
-        signatureFont = await pdfDoc.embedFont(fontBytes);
-      } catch (e) {
-        console.warn('Falha ao carregar Dancing Script, usando TimesRomanItalic como fallback', e);
-        signatureFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+      
+      if (signatureImage) {
+        try {
+          const imageBytes = await fetch(signatureImage).then(res => res.arrayBuffer());
+          let embeddedImage;
+          if (signatureImage.includes('png')) {
+            embeddedImage = await pdfDoc.embedPng(imageBytes);
+          } else {
+            embeddedImage = await pdfDoc.embedJpg(imageBytes);
+          }
+          
+          const targetHeight = 9 * mmToPt;
+          const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
+          
+          firstPage.drawImage(embeddedImage, {
+            x: 100 + (13 * mmToPt),
+            y: height - (225 - (6.0 * mmToPt)) - (targetHeight / 2),
+            width: targetWidth,
+            height: targetHeight,
+          });
+        } catch (e) {
+          console.error('Erro ao processar imagem da assinatura:', e);
+          await captureSignature();
+        }
+      } else {
+        await captureSignature();
       }
 
-      firstPage.drawText(scName, {
-        x: 100 + (13 * mmToPt),
-        y: height - (225 - (6.0 * mmToPt)),
-        size: 18, // Aumentado um pouco para compensar a fonte manuscrita
-        font: signatureFont,
-        color: rgb(0, 74/255, 173/255),
-      });
+      async function captureSignature() {
+        const sigElement = document.getElementById('s302-signature');
+        if (!sigElement) return;
+
+        try {
+          // Temporarily hide controls
+          const controls = sigElement.querySelector('.absolute');
+          if (controls) (controls as HTMLElement).style.display = 'none';
+
+          // Small delay to ensure rendering is complete after font load
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          const dataUrl = await toPng(sigElement, {
+            backgroundColor: null,
+            pixelRatio: 2,
+            quality: 1,
+            style: {
+              background: 'transparent'
+            }
+          });
+
+          if (controls) (controls as HTMLElement).style.display = '';
+
+          const imageBytes = await fetch(dataUrl).then(res => res.arrayBuffer());
+          const embeddedImage = await pdfDoc.embedPng(imageBytes);
+          
+          const targetHeight = 11 * mmToPt; // Slightly larger because it includes the name below
+          const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
+          
+          firstPage.drawImage(embeddedImage, {
+            x: 100 + (13 * mmToPt),
+            y: height - (225 - (6.0 * mmToPt)) - (targetHeight / 2),
+            width: targetWidth,
+            height: targetHeight,
+          });
+        } catch (e) {
+          console.error('Erro ao capturar assinatura via html-to-image:', e);
+        }
+      }
 
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
@@ -285,6 +368,75 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
               <p className="text-gray-800 font-medium">
                 {personalData?.nome || 'Carregando...'}
               </p>
+            </div>
+
+            {/* Signature Block (New) */}
+            <div className="md:col-span-2 pt-4 border-t border-gray-100">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-4">
+                Assinatura do Superintendente de Circuito
+              </label>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-6 bg-gray-50/50 p-6 rounded-2xl border border-dashed border-gray-200 group">
+                <div id="s302-signature" className="relative w-full max-w-[400px] flex flex-col items-center p-2 bg-transparent">
+                  <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                      title="Adicionar imagem da assinatura"
+                    >
+                      <Upload size={14} />
+                    </button>
+                    {signatureImage && (
+                      <button 
+                        onClick={() => setSignatureImage(null)}
+                        className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
+                        title="Remover imagem"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                    <input 
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {signatureImage ? (
+                    <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible">
+                      <Image 
+                        src={signatureImage} 
+                        alt="Assinatura" 
+                        fill 
+                        className="object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : (
+                    <input 
+                      type="text"
+                      value={signatureName}
+                      onChange={(e) => setSignatureName(e.target.value)}
+                      className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
+                      style={{ 
+                        fontFamily: 'var(--font-signature), "Dancing Script", cursive',
+                        fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
+                      }}
+                      placeholder="Sua Assinatura..."
+                    />
+                  )}
+                  <div className="border-t border-black w-full mx-auto"></div>
+                  <p className="font-bold text-[11px] mt-[5px] uppercase tracking-wider mb-0 text-center w-full" style={{ fontFamily: 'var(--font-serif), "Times New Roman", serif' }}>
+                    {personalData?.nome || ''}
+                  </p>
+                </div>
+                
+                <div className="text-[11px] text-gray-500 italic max-w-xs text-center sm:text-left">
+                  Dica: Você pode digitar e o sistema usará uma fonte manuscrita, ou clicar no ícone de upload para usar uma imagem real da sua assinatura.
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>

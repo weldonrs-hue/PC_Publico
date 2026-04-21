@@ -214,8 +214,10 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   };
 
   const formatCurrency = (value: string) => {
+    if (!value || value.trim() === '') return '';
     const cleanValue = value.replace(/\./g, '').replace(',', '.');
-    const num = parseFloat(cleanValue) || 0;
+    const num = parseFloat(cleanValue);
+    if (isNaN(num)) return '';
     return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -529,7 +531,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                 </div>
                 <div className="text-center border-r border-[#c7c4d8]/30 px-4">
                   <p className="font-[var(--font-inter)] text-[11px] text-[#2d2d2d] uppercase tracking-widest font-bold mb-1">Pub. Ativos</p>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center pt-1">
                     <input 
                       type="number"
                       value={data.pubAtivos}
@@ -538,7 +540,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                         setIsDirty(true);
                         setData({...data, pubAtivos: val});
                       }}
-                      className="w-20 font-[var(--font-manrope)] font-bold text-2xl text-[#3525cd] bg-transparent border-none p-0 text-center focus:ring-0 outline-none"
+                      className="w-20 p-1 bg-white rounded-xl border border-[#c7c4d8]/60 shadow-sm font-[var(--font-manrope)] font-bold text-2xl text-[#3525cd] text-center focus:border-[#3525cd] outline-none transition-all"
                     />
                   </div>
                 </div>

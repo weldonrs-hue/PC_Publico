@@ -181,6 +181,21 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
     setGenerating(true);
     try {
+      // Ensure fonts are loaded before capture
+      try {
+        // Load Dancing Script specifically
+        await document.fonts.load('16px "Dancing Script"');
+        const font = new FontFace('Dancing Script', 'url(https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.woff2)');
+        await font.load();
+        document.fonts.add(font);
+      } catch (e) {
+        console.warn('Erro ao carregar fonte para PDF:', e);
+      }
+      
+      // Wait for all fonts and add a small safety buffer
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const dataUrl = await toJpeg(element, {
         quality: 0.85,
         pixelRatio: 2,
@@ -318,14 +333,6 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               title="Aumentar zoom"
             >
               <Maximize2 size={16} />
-            </button>
-            <div className="w-[1px] h-4 bg-gray-300 mx-0.5 sm:mx-1"></div>
-            <button 
-              onClick={() => setZoom(25)}
-              className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all ${zoom === 25 ? 'bg-[#512da8] text-white shadow-sm' : 'text-gray-500 hover:bg-white'}`}
-              title="Zoom 25%"
-            >
-              25%
             </button>
           </div>
 
@@ -564,7 +571,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                         onChange={(e) => setSignatureName(e.target.value)}
                         className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
                         style={{ 
-                          fontFamily: "'Dancing Script', cursive",
+                          fontFamily: 'var(--font-signature), "Dancing Script", cursive',
                           fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
                         }}
                       />
@@ -585,8 +592,6 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
       {/* Signature Font Import */}
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
-        
         @media print {
           @page {
             margin: 0;

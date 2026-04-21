@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Manrope, Libre_Baskerville } from 'next/font/google';
+import { Inter, Manrope, Libre_Baskerville, Dancing_Script } from 'next/font/google';
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LGPDConsent from '@/components/LGPDConsent';
@@ -18,6 +18,11 @@ const libreBaskerville = Libre_Baskerville({
   weight: ['400', '700'],
   subsets: ['latin'],
   variable: '--font-serif',
+});
+
+const dancingScript = Dancing_Script({
+  subsets: ['latin'],
+  variable: '--font-signature',
 });
 
 export const viewport: Viewport = {
@@ -42,7 +47,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-br" className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable}`}>
+    <html lang="pt-br" className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${dancingScript.variable}`}>
       <body suppressHydrationWarning className="bg-gray-50 font-sans">
         <ErrorBoundary>
           {children}
