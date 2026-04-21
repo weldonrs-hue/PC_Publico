@@ -400,7 +400,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                 width: '210mm',
                 minWidth: '210mm',
                 height: '297mm',
-                overflow: 'hidden',
+                overflow: 'visible',
                 boxSizing: 'border-box',
                 transform: `scale(${zoom / 100})`,
                 transformOrigin: 'top center',
@@ -514,14 +514,14 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             </div>
 
             {/* Closing */}
-            <div className="mt-8 relative group">
+            <div className="mt-8 relative group pr-[10mm]">
               <div className="flex flex-col items-end mb-[58px]">
-                <div className="w-72 text-center">
+                <div className="w-72 text-center relative">
                   <p className="text-[15px] mt-0 pl-[61px] mb-[18px] text-left">Seu irmão,</p>
                   {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center">
                     {/* Signature Upload Controls */}
-                    <div className="absolute -right-10 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute -left-10 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => fileInputRef.current?.click()}
                         className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
@@ -562,7 +562,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                         type="text"
                         value={signatureName}
                         onChange={(e) => setSignatureName(e.target.value)}
-                        className="font-signature text-[32px] text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full"
+                        className="font-signature text-[32px] text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
                         style={{ fontFamily: "'Dancing Script', cursive" }}
                       />
                     )}
