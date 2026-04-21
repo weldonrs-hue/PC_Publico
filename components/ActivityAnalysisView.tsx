@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ChevronLeft, 
   Save, 
@@ -117,6 +117,27 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
     label: string;
   } | null>(null);
   const [calcValues, setCalcValues] = useState<string[]>(['', '', '', '', '', '']);
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return;
+      const containerWidth = containerRef.current.offsetWidth;
+      const formWidth = 1137.33;
+      
+      // Calculate scale to fit the container with some padding
+      // Minimum scale of 0.5 to keep it readable, max 1.0 (actual size)
+      const newScale = Math.max(0.5, Math.min(1, (containerWidth - 32) / formWidth));
+      setScale(newScale);
+    };
+
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) observer.observe(containerRef.current);
+    updateScale();
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -405,8 +426,24 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           </div>
         </header>
 
-        <div className="w-full overflow-x-auto pb-4 custom-scrollbar lg:flex lg:justify-center">
-          <main id="activity-analysis-form" className="a4-page relative bg-white shadow-2xl border border-[#c7c4d8]/20 print:shadow-none print:border-none print:m-0 w-[1137.33px] shrink-0">
+        <div ref={containerRef} className="w-full overflow-x-auto pb-6 custom-scrollbar-wide">
+          <div 
+            style={{ 
+              width: `${1137.33 * scale}px`,
+              minWidth: 'min-content',
+              margin: '0 auto',
+              transition: 'width 0.2s ease-out'
+            }}
+          >
+            <main 
+              id="activity-analysis-form" 
+              className="a4-page relative bg-white shadow-2xl border border-[#c7c4d8]/20 print:shadow-none print:border-none print:m-0 w-[1137.33px] shrink-0"
+              style={{
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                transition: 'transform 0.2s ease-out'
+              }}
+            >
             <style jsx global>{`
               .a4-page {
                 width: 1137.33px;
@@ -789,6 +826,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
               </div>
             </footer>
           </main>
+          </div>
         </div>
       </div>
 

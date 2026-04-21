@@ -18,6 +18,12 @@
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(76, 175, 80, 0.3) rgba(255, 255, 255, 0.05);
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
