@@ -14,7 +14,10 @@ import {
   Upload,
   Maximize2,
   Minimize2,
-  RotateCcw
+  RotateCcw,
+  PenTool,
+  Eraser,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
@@ -22,6 +25,7 @@ import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'f
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import SignatureCanvas from 'react-signature-canvas';
 
 interface AppointmentLetterViewProps {
   userId: string;
@@ -57,6 +61,8 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   const [isDateFocused, setIsDateFocused] = useState(false);
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const sigPad = useRef<SignatureCanvas>(null);
   const letterRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -306,6 +312,22 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     saveSignature(null);
   };
 
+  const clearSignatureCanvas = () => {
+    sigPad.current?.clear();
+  };
+
+  const saveDrawnSignature = () => {
+    if (sigPad.current?.isEmpty()) return;
+    
+    // Get the base64 image from canvas
+    const dataUrl = sigPad.current?.getTrimmedCanvas().toDataURL('image/png');
+    if (dataUrl) {
+      setSignatureImage(dataUrl);
+      saveSignature(dataUrl);
+      setIsDrawing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -322,9 +344,10 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-sm border border-gray-200 flex-shrink-0"
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200 flex-shrink-0"
+            title="Voltar ao Painel"
           >
-            <ChevronLeft size={24} strokeWidth={2.5} />
+            <ChevronLeft size={28} strokeWidth={3} />
           </button>
           <div className="min-w-0">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">Carta de Designação/Cancelamento</h2>
@@ -360,16 +383,16 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             <button 
               onClick={handleExportPDF}
               disabled={generating}
-              className="bg-[#512da8] text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
+              className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 active:scale-95"
             >
-              {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
-              <span>{generating ? '...' : 'PDF'}</span>
+              {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+              <span>{generating ? 'Gerando...' : 'Download PDF'}</span>
             </button>
             <button 
               onClick={handlePrint}
-              className="bg-[#512da8] text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
+              className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm active:scale-95"
             >
-              <Printer size={16} />
+              <Printer size={18} />
               <span className="hidden sm:inline">Imprimir</span>
             </button>
           </div>
@@ -548,13 +571,20 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                   {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center overflow-visible">
                     {/* Signature Upload Controls */}
-                    <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button 
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                        className="p-1.5 bg-white shadow-md rounded-full text-emerald-600 hover:bg-emerald-50 border border-gray-100"
                         title="Adicionar imagem da assinatura"
                       >
                         <Upload size={14} />
+                      </button>
+                      <button 
+                        onClick={() => setIsDrawing(true)}
+                        className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                        title="Desenhar assinatura na tela"
+                      >
+                        <PenTool size={14} />
                       </button>
                       {signatureImage && (
                         <button 
@@ -653,6 +683,74 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           }
         }
       `}</style>
+      {/* Draw Signature Modal */}
+      <AnimatePresence>
+        {isDrawing && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800">Assinatura Digital</h3>
+                  <p className="text-sm text-gray-500">Desenhe sua assinatura no espaço abaixo</p>
+                </div>
+                <button 
+                  onClick={() => setIsDrawing(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl overflow-hidden relative min-h-[300px]">
+                <SignatureCanvas 
+                  ref={sigPad}
+                  penColor="#004aad"
+                  canvasProps={{
+                    className: "w-full h-full min-h-[300px] cursor-crosshair"
+                  }}
+                />
+                
+                {/* Visual guideline line */}
+                <div className="absolute left-10 right-10 bottom-24 border-t border-gray-300 pointer-events-none" />
+                <p className="absolute left-0 right-0 bottom-16 text-center text-[10px] text-gray-400 uppercase tracking-widest pointer-events-none">
+                  Assine sobre a linha
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between mt-6">
+                <button 
+                  onClick={clearSignatureCanvas}
+                  className="flex items-center gap-2 text-red-600 font-bold hover:bg-red-50 px-4 py-2 rounded-xl transition-all"
+                >
+                  <Eraser size={18} />
+                  Limpar
+                </button>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsDrawing(false)}
+                    className="px-6 py-2.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={saveDrawnSignature}
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-2.5 font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg"
+                  >
+                    <Check size={18} />
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

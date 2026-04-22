@@ -393,38 +393,41 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
           <div className="flex items-center gap-4">
             <button 
               onClick={handleBack}
-              className="p-2 hover:bg-white hover:shadow-md rounded-full transition-all text-[#3525cd] border border-transparent hover:border-[#c7c4d8]/30"
+              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#3525cd] bg-white shadow-md border border-gray-100"
               title="Voltar ao Painel"
             >
-              <ChevronLeft size={24} strokeWidth={2.5} />
+              <ChevronLeft size={28} strokeWidth={3} />
             </button>
             <div className="text-xl font-extrabold tracking-tighter text-[#3525cd]">Análise das Atividades</div>
           </div>
           
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button 
               onClick={handleSave}
               disabled={saving || !isDirty}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#3525cd] text-white rounded-xl font-bold text-sm hover:bg-[#2a1da3] transition-all disabled:opacity-50 shadow-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100 active:scale-95"
             >
               {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
               <span>{saving ? 'Salvando...' : 'Salvar'}</span>
             </button>
-            <button 
-              onClick={handleSavePDF}
-              disabled={generating}
-              className="p-2 text-[#464555] hover:text-[#3525cd] hover:bg-white rounded-full transition-all border border-transparent hover:border-[#c7c4d8]/30 disabled:opacity-50"
-              title="Baixar PDF"
-            >
-              {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
-            </button>
-            <button 
-              onClick={() => window.print()}
-              className="p-2 text-[#464555] hover:text-[#3525cd] hover:bg-white rounded-full transition-all border border-transparent hover:border-[#c7c4d8]/30"
-              title="Imprimir"
-            >
-              <Printer size={20} />
-            </button>
+            
+            <div className="flex bg-white p-1 rounded-xl border border-gray-100 shadow-sm">
+              <button 
+                onClick={handleSavePDF}
+                disabled={generating}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all disabled:opacity-50"
+                title="Download PDF"
+              >
+                {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
+              </button>
+              <button 
+                onClick={() => window.print()}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                title="Imprimir"
+              >
+                <Printer size={20} />
+              </button>
+            </div>
           </div>
         </header>
 

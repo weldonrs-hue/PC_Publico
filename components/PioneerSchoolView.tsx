@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ChevronLeft, 
   ChevronDown,
@@ -17,7 +17,9 @@ import {
   ArrowUp,
   ArrowDown,
   Users,
-  LayoutList
+  LayoutList,
+  Printer,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -188,6 +190,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Student | 'index'; direction: 'asc' | 'desc' }>({
@@ -196,6 +200,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   });
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [importText, setImportText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -549,6 +554,60 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     setSortConfig({ key, direction });
   };
 
+  const handleSavePDF = async () => {
+    const elementId = activeTab === 'students' ? 'pioneer-students-list' : 'pioneer-workshops-list';
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    setGenerating(true);
+
+    try {
+      const { toJpeg } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      element.classList.add('pdf-capture');
+      
+      const dataUrl = await toJpeg(element, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+      
+      element.classList.remove('pdf-capture');
+
+      const tempPdf = new jsPDF();
+      const imgProps = tempPdf.getImageProperties(dataUrl);
+      const pdfWidth = 210; 
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [pdfWidth, pdfHeight],
+        compress: true
+      });
+
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      
+      const filename = activeTab === 'students' ? 'Lista de Alunos - Escola de Pioneiros.pdf' : 'Sessão de Treino - Escola de Pioneiros.pdf';
+      pdf.save(filename);
+
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Ocorreu um erro ao gerar o PDF. Tente novamente.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const SortIcon = ({ column }: { column: keyof Student | 'index' }) => {
     if (sortConfig.key !== column) return <ArrowUpDown size={14} className="ml-1 opacity-50" />;
     return sortConfig.direction === 'asc' ? 
@@ -576,7 +635,54 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     });
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative print:space-y-0 print:bg-white print:p-0">
+      <style jsx global>{`
+        @media print {
+          @page {
+            margin: 10mm;
+            size: A4;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            background-color: white !important;
+          }
+          .print-hidden {
+            display: none !important;
+          }
+          #pioneer-students-list, #pioneer-workshops-list {
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+          }
+        }
+
+        .pdf-capture {
+          background-color: #ffffff !important;
+          color: #1a1a1a !important;
+          padding: 10mm !important;
+        }
+        .pdf-capture .print-hidden {
+          display: none !important;
+        }
+        .export-only {
+          display: none;
+        }
+        @media print {
+          .export-only {
+            display: block !important;
+          }
+        }
+        .pdf-capture .export-only {
+          display: block !important;
+        }
+        .pdf-capture * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      `}</style>
       <AnimatePresence>
         {selectedStudents.length > 0 && (
           <motion.div 
@@ -640,65 +746,156 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {activeTab === 'students' ? (
-            <>
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Buscar aluno..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
-                />
-              </div>
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm font-bold whitespace-nowrap"
-                title="Importar da Área de Transferência"
-              >
-                <Plus size={20} className="text-gray-400" />
-                <span className="hidden sm:inline">Importar</span>
-              </button>
-              <button
-                onClick={() => handleOpenModal()}
-                className="flex items-center gap-2 px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap"
-              >
-                <UserPlus size={20} />
-                <span className="hidden sm:inline">Adicionar Aluno</span>
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
-              <div className="flex gap-1">
-                {(['1', '2', '3'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setSelectedTurma(t)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      selectedTurma === t 
-                        ? 'bg-amber-100 text-amber-700 shadow-sm' 
-                        : 'text-gray-400 hover:bg-gray-50'
-                    }`}
+          <div className="flex items-center gap-2">
+            {activeTab === 'students' ? (
+              <>
+                <div className="relative flex items-center">
+                  <AnimatePresence mode="wait">
+                    {!isSearchExpanded && !searchTerm ? (
+                      <motion.button
+                        key="search-button"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        onClick={() => {
+                          setIsSearchExpanded(true);
+                          setTimeout(() => searchInputRef.current?.focus(), 100);
+                        }}
+                        className="p-2.5 bg-white border border-gray-200 text-gray-400 rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
+                        title="Buscar aluno"
+                      >
+                        <Search size={20} />
+                      </motion.button>
+                    ) : (
+                      <motion.div
+                        key="search-input"
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: typeof window !== 'undefined' && window.innerWidth < 640 ? '160px' : '240px', opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        className="relative"
+                      >
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4CAF50]" size={18} />
+                        <input
+                          ref={searchInputRef}
+                          type="text"
+                          placeholder="Buscar aluno..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onBlur={() => {
+                            if (!searchTerm) setIsSearchExpanded(false);
+                          }}
+                          className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#4CAF50]/30 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all shadow-sm text-sm"
+                        />
+                        {searchTerm && (
+                          <button
+                            onClick={() => {
+                              setSearchTerm('');
+                              setIsSearchExpanded(false);
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm font-bold whitespace-nowrap text-sm"
+                  title="Importar da Área de Transferência"
+                >
+                  <Plus size={20} className="text-gray-400" />
+                  <span className="hidden sm:inline">Importar</span>
+                </button>
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap text-sm"
+                >
+                  <UserPlus size={20} />
+                  <span className="hidden sm:inline">Adicionar</span>
+                </button>
+
+                <div className="h-8 w-px bg-gray-200 mx-1 hidden md:block" />
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={handleSavePDF}
+                    disabled={generating}
+                    className="p-2.5 bg-white border border-gray-200 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
+                    title="Salvar PDF"
                   >
-                    {t}
+                    {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
                   </button>
-                ))}
+                  <button 
+                    onClick={handlePrint}
+                    className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
+                    title="Imprimir"
+                  >
+                    <Printer size={20} />
+                  </button>
+                </div>
+              </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
+                <div className="flex gap-1">
+                  {(['1', '2', '3'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setSelectedTurma(t)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        selectedTurma === t 
+                          ? 'bg-amber-100 text-amber-700 shadow-sm' 
+                          : 'text-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+
+              <div className="h-8 w-px bg-gray-200 mx-1 hidden md:block" />
+
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleSavePDF}
+                  disabled={generating}
+                  className="p-2.5 bg-white border border-gray-200 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
+                  title="Salvar PDF"
+                >
+                  {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
+                </button>
+                <button 
+                  onClick={handlePrint}
+                  className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
+                  title="Imprimir"
+                >
+                  <Printer size={20} />
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
 
       {activeTab === 'students' ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div id="pioneer-students-list" className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Header for PDF/Print */}
+          <div className="export-only text-center py-6 border-b border-gray-100 mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">Escola do Serviço de Pioneiro</h1>
+            <h2 className="text-xl font-medium text-gray-500 mt-1 uppercase tracking-widest">Lista de Alunos</h2>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-[#37616b] text-white">
-                  <th className="px-4 py-2 w-10">
+                  <th className="px-4 py-2 w-10 print-hidden">
                     <input 
                       type="checkbox" 
                       className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
@@ -715,7 +912,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center">
                       Nome do Aluno
-                      <SortIcon column="nome" />
+                      <span className="print-hidden"><SortIcon column="nome" /></span>
                     </div>
                   </th>
                   <th 
@@ -724,7 +921,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center">
                       Congregação
-                      <SortIcon column="congregacao" />
+                      <span className="print-hidden"><SortIcon column="congregacao" /></span>
                     </div>
                   </th>
                   <th 
@@ -733,7 +930,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center">
                       Circuito
-                      <SortIcon column="circuito" />
+                      <span className="print-hidden"><SortIcon column="circuito" /></span>
                     </div>
                   </th>
                   <th 
@@ -742,10 +939,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center justify-center">
                       Turma
-                      <SortIcon column="turma" />
+                      <span className="print-hidden"><SortIcon column="turma" /></span>
                     </div>
                   </th>
-                  <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center">Ações</th>
+                  <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center print-hidden">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -768,7 +965,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                       key={student.id} 
                       className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
                     >
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 print-hidden">
                         <input 
                           type="checkbox" 
                           className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
@@ -781,10 +978,13 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                       <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
                       <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
                       <td className="px-4 py-2 text-sm text-center">
+                        <div className="hidden print:block font-bold">
+                          {student.turma ? `TURMA ${student.turma}` : '-'}
+                        </div>
                         <select
                           value={student.turma || ''}
                           onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
-                          className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all ${
+                          className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all print:hidden ${
                             student.turma 
                               ? 'bg-amber-100 text-amber-700' 
                               : 'bg-gray-100 text-gray-400 italic'
@@ -796,7 +996,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                           <option value="3">TURMA 3</option>
                         </select>
                       </td>
-                      <td className="px-6 py-2 text-sm">
+                      <td className="px-6 py-2 text-sm print-hidden">
                         <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleOpenModal(student)}
@@ -822,7 +1022,13 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div id="pioneer-workshops-list" className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Header for PDF/Print */}
+          <div className="export-only text-center py-6 border-b border-gray-100 mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">Escola do Serviço de Pioneiro</h1>
+            <h2 className="text-xl font-medium text-gray-500 mt-1 uppercase tracking-widest">Sessão de Treino - Turma {selectedTurma}</h2>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
@@ -830,10 +1036,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   <th className="px-4 py-3 font-bold text-sm uppercase tracking-wider w-16 text-center border-r border-white/10">
                     {/* Workshop Sidebar Header */}
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 min-w-[300px]">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 w-[60%]">
                     Sessão de Treino
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[250px]">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[40%]">
                     Participantes
                   </th>
                 </tr>
@@ -886,10 +1092,13 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                         <div className="flex flex-col gap-2">
                           {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => (
                             <div key={idx} className="relative">
+                              <div className="hidden print:block font-bold text-xs border-b border-gray-300 pb-1">
+                                {workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '_____________________'}
+                              </div>
                               <select
                                 value={workshopAssignments[scenario.id]?.participants?.split('|')[idx] || ''}
                                 onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#37616b] focus:border-[#37616b] outline-none transition-all appearance-none cursor-pointer pr-8 shadow-sm hover:border-gray-300"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#37616b] focus:border-[#37616b] outline-none transition-all appearance-none cursor-pointer pr-8 shadow-sm hover:border-gray-300 print:hidden"
                               >
                                 <option value="">Selecionar aluno...</option>
                                 {workshopDropdownStudents.map((student) => (
@@ -898,7 +1107,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                                   </option>
                                 ))}
                               </select>
-                              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 print:hidden">
                                 <ChevronDown size={14} />
                               </div>
                             </div>
