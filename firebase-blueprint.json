@@ -17,7 +17,8 @@
         "emailJwpub": { "type": "string" },
         "emailPessoal": { "type": "string" },
         "telefoneCircuito": { "type": "string" },
-        "telefonePessoal": { "type": "string" }
+        "telefonePessoal": { "type": "string" },
+        "signatureImage": { "type": "string", "description": "Base64 encoded signature image" }
       },
       "required": ["userId", "nome"]
     },

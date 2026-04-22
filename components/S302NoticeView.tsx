@@ -21,7 +21,7 @@ import Image from 'next/image';
 import { motion } from 'motion/react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 import { toPng } from 'html-to-image';
 
@@ -76,6 +76,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           const pData = docSnap.data();
           setPersonalData(pData);
           if (!signatureName) setSignatureName(pData.nome || '');
+          setSignatureImage(pData.signatureImage || null);
         }
       } catch (error) {
         console.error('Error fetching personal data:', error);
@@ -84,15 +85,33 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
     fetchPersonalData();
   }, [userId]);
 
+  const saveSignature = async (image: string | null) => {
+    if (!userId) return;
+    try {
+      await setDoc(doc(db, 'personal_data', userId), {
+        signatureImage: image
+      }, { merge: true });
+    } catch (error) {
+      console.error('Erro ao salvar assinatura:', error);
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSignatureImage(reader.result as string);
+        const result = reader.result as string;
+        setSignatureImage(result);
+        saveSignature(result);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleRemoveSignature = () => {
+    setSignatureImage(null);
+    saveSignature(null);
   };
 
   const handleDownloadPDF = async () => {
@@ -355,18 +374,10 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <User size={12} /> Visitante (Sup. de Circuito)
+                <User size={12} /> Superintendente que fará a visita
               </label>
               <p className="text-gray-800 font-medium">
                 {substituteName ? `${substituteName} (SCS)` : (personalData?.nome || 'Carregando...')}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <User size={12} /> Superintendente de Circuito (Usuário)
-              </label>
-              <p className="text-gray-800 font-medium">
-                {personalData?.nome || 'Carregando...'}
               </p>
             </div>
 
@@ -388,7 +399,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                     </button>
                     {signatureImage && (
                       <button 
-                        onClick={() => setSignatureImage(null)}
+                        onClick={handleRemoveSignature}
                         className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
                         title="Remover imagem"
                       >

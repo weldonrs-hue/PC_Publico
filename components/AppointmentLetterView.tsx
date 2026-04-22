@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
@@ -138,6 +138,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           const data = pdSnap.data();
           setPersonalData(data);
           setSignatureName(data.nome || '');
+          setSignatureImage(data.signatureImage || null);
         } else {
           // Fallback
           const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
@@ -146,6 +147,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             const data = snap.docs[0].data();
             setPersonalData(data);
             setSignatureName(data.nome || '');
+            setSignatureImage(data.signatureImage || null);
           }
         }
       } catch (error) {
@@ -275,15 +277,33 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     }
   };
 
+  const saveSignature = async (image: string | null) => {
+    if (!userId) return;
+    try {
+      await setDoc(doc(db, 'personal_data', userId), {
+        signatureImage: image
+      }, { merge: true });
+    } catch (error) {
+      console.error('Erro ao salvar assinatura:', error);
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSignatureImage(reader.result as string);
+        const result = reader.result as string;
+        setSignatureImage(result);
+        saveSignature(result);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleRemoveSignature = () => {
+    setSignatureImage(null);
+    saveSignature(null);
   };
 
   if (loading) {
@@ -538,7 +558,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                       </button>
                       {signatureImage && (
                         <button 
-                          onClick={() => setSignatureImage(null)}
+                          onClick={handleRemoveSignature}
                           className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
                           title="Remover imagem"
                         >

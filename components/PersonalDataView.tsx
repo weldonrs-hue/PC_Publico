@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Contact, 
   ChevronLeft,
@@ -15,9 +15,17 @@ import {
   Users,
   MapPin,
   Globe,
-  Loader2
+  Loader2,
+  Upload,
+  Trash2,
+  PenTool,
+  Eraser,
+  Check,
+  X
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'motion/react';
+import SignatureCanvas from 'react-signature-canvas';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -51,13 +59,16 @@ const defaultData = {
   emailJwpub: '',
   telefoneCircuito: '',
   emailPessoal: '',
-  telefonePessoal: ''
+  telefonePessoal: '',
+  signatureImage: null as string | null
 };
 
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
   const [initialData, setInitialData] = useState(defaultData);
   const [formData, setFormData] = useState(defaultData);
   const [loading, setLoading] = useState(true);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const sigPad = useRef<SignatureCanvas>(null);
 
   useEffect(() => {
     const fetchPersonalData = async () => {
@@ -127,6 +138,36 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const [showConfirmBack, setShowConfirmBack] = useState(false);
 
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, signatureImage: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeSignature = () => {
+    setFormData({ ...formData, signatureImage: null });
+  };
+
+  const clearSignatureCanvas = () => {
+    sigPad.current?.clear();
+  };
+
+  const saveDrawnSignature = () => {
+    if (sigPad.current?.isEmpty()) return;
+    
+    // Get the base64 image from canvas
+    const dataUrl = sigPad.current?.getTrimmedCanvas().toDataURL('image/png');
+    if (dataUrl) {
+      setFormData({ ...formData, signatureImage: dataUrl });
+      setIsDrawing(false);
+    }
+  };
 
   const handleBack = () => {
     if (hasChanges) {
@@ -369,6 +410,75 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
               </div>
             </div>
 
+            {/* Signature Section */}
+            <div className="bg-gray-50/50 p-6 rounded-2xl border border-dashed border-gray-200">
+              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                Assinatura Global
+              </h3>
+              <p className="text-xs text-gray-500 mb-6 italic">
+                Esta assinatura será utilizada automaticamente em todos os documentos (S-302, Cartas, etc). 
+                Se você remover aqui, ela será removida de todos os formulários.
+              </p>
+
+              <div className="flex flex-col items-center justify-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm relative group overflow-hidden">
+                {formData.signatureImage ? (
+                  <div className="relative w-full max-w-[400px]">
+                    <div className="h-24 flex items-center justify-center relative w-full overflow-hidden">
+                      <Image 
+                        src={formData.signatureImage} 
+                        alt="Assinatura Digital" 
+                        fill 
+                        className="object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div className="border-t border-black w-full mt-2" />
+                    <p className="text-center font-bold text-xs mt-2 uppercase tracking-widest text-gray-900">
+                      {formData.nome || 'SEU NOME'}
+                    </p>
+                    
+                    <button 
+                      type="button"
+                      onClick={removeSignature}
+                      className="absolute -top-4 -right-4 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                      title="Remover Assinatura"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                      <Upload className="text-emerald-600" size={24} />
+                    </div>
+                    <p className="text-sm font-medium text-gray-700">Nenhuma assinatura cadastrada</p>
+                    <p className="text-xs text-gray-400 mt-1 mb-6">Escolha uma imagem ou desenhe na tela</p>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      <label className="cursor-pointer bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-md inline-flex items-center gap-2">
+                        <Upload size={14} />
+                        Fazer Upload
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsDrawing(true)}
+                        className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-md flex items-center gap-2"
+                      >
+                        <PenTool size={14} />
+                        Desenhar na Tela
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex justify-end pt-6 border-t border-gray-100">
               <button 
                 type="submit"
@@ -423,6 +533,74 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </motion.div>
         </div>
       )}
+      {/* Draw Signature Modal */}
+      <AnimatePresence>
+        {isDrawing && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800">Assinatura Digital</h3>
+                  <p className="text-sm text-gray-500">Desenhe sua assinatura no espaço abaixo</p>
+                </div>
+                <button 
+                  onClick={() => setIsDrawing(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl overflow-hidden relative min-h-[300px]">
+                <SignatureCanvas 
+                  ref={sigPad}
+                  penColor="#004aad"
+                  canvasProps={{
+                    className: "w-full h-full min-h-[300px] cursor-crosshair"
+                  }}
+                />
+                
+                {/* Visual guideline line */}
+                <div className="absolute left-10 right-10 bottom-24 border-t border-gray-300 pointer-events-none" />
+                <p className="absolute left-0 right-0 bottom-16 text-center text-[10px] text-gray-400 uppercase tracking-widest pointer-events-none">
+                  Assine sobre a linha
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between mt-6">
+                <button 
+                  onClick={clearSignatureCanvas}
+                  className="flex items-center gap-2 text-red-600 font-bold hover:bg-red-50 px-4 py-2 rounded-xl transition-all"
+                >
+                  <Eraser size={18} />
+                  Limpar
+                </button>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsDrawing(false)}
+                    className="px-6 py-2.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={saveDrawnSignature}
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-2.5 font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg"
+                  >
+                    <Check size={18} />
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
