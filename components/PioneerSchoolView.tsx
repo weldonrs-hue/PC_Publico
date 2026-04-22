@@ -202,9 +202,6 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   const [students, setStudents] = useState<Student[]>([]);
   const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
-  const [originalSchoolInfo, setOriginalSchoolInfo] = useState<SchoolInfo | null>(null);
-  const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ type: 'tab' | 'turma' | 'back', value?: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -305,14 +302,12 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     const unsubscribeSchoolInfo = onSnapshot(qSchoolInfo, (snapshot) => {
       if (!snapshot.empty) {
         const doc = snapshot.docs[0];
-        const data = {
+        setSchoolInfo({
           ...doc.data(),
           id: doc.id
-        } as SchoolInfo;
-        setSchoolInfo(data);
-        setOriginalSchoolInfo(data);
+        } as SchoolInfo);
       } else {
-        const defaultData = {
+        setSchoolInfo({
           id: '',
           turma: selectedTurma,
           dataTurma: '',
@@ -326,9 +321,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           confirmacaoEmail: '',
           confirmacaoWhatsapp: '',
           userId: userId
-        };
-        setSchoolInfo(defaultData);
-        setOriginalSchoolInfo(defaultData);
+        });
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'pioneer_school_info');
@@ -361,66 +354,9 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           createdAt: new Date()
         });
       }
-      setOriginalSchoolInfo(schoolInfo);
-      
-      if (pendingAction) {
-        executePendingAction();
-      }
     } catch (error) {
       handleFirestoreError(error, schoolInfo.id ? OperationType.UPDATE : OperationType.CREATE, 'pioneer_school_info');
     }
-  };
-
-  const hasInfoChanges = () => {
-    if (!schoolInfo || !originalSchoolInfo) return false;
-    return JSON.stringify(schoolInfo) !== JSON.stringify(originalSchoolInfo);
-  };
-
-  const handleBackWithCheck = () => {
-    if (activeTab === 'info' && hasInfoChanges()) {
-      setPendingAction({ type: 'back' });
-      setIsUnsavedModalOpen(true);
-    } else {
-      onBack();
-    }
-  };
-
-  const handleTabChangeWithCheck = (tab: 'students' | 'workshops' | 'info') => {
-    if (activeTab === 'info' && hasInfoChanges()) {
-      setPendingAction({ type: 'tab', value: tab });
-      setIsUnsavedModalOpen(true);
-    } else {
-      setActiveTab(tab);
-    }
-  };
-
-  const handleTurmaChangeWithCheck = (turma: '1' | '2' | '3') => {
-    if (activeTab === 'info' && hasInfoChanges()) {
-      setPendingAction({ type: 'turma', value: turma });
-      setIsUnsavedModalOpen(true);
-    } else {
-      setSelectedTurma(turma);
-    }
-  };
-
-  const executePendingAction = () => {
-    if (!pendingAction) return;
-    
-    if (pendingAction.type === 'back') {
-      onBack();
-    } else if (pendingAction.type === 'tab') {
-      setActiveTab(pendingAction.value);
-    } else if (pendingAction.type === 'turma') {
-      setSelectedTurma(pendingAction.value);
-    }
-    
-    setPendingAction(null);
-    setIsUnsavedModalOpen(false);
-  };
-
-  const discardAndExecute = () => {
-    setSchoolInfo(originalSchoolInfo);
-    executePendingAction();
   };
 
   const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
@@ -871,7 +807,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
-            onClick={handleBackWithCheck}
+            onClick={onBack}
             className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#4CAF50] bg-white shadow-md border border-gray-200"
           >
             <ChevronLeft size={28} strokeWidth={3} />
@@ -880,21 +816,21 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             <h2 className="text-2xl font-bold text-gray-800">Escola do Serviço de Pioneiro</h2>
             <div className="flex items-center gap-4 mt-1">
               <button 
-                onClick={() => handleTabChangeWithCheck('students')}
+                onClick={() => setActiveTab('students')}
                 className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'students' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Users size={16} />
                 Lista de Alunos
               </button>
               <button 
-                onClick={() => handleTabChangeWithCheck('workshops')}
+                onClick={() => setActiveTab('workshops')}
                 className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'workshops' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <LayoutList size={16} />
                 Sessão de Treino
               </button>
               <button 
-                onClick={() => handleTabChangeWithCheck('info')}
+                onClick={() => setActiveTab('info')}
                 className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Info size={16} />
@@ -1004,7 +940,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   {(['1', '2', '3'] as const).map((t) => (
                     <button
                       key={t}
-                      onClick={() => handleTurmaChangeWithCheck(t)}
+                      onClick={() => setSelectedTurma(t)}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                         selectedTurma === t 
                           ? 'bg-amber-100 text-amber-700 shadow-sm' 
@@ -1394,12 +1330,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             <div className="pt-6 flex justify-end">
               <button
                 onClick={handleSaveSchoolInfo}
-                disabled={!hasInfoChanges()}
-                className={`flex items-center gap-2 px-8 py-3 rounded-xl transition-all shadow-lg font-bold ${
-                  hasInfoChanges() 
-                    ? 'bg-[#4CAF50] text-white hover:bg-[#43a047]' 
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                }`}
+                className="flex items-center gap-2 px-8 py-3 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-lg font-bold"
               >
                 <Save size={20} />
                 Salvar Informações da Turma {selectedTurma}
@@ -1408,52 +1339,6 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           </div>
         </div>
       )}
-
-      {/* Modal de Confirmação de Saída sem Salvar */}
-      <AnimatePresence>
-        {isUnsavedModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
-            >
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Save size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Alterações não salvas</h3>
-                <p className="text-gray-600 mb-6">Você tem alterações pendentes nas informações da turma. Deseja salvar antes de sair?</p>
-                
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleSaveSchoolInfo}
-                    className="w-full py-3 bg-[#4CAF50] text-white rounded-xl font-bold hover:bg-[#43a047] transition-all shadow-md"
-                  >
-                    Sim, salvar alterações
-                  </button>
-                  <button
-                    onClick={discardAndExecute}
-                    className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all"
-                  >
-                    Não salvar e sair
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsUnsavedModalOpen(false);
-                      setPendingAction(null);
-                    }}
-                    className="w-full py-3 text-gray-500 font-bold hover:text-gray-700 transition-all"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Modal Adicionar/Editar */}
       <AnimatePresence>
