@@ -421,41 +421,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 Se você remover aqui, ela será removida de todos os formulários.
               </p>
 
-              <div className="flex flex-col items-center justify-center p-12 bg-gray-50/50 border border-gray-100 rounded-3xl relative group overflow-visible min-h-[220px]">
-                {/* Floating Action Bar (Same as Documents) */}
-                <div className="absolute -left-4 top-4 flex flex-col gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <label className="cursor-pointer p-2 bg-white shadow-md rounded-full text-emerald-600 hover:bg-emerald-50 border border-gray-100 transition-all active:scale-95 flex items-center justify-center" title="Fazer Upload">
-                    <Upload size={14} />
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={handleImageUpload}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsDrawing(true)}
-                    className="p-2 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100 transition-all active:scale-95 flex items-center justify-center"
-                    title="Desenhar na Tela"
-                  >
-                    <PenTool size={14} />
-                  </button>
-                  {formData.signatureImage && (
-                    <button 
-                      type="button"
-                      onClick={removeSignature}
-                      className="p-2 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100 transition-all active:scale-95 flex items-center justify-center"
-                      title="Remover Assinatura"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-
+              <div className="flex flex-col items-center justify-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm relative group overflow-hidden">
                 {formData.signatureImage ? (
                   <div className="relative w-full max-w-[400px]">
-                    <div className="h-32 flex items-center justify-center relative w-full overflow-hidden">
+                    <div className="h-24 flex items-center justify-center relative w-full overflow-hidden">
                       <Image 
                         src={formData.signatureImage} 
                         alt="Assinatura Digital" 
@@ -464,18 +433,47 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                         referrerPolicy="no-referrer"
                       />
                     </div>
-                    <div className="border-t-2 border-black w-full mt-2" />
-                    <p className="text-center font-bold text-[10px] mt-2 uppercase tracking-widest text-gray-900 font-serif">
+                    <div className="border-t border-black w-full mt-2" />
+                    <p className="text-center font-bold text-xs mt-2 uppercase tracking-widest text-gray-900">
                       {formData.nome || 'SEU NOME'}
                     </p>
+                    
+                    <button 
+                      type="button"
+                      onClick={removeSignature}
+                      className="absolute -top-4 -right-4 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all shadow-sm opacity-0 group-hover:opacity-100"
+                      title="Remover Assinatura"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 ) : (
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-sm text-gray-300">
-                      <PenTool size={32} />
+                  <div className="text-center py-4">
+                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                      <Upload className="text-emerald-600" size={24} />
                     </div>
-                    <p className="text-sm font-bold text-gray-700">Assinatura não cadastrada</p>
-                    <p className="text-xs text-gray-400 mt-1 max-w-[200px] mx-auto leading-relaxed">Passe o mouse aqui para fazer upload ou desenhar sua assinatura digital.</p>
+                    <p className="text-sm font-medium text-gray-700">Nenhuma assinatura cadastrada</p>
+                    <p className="text-xs text-gray-400 mt-1 mb-6">Escolha uma imagem ou desenhe na tela</p>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      <label className="cursor-pointer bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-md inline-flex items-center gap-2">
+                        <Upload size={14} />
+                        Fazer Upload
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsDrawing(true)}
+                        className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-md flex items-center gap-2"
+                      >
+                        <PenTool size={14} />
+                        Desenhar na Tela
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

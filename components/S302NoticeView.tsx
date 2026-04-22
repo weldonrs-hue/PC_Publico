@@ -15,18 +15,13 @@ import {
   User,
   Hash,
   Upload,
-  Trash2,
-  PenTool,
-  Eraser,
-  Check,
-  X
+  Trash2
 } from 'lucide-react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import SignatureCanvas from 'react-signature-canvas';
 
 import { toPng } from 'html-to-image';
 
@@ -66,8 +61,6 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const [loading, setLoading] = useState(false);
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const sigPad = useRef<SignatureCanvas>(null);
   
   // Signature States (Similar to AppointmentLetterView)
   const [signatureName, setSignatureName] = useState('');
@@ -119,22 +112,6 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const handleRemoveSignature = () => {
     setSignatureImage(null);
     saveSignature(null);
-  };
-
-  const clearSignatureCanvas = () => {
-    sigPad.current?.clear();
-  };
-
-  const saveDrawnSignature = () => {
-    if (sigPad.current?.isEmpty()) return;
-    
-    // Get the base64 image from canvas
-    const dataUrl = sigPad.current?.getTrimmedCanvas().toDataURL('image/png');
-    if (dataUrl) {
-      setSignatureImage(dataUrl);
-      saveSignature(dataUrl);
-      setIsDrawing(false);
-    }
   };
 
   const handleDownloadPDF = async () => {
@@ -248,7 +225,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           await new Promise(resolve => setTimeout(resolve, 200));
 
           const dataUrl = await toPng(sigElement, {
-            backgroundColor: undefined,
+            backgroundColor: null,
             pixelRatio: 2,
             quality: 1,
             style: {
@@ -298,7 +275,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-100"
+            className="p-2 hover:bg-white/20 rounded-full transition-all text-white bg-white/10 shadow-md border border-white/20"
             title="Voltar"
           >
             <ChevronLeft size={28} strokeWidth={3} />
@@ -412,20 +389,13 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
               
               <div className="flex flex-col sm:flex-row items-center gap-6 bg-gray-50/50 p-6 rounded-2xl border border-dashed border-gray-200 group">
                 <div id="s302-signature" className="relative w-full max-w-[400px] flex flex-col items-center p-2 bg-transparent">
-                  <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-1.5 bg-white shadow-md rounded-full text-emerald-600 hover:bg-emerald-50 border border-gray-100"
+                      className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
                       title="Adicionar imagem da assinatura"
                     >
                       <Upload size={14} />
-                    </button>
-                    <button 
-                      onClick={() => setIsDrawing(true)}
-                      className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
-                      title="Desenhar assinatura na tela"
-                    >
-                      <PenTool size={14} />
                     </button>
                     {signatureImage && (
                       <button 
@@ -487,21 +457,14 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           <button
             onClick={handleDownloadPDF}
             disabled={generating}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+            className="flex-1 bg-[#512da8] hover:bg-[#4527a0] text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {generating ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2 size={24} className="animate-spin" />
             ) : (
-              <FileDown size={20} />
+              <Download size={24} />
             )}
-            {generating ? 'Gerando...' : 'Download PDF'}
-          </button>
-          <button 
-            onClick={() => window.print()}
-            className="flex-1 bg-white border border-gray-200 text-gray-700 font-bold py-4 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2 active:scale-95"
-          >
-            <Printer size={20} />
-            <span>Imprimir</span>
+            {generating ? 'Gerando PDF...' : 'Baixar PDF Preenchido'}
           </button>
         </div>
 
@@ -513,74 +476,6 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           </p>
         </div>
       </div>
-      {/* Draw Signature Modal */}
-      <AnimatePresence>
-        {isDrawing && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">Assinatura Digital</h3>
-                  <p className="text-sm text-gray-500">Desenhe sua assinatura no espaço abaixo</p>
-                </div>
-                <button 
-                  onClick={() => setIsDrawing(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl overflow-hidden relative min-h-[300px]">
-                <SignatureCanvas 
-                  ref={sigPad}
-                  penColor="#004aad"
-                  canvasProps={{
-                    className: "w-full h-full min-h-[300px] cursor-crosshair"
-                  }}
-                />
-                
-                {/* Visual guideline line */}
-                <div className="absolute left-10 right-10 bottom-24 border-t border-gray-300 pointer-events-none" />
-                <p className="absolute left-0 right-0 bottom-16 text-center text-[10px] text-gray-400 uppercase tracking-widest pointer-events-none">
-                  Assine sobre a linha
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between mt-6">
-                <button 
-                  onClick={clearSignatureCanvas}
-                  className="flex items-center gap-2 text-red-600 font-bold hover:bg-red-50 px-4 py-2 rounded-xl transition-all"
-                >
-                  <Eraser size={18} />
-                  Limpar
-                </button>
-
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => setIsDrawing(false)}
-                    className="px-6 py-2.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={saveDrawnSignature}
-                    className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-2.5 font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg"
-                  >
-                    <Check size={18} />
-                    Confirmar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

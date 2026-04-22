@@ -610,10 +610,9 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={handleBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-100 flex-shrink-0"
-            title="Voltar ao Painel"
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-sm border border-gray-200 flex-shrink-0"
           >
-            <ChevronLeft size={28} strokeWidth={3} />
+            <ChevronLeft size={24} strokeWidth={2.5} />
           </button>
           <div className="min-w-0">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">S-303 Relatório</h2>
@@ -625,10 +624,10 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
             <button 
               onClick={() => setShowPdfMenu(!showPdfMenu)}
               disabled={generating}
-              className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 active:scale-95"
+              className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
             >
-              {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
-              <span>{generating ? 'Gerando...' : 'Download PDF'}</span>
+              {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+              <span>{generating ? 'Gerando...' : 'PDF'}</span>
               <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
             </button>
             
@@ -645,7 +644,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
                   }}
                   className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
                 >
-                  <FileDown size={18} className="text-indigo-600" />
+                  <FileDown size={18} className="text-[#7B1FA2]" />
                   PDF Original
                 </button>
                 <button
@@ -655,7 +654,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
                   }}
                   className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
                 >
-                  <FileDown size={18} className="text-indigo-600" />
+                  <FileDown size={18} className="text-[#7B1FA2]" />
                   PDF ProgCir
                 </button>
               </motion.div>
@@ -663,9 +662,9 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
           </div>
           <button 
             onClick={handlePrint}
-            className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+            className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
           >
-            <Printer size={18} />
+            <Printer size={16} />
             <span className="hidden sm:inline">Imprimir</span>
           </button>
         </div>

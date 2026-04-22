@@ -414,20 +414,20 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           <button 
             onClick={handleSavePDF} 
             disabled={generating}
-            className="flex-1 sm:flex-none py-2.5 px-5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2 font-bold text-sm"
+            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm disabled:opacity-50"
           >
             {generating ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2 size={18} className="animate-spin text-sky-600" />
             ) : (
-              <FileDown size={18} />
+              <FileDown size={18} className="text-sky-600" />
             )}
-            <span>{generating ? 'Gerando...' : 'Download PDF'}</span>
+            <span>{generating ? 'Gerando...' : 'Salvar PDF'}</span>
           </button>
           <button 
             onClick={() => window.print()} 
-            className="flex-1 sm:flex-none py-2.5 px-5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm"
+            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
           >
-            <Printer size={18} className="text-indigo-600" />
+            <Printer size={18} className="text-sky-600" /> 
             <span>Imprimir</span>
           </button>
         </div>
