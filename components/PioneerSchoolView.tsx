@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronDown,
@@ -17,10 +17,7 @@ import {
   ArrowUp,
   ArrowDown,
   Users,
-  LayoutList,
-  Printer,
-  FileDown,
-  Info
+  LayoutList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -52,22 +49,6 @@ interface WorkshopAssignment {
   id: string;
   scenarioId: number;
   participants: string;
-  userId: string;
-}
-
-interface SchoolInfo {
-  id: string;
-  turma: string;
-  dataTurma: string;
-  instrutorA: string;
-  instrutorB: string;
-  localEscola: string;
-  enderecoEscola: string;
-  entregaLivroEndereco: string;
-  entregaLivroDataHora: string;
-  confirmacaoDataLimite: string;
-  confirmacaoEmail: string;
-  confirmacaoWhatsapp: string;
   userId: string;
 }
 
@@ -196,20 +177,17 @@ interface PioneerSchoolViewProps {
 }
 
 export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
-  const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'workshops'>('students');
   const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
-  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Student | 'index'; direction: 'asc' | 'desc' }>({
@@ -218,7 +196,6 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   });
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [importText, setImportText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -292,72 +269,11 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       handleFirestoreError(error, OperationType.GET, 'pioneer_school_workshops');
     });
 
-    // Fetch school info
-    const qSchoolInfo = query(
-      collection(db, 'pioneer_school_info'),
-      where('userId', '==', userId),
-      where('turma', '==', selectedTurma)
-    );
-
-    const unsubscribeSchoolInfo = onSnapshot(qSchoolInfo, (snapshot) => {
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-        setSchoolInfo({
-          ...doc.data(),
-          id: doc.id
-        } as SchoolInfo);
-      } else {
-        setSchoolInfo({
-          id: '',
-          turma: selectedTurma,
-          dataTurma: '',
-          instrutorA: '',
-          instrutorB: '',
-          localEscola: '',
-          enderecoEscola: '',
-          entregaLivroEndereco: '',
-          entregaLivroDataHora: '',
-          confirmacaoDataLimite: '',
-          confirmacaoEmail: '',
-          confirmacaoWhatsapp: '',
-          userId: userId
-        });
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'pioneer_school_info');
-    });
-
     return () => {
       unsubscribeStudents();
       unsubscribeWorkshops();
-      unsubscribeSchoolInfo();
     };
   }, [userId, selectedTurma]);
-
-  const handleSchoolInfoChange = (field: keyof SchoolInfo, value: string) => {
-    if (!schoolInfo) return;
-    setSchoolInfo(prev => prev ? { ...prev, [field]: value } : null);
-  };
-
-  const handleSaveSchoolInfo = async () => {
-    if (!schoolInfo) return;
-    try {
-      const { id, ...data } = schoolInfo;
-      if (id) {
-        await updateDoc(doc(db, 'pioneer_school_info', id), {
-          ...data,
-          updatedAt: new Date()
-        });
-      } else {
-        await addDoc(collection(db, 'pioneer_school_info'), {
-          ...data,
-          createdAt: new Date()
-        });
-      }
-    } catch (error) {
-      handleFirestoreError(error, schoolInfo.id ? OperationType.UPDATE : OperationType.CREATE, 'pioneer_school_info');
-    }
-  };
 
   const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
     try {
@@ -633,68 +549,6 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     setSortConfig({ key, direction });
   };
 
-  const handleSavePDF = async () => {
-    let elementId = '';
-    if (activeTab === 'students') elementId = 'pioneer-students-list';
-    else if (activeTab === 'workshops') elementId = 'pioneer-workshops-list';
-    else if (activeTab === 'info') elementId = 'pioneer-info-tab';
-
-    const element = document.getElementById(elementId);
-    if (!element) return;
-
-    setGenerating(true);
-
-    try {
-      const { toJpeg } = await import('html-to-image');
-      const { jsPDF } = await import('jspdf');
-
-      element.classList.add('pdf-capture');
-      
-      const dataUrl = await toJpeg(element, {
-        quality: 0.95,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
-        }
-      });
-      
-      element.classList.remove('pdf-capture');
-
-      const tempPdf = new jsPDF();
-      const imgProps = tempPdf.getImageProperties(dataUrl);
-      const pdfWidth = 210; 
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: [pdfWidth, pdfHeight],
-        compress: true
-      });
-
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-      
-      let filename = '';
-      if (activeTab === 'students') filename = 'Lista de Alunos - Escola de Pioneiros.pdf';
-      else if (activeTab === 'workshops') filename = `Sessão de Treino - Turma ${selectedTurma} - Escola de Pioneiros.pdf`;
-      else if (activeTab === 'info') filename = `Informações da Turma ${selectedTurma} - Escola de Pioneiros.pdf`;
-      
-      pdf.save(filename);
-
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-      alert('Ocorreu um erro ao gerar o PDF. Tente novamente.');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
   const SortIcon = ({ column }: { column: keyof Student | 'index' }) => {
     if (sortConfig.key !== column) return <ArrowUpDown size={14} className="ml-1 opacity-50" />;
     return sortConfig.direction === 'asc' ? 
@@ -722,54 +576,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     });
 
   return (
-    <div className="space-y-6 relative print:space-y-0 print:bg-white print:p-0">
-      <style jsx global>{`
-        @media print {
-          @page {
-            margin: 10mm;
-            size: A4;
-          }
-          body {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            background-color: white !important;
-          }
-          .print-hidden {
-            display: none !important;
-          }
-          #pioneer-students-list, #pioneer-workshops-list, #pioneer-info-tab {
-            padding: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
-            width: 100% !important;
-          }
-        }
-
-        .pdf-capture {
-          background-color: #ffffff !important;
-          color: #1a1a1a !important;
-          padding: 10mm !important;
-        }
-        .pdf-capture .print-hidden {
-          display: none !important;
-        }
-        .export-only {
-          display: none;
-        }
-        @media print {
-          .export-only {
-            display: block !important;
-          }
-        }
-        .pdf-capture .export-only {
-          display: block !important;
-        }
-        .pdf-capture * {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-      `}</style>
+    <div className="space-y-6 relative">
       <AnimatePresence>
         {selectedStudents.length > 0 && (
           <motion.div 
@@ -829,167 +636,69 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 <LayoutList size={16} />
                 Sessão de Treino
               </button>
-              <button 
-                onClick={() => setActiveTab('info')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-              >
-                <Info size={16} />
-                Informações
-              </button>
             </div>
           </div>
         </div>
 
-          <div className="flex items-center gap-2">
-            {activeTab === 'students' ? (
-              <>
-                <div className="relative flex items-center">
-                  <AnimatePresence mode="wait">
-                    {!isSearchExpanded && !searchTerm ? (
-                      <motion.button
-                        key="search-button"
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        onClick={() => {
-                          setIsSearchExpanded(true);
-                          setTimeout(() => searchInputRef.current?.focus(), 100);
-                        }}
-                        className="p-2.5 bg-white border border-gray-200 text-gray-400 rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
-                        title="Buscar aluno"
-                      >
-                        <Search size={20} />
-                      </motion.button>
-                    ) : (
-                      <motion.div
-                        key="search-input"
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: typeof window !== 'undefined' && window.innerWidth < 640 ? '160px' : '240px', opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        className="relative"
-                      >
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4CAF50]" size={18} />
-                        <input
-                          ref={searchInputRef}
-                          type="text"
-                          placeholder="Buscar aluno..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          onBlur={() => {
-                            if (!searchTerm) setIsSearchExpanded(false);
-                          }}
-                          className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#4CAF50]/30 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all shadow-sm text-sm"
-                        />
-                        {searchTerm && (
-                          <button
-                            onClick={() => {
-                              setSearchTerm('');
-                              setIsSearchExpanded(false);
-                            }}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            <X size={14} />
-                          </button>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <button
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm font-bold whitespace-nowrap text-sm"
-                  title="Importar da Área de Transferência"
-                >
-                  <Plus size={20} className="text-gray-400" />
-                  <span className="hidden sm:inline">Importar</span>
-                </button>
-                <button
-                  onClick={() => handleOpenModal()}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap text-sm"
-                >
-                  <UserPlus size={20} />
-                  <span className="hidden sm:inline">Adicionar</span>
-                </button>
-
-                <div className="h-8 w-px bg-gray-200 mx-1 hidden md:block" />
-
-                <div className="flex gap-2">
-                  <button 
-                    onClick={handleSavePDF}
-                    disabled={generating}
-                    className="p-2.5 bg-white border border-gray-200 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
-                    title="Salvar PDF"
-                  >
-                    {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
-                  </button>
-                  <button 
-                    onClick={handlePrint}
-                    className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
-                    title="Imprimir"
-                  >
-                    <Printer size={20} />
-                  </button>
-                </div>
-              </>
-          ) : (
+        <div className="flex items-center gap-2">
+          {activeTab === 'students' ? (
             <>
-              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
-                <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
-                <div className="flex gap-1">
-                  {(['1', '2', '3'] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setSelectedTurma(t)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        selectedTurma === t 
-                          ? 'bg-amber-100 text-amber-700 shadow-sm' 
-                          : 'text-gray-400 hover:bg-gray-50'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
+              <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Buscar aluno..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
+                />
               </div>
-
-              <div className="h-8 w-px bg-gray-200 mx-1 hidden md:block" />
-
-              <div className="flex gap-2">
-                <button 
-                  onClick={handleSavePDF}
-                  disabled={generating}
-                  className="p-2.5 bg-white border border-gray-200 text-indigo-600 rounded-xl hover:bg-indigo-50 transition-all shadow-sm flex items-center justify-center disabled:opacity-50"
-                  title="Salvar PDF"
-                >
-                  {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
-                </button>
-                <button 
-                  onClick={handlePrint}
-                  className="p-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
-                  title="Imprimir"
-                >
-                  <Printer size={20} />
-                </button>
-              </div>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm font-bold whitespace-nowrap"
+                title="Importar da Área de Transferência"
+              >
+                <Plus size={20} className="text-gray-400" />
+                <span className="hidden sm:inline">Importar</span>
+              </button>
+              <button
+                onClick={() => handleOpenModal()}
+                className="flex items-center gap-2 px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap"
+              >
+                <UserPlus size={20} />
+                <span className="hidden sm:inline">Adicionar Aluno</span>
+              </button>
             </>
+          ) : (
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
+              <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
+              <div className="flex gap-1">
+                {(['1', '2', '3'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setSelectedTurma(t)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      selectedTurma === t 
+                        ? 'bg-amber-100 text-amber-700 shadow-sm' 
+                        : 'text-gray-400 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {activeTab === 'students' && (
-        <div id="pioneer-students-list" className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Header for PDF/Print */}
-          <div className="export-only text-center py-6 border-b border-gray-100 mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Escola do Serviço de Pioneiro</h1>
-            <h2 className="text-xl font-medium text-gray-500 mt-1 uppercase tracking-widest">Lista de Alunos</h2>
-          </div>
-
+      {activeTab === 'students' ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-[#37616b] text-white">
-                  <th className="px-4 py-2 w-10 print-hidden">
+                  <th className="px-4 py-2 w-10">
                     <input 
                       type="checkbox" 
                       className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
@@ -1006,7 +715,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center">
                       Nome do Aluno
-                      <span className="print-hidden"><SortIcon column="nome" /></span>
+                      <SortIcon column="nome" />
                     </div>
                   </th>
                   <th 
@@ -1015,7 +724,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center">
                       Congregação
-                      <span className="print-hidden"><SortIcon column="congregacao" /></span>
+                      <SortIcon column="congregacao" />
                     </div>
                   </th>
                   <th 
@@ -1024,7 +733,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center">
                       Circuito
-                      <span className="print-hidden"><SortIcon column="circuito" /></span>
+                      <SortIcon column="circuito" />
                     </div>
                   </th>
                   <th 
@@ -1033,10 +742,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   >
                     <div className="flex items-center justify-center">
                       Turma
-                      <span className="print-hidden"><SortIcon column="turma" /></span>
+                      <SortIcon column="turma" />
                     </div>
                   </th>
-                  <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center print-hidden">Ações</th>
+                  <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1059,7 +768,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                       key={student.id} 
                       className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
                     >
-                      <td className="px-4 py-2 print-hidden">
+                      <td className="px-4 py-2">
                         <input 
                           type="checkbox" 
                           className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
@@ -1072,13 +781,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                       <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
                       <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
                       <td className="px-4 py-2 text-sm text-center">
-                        <div className="hidden print:block font-bold">
-                          {student.turma ? `TURMA ${student.turma}` : '-'}
-                        </div>
                         <select
                           value={student.turma || ''}
                           onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
-                          className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all print:hidden ${
+                          className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all ${
                             student.turma 
                               ? 'bg-amber-100 text-amber-700' 
                               : 'bg-gray-100 text-gray-400 italic'
@@ -1090,7 +796,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                           <option value="3">TURMA 3</option>
                         </select>
                       </td>
-                      <td className="px-6 py-2 text-sm print-hidden">
+                      <td className="px-6 py-2 text-sm">
                         <div className="flex items-center justify-center gap-2">
                           <button 
                             onClick={() => handleOpenModal(student)}
@@ -1115,16 +821,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             </table>
           </div>
         </div>
-      )}
-
-      {activeTab === 'workshops' && (
-        <div id="pioneer-workshops-list" className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {/* Header for PDF/Print */}
-          <div className="export-only text-center py-6 border-b border-gray-100 mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Escola do Serviço de Pioneiro</h1>
-            <h2 className="text-xl font-medium text-gray-500 mt-1 uppercase tracking-widest">Sessão de Treino - Turma {selectedTurma}</h2>
-          </div>
-
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
@@ -1132,10 +830,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   <th className="px-4 py-3 font-bold text-sm uppercase tracking-wider w-16 text-center border-r border-white/10">
                     {/* Workshop Sidebar Header */}
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 w-[60%]">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 min-w-[300px]">
                     Sessão de Treino
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[40%]">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[250px]">
                     Participantes
                   </th>
                 </tr>
@@ -1188,13 +886,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                         <div className="flex flex-col gap-2">
                           {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => (
                             <div key={idx} className="relative">
-                              <div className="hidden print:block font-bold text-xs border-b border-gray-300 pb-1">
-                                {workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '_____________________'}
-                              </div>
                               <select
                                 value={workshopAssignments[scenario.id]?.participants?.split('|')[idx] || ''}
                                 onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#37616b] focus:border-[#37616b] outline-none transition-all appearance-none cursor-pointer pr-8 shadow-sm hover:border-gray-300 print:hidden"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#37616b] focus:border-[#37616b] outline-none transition-all appearance-none cursor-pointer pr-8 shadow-sm hover:border-gray-300"
                               >
                                 <option value="">Selecionar aluno...</option>
                                 {workshopDropdownStudents.map((student) => (
@@ -1203,7 +898,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                                   </option>
                                 ))}
                               </select>
-                              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 print:hidden">
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                                 <ChevronDown size={14} />
                               </div>
                             </div>
@@ -1215,127 +910,6 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'info' && (
-        <div id="pioneer-info-tab" className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-8">
-          <div className="export-only text-center py-6 border-b border-gray-100 mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Escola do Serviço de Pioneiro</h1>
-            <h2 className="text-xl font-medium text-gray-500 mt-1 uppercase tracking-widest">Informações da Turma {selectedTurma}</h2>
-          </div>
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">DATA DA TURMA:</label>
-              <input
-                type="text"
-                value={schoolInfo?.dataTurma || ''}
-                onChange={(e) => handleSchoolInfoChange('dataTurma', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-                placeholder="Ex: 06/07/2026 - 11/07/2026"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">INSTRUTOR A:</label>
-              <input
-                type="text"
-                value={schoolInfo?.instrutorA || ''}
-                onChange={(e) => handleSchoolInfoChange('instrutorA', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">INSTRUTOR B:</label>
-              <input
-                type="text"
-                value={schoolInfo?.instrutorB || ''}
-                onChange={(e) => handleSchoolInfoChange('instrutorB', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">LOCAL DA ESCOLA:</label>
-              <input
-                type="text"
-                value={schoolInfo?.localEscola || ''}
-                onChange={(e) => handleSchoolInfoChange('localEscola', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">ENDEREÇO DA ESCOLA :</label>
-              <input
-                type="text"
-                value={schoolInfo?.enderecoEscola || ''}
-                onChange={(e) => handleSchoolInfoChange('enderecoEscola', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">ENTREGA DO LIVRO: ENDEREÇO:</label>
-              <input
-                type="text"
-                value={schoolInfo?.entregaLivroEndereco || ''}
-                onChange={(e) => handleSchoolInfoChange('entregaLivroEndereco', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">ENTREGA DO LIVRO: DATA E HORA:</label>
-              <input
-                type="text"
-                value={schoolInfo?.entregaLivroDataHora || ''}
-                onChange={(e) => handleSchoolInfoChange('entregaLivroDataHora', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">CONFIRMAÇÃO: DATA LIMITE :</label>
-              <input
-                type="text"
-                value={schoolInfo?.confirmacaoDataLimite || ''}
-                onChange={(e) => handleSchoolInfoChange('confirmacaoDataLimite', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">CONFIRMAÇÃO: E-MAIL:</label>
-              <input
-                type="email"
-                value={schoolInfo?.confirmacaoEmail || ''}
-                onChange={(e) => handleSchoolInfoChange('confirmacaoEmail', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 items-center">
-              <label className="text-sm font-bold text-gray-600 uppercase tracking-wide">CONFIRMAÇÃO: WHATSAPP:</label>
-              <input
-                type="text"
-                value={schoolInfo?.confirmacaoWhatsapp || ''}
-                onChange={(e) => handleSchoolInfoChange('confirmacaoWhatsapp', e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all"
-              />
-            </div>
-
-            <div className="pt-6 flex justify-end">
-              <button
-                onClick={handleSaveSchoolInfo}
-                className="flex items-center gap-2 px-8 py-3 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-lg font-bold"
-              >
-                <Save size={20} />
-                Salvar Informações da Turma {selectedTurma}
-              </button>
-            </div>
           </div>
         </div>
       )}
