@@ -225,7 +225,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           await new Promise(resolve => setTimeout(resolve, 200));
 
           const dataUrl = await toPng(sigElement, {
-            backgroundColor: null,
+            backgroundColor: undefined,
             pixelRatio: 2,
             quality: 1,
             style: {
