@@ -830,10 +830,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   <th className="px-4 py-3 font-bold text-sm uppercase tracking-wider w-16 text-center border-r border-white/10">
                     {/* Workshop Sidebar Header */}
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 min-w-[300px]">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 w-[60%]">
                     Sessão de Treino
                   </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[250px]">
+                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[40%]">
                     Participantes
                   </th>
                 </tr>
