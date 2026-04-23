@@ -17,7 +17,9 @@ import {
   ArrowUp,
   ArrowDown,
   Users,
-  LayoutList
+  LayoutList,
+  Printer,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -188,6 +190,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Student | 'index'; direction: 'asc' | 'desc' }>({
@@ -549,6 +553,82 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     setSortConfig({ key, direction });
   };
 
+  const handleDownloadPDF = async () => {
+    const headerElement = document.getElementById('pdf-header');
+    const contentElement = document.getElementById('pdf-content');
+    if (!headerElement || !contentElement) return;
+
+    setGenerating(true);
+    try {
+      const { toJpeg } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      // Capture Header
+      headerElement.classList.add('pdf-capture-header', 'pdf-only-element');
+      const headerDataUrl = await toJpeg(headerElement, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' });
+      headerElement.classList.remove('pdf-capture-header', 'pdf-only-element');
+
+      // Capture Content
+      contentElement.classList.add('pdf-capture-content');
+      const contentDataUrl = await toJpeg(contentElement, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' });
+      contentElement.classList.remove('pdf-capture-content');
+
+      const headerImg = new Image();
+      headerImg.src = headerDataUrl;
+      await new Promise((resolve) => { headerImg.onload = resolve; });
+
+      const contentImg = new Image();
+      contentImg.src = contentDataUrl;
+      await new Promise((resolve) => { contentImg.onload = resolve; });
+
+      const pdfWidth = 210;
+      const pdfPageHeight = 297; 
+      const bottomMargin = 12;
+      const headerHeight = (headerImg.height * pdfWidth) / headerImg.width;
+      const contentHeight = (contentImg.height * pdfWidth) / contentImg.width;
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+
+      let heightLeft = contentHeight;
+      let contentPosition = 0;
+      const maxContentHeightPerPage = pdfPageHeight - headerHeight - bottomMargin;
+
+      // First Page
+      pdf.addImage(headerDataUrl, 'JPEG', 0, 0, pdfWidth, headerHeight, undefined, 'FAST');
+      pdf.addImage(contentDataUrl, 'JPEG', 0, headerHeight, pdfWidth, contentHeight, undefined, 'FAST');
+      heightLeft -= maxContentHeightPerPage;
+
+      // Additional Pages
+      while (heightLeft > 0) {
+        pdf.addPage();
+        contentPosition = -(contentHeight - heightLeft);
+        
+        // Draw recurring header
+        pdf.addImage(headerDataUrl, 'JPEG', 0, 0, pdfWidth, headerHeight, undefined, 'FAST');
+        
+        // Draw next slice of content
+        // Note: jspdf's addImage with negative Y and clipping can be tricky, 
+        // using the slicing logic based on the full height
+        pdf.addImage(contentDataUrl, 'JPEG', 0, headerHeight + contentPosition, pdfWidth, contentHeight, undefined, 'FAST');
+        
+        heightLeft -= maxContentHeightPerPage;
+      }
+      
+      const title = activeTab === 'students' ? 'Escola do Servico de Pioneiro - Lista de Alunos' : `Escola do Servico de Pioneiro - Sessao de Treino - Turma ${selectedTurma}`;
+      pdf.save(`${title}.pdf`);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const SortIcon = ({ column }: { column: keyof Student | 'index' }) => {
     if (sortConfig.key !== column) return <ArrowUpDown size={14} className="ml-1 opacity-50" />;
     return sortConfig.direction === 'asc' ? 
@@ -643,15 +723,27 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
         <div className="flex items-center gap-2">
           {activeTab === 'students' ? (
             <>
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Buscar aluno..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
-                />
+              <div className={`relative flex items-center transition-all duration-300 ${showSearch ? 'flex-1 md:w-64' : 'w-10'}`}>
+                <button 
+                  onClick={() => setShowSearch(!showSearch)}
+                  className={`p-2 rounded-xl transition-all flex items-center justify-center ${showSearch ? 'absolute left-1 z-10 text-[#4CAF50]' : 'hover:bg-gray-100 border border-gray-200 text-gray-600'}`}
+                  title="Buscar aluno"
+                >
+                  <Search size={18} />
+                </button>
+                {showSearch && (
+                  <motion.input
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: '100%', opacity: 1 }}
+                    autoFocus
+                    type="text"
+                    placeholder="Buscar aluno..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onBlur={() => { if (!searchTerm) setShowSearch(false); }}
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
+                  />
+                )}
               </div>
               <button
                 onClick={() => setIsImportModalOpen(true)}
@@ -666,7 +758,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 className="flex items-center gap-2 px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap"
               >
                 <UserPlus size={20} />
-                <span className="hidden sm:inline">Adicionar Aluno</span>
+                <span className="hidden sm:inline">Adicionar</span>
               </button>
             </>
           ) : (
@@ -689,232 +781,351 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               </div>
             </div>
           )}
+
+          {/* Action Buttons: PDF and Print moved to end */}
+          <div className="flex items-center gap-2 ml-2">
+            <button
+              onClick={handleDownloadPDF}
+              disabled={generating}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md font-bold whitespace-nowrap disabled:opacity-50"
+              title="Baixar PDF"
+            >
+              {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+              <span className="hidden lg:inline">{generating ? 'Gerando...' : 'PDF'}</span>
+            </button>
+            <button
+              onClick={() => window.print()}
+              disabled={generating}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all shadow-md font-bold whitespace-nowrap"
+              title="Imprimir"
+            >
+              <Printer size={18} />
+              <span className="hidden lg:inline">Imprimir</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {activeTab === 'students' ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr className="bg-[#37616b] text-white">
-                  <th className="px-4 py-2 w-10">
-                    <input 
-                      type="checkbox" 
-                      className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
-                      checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
-                  <th className="px-4 py-2 font-bold text-sm uppercase tracking-wider w-14">
-                    Nº
-                  </th>
-                  <th 
-                    className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                    onClick={() => handleSort('nome')}
-                  >
-                    <div className="flex items-center">
-                      Nome do Aluno
-                      <SortIcon column="nome" />
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                    onClick={() => handleSort('congregacao')}
-                  >
-                    <div className="flex items-center">
-                      Congregação
-                      <SortIcon column="congregacao" />
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                    onClick={() => handleSort('circuito')}
-                  >
-                    <div className="flex items-center">
-                      Circuito
-                      <SortIcon column="circuito" />
-                    </div>
-                  </th>
-                  <th 
-                    className="px-4 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors text-center"
-                    onClick={() => handleSort('turma')}
-                  >
-                    <div className="flex items-center justify-center">
-                      Turma
-                      <SortIcon column="turma" />
-                    </div>
-                  </th>
-                  <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
-                      <Loader2 className="animate-spin mx-auto text-[#4CAF50]" size={32} />
-                      <p className="mt-2 text-gray-500">Carregando alunos...</p>
-                    </td>
-                  </tr>
-                ) : sortedStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      Nenhum aluno encontrado.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedStudents.map((student, index) => (
-                    <tr 
-                      key={student.id} 
-                      className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
+      <style jsx global>{`
+        @media print {
+          @page { 
+            margin: 5mm 12mm 12mm 12mm; 
+            size: A4; 
+          }
+          body { 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            background: white !important; 
+          }
+          .print\:hidden { display: none !important; }
+          #pioneer-school-report { 
+            border: none !important; 
+            box-shadow: none !important; 
+            padding: 0 !important; 
+            width: 100% !important; 
+            margin: 0 !important; 
+          }
+          tr { page-break-inside: avoid !important; }
+          table { width: 100% !important; border-collapse: collapse !important; border: 1px solid #eee !important; }
+          th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; }
+          thead { display: table-header-group !important; }
+          
+          /* Remove layout borders for clean print */
+          .bg-white.rounded-2xl { 
+            border: none !important; 
+            box-shadow: none !important; 
+            border-radius: 0 !important;
+          }
+          
+          input[type="checkbox"], .actions-column, .select-turma-ui { display: none !important; }
+          .turma-text { display: block !important; font-weight: bold !important; text-align: center !important; }
+          .workshop-select-ui { display: none !important; }
+          .workshop-participant-text { 
+            display: block !important; 
+            border-bottom: 1px dotted #999 !important; 
+            min-height: 24px !important; 
+            color: #333 !important;
+          }
+        }
+        /* Specialized PDF capture overrides */
+        .pdf-capture { 
+          padding: 5mm 12mm 12mm 12mm !important; 
+          background-color: white !important;
+        }
+        .pdf-capture-header {
+          padding: 5mm 12mm 0 12mm !important;
+          background-color: white !important;
+        }
+        .pdf-capture-content {
+          padding: 0 12mm 12mm 12mm !important;
+          background-color: white !important;
+        }
+        .pdf-capture .bg-white.rounded-2xl { 
+          border: none !important; 
+          box-shadow: none !important; 
+          border-radius: 0 !important;
+        }
+        .pdf-capture .pdf-only-element { display: block !important; }
+        .pdf-capture .print\:hidden { display: none !important; }
+        .pdf-capture .pdf-only-element\:hidden { display: none !important; }
+      `}</style>
+
+      <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0">
+        {/* Document Header - Visible only in Print/PDF */}
+        {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
+        <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm]">
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
+            Escola do Serviço de Pioneiro
+          </h1>
+          <p className="text-gray-400 uppercase tracking-[0.3em] text-xs font-medium">
+            {activeTab === 'students' ? 'LISTA DE ALUNOS' : `SESSÃO DE TREINO - TURMA ${selectedTurma}`}
+          </p>
+        </div>
+
+        <div id="pdf-content">
+          {activeTab === 'students' ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-[#37616b] text-white">
+                    <th className="px-4 py-2 w-10 print:hidden pdf-only-element:hidden">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
+                        checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th className="px-4 py-2 font-bold text-sm uppercase tracking-wider w-14">
+                      Nº
+                    </th>
+                    <th 
+                      className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
+                      onClick={() => handleSort('nome')}
                     >
-                      <td className="px-4 py-2">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
-                          checked={selectedStudents.includes(student.id)}
-                          onChange={() => toggleSelectStudent(student.id)}
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-sm font-medium text-gray-600">{index + 1}</td>
-                      <td className="px-6 py-2 text-sm font-bold text-gray-900">{student.nome}</td>
-                      <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
-                      <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
-                      <td className="px-4 py-2 text-sm text-center">
-                        <select
-                          value={student.turma || ''}
-                          onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
-                          className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all ${
-                            student.turma 
-                              ? 'bg-amber-100 text-amber-700' 
-                              : 'bg-gray-100 text-gray-400 italic'
-                          }`}
-                        >
-                          <option value="">-</option>
-                          <option value="1">TURMA 1</option>
-                          <option value="2">TURMA 2</option>
-                          <option value="3">TURMA 3</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-2 text-sm">
-                        <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => handleOpenModal(student)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Editar"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteClick(student.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                      <div className="flex items-center">
+                        Nome do Aluno
+                        <span className="print:hidden pdf-capture:hidden"><SortIcon column="nome" /></span>
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
+                      onClick={() => handleSort('congregacao')}
+                    >
+                      <div className="flex items-center">
+                        Congregação
+                        <span className="print:hidden pdf-capture:hidden"><SortIcon column="congregacao" /></span>
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
+                      onClick={() => handleSort('circuito')}
+                    >
+                      <div className="flex items-center">
+                        Circuito
+                        <span className="print:hidden pdf-capture:hidden"><SortIcon column="circuito" /></span>
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors text-center"
+                      onClick={() => handleSort('turma')}
+                    >
+                      <div className="flex items-center justify-center">
+                        Turma
+                        <span className="print:hidden pdf-only-element:hidden"><SortIcon column="turma" /></span>
+                      </div>
+                    </th>
+                    <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center print:hidden pdf-only-element:hidden">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center">
+                        <Loader2 className="animate-spin mx-auto text-[#4CAF50]" size={32} />
+                        <p className="mt-2 text-gray-500">Carregando alunos...</p>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="bg-[#37616b] text-white">
-                  <th className="px-4 py-3 font-bold text-sm uppercase tracking-wider w-16 text-center border-r border-white/10">
-                    {/* Workshop Sidebar Header */}
-                  </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 w-[60%]">
-                    Sessão de Treino
-                  </th>
-                  <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[40%]">
-                    Participantes
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {WORKSHOP_DATA.map((workshop) => (
-                  workshop.scenarios.map((scenario, sIndex) => (
-                    <tr key={scenario.id} className={`${scenario.id % 2 === 0 ? 'bg-white' : 'bg-[#e8f1f3]'} border-b border-gray-100`}>
-                      {sIndex === 0 && (
-                        <td 
-                          rowSpan={workshop.scenarios.length} 
-                          className="bg-[#37616b] text-white font-bold text-[10px] uppercase tracking-widest text-center border-r border-white/10 relative overflow-hidden"
-                        >
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="rotate-[-90deg] whitespace-nowrap">
-                              {workshop.label}
-                            </span>
+                  ) : sortedStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                        Nenhum aluno encontrado.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedStudents.map((student, index) => (
+                      <tr 
+                        key={student.id} 
+                        className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
+                      >
+                        <td className="px-4 py-2 print:hidden pdf-only-element:hidden">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
+                            checked={selectedStudents.includes(student.id)}
+                            onChange={() => toggleSelectStudent(student.id)}
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-600">{index + 1}</td>
+                        <td className="px-6 py-2 text-sm font-bold text-gray-900">{student.nome}</td>
+                        <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
+                        <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
+                        <td className="px-4 py-2 text-sm text-center">
+                          <div className="hidden turma-text">
+                            {student.turma ? (
+                              <span className="bg-[#FFBD00]/10 text-[#7A5C00] border border-[#FFBD00]/20 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap">
+                                TURMA {student.turma}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">-</span>
+                            )}
+                          </div>
+                          <div className="select-turma-ui">
+                            <select
+                              value={student.turma || ''}
+                              onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
+                              className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all ${
+                                student.turma 
+                                  ? 'bg-amber-100 text-amber-700' 
+                                  : 'bg-gray-100 text-gray-400 italic'
+                              }`}
+                            >
+                              <option value="">-</option>
+                              <option value="1">TURMA 1</option>
+                              <option value="2">TURMA 2</option>
+                              <option value="3">TURMA 3</option>
+                            </select>
                           </div>
                         </td>
-                      )}
-                      <td className="px-6 py-4 text-sm text-gray-800 border-r border-gray-200 font-medium leading-relaxed">
-                        <div 
-                          className="cursor-pointer hover:text-[#37616b] transition-colors group"
-                          onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
-                        >
-                          <span className="font-bold mr-2">({scenario.id})</span>
-                          {scenario.text}
-                          <div className="inline-block ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ChevronDown size={14} className={`transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
-                          </div>
-                        </div>
-                        
-                        <AnimatePresence>
-                          {expandedScenario === scenario.id && scenario.instructions && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
+                        <td className="px-6 py-2 text-sm print:hidden pdf-only-element:hidden">
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              onClick={() => handleOpenModal(student)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar"
                             >
-                              <div className="mt-3 p-3 bg-[#f0f7f8] border-l-4 border-[#37616b] rounded-r-lg text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">
-                                <p className="font-bold text-[#37616b] mb-1">Instruções para a parte:</p>
-                                {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-2">
-                          {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => (
-                            <div key={idx} className="relative">
-                              <select
-                                value={workshopAssignments[scenario.id]?.participants?.split('|')[idx] || ''}
-                                onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#37616b] focus:border-[#37616b] outline-none transition-all appearance-none cursor-pointer pr-8 shadow-sm hover:border-gray-300"
-                              >
-                                <option value="">Selecionar aluno...</option>
-                                {workshopDropdownStudents.map((student) => (
-                                  <option key={student.id} value={student.nome}>
-                                    {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                <ChevronDown size={14} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ))}
-              </tbody>
-            </table>
+                              <Edit2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteClick(student.id)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="bg-[#37616b] text-white">
+                    <th className="px-4 py-3 font-bold text-sm uppercase tracking-wider w-16 text-center border-r border-white/10">
+                      {/* Workshop Sidebar Header */}
+                    </th>
+                    <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider border-r border-white/10 w-[60%]">
+                      Sessão de Treino
+                    </th>
+                    <th className="px-6 py-3 font-bold text-sm uppercase tracking-wider w-[40%]">
+                      Participantes
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {WORKSHOP_DATA.map((workshop) => (
+                    workshop.scenarios.map((scenario, sIndex) => (
+                      <tr key={scenario.id} className={`${scenario.id % 2 === 0 ? 'bg-white' : 'bg-[#e8f1f3]'} border-b border-gray-100`}>
+                        {sIndex === 0 && (
+                          <td 
+                            rowSpan={workshop.scenarios.length} 
+                            className="bg-[#37616b] text-white font-bold text-[10px] uppercase tracking-widest text-center border-r border-white/10 relative overflow-hidden"
+                          >
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="rotate-[-90deg] whitespace-nowrap">
+                                {workshop.label}
+                              </span>
+                            </div>
+                          </td>
+                        )}
+                        <td className="px-6 py-4 text-sm text-gray-800 border-r border-gray-200 font-medium leading-relaxed">
+                          <div 
+                            className="cursor-pointer hover:text-[#37616b] transition-colors group"
+                            onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
+                          >
+                            <span className="font-bold mr-2">({scenario.id})</span>
+                            {scenario.text}
+                            <div className="inline-block ml-2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden pdf-only-element:hidden">
+                              <ChevronDown size={14} className={`transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                            </div>
+                          </div>
+                          
+                          <AnimatePresence>
+                            {(expandedScenario === scenario.id || true) && scenario.instructions && (
+                              <motion.div
+                                initial={expandedScenario === scenario.id ? { height: 0, opacity: 0 } : false}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                className={`overflow-hidden ${(expandedScenario !== scenario.id) ? 'hidden print:block pdf-capture:block' : ''}`}
+                              >
+                                <div className="mt-3 p-3 bg-[#f0f7f8] border-l-4 border-[#37616b] rounded-r-lg text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">
+                                  <p className="font-bold text-[#37616b] mb-1">Instruções:</p>
+                                  {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-2">
+                            {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
+                              const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                              return (
+                                <div key={idx} className="relative">
+                                  <div className="hidden workshop-participant-text py-2 text-sm">
+                                    {participant || '............................................................'}
+                                  </div>
+                                  <div className="workshop-select-ui">
+                                    <select
+                                      value={participant}
+                                      onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
+                                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#37616b] focus:border-[#37616b] outline-none transition-all appearance-none cursor-pointer pr-8 shadow-sm hover:border-gray-300"
+                                    >
+                                      <option value="">Selecionar aluno...</option>
+                                      {workshopDropdownStudents.map((student) => (
+                                        <option key={student.id} value={student.nome}>
+                                          {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                      <ChevronDown size={14} />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
 
-      {/* Modal Adicionar/Editar */}
+    {/* Modal Adicionar/Editar */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
