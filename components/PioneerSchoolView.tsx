@@ -556,7 +556,11 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   const handleDownloadPDF = async () => {
     const headerElement = document.getElementById('pdf-header');
     const contentElement = document.getElementById('pdf-content');
-    if (!headerElement || !contentElement) return;
+    
+    if (!headerElement || !contentElement) {
+      alert('Erro: Não foi possível localizar o conteúdo do relatório para gerar o PDF.');
+      return;
+    }
 
     setGenerating(true);
     try {
@@ -564,13 +568,21 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       const { jsPDF } = await import('jspdf');
 
       // Capture Header
-      headerElement.classList.add('pdf-capture-header', 'pdf-only-element');
-      const headerDataUrl = await toJpeg(headerElement, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' });
-      headerElement.classList.remove('pdf-capture-header', 'pdf-only-element');
+      headerElement.classList.add('pdf-capture-header');
+      const headerDataUrl = await toJpeg(headerElement, { 
+        quality: 1.0, 
+        pixelRatio: 2, 
+        backgroundColor: '#ffffff'
+      });
+      headerElement.classList.remove('pdf-capture-header');
 
-      // Capture Content
+      // Capture the whole content
       contentElement.classList.add('pdf-capture-content');
-      const contentDataUrl = await toJpeg(contentElement, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' });
+      const contentDataUrl = await toJpeg(contentElement, { 
+        quality: 1.0, 
+        pixelRatio: 2, 
+        backgroundColor: '#ffffff'
+      });
       contentElement.classList.remove('pdf-capture-content');
 
       const headerImg = new Image();
@@ -583,9 +595,14 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
 
       const pdfWidth = 210;
       const pdfPageHeight = 297; 
+      const xMargin = 12;
+      const topMargin = 5;
       const bottomMargin = 12;
-      const headerHeight = (headerImg.height * pdfWidth) / headerImg.width;
-      const contentHeight = (contentImg.height * pdfWidth) / contentImg.width;
+      const headerToTableGap = 5;
+      
+      const innerWidth = pdfWidth - (2 * xMargin);
+      const headerHeight = (headerImg.height * innerWidth) / headerImg.width;
+      const totalContentHeightInPdf = (contentImg.height * innerWidth) / contentImg.width;
 
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -594,36 +611,75 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
         compress: true
       });
 
-      let heightLeft = contentHeight;
-      let contentPosition = 0;
-      const maxContentHeightPerPage = pdfPageHeight - headerHeight - bottomMargin;
+      // Calculate row boundaries for smart slicing
+      const tableRows = Array.from(contentElement.querySelectorAll('tr'));
+      const domContentHeight = contentElement.offsetHeight;
+      const scaleToPdf = totalContentHeightInPdf / domContentHeight;
 
-      // First Page
-      pdf.addImage(headerDataUrl, 'JPEG', 0, 0, pdfWidth, headerHeight, undefined, 'FAST');
-      pdf.addImage(contentDataUrl, 'JPEG', 0, headerHeight, pdfWidth, contentHeight, undefined, 'FAST');
-      heightLeft -= maxContentHeightPerPage;
+      const pageAvailableHeight = pdfPageHeight - topMargin - headerHeight - headerToTableGap - bottomMargin;
+      
+      let currentYInPdf = 0;
+      let pages = [];
+      let currentPageRows = [];
+      let currentHeightInPdf = 0;
 
-      // Additional Pages
-      while (heightLeft > 0) {
-        pdf.addPage();
-        contentPosition = -(contentHeight - heightLeft);
+      tableRows.forEach((row, index) => {
+        const rowRect = (row as HTMLElement).getBoundingClientRect();
+        const contentRect = contentElement.getBoundingClientRect();
+        const rowTopInContent = rowRect.top - contentRect.top;
+        const rowHeightInPdf = rowRect.height * scaleToPdf;
+
+        if (currentHeightInPdf + rowHeightInPdf > pageAvailableHeight && currentPageRows.length > 0) {
+          pages.push({
+            startInPdf: currentPageRows[0].top,
+            heightInPdf: currentHeightInPdf
+          });
+          currentPageRows = [];
+          currentHeightInPdf = 0;
+        }
+
+        currentPageRows.push({ top: rowTopInContent * scaleToPdf, height: rowHeightInPdf });
+        currentHeightInPdf += rowHeightInPdf;
+
+        // Last row handling
+        if (index === tableRows.length - 1) {
+          pages.push({
+            startInPdf: currentPageRows[0].top,
+            heightInPdf: currentHeightInPdf
+          });
+        }
+      });
+
+      pages.forEach((page, index) => {
+        if (index > 0) pdf.addPage();
         
         // Draw recurring header
-        pdf.addImage(headerDataUrl, 'JPEG', 0, 0, pdfWidth, headerHeight, undefined, 'FAST');
+        pdf.addImage(headerDataUrl, 'JPEG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
         
-        // Draw next slice of content
-        // Note: jspdf's addImage with negative Y and clipping can be tricky, 
-        // using the slicing logic based on the full height
-        pdf.addImage(contentDataUrl, 'JPEG', 0, headerHeight + contentPosition, pdfWidth, contentHeight, undefined, 'FAST');
+        // Calculate clipping for this page slice
+        // We use the full image and offset it, but we need to cover up the parts from other pages
+        const sliceY = headerHeight + topMargin + headerToTableGap;
         
-        heightLeft -= maxContentHeightPerPage;
-      }
+        // Draw the content image with an offset
+        // jspdf doesn't support easy clipping of images, so we use white rectangles to mask
+        pdf.addImage(contentDataUrl, 'JPEG', xMargin, sliceY - page.startInPdf, innerWidth, totalContentHeightInPdf, undefined, 'FAST');
+        
+        // Mask the bottom overflow
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, sliceY + page.heightInPdf, pdfWidth, pdfPageHeight - (sliceY + page.heightInPdf), 'F');
+        
+        // Mask the top overflow (above the current slice, but below header)
+        pdf.rect(0, 0, pdfWidth, sliceY, 'F');
+        
+        // Re-draw header to stay on top
+        pdf.addImage(headerDataUrl, 'JPEG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
+      });
       
       const title = activeTab === 'students' ? 'Escola do Servico de Pioneiro - Lista de Alunos' : `Escola do Servico de Pioneiro - Sessao de Treino - Turma ${selectedTurma}`;
       pdf.save(`${title}.pdf`);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-      alert('Erro ao gerar PDF. Tente novamente.');
+      alert('Erro ao gerar PDF. Verifique se há muito conteúdo ou tente novamente.');
     } finally {
       setGenerating(false);
     }
@@ -826,7 +882,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             margin: 0 !important; 
           }
           tr { page-break-inside: avoid !important; }
-          table { width: 100% !important; border-collapse: collapse !important; border: 1px solid #eee !important; }
+          table { width: 100% !important; border-collapse: collapse !important; border: none !important; }
+          th, td { border-left: none !important; border-right: none !important; }
           th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; }
           thead { display: table-header-group !important; }
           
@@ -835,6 +892,12 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             border: none !important; 
             box-shadow: none !important; 
             border-radius: 0 !important;
+          }
+          
+          /* Specialized Instruction border in print */
+          .border-l-4.border-\[\#37616b\] {
+            border-left: none !important;
+            padding-left: 0 !important;
           }
           
           input[type="checkbox"], .actions-column, .select-turma-ui { display: none !important; }
@@ -848,17 +911,41 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           }
         }
         /* Specialized PDF capture overrides */
-        .pdf-capture { 
-          padding: 5mm 12mm 12mm 12mm !important; 
-          background-color: white !important;
-        }
         .pdf-capture-header {
-          padding: 5mm 12mm 0 12mm !important;
+          display: block !important;
           background-color: white !important;
+          visibility: visible !important;
+          width: 800px !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
         .pdf-capture-content {
-          padding: 0 12mm 12mm 12mm !important;
+          display: block !important;
           background-color: white !important;
+          visibility: visible !important;
+          width: 800px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        .pdf-capture-content table, 
+        .pdf-capture-content th, 
+        .pdf-capture-content td {
+          border-left: none !important;
+          border-right: none !important;
+          border-radius: 0 !important;
+        }
+        .pdf-capture-content input[type="checkbox"],
+        .pdf-capture-content .pdf-hidden,
+        .pdf-capture-content .print\:hidden {
+          display: none !important;
+        }
+        .pdf-capture-content .bg-white.rounded-2xl { 
+          border: none !important; 
+          box-shadow: none !important; 
+          border-radius: 0 !important;
+        }
+        .pdf-capture-content .border-l-4 {
+          border-left: none !important;
         }
         .pdf-capture .bg-white.rounded-2xl { 
           border: none !important; 
@@ -873,11 +960,11 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0">
         {/* Document Header - Visible only in Print/PDF */}
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
-        <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm]">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
+        <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-1">
             Escola do Serviço de Pioneiro
           </h1>
-          <p className="text-gray-400 uppercase tracking-[0.3em] text-xs font-medium">
+          <p className="text-gray-400 uppercase tracking-[0.3em] text-sm font-medium">
             {activeTab === 'students' ? 'LISTA DE ALUNOS' : `SESSÃO DE TREINO - TURMA ${selectedTurma}`}
           </p>
         </div>
@@ -889,7 +976,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                   <tr className="bg-[#37616b] text-white">
-                    <th className="px-4 py-2 w-10 print:hidden pdf-only-element:hidden">
+                    <th className="px-4 py-2 w-10 print:hidden pdf-hidden">
                       <input 
                         type="checkbox" 
                         className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
@@ -906,7 +993,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     >
                       <div className="flex items-center">
                         Nome do Aluno
-                        <span className="print:hidden pdf-capture:hidden"><SortIcon column="nome" /></span>
+                        <span className="print:hidden pdf-hidden"><SortIcon column="nome" /></span>
                       </div>
                     </th>
                     <th 
@@ -915,7 +1002,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     >
                       <div className="flex items-center">
                         Congregação
-                        <span className="print:hidden pdf-capture:hidden"><SortIcon column="congregacao" /></span>
+                        <span className="print:hidden pdf-hidden"><SortIcon column="congregacao" /></span>
                       </div>
                     </th>
                     <th 
@@ -924,7 +1011,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     >
                       <div className="flex items-center">
                         Circuito
-                        <span className="print:hidden pdf-capture:hidden"><SortIcon column="circuito" /></span>
+                        <span className="print:hidden pdf-hidden"><SortIcon column="circuito" /></span>
                       </div>
                     </th>
                     <th 
@@ -933,10 +1020,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     >
                       <div className="flex items-center justify-center">
                         Turma
-                        <span className="print:hidden pdf-only-element:hidden"><SortIcon column="turma" /></span>
+                        <span className="print:hidden pdf-hidden"><SortIcon column="turma" /></span>
                       </div>
                     </th>
-                    <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center print:hidden pdf-only-element:hidden">Ações</th>
+                    <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center print:hidden pdf-hidden">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -959,7 +1046,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                         key={student.id} 
                         className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
                       >
-                        <td className="px-4 py-2 print:hidden pdf-only-element:hidden">
+                        <td className="px-4 py-2 print:hidden pdf-hidden">
                           <input 
                             type="checkbox" 
                             className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
@@ -998,7 +1085,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                             </select>
                           </div>
                         </td>
-                        <td className="px-6 py-2 text-sm print:hidden pdf-only-element:hidden">
+                        <td className="px-6 py-2 text-sm print:hidden pdf-hidden">
                           <div className="flex items-center justify-center gap-2">
                             <button 
                               onClick={() => handleOpenModal(student)}
