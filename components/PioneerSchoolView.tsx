@@ -619,8 +619,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       const pageAvailableHeight = pdfPageHeight - topMargin - headerHeight - headerToTableGap - bottomMargin;
       
       let currentYInPdf = 0;
-      let pages = [];
-      let currentPageRows = [];
+      let pages: { startInPdf: number; heightInPdf: number }[] = [];
+      let currentPageRows: { top: number; height: number }[] = [];
       let currentHeightInPdf = 0;
 
       tableRows.forEach((row, index) => {
@@ -882,9 +882,9 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             margin: 0 !important; 
           }
           tr { page-break-inside: avoid !important; }
-          table { width: 100% !important; border-collapse: collapse !important; border: none !important; }
-          th, td { border-left: none !important; border-right: none !important; }
-          th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; }
+          table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 9pt !important; }
+          th, td { border-left: none !important; border-right: none !important; padding: 4pt 6pt !important; }
+          th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; font-size: 8pt !important; }
           thead { display: table-header-group !important; }
           
           /* Remove layout borders for clean print */
@@ -926,6 +926,15 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           width: 800px !important;
           margin: 0 !important;
           padding: 0 !important;
+          font-size: 11px !important;
+        }
+        .pdf-capture-content th {
+          font-size: 10px !important;
+          padding: 6px 4px !important;
+        }
+        .pdf-capture-content td {
+          font-size: 11px !important;
+          padding: 6px 8px !important;
         }
         .pdf-capture-content table, 
         .pdf-capture-content th, 
@@ -961,10 +970,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
         {/* Document Header - Visible only in Print/PDF */}
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
         <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-1">
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
             Escola do Serviço de Pioneiro
           </h1>
-          <p className="text-gray-400 uppercase tracking-[0.3em] text-sm font-medium">
+          <p className="text-gray-400 uppercase tracking-[0.3em] text-[10px] font-medium">
             {activeTab === 'students' ? 'LISTA DE ALUNOS' : `SESSÃO DE TREINO - TURMA ${selectedTurma}`}
           </p>
         </div>
