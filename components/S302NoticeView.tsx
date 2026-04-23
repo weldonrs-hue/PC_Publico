@@ -15,15 +15,17 @@ import {
   User,
   Hash,
   Upload,
-  Trash2
+  Trash2,
+  ChevronDown
 } from 'lucide-react';
 import Image from 'next/image';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-import { toPng } from 'html-to-image';
+import { toPng, toJpeg } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 
 interface Congregation {
   id?: string;
@@ -61,6 +63,9 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const [loading, setLoading] = useState(false);
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+  const [showPdfMenu, setShowPdfMenu] = useState(false);
+  const pdfMenuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Signature States (Similar to AppointmentLetterView)
   const [signatureName, setSignatureName] = useState('');
@@ -84,6 +89,17 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
     };
     fetchPersonalData();
   }, [userId]);
+
+  // Handle clicks outside PDF menu to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(event.target as Node)) {
+        setShowPdfMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const saveSignature = async (image: string | null) => {
     if (!userId) return;
@@ -112,6 +128,52 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const handleRemoveSignature = () => {
     setSignatureImage(null);
     saveSignature(null);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleExportVisualPDF = async () => {
+    const element = document.getElementById('s302-notice-container');
+    if (!element) return;
+
+    const filename = `S-302_${congregacao.nome.replace(/\s+/g, '_')}_Visual.pdf`;
+
+    setGenerating(true);
+    try {
+      // Ensure fonts are loaded before capture
+      try {
+        await document.fonts.load('16px "Dancing Script"');
+      } catch (e) {
+        console.warn('Erro ao carregar fonte para PDF:', e);
+      }
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const dataUrl = await toJpeg(element, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+
+      const w = 210;
+      const h = 297;
+      
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, w, h, undefined, 'FAST');
+      pdf.save(filename);
+    } catch (error) {
+      console.error('Erro ao exportar PDF Visual:', error);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -338,17 +400,59 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             </div>
 
             <div className="flex gap-2 shrink-0">
+              <div className="relative" ref={pdfMenuRef}>
+                <button 
+                  onClick={() => setShowPdfMenu(!showPdfMenu)}
+                  disabled={generating}
+                  className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  PDF
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showPdfMenu && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="absolute top-full right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 min-w-[180px] z-20 overflow-hidden"
+                  >
+                    <button
+                      onClick={() => {
+                        handleDownloadPDF();
+                        setShowPdfMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
+                    >
+                      <Download size={18} className="text-[#512da8]" />
+                      PDF Original
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleExportVisualPDF();
+                        setShowPdfMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
+                    >
+                      <Download size={18} className="text-[#512da8]" />
+                      PDF Visual
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+              
               <button 
-                onClick={handleDownloadPDF}
-                disabled={generating}
-                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+                onClick={handlePrint}
+                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
               >
-                {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                PDF
+                <Printer size={16} />
+                <span className="hidden sm:inline">Imprimir</span>
               </button>
             </div>
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-6">
+            <div id="s302-notice-container" className="bg-white print:p-0 print:m-0 flex flex-col items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <MapPin size={12} /> Congregação
@@ -444,16 +548,18 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                   </p>
                 </div>
                 
-                <div className="text-[11px] text-gray-500 italic max-w-xs text-center sm:text-left">
+                <div className="text-[11px] text-gray-500 italic max-w-xs text-center sm:text-left print:hidden">
                   Dica: Você pode digitar e o sistema usará uma fonte manuscrita, ou clicar no ícone de upload para usar uma imagem real da sua assinatura.
                 </div>
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
+      </div>
+    </motion.div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4">
+    {/* Actions */}
+    <div className="flex flex-col sm:flex-row gap-4">
           <button
             onClick={handleDownloadPDF}
             disabled={generating}
@@ -472,10 +578,31 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           <div className="shrink-0 mt-0.5">⚠️</div>
           <p>
             Este recurso preenche o formulário oficial S-302-T. Se os dados não aparecerem nos locais corretos, 
-            pode ser necessário ajustar as coordenadas de impressão.
+            pode ser necessário ajustar as coordenadas de impressão. Se o PDF original ficar em branco, utilize a opção "PDF Visual" no menu.
           </p>
         </div>
       </div>
+      <style jsx global>{`
+        @media print {
+          @page {
+            margin: 0;
+            size: A4 portrait;
+          }
+          body {
+            background: white !important;
+          }
+          .print-hidden {
+            display: none !important;
+          }
+          #s302-notice-container {
+            width: 210mm !important;
+            height: 297mm !important;
+            padding: 12.7mm !important;
+            margin: 0 !important;
+            display: block !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

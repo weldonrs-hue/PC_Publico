@@ -156,15 +156,15 @@ export default function Home() {
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
-    if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
+    if (['congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, dashboard: currentView }));
-    } else if (['events', 'regional_convention_program'].includes(currentView)) {
+    } else if (['regional_convention_program'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, events: currentView }));
-    } else if (['settings', 'users'].includes(currentView)) {
+    } else if (['users'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
-    } else if (['schools', 'pioneer_school'].includes(currentView)) {
+    } else if (['pioneer_school', 'elders', 'servants'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
-    } else if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
+    } else if (['text_editor', 'field_service_report'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
     }
   }, [currentView]);
@@ -796,43 +796,53 @@ export default function Home() {
           onBack={() => changeView('dashboard')}
           onViewChange={(view) => {
             if (view === 'dashboard') {
-              // If already in a Circuito sub-view, reset to main dashboard
-              if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
+              if (currentView === 'dashboard') {
+                if (lastSubViews.dashboard && lastSubViews.dashboard !== 'dashboard') {
+                  changeView(lastSubViews.dashboard as any);
+                }
+              } else if (['congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
                 changeView('dashboard');
               } else {
-                // Restore last visited sub-view in Circuito
                 changeView(lastSubViews.dashboard as any);
               }
             } else if (view === 'events') {
-              // If already in an Events sub-view, reset to main events
-              if (['events', 'regional_convention_program'].includes(currentView)) {
+              if (currentView === 'events') {
+                if (lastSubViews.events && lastSubViews.events !== 'events') {
+                  changeView(lastSubViews.events as any);
+                }
+              } else if (['regional_convention_program'].includes(currentView)) {
                 changeView('events');
               } else {
-                // Restore last visited sub-view in Events
                 changeView(lastSubViews.events || 'events');
               }
             } else if (view === 'settings') {
-              // If already in a Settings sub-view, reset to main settings
-              if (['settings', 'users'].includes(currentView)) {
+              if (currentView === 'settings') {
+                if (lastSubViews.settings && lastSubViews.settings !== 'settings') {
+                  changeView(lastSubViews.settings as any);
+                }
+              } else if (['users'].includes(currentView)) {
                 changeView('settings');
               } else {
-                // Restore last visited sub-view in Settings
                 changeView(lastSubViews.settings as any);
               }
             } else if (view === 'schools') {
-              // If already in a Schools sub-view, reset to main schools
-              if (['schools', 'pioneer_school'].includes(currentView)) {
+              if (currentView === 'schools') {
+                if (lastSubViews.schools && lastSubViews.schools !== 'schools') {
+                  changeView(lastSubViews.schools as any);
+                }
+              } else if (['pioneer_school', 'elders', 'servants'].includes(currentView)) {
                 changeView('schools');
               } else {
-                // Restore last visited sub-view in Schools
                 changeView(lastSubViews.schools as any);
               }
             } else if (view === 'misc') {
-              // If already in a Misc sub-view, reset to main misc
-              if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
+              if (currentView === 'misc') {
+                if (lastSubViews.misc && lastSubViews.misc !== 'misc') {
+                  changeView(lastSubViews.misc as any);
+                }
+              } else if (['text_editor', 'field_service_report'].includes(currentView)) {
                 changeView('misc');
               } else {
-                // Restore last visited sub-view in Misc
                 changeView(lastSubViews.misc || 'misc');
               }
             } else {
