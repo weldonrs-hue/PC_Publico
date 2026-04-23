@@ -191,12 +191,21 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       await document.fonts.ready;
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const response = await fetch('/S-302_T.pdf');
+      const pdfUrl = `${window.location.origin}/S-302_T.pdf`;
+      const response = await fetch(pdfUrl);
       if (!response.ok) {
-        throw new Error('Erro ao carregar o modelo PDF S-302-T');
+        throw new Error(`Erro ao carregar o modelo PDF S-302-T (${response.status})`);
       }
       const pdfBytes = await response.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(pdfBytes);
+      
+      // Basic check for PDF header
+      const header = new TextDecoder().decode(new Uint8Array(pdfBytes.slice(0, 5)));
+      if (header !== '%PDF-') {
+        console.error('Dados recebidos não são um PDF válido:', header);
+        throw new Error('O arquivo carregado não é um PDF válido. Contate o suporte.');
+      }
+
+      const pdfDoc = await PDFDocument.load(new Uint8Array(pdfBytes));
       const pages = pdfDoc.getPages();
       const firstPage = pages[0];
       const { height } = firstPage.getSize();
@@ -249,7 +258,19 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       
       if (signatureImage) {
         try {
-          const imageBytes = await fetch(signatureImage).then(res => res.arrayBuffer());
+          let imageBytes: ArrayBuffer;
+          if (signatureImage.startsWith('data:')) {
+            const base64 = signatureImage.split(',')[1];
+            const bin = atob(base64);
+            const arr = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) {
+              arr[i] = bin.charCodeAt(i);
+            }
+            imageBytes = arr.buffer;
+          } else {
+            const imgRes = await fetch(signatureImage);
+            imageBytes = await imgRes.arrayBuffer();
+          }
           let embeddedImage;
           if (signatureImage.includes('png')) {
             embeddedImage = await pdfDoc.embedPng(imageBytes);
@@ -297,7 +318,13 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
 
           if (controls) (controls as HTMLElement).style.display = '';
 
-          const imageBytes = await fetch(dataUrl).then(res => res.arrayBuffer());
+          const base64 = dataUrl.split(',')[1];
+          const bin = atob(base64);
+          const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) {
+            arr[i] = bin.charCodeAt(i);
+          }
+          const imageBytes = arr.buffer;
           const embeddedImage = await pdfDoc.embedPng(imageBytes);
           
           const targetHeight = 11 * mmToPt; // Slightly larger because it includes the name below
@@ -314,7 +341,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         }
       }
 
-      const modifiedPdfBytes = await pdfDoc.save();
+      const modifiedPdfBytes = await pdfDoc.save({ useObjectStreams: false });
       const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
