@@ -19,7 +19,9 @@ import {
   Users,
   LayoutList,
   Printer,
-  FileDown
+  FileDown,
+  Info,
+  Undo2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -46,6 +48,32 @@ interface Student {
   userId: string;
   createdAt: any;
 }
+
+interface SchoolInfo {
+  dataTurma: string;
+  instrutorA: string;
+  instrutorB: string;
+  localEscola: string;
+  enderecoEscola: string;
+  entregaLivroEndereco: string;
+  entregaLivroDataHora: string;
+  confirmacaoDataLimite: string;
+  confirmacaoEmail: string;
+  confirmacaoWhatsapp: string;
+}
+
+const defaultSchoolInfo: SchoolInfo = {
+  dataTurma: '',
+  instrutorA: '',
+  instrutorB: '',
+  localEscola: '',
+  enderecoEscola: '',
+  entregaLivroEndereco: '',
+  entregaLivroDataHora: '',
+  confirmacaoDataLimite: '',
+  confirmacaoEmail: '',
+  confirmacaoWhatsapp: '',
+};
 
 interface WorkshopAssignment {
   id: string;
@@ -179,11 +207,16 @@ interface PioneerSchoolViewProps {
 }
 
 export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
-  const [activeTab, setActiveTab] = useState<'students' | 'workshops'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info'>('students');
   const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
+  const [originalSchoolInfo, setOriginalSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
+  const [isSavingInfo, setIsSavingInfo] = useState(false);
+  const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -273,11 +306,110 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       handleFirestoreError(error, OperationType.GET, 'pioneer_school_workshops');
     });
 
+    // Fetch school info
+    const infoDocId = `${userId}_turma${selectedTurma}`;
+    const unsubscribeInfo = onSnapshot(doc(db, 'pioneer_school_info', infoDocId), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data() as SchoolInfo;
+        setSchoolInfo(data);
+        setOriginalSchoolInfo(data);
+      } else {
+        setSchoolInfo(defaultSchoolInfo);
+        setOriginalSchoolInfo(defaultSchoolInfo);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'pioneer_school_info');
+    });
+
     return () => {
       unsubscribeStudents();
       unsubscribeWorkshops();
+      unsubscribeInfo();
     };
   }, [userId, selectedTurma]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (JSON.stringify(schoolInfo) !== JSON.stringify(originalSchoolInfo)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [schoolInfo, originalSchoolInfo]);
+
+  const hasInfoChanges = JSON.stringify(schoolInfo) !== JSON.stringify(originalSchoolInfo);
+
+  const handleTabChange = (tab: 'students' | 'workshops' | 'info') => {
+    if (activeTab === 'info' && hasInfoChanges) {
+      setPendingAction(() => () => setActiveTab(tab));
+      setIsUnsavedModalOpen(true);
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    setIsUnsavedModalOpen(false);
+    await handleSaveInfo();
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    setIsUnsavedModalOpen(false);
+    setSchoolInfo(originalSchoolInfo);
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
+  };
+
+  const handleSaveInfo = async () => {
+    setIsSavingInfo(true);
+    const infoDocId = `${userId}_turma${selectedTurma}`;
+    try {
+      await updateDoc(doc(db, 'pioneer_school_info', infoDocId), {
+        ...schoolInfo,
+        updatedAt: new Date()
+      });
+      setOriginalSchoolInfo(schoolInfo);
+      alert('Informações salvas com sucesso!');
+    } catch (error: any) {
+      // If document doesn't exist, try setting it
+      if (error.code === 'not-found') {
+        try {
+          const { setDoc } = await import('firebase/firestore');
+          await setDoc(doc(db, 'pioneer_school_info', infoDocId), {
+            ...schoolInfo,
+            userId,
+            turma: selectedTurma,
+            updatedAt: new Date()
+          });
+          setOriginalSchoolInfo(schoolInfo);
+          alert('Informações salvas com sucesso!');
+        } catch (innerError) {
+          handleFirestoreError(innerError, OperationType.UPDATE, 'pioneer_school_info');
+        }
+      } else {
+        handleFirestoreError(error, OperationType.UPDATE, 'pioneer_school_info');
+      }
+    } finally {
+      setIsSavingInfo(false);
+    }
+  };
+
+  const handleTurmaChange = (turma: '1' | '2' | '3') => {
+    if (activeTab === 'info' && hasInfoChanges) {
+      setPendingAction(() => () => setSelectedTurma(turma));
+      setIsUnsavedModalOpen(true);
+    } else {
+      setSelectedTurma(turma);
+    }
+  };
 
   const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
     try {
@@ -750,7 +882,14 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
-            onClick={onBack}
+            onClick={() => {
+              if (activeTab === 'info' && hasInfoChanges) {
+                setPendingAction(() => onBack);
+                setIsUnsavedModalOpen(true);
+              } else {
+                onBack();
+              }
+            }}
             className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#4CAF50] bg-white shadow-md border border-gray-200"
           >
             <ChevronLeft size={28} strokeWidth={3} />
@@ -759,18 +898,25 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             <h2 className="text-2xl font-bold text-gray-800">Escola do Serviço de Pioneiro</h2>
             <div className="flex items-center gap-4 mt-1">
               <button 
-                onClick={() => setActiveTab('students')}
+                onClick={() => handleTabChange('students')}
                 className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'students' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Users size={16} />
                 Lista de Alunos
               </button>
               <button 
-                onClick={() => setActiveTab('workshops')}
+                onClick={() => handleTabChange('workshops')}
                 className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'workshops' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <LayoutList size={16} />
                 Sessão de Treino
+              </button>
+              <button 
+                onClick={() => handleTabChange('info')}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+              >
+                <Info size={16} />
+                Informações
               </button>
             </div>
           </div>
@@ -824,7 +970,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 {(['1', '2', '3'] as const).map((t) => (
                   <button
                     key={t}
-                    onClick={() => setSelectedTurma(t)}
+                    onClick={() => handleTurmaChange(t)}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                       selectedTurma === t 
                         ? 'bg-amber-100 text-amber-700 shadow-sm' 
@@ -839,26 +985,28 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           )}
 
           {/* Action Buttons: PDF and Print moved to end */}
-          <div className="flex items-center gap-2 ml-2">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={generating}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md font-bold whitespace-nowrap disabled:opacity-50"
-              title="Baixar PDF"
-            >
-              {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
-              <span className="hidden lg:inline">{generating ? 'Gerando...' : 'PDF'}</span>
-            </button>
-            <button
-              onClick={() => window.print()}
-              disabled={generating}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all shadow-md font-bold whitespace-nowrap"
-              title="Imprimir"
-            >
-              <Printer size={18} />
-              <span className="hidden lg:inline">Imprimir</span>
-            </button>
-          </div>
+          {activeTab !== 'info' && (
+            <div className="flex items-center gap-2 ml-2">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={generating}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md font-bold whitespace-nowrap disabled:opacity-50"
+                title="Baixar PDF"
+              >
+                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+                <span className="hidden lg:inline">{generating ? 'Gerando...' : 'PDF'}</span>
+              </button>
+              <button
+                onClick={() => window.print()}
+                disabled={generating}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all shadow-md font-bold whitespace-nowrap"
+                title="Imprimir"
+              >
+                <Printer size={18} />
+                <span className="hidden lg:inline">Imprimir</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1119,7 +1267,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               </table>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'workshops' ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[800px]">
@@ -1217,6 +1365,162 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               </table>
             </div>
           </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-[#4CAF50] p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Info size={20} />
+                Informações da Escola
+              </h3>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSchoolInfo(originalSchoolInfo)}
+                  disabled={!hasInfoChanges}
+                  className="flex items-center gap-2 px-4 py-2 text-white bg-white/20 rounded-xl hover:bg-white/30 transition-all font-bold disabled:opacity-50 border border-white/30"
+                  title="Descartar alterações"
+                >
+                  <Undo2 size={18} />
+                  Descartar
+                </button>
+                <button
+                  onClick={handleSaveInfo}
+                  disabled={!hasInfoChanges || isSavingInfo}
+                  className="flex items-center gap-2 px-6 py-2 bg-white text-[#4CAF50] rounded-xl hover:bg-gray-50 transition-all shadow-md font-bold disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isSavingInfo ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                  Salvar
+                </button>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data da Turma</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.dataTurma}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, dataTurma: e.target.value })}
+                    placeholder="Ex: 06/07/2026 - 11/07/2026"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Instrutor A</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.instrutorA}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
+                    placeholder="Nome do Instrutor A"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Instrutor B</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.instrutorB}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
+                    placeholder="Nome do Instrutor B"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Local da Escola</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.localEscola}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, localEscola: e.target.value })}
+                    placeholder="Congregação - Cidade UF"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Endereço da Escola</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.enderecoEscola}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, enderecoEscola: e.target.value })}
+                    placeholder="Endereço completo da escola"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-50">
+                <h4 className="text-sm font-bold text-[#37616b] mb-4 flex items-center gap-2">
+                  <LayoutList size={16} />
+                  Entrega do Livro
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Endereço de Entrega</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.entregaLivroEndereco}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroEndereco: e.target.value })}
+                      placeholder="Local de entrega dos livros"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data e Hora de Entrega</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.entregaLivroDataHora}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroDataHora: e.target.value })}
+                      placeholder="Ex: sábado, 06/06/2026 às 09:00"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-50">
+                <h4 className="text-sm font-bold text-[#37616b] mb-4 flex items-center gap-2">
+                  <Users size={16} />
+                  Confirmação de Frequência
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.confirmacaoDataLimite}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoDataLimite: e.target.value })}
+                      placeholder="Data limite para confirmar"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">E-mail</label>
+                    <input
+                      type="email"
+                      value={schoolInfo.confirmacaoEmail}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
+                      placeholder="e-mail@exemplo.com"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.confirmacaoWhatsapp}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
+                      placeholder="(00) 00000-0000"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         )}
       </div>
     </div>
@@ -1392,6 +1696,54 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold transition-all shadow-md"
                   >
                     Sim, Excluir
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Alterações Não Salvas */}
+      <AnimatePresence>
+        {isUnsavedModalOpen && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Save size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Alterações não salvas</h3>
+                <p className="text-gray-600 mb-8">
+                  Você fez alterações nas informações da escola. Deseja salvar antes de sair?
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleConfirmSave}
+                    className="w-full px-6 py-3 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    <Save size={20} />
+                    Sim, salvar e continuar
+                  </button>
+                  <button
+                    onClick={handleConfirmDiscard}
+                    className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 font-bold transition-all"
+                  >
+                    Sair sem salvar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsUnsavedModalOpen(false);
+                      setPendingAction(null);
+                    }}
+                    className="w-full px-6 py-3 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
+                  >
+                    Cancelar e continuar editando
                   </button>
                 </div>
               </div>
