@@ -1367,7 +1367,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-emerald-600 p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-[#4CAF50] p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <Info size={20} />
                 Informações da Escola
@@ -1385,7 +1385,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 <button
                   onClick={handleSaveInfo}
                   disabled={!hasInfoChanges || isSavingInfo}
-                  className="flex items-center gap-2 px-6 py-2 bg-white text-emerald-600 rounded-xl hover:bg-gray-50 transition-all shadow-md font-bold disabled:opacity-50 whitespace-nowrap"
+                  className="flex items-center gap-2 px-6 py-2 bg-white text-[#4CAF50] rounded-xl hover:bg-gray-50 transition-all shadow-md font-bold disabled:opacity-50 whitespace-nowrap"
                 >
                   {isSavingInfo ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                   Salvar
@@ -1403,117 +1403,117 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     value={schoolInfo.dataTurma}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, dataTurma: e.target.value })}
                     placeholder="Ex: 06/07/2026 - 11/07/2026"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor A</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Instrutor A</label>
                   <input
                     type="text"
                     value={schoolInfo.instrutorA}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
                     placeholder="Nome do Instrutor A"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor B</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Instrutor B</label>
                   <input
                     type="text"
                     value={schoolInfo.instrutorB}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
                     placeholder="Nome do Instrutor B"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                   />
                 </div>
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Local da Escola</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Local da Escola</label>
                   <input
                     type="text"
                     value={schoolInfo.localEscola}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, localEscola: e.target.value })}
                     placeholder="Congregação - Cidade UF"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Endereço da Escola</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Endereço da Escola</label>
                   <input
                     type="text"
                     value={schoolInfo.enderecoEscola}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, enderecoEscola: e.target.value })}
                     placeholder="Endereço completo da escola"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                   />
                 </div>
               </div>
 
               <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-50">
-                <h4 className="text-sm font-bold text-emerald-600 mb-4 flex items-center gap-2">
+                <h4 className="text-sm font-bold text-[#37616b] mb-4 flex items-center gap-2">
                   <LayoutList size={16} />
                   Entrega do Livro
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Endereço de Entrega</label>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Endereço de Entrega</label>
                     <input
                       type="text"
                       value={schoolInfo.entregaLivroEndereco}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroEndereco: e.target.value })}
                       placeholder="Local de entrega dos livros"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data e Hora de Entrega</label>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data e Hora de Entrega</label>
                     <input
                       type="text"
                       value={schoolInfo.entregaLivroDataHora}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroDataHora: e.target.value })}
                       placeholder="Ex: sábado, 06/06/2026 às 09:00"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-50">
-                <h4 className="text-sm font-bold text-emerald-600 mb-4 flex items-center gap-2">
+                <h4 className="text-sm font-bold text-[#37616b] mb-4 flex items-center gap-2">
                   <Users size={16} />
                   Confirmação de Frequência
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
                     <input
                       type="text"
                       value={schoolInfo.confirmacaoDataLimite}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoDataLimite: e.target.value })}
                       placeholder="Data limite para confirmar"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">E-mail</label>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">E-mail</label>
                     <input
                       type="email"
                       value={schoolInfo.confirmacaoEmail}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
                       placeholder="e-mail@exemplo.com"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
                     <input
                       type="text"
                       value={schoolInfo.confirmacaoWhatsapp}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
                       placeholder="(00) 00000-0000"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
                     />
                   </div>
                 </div>

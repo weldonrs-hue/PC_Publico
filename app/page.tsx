@@ -2,24 +2,28 @@
 // Force rebuild
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import Sidebar from '@/components/Sidebar';
-import DashboardCards from '@/components/DashboardCards';
-import SecondarySection from '@/components/SecondarySection';
-import AuthForm from '@/components/AuthForm';
-import PersonalDataView from '@/components/PersonalDataView';
-import CongregationsView from '@/components/CongregationsView';
-import SubstitutesView from '@/components/SubstitutesView';
-import ItinerariesView from '@/components/ItinerariesView';
-import SettingsView from '@/components/SettingsView';
-import UsersView from '@/components/UsersView';
-import CircuitStatisticsView from '@/components/CircuitStatisticsView';
-import SchoolsView from '@/components/SchoolsView';
-import PioneerSchoolView from '@/components/PioneerSchoolView';
-import EventsView from '@/components/EventsView';
-import RegionalConventionView from '@/components/RegionalConventionView';
-import MiscView from '@/components/MiscView';
-import TextEditor from '@/components/TextEditor';
-import FieldServiceReportView from '@/components/FieldServiceReportView';
+import dynamic from 'next/dynamic';
+
+const Sidebar = dynamic(() => import('@/components/Sidebar'), { ssr: false });
+const DashboardCards = dynamic(() => import('@/components/DashboardCards'), { ssr: false });
+const SecondarySection = dynamic(() => import('@/components/SecondarySection'), { ssr: false });
+const AuthForm = dynamic(() => import('@/components/AuthForm'), { ssr: false });
+const PersonalDataView = dynamic(() => import('@/components/PersonalDataView'), { ssr: false });
+const CongregationsView = dynamic(() => import('@/components/CongregationsView'), { ssr: false });
+const SubstitutesView = dynamic(() => import('@/components/SubstitutesView'), { ssr: false });
+const ItinerariesView = dynamic(() => import('@/components/ItinerariesView'), { ssr: false });
+const SettingsView = dynamic(() => import('@/components/SettingsView'), { ssr: false });
+const UsersView = dynamic(() => import('@/components/UsersView'), { ssr: false });
+const CircuitStatisticsView = dynamic(() => import('@/components/CircuitStatisticsView'), { ssr: false });
+const SchoolsView = dynamic(() => import('@/components/SchoolsView'), { ssr: false });
+const PioneerSchoolView = dynamic(() => import('@/components/PioneerSchoolView'), { ssr: false });
+const EventsView = dynamic(() => import('@/components/EventsView'), { ssr: false });
+const RegionalConventionView = dynamic(() => import('@/components/RegionalConventionView'), { ssr: false });
+const MiscView = dynamic(() => import('@/components/MiscView'), { ssr: false });
+const TextEditor = dynamic(() => import('@/components/TextEditor'), { ssr: false });
+const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
+const ImageCropper = dynamic(() => import('@/components/ImageCropper'), { ssr: false });
+const TermsAndPrivacy = dynamic(() => import('@/components/TermsAndPrivacy'), { ssr: false });
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -38,8 +42,6 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { Camera, User } from 'lucide-react';
-import ImageCropper from '@/components/ImageCropper';
-import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -156,15 +158,15 @@ export default function Home() {
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
-    if (['congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
+    if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, dashboard: currentView }));
-    } else if (['regional_convention_program'].includes(currentView)) {
+    } else if (['events', 'regional_convention_program'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, events: currentView }));
-    } else if (['users'].includes(currentView)) {
+    } else if (['settings', 'users'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
-    } else if (['pioneer_school', 'elders', 'servants'].includes(currentView)) {
+    } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
-    } else if (['text_editor', 'field_service_report'].includes(currentView)) {
+    } else if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
     }
   }, [currentView]);
@@ -796,53 +798,43 @@ export default function Home() {
           onBack={() => changeView('dashboard')}
           onViewChange={(view) => {
             if (view === 'dashboard') {
-              if (currentView === 'dashboard') {
-                if (lastSubViews.dashboard && lastSubViews.dashboard !== 'dashboard') {
-                  changeView(lastSubViews.dashboard as any);
-                }
-              } else if (['congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
+              // If already in a Circuito sub-view, reset to main dashboard
+              if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
                 changeView('dashboard');
               } else {
+                // Restore last visited sub-view in Circuito
                 changeView(lastSubViews.dashboard as any);
               }
             } else if (view === 'events') {
-              if (currentView === 'events') {
-                if (lastSubViews.events && lastSubViews.events !== 'events') {
-                  changeView(lastSubViews.events as any);
-                }
-              } else if (['regional_convention_program'].includes(currentView)) {
+              // If already in an Events sub-view, reset to main events
+              if (['events', 'regional_convention_program'].includes(currentView)) {
                 changeView('events');
               } else {
+                // Restore last visited sub-view in Events
                 changeView(lastSubViews.events || 'events');
               }
             } else if (view === 'settings') {
-              if (currentView === 'settings') {
-                if (lastSubViews.settings && lastSubViews.settings !== 'settings') {
-                  changeView(lastSubViews.settings as any);
-                }
-              } else if (['users'].includes(currentView)) {
+              // If already in a Settings sub-view, reset to main settings
+              if (['settings', 'users'].includes(currentView)) {
                 changeView('settings');
               } else {
+                // Restore last visited sub-view in Settings
                 changeView(lastSubViews.settings as any);
               }
             } else if (view === 'schools') {
-              if (currentView === 'schools') {
-                if (lastSubViews.schools && lastSubViews.schools !== 'schools') {
-                  changeView(lastSubViews.schools as any);
-                }
-              } else if (['pioneer_school', 'elders', 'servants'].includes(currentView)) {
+              // If already in a Schools sub-view, reset to main schools
+              if (['schools', 'pioneer_school'].includes(currentView)) {
                 changeView('schools');
               } else {
+                // Restore last visited sub-view in Schools
                 changeView(lastSubViews.schools as any);
               }
             } else if (view === 'misc') {
-              if (currentView === 'misc') {
-                if (lastSubViews.misc && lastSubViews.misc !== 'misc') {
-                  changeView(lastSubViews.misc as any);
-                }
-              } else if (['text_editor', 'field_service_report'].includes(currentView)) {
+              // If already in a Misc sub-view, reset to main misc
+              if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
                 changeView('misc');
               } else {
+                // Restore last visited sub-view in Misc
                 changeView(lastSubViews.misc || 'misc');
               }
             } else {

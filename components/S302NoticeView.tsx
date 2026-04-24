@@ -15,19 +15,15 @@ import {
   User,
   Hash,
   Upload,
-  Trash2,
-  FileDown,
-  ChevronDown,
-  Save
+  Trash2
 } from 'lucide-react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { toJpeg, toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
+
+import { toPng } from 'html-to-image';
 
 interface Congregation {
   id?: string;
@@ -66,50 +62,10 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   
-  // Settings/State for Visual Preview
-  const [scale, setScale] = useState(1);
-  const [showScrollArrows, setShowScrollArrows] = useState(false);
-  const [showPdfMenu, setShowPdfMenu] = useState(false);
-  
-  const containerRef = useRef<HTMLDivElement>(null);
-  const pdfMenuRef = useRef<HTMLDivElement>(null);
-
-  // Signature States
+  // Signature States (Similar to AppointmentLetterView)
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const updateScale = () => {
-      if (!containerRef.current) return;
-      const containerWidth = containerRef.current.offsetWidth;
-      
-      // A5 landscape width in pixels at 96dpi is ~794px
-      const a5WidthPx = 794;
-      
-      const newScale = Math.max(0.4, Math.min(1.2, (containerWidth - 32) / a5WidthPx));
-      setScale(newScale);
-
-      const scaledWidth = a5WidthPx * newScale;
-      setShowScrollArrows(containerWidth < scaledWidth);
-    };
-
-    const observer = new ResizeObserver(updateScale);
-    if (containerRef.current) observer.observe(containerRef.current);
-    updateScale();
-
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pdfMenuRef.current && !pdfMenuRef.current.contains(event.target as Node)) {
-        setShowPdfMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   useEffect(() => {
     const fetchPersonalData = async () => {
@@ -127,16 +83,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       }
     };
     fetchPersonalData();
-  }, [userId, signatureName]);
-
-  const scrollContainer = (direction: 'left' | 'right') => {
-    if (!containerRef.current) return;
-    const scrollAmount = containerRef.current.offsetWidth * 0.8;
-    containerRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth'
-    });
-  };
+  }, [userId]);
 
   const saveSignature = async (image: string | null) => {
     if (!userId) return;
@@ -167,13 +114,21 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
     saveSignature(null);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownloadOriginalPDF = async () => {
+  const handleDownloadPDF = async () => {
     setGenerating(true);
     try {
+      // Ensure fonts are loaded before generation
+      try {
+        await document.fonts.load('16px "Dancing Script"');
+        const font = new FontFace('Dancing Script', 'url(https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.woff2)');
+        await font.load();
+        document.fonts.add(font);
+      } catch (e) {
+        console.warn('Erro ao carregar fonte para PDF:', e);
+      }
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const response = await fetch('/S-302_T.pdf');
       if (!response.ok) {
         throw new Error('Erro ao carregar o modelo PDF S-302-T');
@@ -199,20 +154,37 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
 
       const mmToPt = 2.83465;
 
-      // 1. Congregação
+      // Coordinates for S-302-T (Corrected based on user feedback)
+      // 1. Congregação: direita 2mm (em relação aos 5mm anteriores = 7mm), elevar 10mm
       const fullCongName = (congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase())
-        ? `${congregacao.nome} — ${congregacao.cidade.toUpperCase()} ${congregacao.estado}` 
-        : `${congregacao.nome} — ${congregacao.estado}`;
-      drawText(fullCongName, 100 + (7 * mmToPt), 145 - (10 * mmToPt), 14, true);
+        ? `${congregacao.nome}, ${congregacao.cidade}` 
+        : congregacao.nome;
+      drawText(fullCongName, 100 + (7 * mmToPt), 145 - (10 * mmToPt), 11, true);
 
-      // 2. Visitante
+      // 2. Visitante: direita 10mm (em relação aos 10mm anteriores = 20mm), descer 2mm (em relação à elevação de 18mm = elevar 16mm)
+      // Agora mais 5mm para a direita = 25mm. Depois mais 3mm = 28mm
       const visitorName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
-      drawText(visitorName, 130 + (28 * mmToPt), 185 - (16 * mmToPt), 14, true);
+      
+      // Lógica de redução de fonte para caber em 60mm
+      const maxWidthPt = 60 * mmToPt;
+      let visitorFontSize = 11;
+      let textWidth = boldFont.widthOfTextAtSize(visitorName, visitorFontSize);
+      
+      while (textWidth > maxWidthPt && visitorFontSize > 6) {
+        visitorFontSize -= 0.5;
+        textWidth = boldFont.widthOfTextAtSize(visitorName, visitorFontSize);
+      }
+      
+      drawText(visitorName, 100 + (28 * mmToPt), 185 - (16 * mmToPt), visitorFontSize, true);
 
-      // 3. Data da Visita
-      drawText(data, 100 + (7 * mmToPt), 225 - (22.0 * mmToPt), 14, true);
+      // 3. Data da Visita: direita 2mm (em relação aos 5mm anteriores = 7mm), descer 2mm (em relação à elevação de 25mm = elevar 23mm)
+      // Histórico: Turno 9 (21mm) -> Turno 10 (subir 0,5mm = 21,5mm) -> Turno 11 (subir 0,5mm = 22mm)
+      drawText(data, 100 + (7 * mmToPt), 225 - (22.0 * mmToPt), 11, true);
 
-      // 4. Assinatura Image
+      // 4. Assinatura: direita 3mm (em relação aos 10mm anteriores = 13mm), descer 3mm (em relação à posição anterior = 225 - 7mm)
+      // Histórico: Turno 9 (5mm) -> Turno 10 (subir 0,5mm = 5,5mm) -> Turno 11 (subir 0,5mm = 6mm)
+      // Usar a mesma fonte (Dancing Script) e cor azul (#004aad) da carta de designação
+      
       if (signatureImage) {
         try {
           const imageBytes = await fetch(signatureImage).then(res => res.arrayBuffer());
@@ -223,17 +195,60 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             embeddedImage = await pdfDoc.embedJpg(imageBytes);
           }
           
-          const targetHeight = 12 * mmToPt;
+          const targetHeight = 9 * mmToPt;
           const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
           
           firstPage.drawImage(embeddedImage, {
-            x: 120 + (13 * mmToPt),
-            y: height - (225 - (22 * mmToPt)) - (targetHeight / 2),
+            x: 100 + (13 * mmToPt),
+            y: height - (225 - (6.0 * mmToPt)) - (targetHeight / 2),
             width: targetWidth,
             height: targetHeight,
           });
         } catch (e) {
           console.error('Erro ao processar imagem da assinatura:', e);
+          await captureSignature();
+        }
+      } else {
+        await captureSignature();
+      }
+
+      async function captureSignature() {
+        const sigElement = document.getElementById('s302-signature');
+        if (!sigElement) return;
+
+        try {
+          // Temporarily hide controls
+          const controls = sigElement.querySelector('.absolute');
+          if (controls) (controls as HTMLElement).style.display = 'none';
+
+          // Small delay to ensure rendering is complete after font load
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          const dataUrl = await toPng(sigElement, {
+            backgroundColor: undefined,
+            pixelRatio: 2,
+            quality: 1,
+            style: {
+              background: 'transparent'
+            }
+          });
+
+          if (controls) (controls as HTMLElement).style.display = '';
+
+          const imageBytes = await fetch(dataUrl).then(res => res.arrayBuffer());
+          const embeddedImage = await pdfDoc.embedPng(imageBytes);
+          
+          const targetHeight = 11 * mmToPt; // Slightly larger because it includes the name below
+          const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
+          
+          firstPage.drawImage(embeddedImage, {
+            x: 100 + (13 * mmToPt),
+            y: height - (225 - (6.0 * mmToPt)) - (targetHeight / 2),
+            width: targetWidth,
+            height: targetHeight,
+          });
+        } catch (e) {
+          console.error('Erro ao capturar assinatura via html-to-image:', e);
         }
       }
 
@@ -253,263 +268,155 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
     }
   };
 
-  const handleSaveCapturePDF = async () => {
-    const element = document.getElementById('s302-paper-preview');
-    if (!element) return;
-
-    setGenerating(true);
-    try {
-      const dataUrl = await toJpeg(element, {
-        quality: 0.95,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        width: 794, 
-        height: 559, // A5 landscape height at 96dpi
-        style: {
-          margin: '0',
-          boxShadow: 'none',
-          borderRadius: '0',
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
-        }
-      });
-
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a5',
-        compress: true
-      });
-
-      const scaleFactor = 0.98;
-      const w = 210 * scaleFactor;
-      const h = 148 * scaleFactor;
-      const x = (210 - w) / 2;
-      const y = (148 - h) / 2;
-
-      pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
-      pdf.save(`S-302_ProgCir_${congregacao.nome.replace(/\s+/g, '_')}.pdf`);
-    } catch (error) {
-      console.error('Erro ao capturar preview:', error);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const currentVisitorName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
-
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center pb-20 print:bg-white print:pb-0">
-      {/* Toolbar */}
-      <div className="w-full max-w-7xl px-4 py-4 sticky top-0 z-30 print:hidden">
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <button 
-              onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-sm border border-gray-200"
-            >
-              <ChevronLeft size={24} strokeWidth={2.5} />
-            </button>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 leading-tight">S-302 Aviso de Visitas</h2>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">{congregacao.nome} • {data}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1">
-            <button
-              onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-              disabled={currentIndex === 0}
-              className="p-1.5 rounded-lg hover:bg-white transition-all text-gray-600 disabled:opacity-30"
-              title="Anterior"
-            >
-              <ChevronsLeft size={18} />
-            </button>
-            <div className="px-3 flex items-center gap-2">
-              <span className="text-sm font-bold text-gray-900">{currentIndex + 1}</span>
-              <span className="text-gray-400 text-xs text-center min-w-[20px]">/ {events.length}</span>
-            </div>
-            <button
-              onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
-              disabled={currentIndex === events.length - 1}
-              className="p-1.5 rounded-lg hover:bg-white transition-all text-gray-600 disabled:opacity-30"
-              title="Próximo"
-            >
-              <ChevronsRight size={18} />
-            </button>
-          </div>
-
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-none" ref={pdfMenuRef}>
-              <button 
-                onClick={() => setShowPdfMenu(!showPdfMenu)}
-                disabled={generating}
-                className="w-full bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-              >
-                {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
-                <span>PDF</span>
-                <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {showPdfMenu && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="absolute top-full right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 min-w-[180px] z-20 overflow-hidden"
-                >
-                  <button
-                    onClick={() => {
-                      handleDownloadOriginalPDF();
-                      setShowPdfMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
-                  >
-                    <FileDown size={18} className="text-[#7B1FA2]" />
-                    PDF Original
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleSaveCapturePDF();
-                      setShowPdfMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
-                  >
-                    <FileDown size={18} className="text-[#7B1FA2]" />
-                    PDF ProgCir
-                  </button>
-                </motion.div>
-              )}
-            </div>
-            <button 
-              onClick={handlePrint}
-              className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-sm"
-            >
-              <Printer size={16} />
-              <span className="hidden sm:inline">Imprimir</span>
-            </button>
-          </div>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg print:hidden gap-4 m-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <button 
+            onClick={onBack}
+            className="p-2 hover:bg-white/20 rounded-full transition-all text-white bg-white/10 shadow-md border border-white/20"
+            title="Voltar"
+          >
+            <ChevronLeft size={28} strokeWidth={3} />
+          </button>
+          <h2 className="text-2xl font-black text-white tracking-tight">
+            S-302 Aviso de Visitas
+          </h2>
         </div>
       </div>
 
-      {/* Preview Area */}
-      <div className="relative w-full max-w-7xl mx-auto flex flex-col items-center">
-        {/* Mobile Scroll Arrows */}
-        <AnimatePresence>
-          {showScrollArrows && (
-            <>
-              <motion.button
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                onClick={() => scrollContainer('left')}
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-200 text-[#512da8] md:hidden"
-              >
-                <ChevronLeft size={24} />
-              </motion.button>
-              <motion.button
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                onClick={() => scrollContainer('right')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-200 text-[#512da8] md:hidden"
-              >
-                <ChevronRight size={24} />
-              </motion.button>
-            </>
-          )}
-        </AnimatePresence>
-
-        <div 
-          ref={containerRef}
-          className="w-full overflow-x-auto custom-scrollbar scroll-smooth flex justify-center p-4 print:p-0 print:overflow-visible"
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Info Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
         >
-          <div 
-            style={{ 
-              width: `${210 * scale}mm`, 
-              height: `${148 * scale}mm`,
-              minWidth: 'min-content'
-            }}
-            className="print:w-full print:h-auto"
-          >
-            <div 
-              id="s302-paper-preview"
-              className="bg-white shadow-2xl print:shadow-none mx-auto origin-top-left transition-transform duration-200 flex flex-col"
-              style={{
-                width: '210mm',
-                height: '148mm',
-                padding: '12mm 15mm',
-                fontFamily: '"Times New Roman", Times, serif',
-                transform: `scale(${scale})`,
-                color: '#000000',
-                boxSizing: 'border-box'
-              }}
-            >
-              {/* Header Titles */}
-              <div className="text-center mb-4">
-                <h1 className="text-[16pt] font-bold uppercase tracking-tight leading-tight mb-4">
-                  AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO
-                </h1>
+          <div className="bg-[#512da8] p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto justify-between sm:justify-start">
+              <button 
+                onClick={() => setCurrentIndex(initialIndex)}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-white/20 transition-colors uppercase"
+                title="Voltar ao evento selecionado originalmente"
+              >
+                Início
+              </button>
+              
+              <div className="w-px h-4 bg-white/20 mx-1" />
+
+              <button
+                onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+                disabled={currentIndex === 0}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Anterior"
+              >
+                <ChevronsLeft size={18} />
+              </button>
+              
+              <div className="w-px h-4 bg-white/20 mx-1" />
+
+              <div className="px-4 flex flex-col items-center min-w-[100px]">
+                <span className="text-[9px] text-white/60 font-bold uppercase tracking-widest leading-none mb-0.5">
+                  Evento
+                </span>
+                <span className="text-sm font-bold leading-none">
+                  {currentIndex + 1} <span className="text-white/30 font-medium mx-1">/</span> {events.length}
+                </span>
               </div>
 
-              {/* Main Text Body */}
-              <div className="text-[12pt] leading-snug mb-4">
-                <p className="mb-2">Prezados Irmãos:</p>
-                <p className="indent-8">
-                  Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.
-                </p>
-              </div>
+              <div className="w-px h-4 bg-white/20 mx-1" />
 
-              {/* Form Fields */}
-              <div className="space-y-4 mt-2">
-                <div className="flex items-end gap-2">
-                  <span className="text-[12pt] whitespace-nowrap">Congregação:</span>
-                  <div className="flex-grow border-b border-black border-dotted pb-0.5 pl-4 text-[13pt] font-bold text-[#00008b]">
-                    {congregacao.nome} — {congregacao.cidade.toUpperCase()} {congregacao.estado}
-                  </div>
-                </div>
+              <button
+                onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
+                disabled={currentIndex === events.length - 1}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Próximo"
+              >
+                <ChevronsRight size={18} />
+              </button>
+            </div>
 
-                <div className="flex items-end gap-2">
-                  <span className="text-[12pt] whitespace-nowrap">Superintendente de circuito:</span>
-                  <div className="flex-grow border-b border-black border-dotted pb-0.5 pl-4 text-[13pt] font-bold text-[#00008b]">
-                    {currentVisitorName}
-                  </div>
-                </div>
+            <div className="flex gap-2 shrink-0">
+              <button 
+                onClick={handleDownloadPDF}
+                disabled={generating}
+                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                PDF
+              </button>
+            </div>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <MapPin size={12} /> Congregação
+              </label>
+              <p className="text-gray-800 font-medium">
+                {congregacao.nome}
+                {(congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase()) 
+                  ? `, ${congregacao.cidade}` 
+                  : ''}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <Hash size={12} /> Número
+              </label>
+              <p className="text-gray-800 font-medium">{congregacao.numero}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <Calendar size={12} /> Datas
+              </label>
+              <p className="text-gray-800 font-medium">{data}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                <User size={12} /> Superintendente que fará a visita
+              </label>
+              <p className="text-gray-800 font-medium">
+                {substituteName ? `${substituteName} (SCS)` : (personalData?.nome || 'Carregando...')}
+              </p>
+            </div>
 
-                <div className="flex items-end gap-2">
-                  <span className="text-[12pt] whitespace-nowrap">Data da visita:</span>
-                  <div className="flex-grow border-b border-black border-dotted pb-0.5 pl-4 text-[13pt] font-bold text-[#00008b]">
-                    {data}
-                  </div>
-                </div>
-              </div>
-
-              {/* Signature Area */}
-              <div className="mt-auto mb-4 self-end w-[220px] flex flex-col items-center">
-                <p className="text-[12pt] mb-1 text-center w-full">Seu irmão,</p>
-                
-                <div 
-                  className="relative w-full flex flex-col items-center group cursor-pointer"
-                  onClick={() => !signatureImage && fileInputRef.current?.click()}
-                >
-                  <div className="absolute -left-8 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Signature Block (New) */}
+            <div className="md:col-span-2 pt-4 border-t border-gray-100">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-4">
+                Assinatura do Superintendente de Circuito
+              </label>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-6 bg-gray-50/50 p-6 rounded-2xl border border-dashed border-gray-200 group">
+                <div id="s302-signature" className="relative w-full max-w-[400px] flex flex-col items-center p-2 bg-transparent">
+                  <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                      className="p-1 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                      title="Adicionar imagem da assinatura"
                     >
-                      <Upload size={12} />
+                      <Upload size={14} />
                     </button>
                     {signatureImage && (
                       <button 
-                        onClick={(e) => { e.stopPropagation(); handleRemoveSignature(); }}
-                        className="p-1 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
+                        onClick={handleRemoveSignature}
+                        className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
+                        title="Remover imagem"
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={14} />
                       </button>
                     )}
+                    <input 
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
                   </div>
 
                   {signatureImage ? (
-                    <div className="h-12 w-full relative mb-1">
+                    <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible">
                       <Image 
                         src={signatureImage} 
                         alt="Assinatura" 
@@ -519,73 +426,56 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                       />
                     </div>
                   ) : (
-                    <div className="h-12 flex items-center justify-center w-full">
-                      <input 
-                        type="text"
-                        value={signatureName}
-                        onChange={(e) => setSignatureName(e.target.value)}
-                        className="font-signature text-[#004aad] leading-none text-center bg-transparent border-none outline-none w-full"
-                        style={{ 
-                          fontFamily: 'var(--font-signature), cursive',
-                          fontSize: '22pt'
-                        }}
-                        placeholder="Nome..."
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
+                    <input 
+                      type="text"
+                      value={signatureName}
+                      onChange={(e) => setSignatureName(e.target.value)}
+                      className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
+                      style={{ 
+                        fontFamily: 'var(--font-signature), "Dancing Script", cursive',
+                        fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
+                      }}
+                      placeholder="Sua Assinatura..."
+                    />
                   )}
-                  <div className="border-b border-black border-dotted w-full mb-1"></div>
-                  <p className="text-[10pt] font-bold uppercase">{personalData?.nome || ''}</p>
-                  
-                  <input 
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
+                  <div className="border-t border-black w-full mx-auto"></div>
+                  <p className="font-bold text-[11px] mt-[5px] uppercase tracking-wider mb-0 text-center w-full" style={{ fontFamily: 'var(--font-serif), "Times New Roman", serif' }}>
+                    {personalData?.nome || ''}
+                  </p>
                 </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-between items-end text-[9pt] font-bold">
-                <span>S-302-T</span>
-                <span>12/14</span>
+                
+                <div className="text-[11px] text-gray-500 italic max-w-xs text-center sm:text-left">
+                  Dica: Você pode digitar e o sistema usará uma fonte manuscrita, ou clicar no ícone de upload para usar uma imagem real da sua assinatura.
+                </div>
               </div>
             </div>
           </div>
+        </motion.div>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button
+            onClick={handleDownloadPDF}
+            disabled={generating}
+            className="flex-1 bg-[#512da8] hover:bg-[#4527a0] text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            {generating ? (
+              <Loader2 size={24} className="animate-spin" />
+            ) : (
+              <Download size={24} />
+            )}
+            {generating ? 'Gerando PDF...' : 'Baixar PDF Preenchido'}
+          </button>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex gap-3">
+          <div className="shrink-0 mt-0.5">⚠️</div>
+          <p>
+            Este recurso preenche o formulário oficial S-302-T. Se os dados não aparecerem nos locais corretos, 
+            pode ser necessário ajustar as coordenadas de impressão.
+          </p>
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @page {
-          size: A5 landscape;
-          margin: 0;
-        }
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #s302-paper-preview, #s302-paper-preview * {
-            visibility: visible;
-          }
-          #s302-paper-preview {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            margin: 0 !important;
-            padding: 12mm 15mm !important;
-            width: 210mm !important;
-            height: 148mm !important;
-            transform: none !important;
-            box-shadow: none !important;
-          }
-          .print-hidden {
-            display: none !important;
-          }
-        }
-      `}} />
     </div>
   );
 }
-
