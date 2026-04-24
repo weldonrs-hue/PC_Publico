@@ -24,6 +24,7 @@ const TextEditor = dynamic(() => import('@/components/TextEditor'), { ssr: false
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
 const ImageCropper = dynamic(() => import('@/components/ImageCropper'), { ssr: false });
 const TermsAndPrivacy = dynamic(() => import('@/components/TermsAndPrivacy'), { ssr: false });
+const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -101,7 +102,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas'>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -780,6 +781,8 @@ export default function Home() {
       changeView('substitutes');
     } else if (title === 'Itinerários') {
       changeView('itineraries');
+    } else if (title === 'Aviso de Visitas') {
+      changeView('aviso_de_visitas');
     } else if (title === 'Estatísticas') {
       changeView('statistics');
     } else if (title === 'Ajustes') {
@@ -976,6 +979,13 @@ export default function Home() {
           {currentView === 'users' && (
             <UsersView 
               onBack={() => changeView('settings')} 
+            />
+          )}
+
+          {currentView === 'aviso_de_visitas' && (
+            <GlobalS302View 
+              userId={user.id}
+              onBack={() => changeView('dashboard')} 
             />
           )}
 

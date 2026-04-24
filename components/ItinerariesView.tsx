@@ -984,13 +984,16 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-40 text-center">Data do Evento</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Evento</th>
                     <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Observações</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-24 text-center">Escritório Notificado</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider w-24 text-center">Congregação Notificada</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-24 text-center">Notificado</th>
+                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider w-20 text-center print:hidden">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredItineraries.map((item) => {
                     const current = isCurrentWeek(item.semana);
+                    const isCongregation = item.tipoEvento === 'Visita a Congregação' || 
+                                          item.tipoEvento === 'Visita a Grupo' ||
+                                          (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - ')));
                     return (
                       <tr 
                         key={item.id} 
@@ -1009,54 +1012,67 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             )}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300 text-center">
-                          <div className="text-sm text-gray-900 font-medium p-1">
+                        <td className="p-2 border-r border-gray-300 text-center text-xs">
+                          <div className="text-gray-900 font-medium">
                             {item.dataEvento || '-'}
                           </div>
                         </td>
                         <td className="p-2 border-r border-gray-300">
-                          <div className="text-sm text-gray-900 p-1 break-words max-w-[200px]">
+                          <div className="text-sm text-gray-900 p-1 break-words">
                             {item.evento || <span className="text-gray-400 italic">Vazio...</span>}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300">
-                          <div className="text-sm text-gray-900 p-1 break-words max-w-[300px]">
+                        <td className="p-2 border-r border-gray-300 text-xs text-gray-500">
+                          <div className="p-1 break-words">
                             {item.substituto && (
-                              <span className="font-bold text-indigo-700">Substituto: {item.substituto}</span>
+                              <span className="font-bold text-indigo-700">Sub: {item.substituto}</span>
                             )}
                             {item.substituto && item.observacoes ? ' - ' : ''}
                             {item.observacoes || (!item.substituto && <span className="text-gray-400 italic">-</span>)}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300 text-center">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!item.evento?.trim()) return;
-                              handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
-                            }}
-                            disabled={!item.evento?.trim()}
-                            className={`transition-colors ${!item.evento?.trim() ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.escritorioNotificado ? 'text-green-600' : 'text-gray-400'}`}
-                            title={!item.evento?.trim() ? "Preencha o evento primeiro" : ""}
-                          >
-                            {item.escritorioNotificado ? <CheckCircle2 size={22} /> : <Circle size={22} />}
-                          </button>
+                        <td className="p-2 border-r border-gray-300">
+                          <div className="flex justify-center items-center gap-4">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-[7px] font-bold text-gray-400 uppercase">Escritório</span>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!item.evento?.trim()) return;
+                                  handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
+                                }}
+                                disabled={!item.evento?.trim()}
+                                className={`transition-colors ${!item.evento?.trim() ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.escritorioNotificado ? 'text-green-600' : 'text-gray-400'}`}
+                              >
+                                {item.escritorioNotificado ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                              </button>
+                            </div>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-[7px] font-bold text-gray-400 uppercase">Congr.</span>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!item.evento?.trim() || !isCongregation) return;
+                                  handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
+                                }}
+                                disabled={!item.evento?.trim() || !isCongregation}
+                                className={`transition-colors ${(!item.evento?.trim() || !isCongregation) ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
+                              >
+                                {item.congregacaoNotificada ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                              </button>
+                            </div>
+                          </div>
                         </td>
-                        <td className="p-2 text-center">
-                          <button 
+                        <td className="p-2 text-center print:hidden">
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const isCongregation = item.tipoEvento === 'Visita a Congregação' || 
-                                                   item.tipoEvento === 'Visita a Grupo' ||
-                                                   (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - ')));
-                              if (!item.evento?.trim() || !isCongregation) return;
-                              handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
+                              handleRowDoubleClick(item);
                             }}
-                            disabled={!item.evento?.trim() || !(item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo' || (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - '))))}
-                            className={`transition-colors ${(!item.evento?.trim() || !(item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo' || (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - '))))) ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
-                            title={!item.evento?.trim() ? "Preencha o evento primeiro" : (!(item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo' || (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - ')))) ? "Apenas para visitas a congregação/grupo" : "")}
+                            className="p-2 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-600 hover:text-white transition-all shadow-sm border border-violet-100"
+                            title="Ver Opções e Formulários"
                           >
-                            {item.congregacaoNotificada ? <CheckCircle2 size={22} /> : <Circle size={22} />}
+                            <FileText size={16} />
                           </button>
                         </td>
                       </tr>

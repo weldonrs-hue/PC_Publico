@@ -29,6 +29,12 @@ const cards = [
     icon: Map,
   },
   {
+    title: 'Aviso de Visitas',
+    color: '#F97316', // Orange
+    gradient: 'from-orange-500 to-red-600',
+    icon: ClipboardList,
+  },
+  {
     title: 'Estatísticas',
     color: '#0EA5E9', // Sky
     gradient: 'from-sky-500 to-blue-600',

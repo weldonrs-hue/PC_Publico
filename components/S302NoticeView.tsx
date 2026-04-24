@@ -137,6 +137,13 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       const pdfDoc = await PDFDocument.load(pdfBytes);
       const pages = pdfDoc.getPages();
       const firstPage = pages[0];
+      
+      // Force A5 Landscape (210mm x 148mm)
+      const mmToPt = 2.83465;
+      const pageWidth = 210 * mmToPt;
+      const pageHeight = 148 * mmToPt;
+      firstPage.setSize(pageWidth, pageHeight);
+      
       const { height } = firstPage.getSize();
       const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
@@ -151,8 +158,6 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           color: rgb(0, 0, 0),
         });
       };
-
-      const mmToPt = 2.83465;
 
       // Coordinates for S-302-T (Corrected based on user feedback)
       // 1. Congregação: direita 2mm (em relação aos 5mm anteriores = 7mm), elevar 10mm
