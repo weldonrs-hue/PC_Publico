@@ -84,13 +84,13 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       if (!containerRef.current) return;
       const containerWidth = containerRef.current.offsetWidth;
       
-      // A4 portrait width in pixels at 96dpi is ~794px
-      const a4WidthPx = 794;
+      // A5 landscape width in pixels at 96dpi is ~794px
+      const a5WidthPx = 794;
       
-      const newScale = Math.max(0.6, Math.min(1.2, (containerWidth - 32) / a4WidthPx));
+      const newScale = Math.max(0.4, Math.min(1.2, (containerWidth - 32) / a5WidthPx));
       setScale(newScale);
 
-      const scaledWidth = a4WidthPx * newScale;
+      const scaledWidth = a5WidthPx * newScale;
       setShowScrollArrows(containerWidth < scaledWidth);
     };
 
@@ -264,7 +264,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         pixelRatio: 2,
         backgroundColor: '#ffffff',
         width: 794, 
-        height: 1123, 
+        height: 559, // A5 landscape height at 96dpi
         style: {
           margin: '0',
           boxShadow: 'none',
@@ -275,17 +275,17 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       });
 
       const pdf = new jsPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
-        format: 'a4',
+        format: 'a5',
         compress: true
       });
 
-      const scaleFactor = 0.95;
+      const scaleFactor = 0.98;
       const w = 210 * scaleFactor;
-      const h = 297 * scaleFactor;
+      const h = 148 * scaleFactor;
       const x = (210 - w) / 2;
-      const y = (297 - h) / 2;
+      const y = (148 - h) / 2;
 
       pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
       pdf.save(`S-302_ProgCir_${congregacao.nome.replace(/\s+/g, '_')}.pdf`);
@@ -426,7 +426,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           <div 
             style={{ 
               width: `${210 * scale}mm`, 
-              height: `${297 * scale}mm`,
+              height: `${148 * scale}mm`,
               minWidth: 'min-content'
             }}
             className="print:w-full print:h-auto"
@@ -436,8 +436,8 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
               className="bg-white shadow-2xl print:shadow-none mx-auto origin-top-left transition-transform duration-200 flex flex-col"
               style={{
                 width: '210mm',
-                height: '297mm',
-                padding: '25mm 20mm',
+                height: '148mm',
+                padding: '12mm 15mm',
                 fontFamily: '"Times New Roman", Times, serif',
                 transform: `scale(${scale})`,
                 color: '#000000',
@@ -445,47 +445,47 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
               }}
             >
               {/* Header Titles */}
-              <div className="text-center mb-10">
-                <h1 className="text-[20pt] font-bold uppercase tracking-tight leading-tight mb-8">
+              <div className="text-center mb-4">
+                <h1 className="text-[16pt] font-bold uppercase tracking-tight leading-tight mb-4">
                   AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO
                 </h1>
               </div>
 
               {/* Main Text Body */}
-              <div className="text-[14pt] leading-relaxed mb-8">
-                <p className="mb-6">Prezados Irmãos:</p>
-                <p className="indent-10">
+              <div className="text-[12pt] leading-snug mb-4">
+                <p className="mb-2">Prezados Irmãos:</p>
+                <p className="indent-8">
                   Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.
                 </p>
               </div>
 
               {/* Form Fields */}
-              <div className="space-y-8 mt-10">
+              <div className="space-y-4 mt-2">
                 <div className="flex items-end gap-2">
-                  <span className="text-[14pt] whitespace-nowrap">Congregação:</span>
-                  <div className="flex-grow border-b border-black border-dotted pb-1 pl-4 text-[16pt] font-bold text-[#00008b]">
+                  <span className="text-[12pt] whitespace-nowrap">Congregação:</span>
+                  <div className="flex-grow border-b border-black border-dotted pb-0.5 pl-4 text-[13pt] font-bold text-[#00008b]">
                     {congregacao.nome} — {congregacao.cidade.toUpperCase()} {congregacao.estado}
                   </div>
                 </div>
 
                 <div className="flex items-end gap-2">
-                  <span className="text-[14pt] whitespace-nowrap">Superintendente de circuito:</span>
-                  <div className="flex-grow border-b border-black border-dotted pb-1 pl-4 text-[16pt] font-bold text-[#00008b]">
+                  <span className="text-[12pt] whitespace-nowrap">Superintendente de circuito:</span>
+                  <div className="flex-grow border-b border-black border-dotted pb-0.5 pl-4 text-[13pt] font-bold text-[#00008b]">
                     {currentVisitorName}
                   </div>
                 </div>
 
                 <div className="flex items-end gap-2">
-                  <span className="text-[14pt] whitespace-nowrap">Data da visita:</span>
-                  <div className="flex-grow border-b border-black border-dotted pb-1 pl-4 text-[16pt] font-bold text-[#00008b]">
+                  <span className="text-[12pt] whitespace-nowrap">Data da visita:</span>
+                  <div className="flex-grow border-b border-black border-dotted pb-0.5 pl-4 text-[13pt] font-bold text-[#00008b]">
                     {data}
                   </div>
                 </div>
               </div>
 
               {/* Signature Area */}
-              <div className="mt-auto mb-20 self-end w-[250px] flex flex-col items-center">
-                <p className="text-[14pt] mb-2 text-center w-full">Seu irmão,</p>
+              <div className="mt-auto mb-4 self-end w-[220px] flex flex-col items-center">
+                <p className="text-[12pt] mb-1 text-center w-full">Seu irmão,</p>
                 
                 <div 
                   className="relative w-full flex flex-col items-center group cursor-pointer"
@@ -494,22 +494,22 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                   <div className="absolute -left-8 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                      className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
+                      className="p-1 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
                     >
-                      <Upload size={14} />
+                      <Upload size={12} />
                     </button>
                     {signatureImage && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleRemoveSignature(); }}
-                        className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
+                        className="p-1 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={12} />
                       </button>
                     )}
                   </div>
 
                   {signatureImage ? (
-                    <div className="h-16 w-full relative mb-1">
+                    <div className="h-12 w-full relative mb-1">
                       <Image 
                         src={signatureImage} 
                         alt="Assinatura" 
@@ -519,15 +519,15 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                       />
                     </div>
                   ) : (
-                    <div className="h-16 flex items-center justify-center w-full">
+                    <div className="h-12 flex items-center justify-center w-full">
                       <input 
                         type="text"
                         value={signatureName}
                         onChange={(e) => setSignatureName(e.target.value)}
                         className="font-signature text-[#004aad] leading-none text-center bg-transparent border-none outline-none w-full"
                         style={{ 
-                          fontFamily: '"Dancing Script", cursive',
-                          fontSize: '28pt'
+                          fontFamily: 'var(--font-signature), cursive',
+                          fontSize: '22pt'
                         }}
                         placeholder="Nome..."
                         onClick={(e) => e.stopPropagation()}
@@ -535,7 +535,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                     </div>
                   )}
                   <div className="border-b border-black border-dotted w-full mb-1"></div>
-                  <p className="text-[11pt] font-bold uppercase">{personalData?.nome || ''}</p>
+                  <p className="text-[10pt] font-bold uppercase">{personalData?.nome || ''}</p>
                   
                   <input 
                     ref={fileInputRef}
@@ -548,7 +548,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
               </div>
 
               {/* Footer */}
-              <div className="flex justify-between items-end text-[10pt] font-bold">
+              <div className="flex justify-between items-end text-[9pt] font-bold">
                 <span>S-302-T</span>
                 <span>12/14</span>
               </div>
@@ -557,7 +557,11 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         </div>
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
+        @page {
+          size: A5 landscape;
+          margin: 0;
+        }
         @media print {
           body * {
             visibility: hidden;
@@ -570,19 +574,18 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             left: 0 !important;
             top: 0 !important;
             margin: 0 !important;
-            padding: 25mm 20mm !important;
+            padding: 12mm 15mm !important;
             width: 210mm !important;
-            height: 297mm !important;
+            height: 148mm !important;
             transform: none !important;
             box-shadow: none !important;
           }
-          .print\\:hidden {
+          .print-hidden {
             display: none !important;
           }
         }
-        
-        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
-      `}</style>
+      `}} />
     </div>
   );
 }
+
