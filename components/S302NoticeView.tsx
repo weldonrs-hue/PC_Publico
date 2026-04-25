@@ -15,7 +15,10 @@ import {
   User,
   Hash,
   Upload,
-  Trash2
+  Trash2,
+  GripVertical,
+  RotateCcw,
+  Save
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'motion/react';
@@ -53,6 +56,20 @@ interface S302NoticeViewProps {
   onBack: () => void;
 }
 
+interface Positions {
+  congregacao: { x: number; y: number };
+  visitante: { x: number; y: number };
+  data: { x: number; y: number };
+  assinatura: { x: number; y: number };
+}
+
+const DEFAULT_POSITIONS: Positions = {
+  congregacao: { x: 25, y: 54 },
+  visitante: { x: 25, y: 70 },
+  data: { x: 25, y: 86 },
+  assinatura: { x: 105, y: 105 } // Adjusted to be roughly where it was
+};
+
 export default function S302NoticeView({ events, initialIndex, userId, onBack }: S302NoticeViewProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const currentEvent = events[currentIndex];
@@ -67,6 +84,11 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Drag and Drop Positions State
+  const [positions, setPositions] = useState<Positions>(DEFAULT_POSITIONS);
+  const [isSavingPositions, setIsSavingPositions] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const fetchPersonalData = async () => {
       try {
@@ -78,12 +100,45 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           if (!signatureName) setSignatureName(pData.nome || '');
           setSignatureImage(pData.signatureImage || null);
         }
+
+        // Fetch S302 positions
+        const configRef = doc(db, 's302_configs', userId);
+        const configSnap = await getDoc(configRef);
+        if (configSnap.exists()) {
+          const configData = configSnap.data();
+          if (configData.positions) {
+            setPositions(configData.positions);
+          }
+        }
       } catch (error) {
-        console.error('Error fetching personal data:', error);
+        console.error('Error fetching data:', error);
       }
     };
     fetchPersonalData();
   }, [userId]);
+
+  const handleSavePositions = async () => {
+    setIsSavingPositions(true);
+    try {
+      await setDoc(doc(db, 's302_configs', userId), {
+        userId,
+        positions,
+        updatedAt: new Date().toISOString()
+      });
+      alert('Posições salvas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar posições:', error);
+      alert('Erro ao salvar posições. Tente novamente.');
+    } finally {
+      setIsSavingPositions(false);
+    }
+  };
+
+  const resetPositions = () => {
+    if (confirm('Deseja realmente restaurar as posições originais?')) {
+      setPositions(DEFAULT_POSITIONS);
+    }
+  };
 
   const saveSignature = async (image: string | null) => {
     if (!userId) return;
@@ -159,15 +214,17 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         });
       };
 
-      // Coordinates for S-302-T (Corrected based on user feedback)
-      // 1. Congregação: direita 2mm (em relação aos 5mm anteriores = 7mm), elevar 10mm
+      // Coordinates for S-302-T
       const fullCongName = (congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase())
         ? `${congregacao.nome}, ${congregacao.cidade}` 
         : congregacao.nome;
-      drawText(fullCongName, 100 + (7 * mmToPt), 145 - (10 * mmToPt), 11, true);
+      
+      // Use custom positions
+      
+      // Congregação
+      drawText(fullCongName, positions.congregacao.x * mmToPt, positions.congregacao.y * mmToPt + (6 * mmToPt), 11, true);
 
-      // 2. Visitante: direita 10mm (em relação aos 10mm anteriores = 20mm), descer 2mm (em relação à elevação de 18mm = elevar 16mm)
-      // Agora mais 5mm para a direita = 25mm. Depois mais 3mm = 28mm
+      // Visitante
       const visitorName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
       
       // Lógica de redução de fonte para caber em 60mm
@@ -180,16 +237,12 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         textWidth = boldFont.widthOfTextAtSize(visitorName, visitorFontSize);
       }
       
-      drawText(visitorName, 100 + (28 * mmToPt), 185 - (16 * mmToPt), visitorFontSize, true);
+      drawText(visitorName, positions.visitante.x * mmToPt, positions.visitante.y * mmToPt + (6 * mmToPt), visitorFontSize, true);
 
-      // 3. Data da Visita: direita 2mm (em relação aos 5mm anteriores = 7mm), descer 2mm (em relação à elevação de 25mm = elevar 23mm)
-      // Histórico: Turno 9 (21mm) -> Turno 10 (subir 0,5mm = 21,5mm) -> Turno 11 (subir 0,5mm = 22mm)
-      drawText(data, 100 + (7 * mmToPt), 225 - (22.0 * mmToPt), 11, true);
+      // Data da Visita
+      drawText(data, positions.data.x * mmToPt, positions.data.y * mmToPt + (6 * mmToPt), 11, true);
 
-      // 4. Assinatura: direita 3mm (em relação aos 10mm anteriores = 13mm), descer 3mm (em relação à posição anterior = 225 - 7mm)
-      // Histórico: Turno 9 (5mm) -> Turno 10 (subir 0,5mm = 5,5mm) -> Turno 11 (subir 0,5mm = 6mm)
-      // Usar a mesma fonte (Dancing Script) e cor azul (#004aad) da carta de designação
-      
+      // Assinatura
       if (signatureImage) {
         try {
           const imageBytes = await fetch(signatureImage).then(res => res.arrayBuffer());
@@ -200,12 +253,12 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             embeddedImage = await pdfDoc.embedJpg(imageBytes);
           }
           
-          const targetHeight = 9 * mmToPt;
+          const targetHeight = 11 * mmToPt;
           const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
           
           firstPage.drawImage(embeddedImage, {
-            x: 100 + (13 * mmToPt),
-            y: height - (225 - (6.0 * mmToPt)) - (targetHeight / 2),
+            x: positions.assinatura.x * mmToPt,
+            y: height - (positions.assinatura.y * mmToPt + (15 * mmToPt)), // Mirror vertical
             width: targetWidth,
             height: targetHeight,
           });
@@ -243,12 +296,12 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           const imageBytes = await fetch(dataUrl).then(res => res.arrayBuffer());
           const embeddedImage = await pdfDoc.embedPng(imageBytes);
           
-          const targetHeight = 11 * mmToPt; // Slightly larger because it includes the name below
+          const targetHeight = 14 * mmToPt; 
           const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
           
           firstPage.drawImage(embeddedImage, {
-            x: 100 + (13 * mmToPt),
-            y: height - (225 - (6.0 * mmToPt)) - (targetHeight / 2),
+            x: positions.assinatura.x * mmToPt,
+            y: height - (positions.assinatura.y * mmToPt + (15 * mmToPt)), 
             width: targetWidth,
             height: targetHeight,
           });
@@ -376,6 +429,23 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
 
             <div className="flex gap-2 shrink-0">
               <button 
+                onClick={handleSavePositions}
+                disabled={isSavingPositions}
+                className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                title="Salvar posições dos campos"
+              >
+                {isSavingPositions ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                SALVAR POSIÇÕES
+              </button>
+              <button 
+                onClick={resetPositions}
+                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
+                title="Restaurar posições originais"
+              >
+                <RotateCcw size={16} />
+                RESETAR
+              </button>
+              <button 
                 onClick={handlePrint}
                 className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
               >
@@ -397,6 +467,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             {/* Visual Form Representation */}
             <div 
               id="s302-print-container"
+              ref={containerRef}
               className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-200 print:border-none shrink-0 overflow-hidden"
               style={{ 
                 backgroundImage: 'url(/S302.png)',
@@ -404,31 +475,117 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                 backgroundRepeat: 'no-repeat'
               }}
             >
-              <div className="absolute top-[48mm] left-[25mm] right-[25mm] space-y-[4.5mm]">
-                <div className="pt-[6mm] space-y-[8mm]">
-                  <div className="flex items-end gap-2 h-[8mm]">
-                    <div className="flex-1 border-b border-black border-dotted font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
-                      {fullCongName}
-                    </div>
-                  </div>
+              <div className="absolute inset-0 pointer-events-none print:hidden opacity-20 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
-                  <div className="flex items-end gap-2 h-[8mm]">
-                    <div className="flex-1 border-b border-black border-dotted font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
-                      {visitorName}
-                    </div>
-                  </div>
-
-                  <div className="flex items-end gap-2 h-[8mm]">
-                    <div className="flex-1 border-b border-black border-dotted font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
-                      {data}
-                    </div>
-                  </div>
+              {/* Congregação */}
+              <motion.div 
+                drag
+                dragMomentum={false}
+                dragConstraints={containerRef}
+                onDragEnd={(_, info) => {
+                  setPositions(prev => ({
+                    ...prev,
+                    congregacao: { x: prev.congregacao.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.congregacao.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
+                  }));
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${positions.congregacao.x}mm`,
+                  top: `${positions.congregacao.y}mm`,
+                  width: '160mm',
+                  height: '8mm'
+                }}
+                className="flex items-end cursor-move group"
+              >
+                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
+                  <GripVertical size={16} className="text-gray-400" />
                 </div>
-              </div>
+                <div className="flex-1 font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
+                  {fullCongName}
+                </div>
+              </motion.div>
 
-              <div className="absolute bottom-[25mm] right-[25mm] w-[80mm] flex flex-col items-center">
-                <div className="w-full relative flex flex-col items-center group">
-                  <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Visitante */}
+              <motion.div 
+                drag
+                dragMomentum={false}
+                dragConstraints={containerRef}
+                onDragEnd={(_, info) => {
+                  setPositions(prev => ({
+                    ...prev,
+                    visitante: { x: prev.visitante.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.visitante.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
+                  }));
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${positions.visitante.x}mm`,
+                  top: `${positions.visitante.y}mm`,
+                  width: '160mm',
+                  height: '8mm'
+                }}
+                className="flex items-end cursor-move group"
+              >
+                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
+                  <GripVertical size={16} className="text-gray-400" />
+                </div>
+                <div className="flex-1 font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
+                  {visitorName}
+                </div>
+              </motion.div>
+
+              {/* Data da Visita */}
+              <motion.div 
+                drag
+                dragMomentum={false}
+                dragConstraints={containerRef}
+                onDragEnd={(_, info) => {
+                  setPositions(prev => ({
+                    ...prev,
+                    data: { x: prev.data.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.data.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
+                  }));
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${positions.data.x}mm`,
+                  top: `${positions.data.y}mm`,
+                  width: '160mm',
+                  height: '8mm'
+                }}
+                className="flex items-end cursor-move group"
+              >
+                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
+                  <GripVertical size={16} className="text-gray-400" />
+                </div>
+                <div className="flex-1 font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
+                  {data}
+                </div>
+              </motion.div>
+
+              {/* Assinatura Field */}
+              <motion.div 
+                drag
+                dragMomentum={false}
+                dragConstraints={containerRef}
+                onDragEnd={(_, info) => {
+                  setPositions(prev => ({
+                    ...prev,
+                    assinatura: { x: prev.assinatura.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.assinatura.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
+                  }));
+                }}
+                id="s302-signature"
+                style={{
+                  position: 'absolute',
+                  left: `${positions.assinatura.x}mm`,
+                  top: `${positions.assinatura.y}mm`,
+                  width: '80mm'
+                }}
+                className="flex flex-col items-center cursor-move group"
+              >
+                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
+                  <GripVertical size={16} className="text-gray-400" />
+                </div>
+                <div className="w-full relative flex flex-col items-center">
+                  <div className="absolute -right-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => fileInputRef.current?.click()}
                       className="p-1.5 bg-white shadow-md rounded-full text-[#512da8] hover:bg-gray-50 border border-gray-100"
@@ -436,6 +593,13 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                     >
                       <Upload size={14} />
                     </button>
+                    <input 
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
                   </div>
 
                   <div className="h-14 w-full relative mb-1 flex items-center justify-center">
@@ -462,14 +626,11 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                       />
                     )}
                   </div>
-                  <div className="w-full border-b border-black border-dotted"></div>
                   <span className="mt-1 text-[11pt] font-bold uppercase tracking-tight text-center">
                     {personalData?.nome || ''}
                   </span>
                 </div>
-              </div>
-
-
+              </motion.div>
             </div>
           </div>
 

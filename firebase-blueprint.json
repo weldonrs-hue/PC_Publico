@@ -193,9 +193,55 @@
         "reportEnabledForAll": { "type": "boolean", "description": "Whether the field service report is enabled for all users" }
       },
       "required": ["reportEnabledForAll"]
+    },
+    "s302_positions": {
+      "title": "S-302 Positions",
+      "description": "Custom positions for fields in the S-302 Notice",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "positions": {
+          "type": "object",
+          "properties": {
+            "congregacao": { 
+              "type": "object", 
+              "properties": { 
+                "x": { "type": "number" }, 
+                "y": { "type": "number" } 
+              } 
+            },
+            "visitante": { 
+              "type": "object", 
+              "properties": { 
+                "x": { "type": "number" }, 
+                "y": { "type": "number" } 
+              } 
+            },
+            "data": { 
+              "type": "object", 
+              "properties": { 
+                "x": { "type": "number" }, 
+                "y": { "type": "number" } 
+              } 
+            },
+            "assinatura": { 
+              "type": "object", 
+              "properties": { 
+                "x": { "type": "number" }, 
+                "y": { "type": "number" } 
+              } 
+            }
+          }
+        }
+      },
+      "required": ["userId", "positions"]
     }
   },
   "firestore": {
+    "/s302_configs/{userId}": {
+      "schema": "s302_positions",
+      "description": "User specific configurations for S-302 form"
+    },
     "/personal_data/{dataId}": {
       "schema": "personal_data",
       "description": "Collection of personal data for overseers"
