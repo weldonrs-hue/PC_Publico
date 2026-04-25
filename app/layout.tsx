@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Manrope, Libre_Baskerville, Dancing_Script } from 'next/font/google';
+import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LGPDConsent from '@/components/LGPDConsent';
@@ -16,6 +16,11 @@ const manrope = Manrope({
 
 const libreBaskerville = Libre_Baskerville({
   weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-serif-libre',
+});
+
+const playfairDisplay = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-serif',
 });
@@ -47,7 +52,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-br" className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${dancingScript.variable}`}>
+    <html lang="pt-br" className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${playfairDisplay.variable} ${dancingScript.variable}`}>
       <body suppressHydrationWarning className="bg-gray-50 font-sans">
         <ErrorBoundary>
           {children}

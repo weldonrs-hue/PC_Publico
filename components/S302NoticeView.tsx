@@ -273,8 +273,40 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const visitorName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
+  const fullCongName = (congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase())
+    ? `${congregacao.nome}, ${congregacao.cidade}` 
+    : congregacao.nome;
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 print:bg-white print:pb-0">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: A5 landscape;
+            margin: 0;
+          }
+          body {
+            background: white;
+          }
+          /* Hide everything except the form */
+          body > :not(#s302-print-container) {
+            display: none !important;
+          }
+          #s302-print-container {
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 210mm !important;
+            height: 148mm !important;
+          }
+        }
+      `}} />
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg print:hidden gap-4 m-4">
         <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -344,16 +376,123 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
 
             <div className="flex gap-2 shrink-0">
               <button 
+                onClick={handlePrint}
+                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
+              >
+                <Printer size={16} />
+                IMPRIMIR
+              </button>
+              <button 
                 onClick={handleDownloadPDF}
                 disabled={generating}
-                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="bg-white text-[#512da8] px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                PDF
+                BAIXAR PDF
               </button>
             </div>
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <div className="p-8 overflow-x-auto flex justify-center bg-gray-100 print:bg-white print:p-0">
+            {/* Visual Form Representation */}
+            <div 
+              id="s302-print-container"
+              className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] p-[15mm] flex flex-col font-serif-document text-black border border-gray-200 print:border-none shrink-0"
+              style={{ fontSize: '12pt' }}
+            >
+              <h1 className="text-center font-bold text-[18pt] mb-8 tracking-wide uppercase">
+                AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO
+              </h1>
+
+              <div className="flex-1 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <p>Prezados Irmãos:</p>
+                  
+                  <p className="indent-12 leading-relaxed text-justify">
+                    Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. 
+                    Informe a congregação e depois coloque este aviso no quadro de anúncios.
+                  </p>
+
+                  <div className="space-y-6 pt-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="whitespace-nowrap">Congregação:</span>
+                      <div className="flex-1 border-b border-black border-dotted font-bold text-[14pt] px-2 h-[1.2em] flex items-end">
+                        {fullCongName}
+                      </div>
+                    </div>
+
+                    <div className="flex items-baseline gap-2">
+                      <span className="whitespace-nowrap">Superintendente de circuito:</span>
+                      <div className="flex-1 border-b border-black border-dotted font-bold text-[14pt] px-2 h-[1.2em] flex items-end">
+                        {visitorName}
+                      </div>
+                    </div>
+
+                    <div className="flex items-baseline gap-2">
+                      <span className="whitespace-nowrap">Data da visita:</span>
+                      <div className="flex-1 border-b border-black border-dotted font-bold text-[14pt] px-2 h-[1.2em] flex items-end">
+                        {data}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <div className="flex flex-col items-center w-1/2">
+                    <span className="mb-1">Seu irmão,</span>
+                    
+                    <div className="w-full relative flex flex-col items-center group">
+                      <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-1.5 bg-white shadow-md rounded-full text-[#512da8] hover:bg-gray-50 border border-gray-100"
+                          title="Alterar Assinatura"
+                        >
+                          <Upload size={14} />
+                        </button>
+                      </div>
+
+                      <div className="h-12 w-full relative mb-1 flex items-center justify-center">
+                        {signatureImage ? (
+                          <div className="h-full w-full relative">
+                            <Image 
+                              src={signatureImage} 
+                              alt="Assinatura" 
+                              fill 
+                              className="object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                        ) : (
+                          <input 
+                            type="text"
+                            value={signatureName}
+                            onChange={(e) => setSignatureName(e.target.value)}
+                            className="font-signature text-[#004aad] text-center bg-transparent border-none outline-none w-full"
+                            style={{ 
+                              fontFamily: 'var(--font-signature), "Dancing Script", cursive',
+                              fontSize: '28px'
+                            }}
+                          />
+                        )}
+                      </div>
+                      <div id="s302-signature-line" className="w-full border-b border-black border-dotted"></div>
+                      <span className="mt-1 text-[10pt] font-bold uppercase tracking-tight text-center">
+                        {personalData?.nome || ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between text-[10pt] font-sans text-gray-500 print:text-black mt-2">
+                  <span>S-302-T</span>
+                  <span>12/14</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 border-t border-gray-100 print:hidden">
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                 <MapPin size={12} /> Congregação

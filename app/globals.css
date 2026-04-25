@@ -8,6 +8,12 @@
 }
 
 @layer base {
+  .font-serif-document {
+    font-family: var(--font-serif), "Times New Roman", Times, serif;
+  }
+}
+
+@layer base {
   body {
     @apply text-[#3a264b];
   }
