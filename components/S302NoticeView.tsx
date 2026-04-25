@@ -397,203 +397,82 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             {/* Visual Form Representation */}
             <div 
               id="s302-print-container"
-              className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] p-[15mm] flex flex-col font-serif-document text-black border border-gray-200 print:border-none shrink-0"
-              style={{ fontSize: '12pt' }}
+              className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-200 print:border-none shrink-0 overflow-hidden"
+              style={{ 
+                backgroundImage: 'url(/S302.png)',
+                backgroundSize: '100% 100%',
+                backgroundRepeat: 'no-repeat'
+              }}
             >
-              <h1 className="text-center font-bold text-[18pt] mb-8 tracking-wide uppercase">
-                AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO
-              </h1>
-
-              <div className="flex-1 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <p>Prezados Irmãos:</p>
-                  
-                  <p className="indent-12 leading-relaxed text-justify">
-                    Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. 
-                    Informe a congregação e depois coloque este aviso no quadro de anúncios.
-                  </p>
-
-                  <div className="space-y-6 pt-4">
-                    <div className="flex items-baseline gap-2">
-                      <span className="whitespace-nowrap">Congregação:</span>
-                      <div className="flex-1 border-b border-black border-dotted font-bold text-[14pt] px-2 h-[1.2em] flex items-end">
-                        {fullCongName}
-                      </div>
-                    </div>
-
-                    <div className="flex items-baseline gap-2">
-                      <span className="whitespace-nowrap">Superintendente de circuito:</span>
-                      <div className="flex-1 border-b border-black border-dotted font-bold text-[14pt] px-2 h-[1.2em] flex items-end">
-                        {visitorName}
-                      </div>
-                    </div>
-
-                    <div className="flex items-baseline gap-2">
-                      <span className="whitespace-nowrap">Data da visita:</span>
-                      <div className="flex-1 border-b border-black border-dotted font-bold text-[14pt] px-2 h-[1.2em] flex items-end">
-                        {data}
-                      </div>
+              <div className="absolute top-[48mm] left-[25mm] right-[25mm] space-y-[4.5mm]">
+                <div className="pt-[6mm] space-y-[8mm]">
+                  <div className="flex items-end gap-2 h-[8mm]">
+                    <div className="flex-1 border-b border-black border-dotted font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
+                      {fullCongName}
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-end pt-4">
-                  <div className="flex flex-col items-center w-1/2">
-                    <span className="mb-1">Seu irmão,</span>
-                    
-                    <div className="w-full relative flex flex-col items-center group">
-                      <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="p-1.5 bg-white shadow-md rounded-full text-[#512da8] hover:bg-gray-50 border border-gray-100"
-                          title="Alterar Assinatura"
-                        >
-                          <Upload size={14} />
-                        </button>
-                      </div>
-
-                      <div className="h-12 w-full relative mb-1 flex items-center justify-center">
-                        {signatureImage ? (
-                          <div className="h-full w-full relative">
-                            <Image 
-                              src={signatureImage} 
-                              alt="Assinatura" 
-                              fill 
-                              className="object-contain"
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
-                        ) : (
-                          <input 
-                            type="text"
-                            value={signatureName}
-                            onChange={(e) => setSignatureName(e.target.value)}
-                            className="font-signature text-[#004aad] text-center bg-transparent border-none outline-none w-full"
-                            style={{ 
-                              fontFamily: 'var(--font-signature), "Dancing Script", cursive',
-                              fontSize: '28px'
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div id="s302-signature-line" className="w-full border-b border-black border-dotted"></div>
-                      <span className="mt-1 text-[10pt] font-bold uppercase tracking-tight text-center">
-                        {personalData?.nome || ''}
-                      </span>
+                  <div className="flex items-end gap-2 h-[8mm]">
+                    <div className="flex-1 border-b border-black border-dotted font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
+                      {visitorName}
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-between text-[10pt] font-sans text-gray-500 print:text-black mt-2">
-                  <span>S-302-T</span>
-                  <span>12/14</span>
+                  <div className="flex items-end gap-2 h-[8mm]">
+                    <div className="flex-1 border-b border-black border-dotted font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
+                      {data}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 border-t border-gray-100 print:hidden">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <MapPin size={12} /> Congregação
-              </label>
-              <p className="text-gray-800 font-medium">
-                {congregacao.nome}
-                {(congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase()) 
-                  ? `, ${congregacao.cidade}` 
-                  : ''}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <Hash size={12} /> Número
-              </label>
-              <p className="text-gray-800 font-medium">{congregacao.numero}</p>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <Calendar size={12} /> Datas
-              </label>
-              <p className="text-gray-800 font-medium">{data}</p>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                <User size={12} /> Superintendente que fará a visita
-              </label>
-              <p className="text-gray-800 font-medium">
-                {substituteName ? `${substituteName} (SCS)` : (personalData?.nome || 'Carregando...')}
-              </p>
-            </div>
-
-            {/* Signature Block (New) */}
-            <div className="md:col-span-2 pt-4 border-t border-gray-100">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-4">
-                Assinatura do Superintendente de Circuito
-              </label>
-              
-              <div className="flex flex-col sm:flex-row items-center gap-6 bg-gray-50/50 p-6 rounded-2xl border border-dashed border-gray-200 group">
-                <div id="s302-signature" className="relative w-full max-w-[400px] flex flex-col items-center p-2 bg-transparent">
+              <div className="absolute bottom-[25mm] right-[25mm] w-[80mm] flex flex-col items-center">
+                <div className="w-full relative flex flex-col items-center group">
                   <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
-                      title="Adicionar imagem da assinatura"
+                      className="p-1.5 bg-white shadow-md rounded-full text-[#512da8] hover:bg-gray-50 border border-gray-100"
+                      title="Alterar Assinatura"
                     >
                       <Upload size={14} />
                     </button>
-                    {signatureImage && (
-                      <button 
-                        onClick={handleRemoveSignature}
-                        className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
-                        title="Remover imagem"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                    <input 
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
                   </div>
 
-                  {signatureImage ? (
-                    <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible">
-                      <Image 
-                        src={signatureImage} 
-                        alt="Assinatura" 
-                        fill 
-                        className="object-contain"
-                        referrerPolicy="no-referrer"
+                  <div className="h-14 w-full relative mb-1 flex items-center justify-center">
+                    {signatureImage ? (
+                      <div className="h-full w-full relative">
+                        <Image 
+                          src={signatureImage} 
+                          alt="Assinatura" 
+                          fill 
+                          className="object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    ) : (
+                      <input 
+                        type="text"
+                        value={signatureName}
+                        onChange={(e) => setSignatureName(e.target.value)}
+                        className="font-signature text-[#004aad] text-center bg-transparent border-none outline-none w-full"
+                        style={{ 
+                          fontFamily: 'var(--font-signature), "Dancing Script", cursive',
+                          fontSize: '32px'
+                        }}
                       />
-                    </div>
-                  ) : (
-                    <input 
-                      type="text"
-                      value={signatureName}
-                      onChange={(e) => setSignatureName(e.target.value)}
-                      className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
-                      style={{ 
-                        fontFamily: 'var(--font-signature), "Dancing Script", cursive',
-                        fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
-                      }}
-                      placeholder="Sua Assinatura..."
-                    />
-                  )}
-                  <div className="border-t border-black w-full mx-auto"></div>
-                  <p className="font-bold text-[11px] mt-[5px] uppercase tracking-wider mb-0 text-center w-full" style={{ fontFamily: 'var(--font-serif), "Times New Roman", serif' }}>
+                    )}
+                  </div>
+                  <div className="w-full border-b border-black border-dotted"></div>
+                  <span className="mt-1 text-[11pt] font-bold uppercase tracking-tight text-center">
                     {personalData?.nome || ''}
-                  </p>
-                </div>
-                
-                <div className="text-[11px] text-gray-500 italic max-w-xs text-center sm:text-left">
-                  Dica: Você pode digitar e o sistema usará uma fonte manuscrita, ou clicar no ícone de upload para usar uma imagem real da sua assinatura.
+                  </span>
                 </div>
               </div>
+
+
             </div>
           </div>
+
         </motion.div>
 
         {/* Actions */}

@@ -207,7 +207,19 @@ interface PioneerSchoolViewProps {
 }
 
 export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
-  const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pioneer_school_active_tab');
+      if (saved === 'students' || saved === 'workshops' || saved === 'info') {
+        return saved;
+      }
+    }
+    return 'students';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pioneer_school_active_tab', activeTab);
+  }, [activeTab]);
   const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -726,7 +738,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       await new Promise((resolve) => { contentImg.onload = resolve; });
 
       const pdfWidth = 210;
-      const pdfPageHeight = 297; 
+      const pdfPageHeight = 148; 
       const xMargin = 12;
       const topMargin = 5;
       const bottomMargin = 12;
@@ -737,9 +749,9 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       const totalContentHeightInPdf = (contentImg.height * innerWidth) / contentImg.width;
 
       const pdf = new jsPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
-        format: 'a4',
+        format: 'a5',
         compress: true
       });
 
@@ -854,7 +866,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-6 py-4 flex items-center gap-6"
           >
             <div className="flex items-center gap-2">
-              <span className="bg-[#4CAF50] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+              <span className="bg-[#37616b] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
                 {selectedStudents.length}
               </span>
               <span className="text-sm font-medium text-gray-600">selecionados</span>
@@ -890,7 +902,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 onBack();
               }
             }}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#4CAF50] bg-white shadow-md border border-gray-200"
+            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-white shadow-md border border-gray-200"
           >
             <ChevronLeft size={28} strokeWidth={3} />
           </button>
@@ -899,21 +911,21 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             <div className="flex items-center gap-4 mt-1">
               <button 
                 onClick={() => handleTabChange('students')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'students' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Users size={16} />
                 Lista de Alunos
               </button>
               <button 
                 onClick={() => handleTabChange('workshops')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'workshops' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <LayoutList size={16} />
                 Sessão de Treino
               </button>
               <button 
                 onClick={() => handleTabChange('info')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'text-[#4CAF50] border-[#4CAF50]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Info size={16} />
                 Informações
@@ -928,7 +940,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               <div className={`relative flex items-center transition-all duration-300 ${showSearch ? 'flex-1 md:w-64' : 'w-10'}`}>
                 <button 
                   onClick={() => setShowSearch(!showSearch)}
-                  className={`p-2 rounded-xl transition-all flex items-center justify-center ${showSearch ? 'absolute left-1 z-10 text-[#4CAF50]' : 'hover:bg-gray-100 border border-gray-200 text-gray-600'}`}
+                  className={`p-2 rounded-xl transition-all flex items-center justify-center ${showSearch ? 'absolute left-1 z-10 text-[#37616b]' : 'hover:bg-gray-100 border border-gray-200 text-gray-600'}`}
                   title="Buscar aluno"
                 >
                   <Search size={18} />
@@ -943,7 +955,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onBlur={() => { if (!searchTerm) setShowSearch(false); }}
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] focus:border-transparent outline-none transition-all"
                   />
                 )}
               </div>
@@ -957,7 +969,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               </button>
               <button
                 onClick={() => handleOpenModal()}
-                className="flex items-center gap-2 px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] transition-all shadow-md font-bold whitespace-nowrap"
+                className="flex items-center gap-2 px-4 py-2 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] transition-all shadow-md font-bold whitespace-nowrap"
               >
                 <UserPlus size={20} />
                 <span className="hidden sm:inline">Adicionar</span>
@@ -1014,7 +1026,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
         @media print {
           @page { 
             margin: 5mm 12mm 12mm 12mm; 
-            size: A4; 
+            size: A5 landscape; 
           }
           body { 
             -webkit-print-color-adjust: exact !important; 
@@ -1136,7 +1148,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     <th className="px-4 py-2 w-10 print:hidden pdf-hidden">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
+                        className="w-4 h-4 rounded border-gray-300 text-[#37616b] focus:ring-[#37616b] cursor-pointer"
                         checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
                         onChange={toggleSelectAll}
                       />
@@ -1187,7 +1199,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   {loading ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center">
-                        <Loader2 className="animate-spin mx-auto text-[#4CAF50]" size={32} />
+                        <Loader2 className="animate-spin mx-auto text-[#37616b]" size={32} />
                         <p className="mt-2 text-gray-500">Carregando alunos...</p>
                       </td>
                     </tr>
@@ -1201,12 +1213,12 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     sortedStudents.map((student, index) => (
                       <tr 
                         key={student.id} 
-                        className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-green-50/50' : ''}`}
+                        className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-[#37616b]/5' : ''}`}
                       >
                         <td className="px-4 py-2 print:hidden pdf-hidden">
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 rounded border-gray-300 text-[#4CAF50] focus:ring-[#4CAF50] cursor-pointer"
+                            className="w-4 h-4 rounded border-gray-300 text-[#37616b] focus:ring-[#37616b] cursor-pointer"
                             checked={selectedStudents.includes(student.id)}
                             onChange={() => toggleSelectStudent(student.id)}
                           />
@@ -1367,86 +1379,67 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-[#4CAF50] p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-[#37616b] p-4 text-white">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <Info size={20} />
                 Informações da Escola
               </h3>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSchoolInfo(originalSchoolInfo)}
-                  disabled={!hasInfoChanges}
-                  className="flex items-center gap-2 px-4 py-2 text-white bg-white/20 rounded-xl hover:bg-white/30 transition-all font-bold disabled:opacity-50 border border-white/30"
-                  title="Descartar alterações"
-                >
-                  <Undo2 size={18} />
-                  Descartar
-                </button>
-                <button
-                  onClick={handleSaveInfo}
-                  disabled={!hasInfoChanges || isSavingInfo}
-                  className="flex items-center gap-2 px-6 py-2 bg-white text-[#4CAF50] rounded-xl hover:bg-gray-50 transition-all shadow-md font-bold disabled:opacity-50 whitespace-nowrap"
-                >
-                  {isSavingInfo ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  Salvar
-                </button>
-              </div>
             </div>
 
-            <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveInfo(); }} className="p-6 md:p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data da Turma</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data da Turma</label>
                   <input
                     type="text"
                     value={schoolInfo.dataTurma}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, dataTurma: e.target.value })}
                     placeholder="Ex: 06/07/2026 - 11/07/2026"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Instrutor A</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor A</label>
                   <input
                     type="text"
                     value={schoolInfo.instrutorA}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
                     placeholder="Nome do Instrutor A"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Instrutor B</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor B</label>
                   <input
                     type="text"
                     value={schoolInfo.instrutorB}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
                     placeholder="Nome do Instrutor B"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                   />
                 </div>
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Local da Escola</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Local da Escola</label>
                   <input
                     type="text"
                     value={schoolInfo.localEscola}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, localEscola: e.target.value })}
                     placeholder="Congregação - Cidade UF"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Endereço da Escola</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Endereço da Escola</label>
                   <input
                     type="text"
                     value={schoolInfo.enderecoEscola}
                     onChange={(e) => setSchoolInfo({ ...schoolInfo, enderecoEscola: e.target.value })}
                     placeholder="Endereço completo da escola"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                   />
                 </div>
               </div>
@@ -1458,23 +1451,23 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Endereço de Entrega</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Endereço de Entrega</label>
                     <input
                       type="text"
                       value={schoolInfo.entregaLivroEndereco}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroEndereco: e.target.value })}
                       placeholder="Local de entrega dos livros"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data e Hora de Entrega</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data e Hora de Entrega</label>
                     <input
                       type="text"
                       value={schoolInfo.entregaLivroDataHora}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroDataHora: e.target.value })}
                       placeholder="Ex: sábado, 06/06/2026 às 09:00"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -1487,39 +1480,54 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
                     <input
                       type="text"
                       value={schoolInfo.confirmacaoDataLimite}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoDataLimite: e.target.value })}
                       placeholder="Data limite para confirmar"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">E-mail</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">E-mail</label>
                     <input
                       type="email"
                       value={schoolInfo.confirmacaoEmail}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
                       placeholder="e-mail@exemplo.com"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
                     <input
                       type="text"
                       value={schoolInfo.confirmacaoWhatsapp}
                       onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
                       placeholder="(00) 00000-0000"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none transition-all font-medium"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                     />
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+
+            <div className="flex justify-end pt-6 border-t border-gray-100">
+              <button 
+                type="submit"
+                disabled={!hasInfoChanges || isSavingInfo}
+                className={`px-10 py-3 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 ${
+                  hasInfoChanges 
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                }`}
+              >
+                {isSavingInfo ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                Salvar Alterações
+              </button>
+            </div>
+          </form>
         </div>
         )}
       </div>
@@ -1552,7 +1560,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     type="text"
                     value={formData.nome}
                     onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none"
                     placeholder="Nome completo"
                   />
                 </div>
@@ -1563,7 +1571,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     required
                     value={formData.congregacao}
                     onChange={(e) => setFormData({ ...formData, congregacao: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none bg-white"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white"
                   >
                     <option value="">Selecione a congregação</option>
                     {congregations.map(c => {
@@ -1584,7 +1592,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                     type="text"
                     value={formData.circuito}
                     onChange={(e) => setFormData({ ...formData, circuito: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none"
                     placeholder="Ex: PB-003"
                   />
                 </div>
@@ -1594,7 +1602,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   <select
                     value={formData.turma}
                     onChange={(e) => setFormData({ ...formData, turma: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none bg-white"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white"
                   >
                     <option value="">Nenhuma turma</option>
                     <option value="1">Turma 1</option>
@@ -1613,7 +1621,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] font-bold transition-all shadow-md flex items-center justify-center gap-2"
                   >
                     <Save size={20} />
                     Salvar
@@ -1725,7 +1733,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={handleConfirmSave}
-                    className="w-full px-6 py-3 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                    className="w-full px-6 py-3 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] font-bold transition-all shadow-md flex items-center justify-center gap-2"
                   >
                     <Save size={20} />
                     Sim, salvar e continuar
@@ -1764,7 +1772,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center gap-2">
-                  <ClipboardPaste className="text-[#4CAF50]" size={24} />
+                  <ClipboardPaste className="text-[#37616b]" size={24} />
                   <h3 className="text-lg font-bold text-gray-800">
                     Importar da Área de Transferência
                   </h3>
@@ -1786,8 +1794,8 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 )}
 
                 {importSuccess && (
-                  <div className="p-3 bg-green-50 border border-green-100 text-green-600 text-sm rounded-xl font-medium flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <div className="p-3 bg-[#37616b]/10 border border-[#37616b]/20 text-[#37616b] text-sm rounded-xl font-medium flex items-center gap-2">
+                    <div className="w-2 h-2 bg-[#37616b] rounded-full animate-pulse" />
                     Sucesso! {importSuccess} alunos foram importados.
                   </div>
                 )}
@@ -1796,7 +1804,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder="Exemplo: 1 2435076 Cláudia Barbosa Andrade (51508) Boqueirão - PB 30/01/1999..."
-                  className="w-full h-64 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] outline-none font-mono text-sm resize-none"
+                  className="w-full h-64 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none font-mono text-sm resize-none"
                 />
 
                 <div className="flex gap-3">
@@ -1810,7 +1818,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                   <button
                     onClick={handleImport}
                     disabled={isImporting || !importText.trim()}
-                    className="flex-[2] px-4 py-2 bg-[#4CAF50] text-white rounded-xl hover:bg-[#43a047] disabled:opacity-50 disabled:cursor-not-allowed font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                    className="flex-[2] px-4 py-2 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] disabled:opacity-50 disabled:cursor-not-allowed font-bold transition-all shadow-md flex items-center justify-center gap-2"
                   >
                     {isImporting ? (
                       <Loader2 className="animate-spin" size={20} />

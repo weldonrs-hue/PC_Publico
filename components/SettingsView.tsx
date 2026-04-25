@@ -836,7 +836,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] bg-[#4CAF50] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3"
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] bg-[#37616b] text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3"
           >
             <CheckCircle2 size={24} />
             <div>
