@@ -28,7 +28,8 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 
 interface ElementLayout {
   top: number;
@@ -188,177 +189,39 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   };
 
   const handleDownloadPDF = async () => {
+    const element = document.getElementById('s302-print-container');
+    if (!element) return;
+
     setGenerating(true);
     try {
-      // Create a fresh PDF
-      const pdfDoc = await PDFDocument.create();
-      const mmToPt = 2.83465;
-      const pageWidth = 210 * mmToPt;
-      const pageHeight = 148 * mmToPt;
-      const firstPage = pdfDoc.addPage([pageWidth, pageHeight]);
-      
-      const { height } = firstPage.getSize();
-
-      // Ensure fonts are loaded before generation
-      try {
-        await document.fonts.load('16px "Dancing Script"');
-        const fontFace = new FontFace('Dancing Script', 'url(https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.woff2)');
-        await fontFace.load();
-        document.fonts.add(fontFace);
-      } catch (e) {
-        console.warn('Erro ao carregar fonte para PDF:', e);
-      }
-      await document.fonts.ready;
-      
-      const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-
-      const drawText = (text: string, xMm: number, yMm: number, sizePt = 15, isBold = false) => {
-        if (!text) return;
-        const sizeMm = sizePt / mmToPt;
-        const baselineAdjustmentMm = sizeMm * 0.8;
-        
-        firstPage.drawText(text, {
-          x: xMm * mmToPt,
-          y: height - ((yMm + baselineAdjustmentMm) * mmToPt),
-          size: sizePt,
-          font: isBold ? boldFont : font,
-          color: rgb(0, 0, 0),
-        });
-      };
-
-      const drawDottedLine = (x1Mm: number, y1Mm: number, x2Mm: number) => {
-        firstPage.drawLine({
-          start: { x: x1Mm * mmToPt, y: height - (y1Mm * mmToPt) },
-          end: { x: x2Mm * mmToPt, y: height - (y1Mm * mmToPt) },
-          thickness: 0.5,
-          dashArray: [1, 2],
-          color: rgb(0, 0, 0),
-        });
-      };
-
-      // 1. Header
-      const headerText = "AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO";
-      const headerSize = layout.header.fontSize;
-      const headerTop = layout.header.top;
-      if (layout.header.left === 0) {
-        const textWidth = boldFont.widthOfTextAtSize(headerText, headerSize);
-        const centerX = (pageWidth - textWidth) / 2;
-        const headerSizeMm = headerSize / mmToPt;
-        
-        firstPage.drawText(headerText, {
-          x: centerX,
-          y: height - ((headerTop + headerSizeMm * 0.8) * mmToPt),
-          size: headerSize,
-          font: boldFont,
-          color: rgb(0, 0, 0),
-        });
-      } else {
-        drawText(headerText, layout.header.left, headerTop, headerSize, true);
-      }
-
-      // 2. Greeting / Prezado
-      drawText("Prezados Irmãos:", layout.body.left, layout.body.top, layout.body.fontSize);
-      
-      const bodyText = "Por favor notem os seguintes arranjos para a próxima visita do supe- rintendente de circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.";
-      
-      const bodyFontSize = layout.body.fontSize;
-      const lineHeightMm = (bodyFontSize * 1.4) / mmToPt; // 1.4 line-height
-      const greetingHeightMm = (bodyFontSize / mmToPt) + 2.8; // 8pt margin-bottom
-      const bodyStartTopMm = layout.body.top + greetingHeightMm;
-      
-      // Split body text for manual wrap (simplified wrap logic)
-      const maxCharsLine1 = 70;
-      const bodyLine1 = bodyText.substring(0, maxCharsLine1);
-      const bodyLine2 = bodyText.substring(maxCharsLine1);
-      
-      drawText(bodyLine1, layout.body.left + 14, bodyStartTopMm, bodyFontSize); // 40pt indent ~14mm
-      drawText(bodyLine2, layout.body.left, bodyStartTopMm + lineHeightMm, bodyFontSize);
-
-      // 3. Fields
-      const drawField = (label: string, value: string, layoutItem: any) => {
-        const lSize = layoutItem.fontSize; 
-        const vSize = layoutItem.fontSize;
-        
-        // Draw label
-        drawText(label, layoutItem.left, layoutItem.top, lSize);
-        
-        const labelWidth = font.widthOfTextAtSize(label, lSize);
-        const gapMm = 3;
-        const lineStartX = layoutItem.left + (labelWidth / mmToPt) + gapMm;
-        const lineEndX = 210 - 15; 
-        
-        drawDottedLine(lineStartX, layoutItem.top + (vSize / mmToPt), lineEndX);
-        drawText(value, lineStartX + 2, layoutItem.top, vSize, true);
-      };
-
-      drawField("Congregação:", fullCongName, layout.congregation);
-      drawField("Superintendente de circuito:", visitorName, layout.visitor);
-      drawField("Data da visita:", data, layout.visitDate);
-
-      // 4. Signature
-      const sigBottomMm = layout.signature.bottom;
-      const sigRightMm = layout.signature.right;
-      const sigWidthMm = layout.signature.width;
-      const sigX = (210 - sigRightMm) - sigWidthMm;
-      const sigY_Line = 148 - sigBottomMm;
-      const sigCenterX = sigX + (sigWidthMm / 2);
-
-      const closingText = "Seu irmão,";
-      const closingFontSize = layout.signature.fontSize;
-      const closingWidth = font.widthOfTextAtSize(closingText, closingFontSize);
-      const closingTopMm = (148 - sigBottomMm) - 4; // 4mm above signature line
-
-      drawText(closingText, sigCenterX - (closingWidth / 2 / mmToPt), 148 - closingTopMm - (closingFontSize / mmToPt), closingFontSize);
-
-      drawDottedLine(sigX, sigY_Line, sigX + sigWidthMm);
-
-      if (signatureImage) {
-        try {
-          const imageBytes = await fetch(signatureImage).then(res => res.arrayBuffer());
-          let embeddedImage;
-          if (signatureImage.includes('png')) {
-            embeddedImage = await pdfDoc.embedPng(imageBytes);
-          } else {
-            embeddedImage = await pdfDoc.embedJpg(imageBytes);
-          }
-          const targetHeight = 12 * mmToPt;
-          const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
-          firstPage.drawImage(embeddedImage, {
-            x: (sigCenterX * mmToPt) - (targetWidth / 2),
-            y: height - (sigY_Line * mmToPt),
-            width: targetWidth,
-            height: targetHeight,
-          });
-        } catch (e) {
-          console.error('Signature processing error:', e);
+      // Use toJpeg for high quality capture
+      const dataUrl = await toJpeg(element, {
+        quality: 0.95,
+        pixelRatio: 3, // High resolution for text clarity
+        backgroundColor: '#ffffff',
+        width: 793.7, // 210mm at 96dpi is ~793.7px
+        height: 559.4, // 148mm at 96dpi is ~559.4px
+        style: {
+          margin: '0',
+          boxShadow: 'none',
+          borderRadius: '0',
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
         }
-      } else if (signatureName) {
-        const sigFontSize = layout.signature.fontSize + 4;
-        const textWidth = boldFont.widthOfTextAtSize(signatureName, sigFontSize);
-        firstPage.drawText(signatureName, {
-          x: (sigCenterX * mmToPt) - (textWidth / 2),
-          y: height - (sigY_Line * mmToPt) + 4,
-          size: sigFontSize,
-          font: boldFont,
-          color: rgb(0.1, 0.2, 0.6),
-        });
-      }
+      });
 
-      // Footer
-      const footerY = 148 - 12; // 1.2cm from bottom
-      drawText("S-302-T", 15, footerY, 11);
-      const text1214Width = font.widthOfTextAtSize("12/14", 11);
-      drawText("12/14", 15 + 25, footerY, 11); // Gap of 20pt suggested in HTML
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a5',
+        compress: true
+      });
 
-      const modifiedPdfBytes = await pdfDoc.save();
-      const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `S-302_${congregacao.nome.replace(/\s+/g, '_')}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      // Fit the image to A5 landscape (210 x 148 mm)
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, 210, 148, undefined, 'FAST');
+      
+      const filename = `S-302_${congregacao.nome.replace(/\s+/g, '_')}.pdf`;
+      pdf.save(filename);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Erro ao gerar o PDF. Por favor, tente novamente.');
