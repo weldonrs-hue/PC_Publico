@@ -16,9 +16,11 @@ import {
   Hash,
   Upload,
   Trash2,
-  GripVertical,
-  RotateCcw,
-  Save
+  Settings2,
+  Save,
+  Maximize2,
+  Move,
+  Type
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'motion/react';
@@ -27,6 +29,36 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 import { toPng } from 'html-to-image';
+
+interface ElementLayout {
+  top: number;
+  left: number;
+  fontSize: number;
+  width?: number;
+}
+
+interface S302Layout {
+  header: ElementLayout;
+  body: ElementLayout;
+  congregation: ElementLayout;
+  visitor: ElementLayout;
+  visitDate: ElementLayout;
+  signature: {
+    bottom: number;
+    right: number;
+    fontSize: number;
+    width: number;
+  };
+}
+
+const DEFAULT_LAYOUT: S302Layout = {
+  header: { top: 18, left: 0, fontSize: 15 },
+  body: { top: 48, left: 25, fontSize: 12 },
+  congregation: { top: 92, left: 25, fontSize: 15 },
+  visitor: { top: 108, left: 25, fontSize: 15 },
+  visitDate: { top: 124, left: 25, fontSize: 15 },
+  signature: { bottom: 25, right: 25, fontSize: 11, width: 80 }
+};
 
 interface Congregation {
   id?: string;
@@ -56,20 +88,6 @@ interface S302NoticeViewProps {
   onBack: () => void;
 }
 
-interface Positions {
-  congregacao: { x: number; y: number };
-  visitante: { x: number; y: number };
-  data: { x: number; y: number };
-  assinatura: { x: number; y: number };
-}
-
-const DEFAULT_POSITIONS: Positions = {
-  congregacao: { x: 25, y: 54 },
-  visitante: { x: 25, y: 70 },
-  data: { x: 25, y: 86 },
-  assinatura: { x: 105, y: 105 } // Adjusted to be roughly where it was
-};
-
 export default function S302NoticeView({ events, initialIndex, userId, onBack }: S302NoticeViewProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const currentEvent = events[currentIndex];
@@ -79,65 +97,65 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   
+  // Design Mode States
+  const [isDesignMode, setIsDesignMode] = useState(false);
+  const [layout, setLayout] = useState<S302Layout>(DEFAULT_LAYOUT);
+  const [selectedElement, setSelectedElement] = useState<keyof S302Layout | null>(null);
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+  
   // Signature States (Similar to AppointmentLetterView)
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Drag and Drop Positions State
-  const [positions, setPositions] = useState<Positions>(DEFAULT_POSITIONS);
-  const [isSavingPositions, setIsSavingPositions] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    const fetchPersonalData = async () => {
+    const fetchData = async () => {
       try {
-        const docRef = doc(db, 'personal_data', userId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const pData = docSnap.data();
+        const personalRef = doc(db, 'personal_data', userId);
+        const layoutRef = doc(db, 's302_layouts', userId);
+        
+        const [personalSnap, layoutSnap] = await Promise.all([
+          getDoc(personalRef),
+          getDoc(layoutRef)
+        ]);
+
+        if (personalSnap.exists()) {
+          const pData = personalSnap.data();
           setPersonalData(pData);
           if (!signatureName) setSignatureName(pData.nome || '');
           setSignatureImage(pData.signatureImage || null);
         }
 
-        // Fetch S302 positions
-        const configRef = doc(db, 's302_configs', userId);
-        const configSnap = await getDoc(configRef);
-        if (configSnap.exists()) {
-          const configData = configSnap.data();
-          if (configData.positions) {
-            setPositions(configData.positions);
-          }
+        if (layoutSnap.exists()) {
+          setLayout(layoutSnap.data() as S302Layout);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
-    fetchPersonalData();
+    fetchData();
   }, [userId]);
 
-  const handleSavePositions = async () => {
-    setIsSavingPositions(true);
+  const handleSaveLayout = async () => {
+    setIsSavingLayout(true);
     try {
-      await setDoc(doc(db, 's302_configs', userId), {
-        userId,
-        positions,
-        updatedAt: new Date().toISOString()
-      });
-      alert('Posições salvas com sucesso!');
+      await setDoc(doc(db, 's302_layouts', userId), layout);
+      setIsDesignMode(false);
     } catch (error) {
-      console.error('Erro ao salvar posições:', error);
-      alert('Erro ao salvar posições. Tente novamente.');
+      console.error('Error saving layout:', error);
     } finally {
-      setIsSavingPositions(false);
+      setIsSavingLayout(false);
     }
   };
 
-  const resetPositions = () => {
-    if (confirm('Deseja realmente restaurar as posições originais?')) {
-      setPositions(DEFAULT_POSITIONS);
-    }
+  const updateLayout = (key: keyof S302Layout, field: string, value: number) => {
+    setLayout(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [field]: value
+      }
+    }));
   };
 
   const saveSignature = async (image: string | null) => {
@@ -172,77 +190,92 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const handleDownloadPDF = async () => {
     setGenerating(true);
     try {
+      // Create a fresh PDF using the PNG background for better reliability
+      const pdfDoc = await PDFDocument.create();
+      const mmToPt = 2.83465;
+      const pageWidth = 210 * mmToPt;
+      const pageHeight = 148 * mmToPt;
+      const firstPage = pdfDoc.addPage([pageWidth, pageHeight]);
+      
+      const { height } = firstPage.getSize();
+
+      // Removed background image embed block for plain PDF
+
       // Ensure fonts are loaded before generation
       try {
         await document.fonts.load('16px "Dancing Script"');
-        const font = new FontFace('Dancing Script', 'url(https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.woff2)');
-        await font.load();
-        document.fonts.add(font);
+        const fontFace = new FontFace('Dancing Script', 'url(https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.woff2)');
+        await fontFace.load();
+        document.fonts.add(fontFace);
       } catch (e) {
         console.warn('Erro ao carregar fonte para PDF:', e);
       }
       await document.fonts.ready;
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const response = await fetch('/S-302_T.pdf');
-      if (!response.ok) {
-        throw new Error('Erro ao carregar o modelo PDF S-302-T');
-      }
-      const pdfBytes = await response.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-      const pages = pdfDoc.getPages();
-      const firstPage = pages[0];
       
-      // Force A5 Landscape (210mm x 148mm)
-      const mmToPt = 2.83465;
-      const pageWidth = 210 * mmToPt;
-      const pageHeight = 148 * mmToPt;
-      firstPage.setSize(pageWidth, pageHeight);
-      
-      const { height } = firstPage.getSize();
       const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
-      const drawText = (text: string, x: number, y: number, size = 10, isBold = false) => {
+      const drawText = (text: string, xMm: number, yMm: number, sizePt = 10, isBold = false) => {
         if (!text) return;
         firstPage.drawText(text, {
-          x,
-          y: height - y,
-          size,
+          x: xMm * mmToPt,
+          y: height - (yMm * mmToPt),
+          size: sizePt,
           font: isBold ? boldFont : font,
           color: rgb(0, 0, 0),
         });
       };
 
-      // Coordinates for S-302-T
-      const fullCongName = (congregacao.cidade && congregacao.cidade.trim().toLowerCase() !== congregacao.nome.trim().toLowerCase())
-        ? `${congregacao.nome}, ${congregacao.cidade}` 
-        : congregacao.nome;
-      
-      // Use custom positions
-      
-      // Congregação
-      drawText(fullCongName, positions.congregacao.x * mmToPt, positions.congregacao.y * mmToPt + (6 * mmToPt), 11, true);
-
-      // Visitante
-      const visitorName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
-      
-      // Lógica de redução de fonte para caber em 60mm
-      const maxWidthPt = 60 * mmToPt;
-      let visitorFontSize = 11;
-      let textWidth = boldFont.widthOfTextAtSize(visitorName, visitorFontSize);
-      
-      while (textWidth > maxWidthPt && visitorFontSize > 6) {
-        visitorFontSize -= 0.5;
-        textWidth = boldFont.widthOfTextAtSize(visitorName, visitorFontSize);
+      // 1. Header
+      if (layout.header.left === 0) {
+        // Centered logic
+        const headerText = "AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO";
+        const textWidth = boldFont.widthOfTextAtSize(headerText, layout.header.fontSize);
+        const centerX = (pageWidth - textWidth) / 2;
+        firstPage.drawText(headerText, {
+          x: centerX,
+          y: height - (layout.header.top * mmToPt),
+          size: layout.header.fontSize,
+          font: boldFont,
+          color: rgb(0, 0, 0),
+        });
+      } else {
+        drawText("AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO", layout.header.left, layout.header.top, layout.header.fontSize, true);
       }
+
+      // 2. Prezado / Body Text
+      drawText("Prezados Irmãos:", layout.body.left, layout.body.top, layout.body.fontSize);
       
-      drawText(visitorName, positions.visitante.x * mmToPt, positions.visitante.y * mmToPt + (6 * mmToPt), visitorFontSize, true);
+      const bodyText = "Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.";
+      // Simplified body draw for now, standardizing position
+      drawText(bodyText, layout.body.left + 12, layout.body.top + 10, layout.body.fontSize);
 
-      // Data da Visita
-      drawText(data, positions.data.x * mmToPt, positions.data.y * mmToPt + (6 * mmToPt), 11, true);
+      // 3. Labels and Data using Layout
+      drawText("Congregação:", layout.congregation.left, layout.congregation.top, layout.congregation.fontSize - 3);
+      drawText(fullCongName, layout.congregation.left + 25, layout.congregation.top, layout.congregation.fontSize, true);
 
-      // Assinatura
+      drawText("Superintendente de circuito:", layout.visitor.left, layout.visitor.top, layout.visitor.fontSize - 3);
+      drawText(visitorName, layout.visitor.left + 45, layout.visitor.top, layout.visitor.fontSize, true);
+
+      drawText("Data da visita:", layout.visitDate.left, layout.visitDate.top, layout.visitDate.fontSize - 3);
+      drawText(data, layout.visitDate.left + 25, layout.visitDate.top, layout.visitDate.fontSize, true);
+
+      // 4. Signature using Layout
+      const sigY = height - ((pageHeight - layout.signature.bottom) * mmToPt);
+      const sigX = (pageWidth - (layout.signature.right * mmToPt)) - (layout.signature.width * mmToPt);
+      
+      // Draw "Seu irmão," closing
+      const closingText = "Seu irmão,";
+      const closingFontSize = layout.signature.fontSize + 1;
+      const closingWidth = font.widthOfTextAtSize(closingText, closingFontSize);
+      firstPage.drawText(closingText, {
+        x: sigX + (layout.signature.width * mmToPt / 2) - (closingWidth / 2),
+        y: sigY + (10 * mmToPt),
+        size: closingFontSize,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+      
       if (signatureImage) {
         try {
           const imageBytes = await fetch(signatureImage).then(res => res.arrayBuffer());
@@ -253,60 +286,32 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             embeddedImage = await pdfDoc.embedJpg(imageBytes);
           }
           
-          const targetHeight = 11 * mmToPt;
+          const targetHeight = 10 * mmToPt;
           const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
           
           firstPage.drawImage(embeddedImage, {
-            x: positions.assinatura.x * mmToPt,
-            y: height - (positions.assinatura.y * mmToPt + (15 * mmToPt)), // Mirror vertical
+            x: sigX + (layout.signature.width * mmToPt / 2) - (targetWidth / 2),
+            y: sigY + (4 * mmToPt),
             width: targetWidth,
             height: targetHeight,
           });
         } catch (e) {
           console.error('Erro ao processar imagem da assinatura:', e);
-          await captureSignature();
         }
-      } else {
-        await captureSignature();
-      }
-
-      async function captureSignature() {
-        const sigElement = document.getElementById('s302-signature');
-        if (!sigElement) return;
-
+      } else if (signatureName) {
+        // Draw typed signature
         try {
-          // Temporarily hide controls
-          const controls = sigElement.querySelector('.absolute');
-          if (controls) (controls as HTMLElement).style.display = 'none';
-
-          // Small delay to ensure rendering is complete after font load
-          await new Promise(resolve => setTimeout(resolve, 200));
-
-          const dataUrl = await toPng(sigElement, {
-            backgroundColor: undefined,
-            pixelRatio: 2,
-            quality: 1,
-            style: {
-              background: 'transparent'
-            }
-          });
-
-          if (controls) (controls as HTMLElement).style.display = '';
-
-          const imageBytes = await fetch(dataUrl).then(res => res.arrayBuffer());
-          const embeddedImage = await pdfDoc.embedPng(imageBytes);
-          
-          const targetHeight = 14 * mmToPt; 
-          const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
-          
-          firstPage.drawImage(embeddedImage, {
-            x: positions.assinatura.x * mmToPt,
-            y: height - (positions.assinatura.y * mmToPt + (15 * mmToPt)), 
-            width: targetWidth,
-            height: targetHeight,
+          const fontSize = 14;
+          const textWidth = boldFont.widthOfTextAtSize(signatureName, fontSize);
+          firstPage.drawText(signatureName, {
+            x: sigX + (layout.signature.width * mmToPt / 2) - (textWidth / 2),
+            y: sigY + (4 * mmToPt),
+            size: fontSize,
+            font: boldFont,
+            color: rgb(0.1, 0.2, 0.6), // Blueish to simulate ink
           });
         } catch (e) {
-          console.error('Erro ao capturar assinatura via html-to-image:', e);
+          console.error('Erro ao desenhar assinatura de texto:', e);
         }
       }
 
@@ -374,290 +379,364 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             S-302 Aviso de Visitas
           </h2>
         </div>
-      </div>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Info Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
-        >
-          <div className="bg-[#512da8] p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto justify-between sm:justify-start">
-              <button 
-                onClick={() => setCurrentIndex(initialIndex)}
-                className="px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-white/20 transition-colors uppercase"
-                title="Voltar ao evento selecionado originalmente"
-              >
-                Início
-              </button>
-              
-              <div className="w-px h-4 bg-white/20 mx-1" />
-
-              <button
-                onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-                disabled={currentIndex === 0}
-                className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Anterior"
-              >
-                <ChevronsLeft size={18} />
-              </button>
-              
-              <div className="w-px h-4 bg-white/20 mx-1" />
-
-              <div className="px-4 flex flex-col items-center min-w-[100px]">
-                <span className="text-[9px] text-white/60 font-bold uppercase tracking-widest leading-none mb-0.5">
-                  Evento
-                </span>
-                <span className="text-sm font-bold leading-none">
-                  {currentIndex + 1} <span className="text-white/30 font-medium mx-1">/</span> {events.length}
-                </span>
-              </div>
-
-              <div className="w-px h-4 bg-white/20 mx-1" />
-
-              <button
-                onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
-                disabled={currentIndex === events.length - 1}
-                className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Próximo"
-              >
-                <ChevronsRight size={18} />
-              </button>
-            </div>
-
-            <div className="flex gap-2 shrink-0">
-              <button 
-                onClick={handleSavePositions}
-                disabled={isSavingPositions}
-                className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-                title="Salvar posições dos campos"
-              >
-                {isSavingPositions ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                SALVAR POSIÇÕES
-              </button>
-              <button 
-                onClick={resetPositions}
-                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
-                title="Restaurar posições originais"
-              >
-                <RotateCcw size={16} />
-                RESETAR
-              </button>
-              <button 
-                onClick={handlePrint}
-                className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
-              >
-                <Printer size={16} />
-                IMPRIMIR
-              </button>
-              <button 
-                onClick={handleDownloadPDF}
-                disabled={generating}
-                className="bg-white text-[#512da8] px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                BAIXAR PDF
-              </button>
-            </div>
-          </div>
-
-          <div className="p-8 overflow-x-auto flex justify-center bg-gray-100 print:bg-white print:p-0">
-            {/* Visual Form Representation */}
-            <div 
-              id="s302-print-container"
-              ref={containerRef}
-              className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-200 print:border-none shrink-0 overflow-hidden"
-              style={{ 
-                backgroundImage: 'url(/S302.png)',
-                backgroundSize: '100% 100%',
-                backgroundRepeat: 'no-repeat'
-              }}
-            >
-              <div className="absolute inset-0 pointer-events-none print:hidden opacity-20 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]"></div>
-
-              {/* Congregação */}
-              <motion.div 
-                drag
-                dragMomentum={false}
-                dragConstraints={containerRef}
-                onDragEnd={(_, info) => {
-                  setPositions(prev => ({
-                    ...prev,
-                    congregacao: { x: prev.congregacao.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.congregacao.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
-                  }));
-                }}
-                style={{
-                  position: 'absolute',
-                  left: `${positions.congregacao.x}mm`,
-                  top: `${positions.congregacao.y}mm`,
-                  width: '160mm',
-                  height: '8mm'
-                }}
-                className="flex items-end cursor-move group"
-              >
-                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
-                  <GripVertical size={16} className="text-gray-400" />
-                </div>
-                <div className="flex-1 font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
-                  {fullCongName}
-                </div>
-              </motion.div>
-
-              {/* Visitante */}
-              <motion.div 
-                drag
-                dragMomentum={false}
-                dragConstraints={containerRef}
-                onDragEnd={(_, info) => {
-                  setPositions(prev => ({
-                    ...prev,
-                    visitante: { x: prev.visitante.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.visitante.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
-                  }));
-                }}
-                style={{
-                  position: 'absolute',
-                  left: `${positions.visitante.x}mm`,
-                  top: `${positions.visitante.y}mm`,
-                  width: '160mm',
-                  height: '8mm'
-                }}
-                className="flex items-end cursor-move group"
-              >
-                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
-                  <GripVertical size={16} className="text-gray-400" />
-                </div>
-                <div className="flex-1 font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
-                  {visitorName}
-                </div>
-              </motion.div>
-
-              {/* Data da Visita */}
-              <motion.div 
-                drag
-                dragMomentum={false}
-                dragConstraints={containerRef}
-                onDragEnd={(_, info) => {
-                  setPositions(prev => ({
-                    ...prev,
-                    data: { x: prev.data.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.data.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
-                  }));
-                }}
-                style={{
-                  position: 'absolute',
-                  left: `${positions.data.x}mm`,
-                  top: `${positions.data.y}mm`,
-                  width: '160mm',
-                  height: '8mm'
-                }}
-                className="flex items-end cursor-move group"
-              >
-                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
-                  <GripVertical size={16} className="text-gray-400" />
-                </div>
-                <div className="flex-1 font-bold text-[15pt] px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap">
-                  {data}
-                </div>
-              </motion.div>
-
-              {/* Assinatura Field */}
-              <motion.div 
-                drag
-                dragMomentum={false}
-                dragConstraints={containerRef}
-                onDragEnd={(_, info) => {
-                  setPositions(prev => ({
-                    ...prev,
-                    assinatura: { x: prev.assinatura.x + info.offset.x / (containerRef.current?.offsetWidth! / 210), y: prev.assinatura.y + info.offset.y / (containerRef.current?.offsetHeight! / 148) }
-                  }));
-                }}
-                id="s302-signature"
-                style={{
-                  position: 'absolute',
-                  left: `${positions.assinatura.x}mm`,
-                  top: `${positions.assinatura.y}mm`,
-                  width: '80mm'
-                }}
-                className="flex flex-col items-center cursor-move group"
-              >
-                <div className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
-                  <GripVertical size={16} className="text-gray-400" />
-                </div>
-                <div className="w-full relative flex flex-col items-center">
-                  <div className="absolute -right-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-1.5 bg-white shadow-md rounded-full text-[#512da8] hover:bg-gray-50 border border-gray-100"
-                      title="Alterar Assinatura"
-                    >
-                      <Upload size={14} />
-                    </button>
-                    <input 
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                  </div>
-
-                  <div className="h-14 w-full relative mb-1 flex items-center justify-center">
-                    {signatureImage ? (
-                      <div className="h-full w-full relative">
-                        <Image 
-                          src={signatureImage} 
-                          alt="Assinatura" 
-                          fill 
-                          className="object-contain"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    ) : (
-                      <input 
-                        type="text"
-                        value={signatureName}
-                        onChange={(e) => setSignatureName(e.target.value)}
-                        className="font-signature text-[#004aad] text-center bg-transparent border-none outline-none w-full"
-                        style={{ 
-                          fontFamily: 'var(--font-signature), "Dancing Script", cursive',
-                          fontSize: '32px'
-                        }}
-                      />
-                    )}
-                  </div>
-                  <span className="mt-1 text-[11pt] font-bold uppercase tracking-tight text-center">
-                    {personalData?.nome || ''}
-                  </span>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-
-        </motion.div>
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={handleDownloadPDF}
-            disabled={generating}
-            className="flex-1 bg-[#512da8] hover:bg-[#4527a0] text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+        <div className="flex gap-2 w-full sm:w-auto justify-end">
+          <button 
+            onClick={() => setIsDesignMode(!isDesignMode)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-md ${
+              isDesignMode ? 'bg-white text-[#512da8]' : 'bg-white/10 text-white hover:bg-white/20'
+            }`}
           >
-            {generating ? (
-              <Loader2 size={24} className="animate-spin" />
-            ) : (
-              <Download size={24} />
-            )}
-            {generating ? 'Gerando PDF...' : 'Baixar PDF Preenchido'}
+            <Settings2 size={20} />
+            {isDesignMode ? 'Sair do Design' : 'Personalizar Layout'}
           </button>
         </div>
+      </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex gap-3">
-          <div className="shrink-0 mt-0.5">⚠️</div>
-          <p>
-            Este recurso preenche o formulário oficial S-302-T. Se os dados não aparecerem nos locais corretos, 
-            pode ser necessário ajustar as coordenadas de impressão.
-          </p>
+      <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
+        {/* Design Sidebar */}
+        {isDesignMode && (
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="w-full lg:w-80 shrink-0 space-y-6"
+          >
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Settings2 size={20} className="text-[#512da8]" />
+                Modo Design
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Elemento para ajustar</label>
+                  <select 
+                    value={selectedElement || ''} 
+                    onChange={(e) => setSelectedElement(e.target.value as keyof S302Layout)}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#512da8] focus:border-[#512da8] outline-none font-medium"
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="header">Cabeçalho (Título)</option>
+                    <option value="body">Texto de Instrução</option>
+                    <option value="congregation">Campo Congregação</option>
+                    <option value="visitor">Campo Superintendente</option>
+                    <option value="visitDate">Campo Data</option>
+                    <option value="signature">Assinatura / Nome</option>
+                  </select>
+                </div>
+
+                {selectedElement && (
+                  <div className="space-y-6 pt-4 border-t border-gray-100">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                          <Move size={14} /> Posição Vertical {selectedElement === 'signature' ? '(de baixo)' : '(do topo)'}
+                        </label>
+                        <span className="text-xs font-mono font-bold text-[#512da8]">
+                          {selectedElement === 'signature' ? (layout.signature as any).bottom : (layout as any)[selectedElement].top}mm
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="148" step="1"
+                        value={selectedElement === 'signature' ? (layout.signature as any).bottom : (layout as any)[selectedElement].top}
+                        onChange={(e) => updateLayout(selectedElement, selectedElement === 'signature' ? 'bottom' : 'top', parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                          <Move size={14} /> Posição Horizontal {selectedElement === 'signature' ? '(da direita)' : '(da esquerda)'}
+                        </label>
+                        <span className="text-xs font-mono font-bold text-[#512da8]">
+                          {selectedElement === 'signature' ? (layout.signature as any).right : (layout as any)[selectedElement].left}mm
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="210" step="1"
+                        value={selectedElement === 'signature' ? (layout.signature as any).right : (layout as any)[selectedElement].left}
+                        onChange={(e) => updateLayout(selectedElement, selectedElement === 'signature' ? 'right' : 'left', parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                          <Type size={14} /> Tamanho da Fonte
+                        </label>
+                        <span className="text-xs font-mono font-bold text-[#512da8]">
+                          {(layout as any)[selectedElement].fontSize}pt
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="6" max="40" step="0.5"
+                        value={(layout as any)[selectedElement].fontSize}
+                        onChange={(e) => updateLayout(selectedElement, 'fontSize', parseFloat(e.target.value))}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
+                      />
+                    </div>
+
+                    {selectedElement === 'signature' && (
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                            <Maximize2 size={14} /> Largura do Bloco
+                          </label>
+                          <span className="text-xs font-mono font-bold text-[#512da8]">
+                            {layout.signature.width}mm
+                          </span>
+                        </div>
+                        <input 
+                          type="range" min="20" max="150" step="1"
+                          value={layout.signature.width}
+                          onChange={(e) => updateLayout('signature', 'width', parseInt(e.target.value))}
+                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleSaveLayout}
+                  disabled={isSavingLayout}
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
+                >
+                  {isSavingLayout ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                  Salvar Posições
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        <div className="flex-1 space-y-6">
+          {/* Info Card - Simplified/Updated Controls */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
+          >
+            <div className="bg-[#512da8] p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto justify-between sm:justify-start">
+                <button
+                  onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+                  disabled={currentIndex === 0}
+                  className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronsLeft size={18} />
+                </button>
+                <div className="px-4 flex flex-col items-center min-w-[100px]">
+                  <span className="text-sm font-bold truncate max-w-[150px]">
+                    {congregacao.nome}
+                  </span>
+                  <span className="text-[9px] text-white/60 font-bold uppercase tracking-widest leading-none">
+                    {currentIndex + 1} / {events.length}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
+                  disabled={currentIndex === events.length - 1}
+                  className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronsRight size={18} />
+                </button>
+              </div>
+
+              <div className="flex gap-2 shrink-0">
+                <button 
+                  onClick={handlePrint}
+                  className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
+                >
+                  <Printer size={16} />
+                  IMPRIMIR
+                </button>
+                <button 
+                  onClick={handleDownloadPDF}
+                  disabled={generating}
+                  className="bg-white text-[#512da8] px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  BAIXAR PDF
+                </button>
+              </div>
+            </div>
+
+            <div className="p-8 overflow-x-auto flex justify-center bg-gray-100 print:bg-white print:p-0">
+              {/* Visual Form Representation */}
+              <div 
+                id="s302-print-container"
+                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-200 print:border-none shrink-0 overflow-hidden"
+                style={{ backgroundColor: 'white' }}
+              >
+                {/* Header */}
+                <h1 
+                  className={`absolute w-full text-center font-bold tracking-wide uppercase px-[10mm] cursor-pointer transition-all ${selectedElement === 'header' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.header.top}mm`, 
+                    left: layout.header.left === 0 ? '0' : `${layout.header.left}mm`,
+                    fontSize: `${layout.header.fontSize}pt` 
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('header')}
+                >
+                  AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO
+                </h1>
+  
+                {/* Body Content */}
+                <div 
+                  className={`absolute right-[25mm] space-y-[2mm] cursor-pointer transition-all ${selectedElement === 'body' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.body.top}mm`, 
+                    left: `${layout.body.left}mm`,
+                    fontSize: `${layout.body.fontSize}pt`
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('body')}
+                >
+                  <p className="leading-relaxed">Prezados Irmãos:</p>
+                  <p className="indent-[12mm] leading-relaxed text-justify">
+                    Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. 
+                    Informe a congregação e depois coloque este aviso no quadro de anúncios.
+                  </p>
+                </div>
+
+                {/* Form Fields */}
+                <div 
+                  className={`absolute h-[8mm] flex items-end gap-2 cursor-pointer transition-all ${selectedElement === 'congregation' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.congregation.top}mm`, 
+                    left: `${layout.congregation.left}mm`,
+                    right: '25mm'
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('congregation')}
+                >
+                  <span className="pb-1" style={{ fontSize: `${layout.congregation.fontSize - 3}pt` }}>Congregação:</span>
+                  <div 
+                    className="flex-1 border-b border-black border-dotted font-bold px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap"
+                    style={{ fontSize: `${layout.congregation.fontSize}pt` }}
+                  >
+                    {fullCongName}
+                  </div>
+                </div>
+
+                <div 
+                  className={`absolute h-[8mm] flex items-end gap-2 cursor-pointer transition-all ${selectedElement === 'visitor' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.visitor.top}mm`, 
+                    left: `${layout.visitor.left}mm`,
+                    right: '25mm'
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('visitor')}
+                >
+                  <span className="pb-1" style={{ fontSize: `${layout.visitor.fontSize - 3}pt` }}>Superintendente de circuito:</span>
+                  <div 
+                    className="flex-1 border-b border-black border-dotted font-bold px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap"
+                    style={{ fontSize: `${layout.visitor.fontSize}pt` }}
+                  >
+                    {visitorName}
+                  </div>
+                </div>
+
+                <div 
+                  className={`absolute h-[8mm] flex items-end gap-2 cursor-pointer transition-all ${selectedElement === 'visitDate' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.visitDate.top}mm`, 
+                    left: `${layout.visitDate.left}mm`,
+                    right: '25mm'
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('visitDate')}
+                >
+                  <span className="pb-1" style={{ fontSize: `${layout.visitDate.fontSize - 3}pt` }}>Data da visita:</span>
+                  <div 
+                    className="flex-1 border-b border-black border-dotted font-bold px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap"
+                    style={{ fontSize: `${layout.visitDate.fontSize}pt` }}
+                  >
+                    {data}
+                  </div>
+                </div>
+
+                           <div 
+                  className={`absolute flex flex-col items-center cursor-pointer transition-all ${selectedElement === 'signature' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    bottom: `${layout.signature.bottom}mm`, 
+                    right: `${layout.signature.right}mm`,
+                    width: `${layout.signature.width}mm`
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('signature')}
+                >
+                  <span className="mb-0.5" style={{ fontSize: `${layout.signature.fontSize + 1}pt` }}>Seu irmão,</span>
+                  
+                  <div className="w-full relative flex flex-col items-center group">
+                    <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                        className="p-1.5 bg-white shadow-md rounded-full text-[#512da8] hover:bg-gray-50 border border-gray-100"
+                        title="Alterar Assinatura"
+                      >
+                        <Upload size={14} />
+                      </button>
+                    </div>
+ 
+                    <div className="h-10 w-full relative flex items-center justify-center">
+                      {signatureImage ? (
+                        <div className="h-full w-full relative">
+                          <Image 
+                            src={signatureImage} 
+                            alt="Assinatura" 
+                            fill 
+                            className="object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ) : (
+                        <input 
+                          type="text"
+                          value={signatureName}
+                          onChange={(e) => setSignatureName(e.target.value)}
+                          className="font-signature text-[#004aad] text-center bg-transparent border-none outline-none w-full"
+                          style={{ 
+                            fontFamily: 'var(--font-signature), "Dancing Script", cursive',
+                            fontSize: '32px'
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="w-full border-b border-black border-dotted"></div>
+                  </div>
+                </div>
+
+                <div className="absolute bottom-[10mm] left-[15mm] right-[15mm] flex justify-between text-[9pt] font-sans text-gray-400 print:text-black">
+                  <span>S-302-T</span>
+                  <span>12/14</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={handleDownloadPDF}
+              disabled={generating}
+              className="flex-1 bg-[#512da8] hover:bg-[#4527a0] text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+            >
+              {generating ? (
+                <Loader2 size={24} className="animate-spin" />
+              ) : (
+                <Download size={24} />
+              )}
+              {generating ? 'Gerando PDF...' : 'Baixar PDF Preenchido'}
+            </button>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex gap-3">
+            <div className="shrink-0 mt-0.5">⚠️</div>
+            <p>
+              Este recurso preenche o formulário oficial S-302-T. Se os dados não aparecerem nos locais corretos, 
+              pode ser necessário ajustar as coordenadas de impressão no modo Design.
+            </p>
+          </div>
         </div>
       </div>
     </div>
