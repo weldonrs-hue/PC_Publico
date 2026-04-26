@@ -52,12 +52,12 @@ interface S302Layout {
 }
 
 const DEFAULT_LAYOUT: S302Layout = {
-  header: { top: 18, left: 0, fontSize: 15 },
-  body: { top: 48, left: 25, fontSize: 12 },
-  congregation: { top: 92, left: 25, fontSize: 15 },
-  visitor: { top: 108, left: 25, fontSize: 15 },
-  visitDate: { top: 124, left: 25, fontSize: 15 },
-  signature: { bottom: 25, right: 25, fontSize: 11, width: 80 }
+  header: { top: 13, left: 0, fontSize: 16.5 },
+  body: { top: 27, left: 10, fontSize: 10 },
+  congregation: { top: 65, left: 28, fontSize: 16.5 },
+  visitor: { top: 78, left: 27, fontSize: 16.5 },
+  visitDate: { top: 93, left: 27, fontSize: 16.5 },
+  signature: { bottom: 21, right: 23, fontSize: 15.5, width: 125 }
 };
 
 interface Congregation {
@@ -246,19 +246,31 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       // 2. Prezado / Body Text
       drawText("Prezados Irmãos:", layout.body.left, layout.body.top, layout.body.fontSize);
       
-      const bodyText = "Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.";
-      // Simplified body draw for now, standardizing position
-      drawText(bodyText, layout.body.left + 12, layout.body.top + 10, layout.body.fontSize);
+      const bodyLine1 = "Por favor notem os seguintes arranjos para a próxima visita do superintendente de";
+      const bodyLine2 = "circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.";
+      
+      const lineHeightPt = layout.body.fontSize * 1.15; // Even tighter spacing
+      const bodyTopGap = 5; // Reduced from 6mm
+      drawText(bodyLine1, layout.body.left + 12, layout.body.top + bodyTopGap, layout.body.fontSize);
+      drawText(bodyLine2, layout.body.left, layout.body.top + bodyTopGap + (lineHeightPt / mmToPt), layout.body.fontSize);
 
       // 3. Labels and Data using Layout
-      drawText("Congregação:", layout.congregation.left, layout.congregation.top, layout.congregation.fontSize - 3);
-      drawText(fullCongName, layout.congregation.left + 25, layout.congregation.top, layout.congregation.fontSize, true);
+      const labelFontSize = (size: number) => size - 3;
+      
+      const drawField = (label: string, value: string, layoutItem: any) => {
+        const lSize = labelFontSize(layoutItem.fontSize);
+        const vSize = layoutItem.fontSize;
+        
+        drawText(label, layoutItem.left, layoutItem.top, lSize);
+        
+        const labelWidth = font.widthOfTextAtSize(label, lSize);
+        const gapMm = 3;
+        drawText(value, layoutItem.left + (labelWidth / mmToPt) + gapMm, layoutItem.top, vSize, true);
+      };
 
-      drawText("Superintendente de circuito:", layout.visitor.left, layout.visitor.top, layout.visitor.fontSize - 3);
-      drawText(visitorName, layout.visitor.left + 45, layout.visitor.top, layout.visitor.fontSize, true);
-
-      drawText("Data da visita:", layout.visitDate.left, layout.visitDate.top, layout.visitDate.fontSize - 3);
-      drawText(data, layout.visitDate.left + 25, layout.visitDate.top, layout.visitDate.fontSize, true);
+      drawField("Congregação:", fullCongName, layout.congregation);
+      drawField("Superintendente de circuito:", visitorName, layout.visitor);
+      drawField("Data da visita:", data, layout.visitDate);
 
       // 4. Signature using Layout
       const sigY = height - ((pageHeight - layout.signature.bottom) * mmToPt);
@@ -301,7 +313,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       } else if (signatureName) {
         // Draw typed signature
         try {
-          const fontSize = 14;
+          const fontSize = layout.signature.fontSize;
           const textWidth = boldFont.widthOfTextAtSize(signatureName, fontSize);
           firstPage.drawText(signatureName, {
             x: sigX + (layout.signature.width * mmToPt / 2) - (textWidth / 2),
@@ -594,8 +606,8 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                   }}
                   onClick={() => isDesignMode && setSelectedElement('body')}
                 >
-                  <p className="leading-relaxed">Prezados Irmãos:</p>
-                  <p className="indent-[12mm] leading-relaxed text-justify">
+                  <p className="leading-[1.15]">Prezados Irmãos:</p>
+                  <p className="indent-[12mm] leading-[1.15] text-justify mt-[3mm]">
                     Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. 
                     Informe a congregação e depois coloque este aviso no quadro de anúncios.
                   </p>
