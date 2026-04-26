@@ -190,7 +190,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   const handleDownloadPDF = async () => {
     setGenerating(true);
     try {
-      // Create a fresh PDF using the PNG background for better reliability
+      // Create a fresh PDF
       const pdfDoc = await PDFDocument.create();
       const mmToPt = 2.83465;
       const pageWidth = 210 * mmToPt;
@@ -198,8 +198,6 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       const firstPage = pdfDoc.addPage([pageWidth, pageHeight]);
       
       const { height } = firstPage.getSize();
-
-      // Removed background image embed block for plain PDF
 
       // Ensure fonts are loaded before generation
       try {
@@ -226,21 +224,31 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         });
       };
 
+      const drawDottedLine = (x1Mm: number, y1Mm: number, x2Mm: number) => {
+        firstPage.drawLine({
+          start: { x: x1Mm * mmToPt, y: height - (y1Mm * mmToPt) },
+          end: { x: x2Mm * mmToPt, y: height - (y1Mm * mmToPt) },
+          thickness: 0.5,
+          dashArray: [1, 2],
+          color: rgb(0, 0, 0),
+        });
+      };
+
       // 1. Header
+      const headerText = "AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO";
+      const headerSize = layout.header.fontSize;
       if (layout.header.left === 0) {
-        // Centered logic
-        const headerText = "AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO";
-        const textWidth = boldFont.widthOfTextAtSize(headerText, layout.header.fontSize);
+        const textWidth = boldFont.widthOfTextAtSize(headerText, headerSize);
         const centerX = (pageWidth - textWidth) / 2;
         firstPage.drawText(headerText, {
           x: centerX,
           y: height - (layout.header.top * mmToPt),
-          size: layout.header.fontSize,
+          size: headerSize,
           font: boldFont,
           color: rgb(0, 0, 0),
         });
       } else {
-        drawText("AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO", layout.header.left, layout.header.top, layout.header.fontSize, true);
+        drawText(headerText, layout.header.left, layout.header.top, headerSize, true);
       }
 
       // 2. Prezado / Body Text
@@ -249,45 +257,52 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       const bodyLine1 = "Por favor notem os seguintes arranjos para a próxima visita do superintendente de";
       const bodyLine2 = "circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.";
       
-      const lineHeightPt = layout.body.fontSize * 1.15; // Even tighter spacing
-      const bodyTopGap = 5; // Reduced from 6mm
+      const lineHeightPt = layout.body.fontSize * 1.15;
+      const bodyTopGap = 5; 
       drawText(bodyLine1, layout.body.left + 12, layout.body.top + bodyTopGap, layout.body.fontSize);
       drawText(bodyLine2, layout.body.left, layout.body.top + bodyTopGap + (lineHeightPt / mmToPt), layout.body.fontSize);
 
       // 3. Labels and Data using Layout
-      const labelFontSize = (size: number) => size - 3;
-      
       const drawField = (label: string, value: string, layoutItem: any) => {
-        const lSize = labelFontSize(layoutItem.fontSize);
+        const lSize = layoutItem.fontSize - 3;
         const vSize = layoutItem.fontSize;
         
         drawText(label, layoutItem.left, layoutItem.top, lSize);
         
         const labelWidth = font.widthOfTextAtSize(label, lSize);
         const gapMm = 3;
-        drawText(value, layoutItem.left + (labelWidth / mmToPt) + gapMm, layoutItem.top, vSize, true);
+        const lineStartX = layoutItem.left + (labelWidth / mmToPt) + gapMm;
+        const lineEndX = 210 - 25; 
+        
+        drawDottedLine(lineStartX, layoutItem.top, lineEndX);
+        drawText(value, lineStartX + 2, layoutItem.top - 0.5, vSize, true);
       };
 
       drawField("Congregação:", fullCongName, layout.congregation);
       drawField("Superintendente de circuito:", visitorName, layout.visitor);
       drawField("Data da visita:", data, layout.visitDate);
 
-      // 4. Signature using Layout
-      const sigY = height - ((pageHeight - layout.signature.bottom) * mmToPt);
-      const sigX = (pageWidth - (layout.signature.right * mmToPt)) - (layout.signature.width * mmToPt);
+      // 4. Signature Block
+      const sigBottomMm = layout.signature.bottom;
+      const sigRightMm = layout.signature.right;
+      const sigWidthMm = layout.signature.width;
       
-      // Draw "Seu irmão," closing
+      const sigX = (210 - sigRightMm) - sigWidthMm;
+      const sigY_Base = 148 - sigBottomMm; 
+      
+      drawDottedLine(sigX, sigY_Base, sigX + sigWidthMm);
+
       const closingText = "Seu irmão,";
       const closingFontSize = layout.signature.fontSize + 1;
       const closingWidth = font.widthOfTextAtSize(closingText, closingFontSize);
       firstPage.drawText(closingText, {
-        x: sigX + (layout.signature.width * mmToPt / 2) - (closingWidth / 2),
-        y: sigY + (10 * mmToPt),
+        x: (sigX * mmToPt) + (sigWidthMm * mmToPt / 2) - (closingWidth / 2),
+        y: height - ((sigY_Base - 10) * mmToPt), 
         size: closingFontSize,
         font: font,
         color: rgb(0, 0, 0),
       });
-      
+
       if (signatureImage) {
         try {
           const imageBytes = await fetch(signatureImage).then(res => res.arrayBuffer());
@@ -298,12 +313,12 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
             embeddedImage = await pdfDoc.embedJpg(imageBytes);
           }
           
-          const targetHeight = 10 * mmToPt;
+          const targetHeight = 8 * mmToPt;
           const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
           
           firstPage.drawImage(embeddedImage, {
-            x: sigX + (layout.signature.width * mmToPt / 2) - (targetWidth / 2),
-            y: sigY + (4 * mmToPt),
+            x: (sigX * mmToPt) + (sigWidthMm * mmToPt / 2) - (targetWidth / 2),
+            y: height - ((sigY_Base - 1) * mmToPt), 
             width: targetWidth,
             height: targetHeight,
           });
@@ -311,21 +326,21 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           console.error('Erro ao processar imagem da assinatura:', e);
         }
       } else if (signatureName) {
-        // Draw typed signature
-        try {
-          const fontSize = layout.signature.fontSize;
-          const textWidth = boldFont.widthOfTextAtSize(signatureName, fontSize);
-          firstPage.drawText(signatureName, {
-            x: sigX + (layout.signature.width * mmToPt / 2) - (textWidth / 2),
-            y: sigY + (4 * mmToPt),
-            size: fontSize,
-            font: boldFont,
-            color: rgb(0.1, 0.2, 0.6), // Blueish to simulate ink
-          });
-        } catch (e) {
-          console.error('Erro ao desenhar assinatura de texto:', e);
-        }
+        const fontSize = layout.signature.fontSize;
+        const textWidth = boldFont.widthOfTextAtSize(signatureName, fontSize);
+        firstPage.drawText(signatureName, {
+          x: (sigX * mmToPt) + (sigWidthMm * mmToPt / 2) - (textWidth / 2),
+          y: height - ((sigY_Base - 1) * mmToPt), 
+          size: fontSize,
+          font: boldFont,
+          color: rgb(0.1, 0.2, 0.6),
+        });
       }
+
+      const footerY = 148 - 10;
+      drawText("S-302-T", 15, footerY, 9);
+      const text1214Width = font.widthOfTextAtSize("12/14", 9);
+      drawText("12/14", 210 - 15 - (text1214Width / mmToPt), footerY, 9);
 
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
@@ -337,7 +352,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Erro ao gerar o PDF. Verifique se o arquivo S-302_T.pdf está na pasta public.');
+      alert('Erro ao gerar o PDF. Por favor, tente novamente.');
     } finally {
       setGenerating(false);
     }
