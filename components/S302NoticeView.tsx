@@ -52,12 +52,12 @@ interface S302Layout {
 }
 
 const DEFAULT_LAYOUT: S302Layout = {
-  header: { top: 13, left: 0, fontSize: 16.5 },
-  body: { top: 27, left: 10, fontSize: 10 },
-  congregation: { top: 65, left: 28, fontSize: 16.5 },
-  visitor: { top: 78, left: 27, fontSize: 16.5 },
-  visitDate: { top: 93, left: 27, fontSize: 16.5 },
-  signature: { bottom: 21, right: 23, fontSize: 15.5, width: 125 }
+  header: { top: 12, left: 0, fontSize: 15 },
+  body: { top: 32, left: 15, fontSize: 15 },
+  congregation: { top: 65, left: 29, fontSize: 16 },
+  visitor: { top: 75, left: 29, fontSize: 16 },
+  visitDate: { top: 85, left: 29, fontSize: 16 },
+  signature: { bottom: 24, right: 15, fontSize: 16, width: 125 }
 };
 
 interface Congregation {
@@ -213,11 +213,14 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
-      const drawText = (text: string, xMm: number, yMm: number, sizePt = 10, isBold = false) => {
+      const drawText = (text: string, xMm: number, yMm: number, sizePt = 15, isBold = false) => {
         if (!text) return;
+        const sizeMm = sizePt / mmToPt;
+        const baselineAdjustmentMm = sizeMm * 0.8;
+        
         firstPage.drawText(text, {
           x: xMm * mmToPt,
-          y: height - (yMm * mmToPt),
+          y: height - ((yMm + baselineAdjustmentMm) * mmToPt),
           size: sizePt,
           font: isBold ? boldFont : font,
           color: rgb(0, 0, 0),
@@ -237,71 +240,78 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
       // 1. Header
       const headerText = "AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO";
       const headerSize = layout.header.fontSize;
+      const headerTop = layout.header.top;
       if (layout.header.left === 0) {
         const textWidth = boldFont.widthOfTextAtSize(headerText, headerSize);
         const centerX = (pageWidth - textWidth) / 2;
+        const headerSizeMm = headerSize / mmToPt;
+        
         firstPage.drawText(headerText, {
           x: centerX,
-          y: height - (layout.header.top * mmToPt),
+          y: height - ((headerTop + headerSizeMm * 0.8) * mmToPt),
           size: headerSize,
           font: boldFont,
           color: rgb(0, 0, 0),
         });
       } else {
-        drawText(headerText, layout.header.left, layout.header.top, headerSize, true);
+        drawText(headerText, layout.header.left, headerTop, headerSize, true);
       }
 
-      // 2. Prezado / Body Text
+      // 2. Greeting / Prezado
       drawText("Prezados Irmãos:", layout.body.left, layout.body.top, layout.body.fontSize);
       
-      const bodyLine1 = "Por favor notem os seguintes arranjos para a próxima visita do superintendente de";
-      const bodyLine2 = "circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.";
+      const bodyText = "Por favor notem os seguintes arranjos para a próxima visita do supe- rintendente de circuito. Informe a congregação e depois coloque este aviso no quadro de anúncios.";
       
-      const lineHeightPt = layout.body.fontSize * 1.15;
-      const bodyTopGap = 5; 
-      drawText(bodyLine1, layout.body.left + 12, layout.body.top + bodyTopGap, layout.body.fontSize);
-      drawText(bodyLine2, layout.body.left, layout.body.top + bodyTopGap + (lineHeightPt / mmToPt), layout.body.fontSize);
+      const bodyFontSize = layout.body.fontSize;
+      const lineHeightMm = (bodyFontSize * 1.4) / mmToPt; // 1.4 line-height
+      const greetingHeightMm = (bodyFontSize / mmToPt) + 2.8; // 8pt margin-bottom
+      const bodyStartTopMm = layout.body.top + greetingHeightMm;
+      
+      // Split body text for manual wrap (simplified wrap logic)
+      const maxCharsLine1 = 70;
+      const bodyLine1 = bodyText.substring(0, maxCharsLine1);
+      const bodyLine2 = bodyText.substring(maxCharsLine1);
+      
+      drawText(bodyLine1, layout.body.left + 14, bodyStartTopMm, bodyFontSize); // 40pt indent ~14mm
+      drawText(bodyLine2, layout.body.left, bodyStartTopMm + lineHeightMm, bodyFontSize);
 
-      // 3. Labels and Data using Layout
+      // 3. Fields
       const drawField = (label: string, value: string, layoutItem: any) => {
-        const lSize = layoutItem.fontSize - 3;
+        const lSize = layoutItem.fontSize; 
         const vSize = layoutItem.fontSize;
         
+        // Draw label
         drawText(label, layoutItem.left, layoutItem.top, lSize);
         
         const labelWidth = font.widthOfTextAtSize(label, lSize);
         const gapMm = 3;
         const lineStartX = layoutItem.left + (labelWidth / mmToPt) + gapMm;
-        const lineEndX = 210 - 25; 
+        const lineEndX = 210 - 15; 
         
-        drawDottedLine(lineStartX, layoutItem.top, lineEndX);
-        drawText(value, lineStartX + 2, layoutItem.top - 0.5, vSize, true);
+        drawDottedLine(lineStartX, layoutItem.top + (vSize / mmToPt), lineEndX);
+        drawText(value, lineStartX + 2, layoutItem.top, vSize, true);
       };
 
       drawField("Congregação:", fullCongName, layout.congregation);
       drawField("Superintendente de circuito:", visitorName, layout.visitor);
       drawField("Data da visita:", data, layout.visitDate);
 
-      // 4. Signature Block
+      // 4. Signature
       const sigBottomMm = layout.signature.bottom;
       const sigRightMm = layout.signature.right;
       const sigWidthMm = layout.signature.width;
-      
       const sigX = (210 - sigRightMm) - sigWidthMm;
-      const sigY_Base = 148 - sigBottomMm; 
-      
-      drawDottedLine(sigX, sigY_Base, sigX + sigWidthMm);
+      const sigY_Line = 148 - sigBottomMm;
+      const sigCenterX = sigX + (sigWidthMm / 2);
 
       const closingText = "Seu irmão,";
-      const closingFontSize = layout.signature.fontSize + 1;
+      const closingFontSize = layout.signature.fontSize;
       const closingWidth = font.widthOfTextAtSize(closingText, closingFontSize);
-      firstPage.drawText(closingText, {
-        x: (sigX * mmToPt) + (sigWidthMm * mmToPt / 2) - (closingWidth / 2),
-        y: height - ((sigY_Base - 10) * mmToPt), 
-        size: closingFontSize,
-        font: font,
-        color: rgb(0, 0, 0),
-      });
+      const closingTopMm = (148 - sigBottomMm) - 4; // 4mm above signature line
+
+      drawText(closingText, sigCenterX - (closingWidth / 2 / mmToPt), 148 - closingTopMm - (closingFontSize / mmToPt), closingFontSize);
+
+      drawDottedLine(sigX, sigY_Line, sigX + sigWidthMm);
 
       if (signatureImage) {
         try {
@@ -312,35 +322,34 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
           } else {
             embeddedImage = await pdfDoc.embedJpg(imageBytes);
           }
-          
-          const targetHeight = 8 * mmToPt;
+          const targetHeight = 12 * mmToPt;
           const targetWidth = (embeddedImage.width / embeddedImage.height) * targetHeight;
-          
           firstPage.drawImage(embeddedImage, {
-            x: (sigX * mmToPt) + (sigWidthMm * mmToPt / 2) - (targetWidth / 2),
-            y: height - ((sigY_Base - 1) * mmToPt), 
+            x: (sigCenterX * mmToPt) - (targetWidth / 2),
+            y: height - (sigY_Line * mmToPt),
             width: targetWidth,
             height: targetHeight,
           });
         } catch (e) {
-          console.error('Erro ao processar imagem da assinatura:', e);
+          console.error('Signature processing error:', e);
         }
       } else if (signatureName) {
-        const fontSize = layout.signature.fontSize;
-        const textWidth = boldFont.widthOfTextAtSize(signatureName, fontSize);
+        const sigFontSize = layout.signature.fontSize + 4;
+        const textWidth = boldFont.widthOfTextAtSize(signatureName, sigFontSize);
         firstPage.drawText(signatureName, {
-          x: (sigX * mmToPt) + (sigWidthMm * mmToPt / 2) - (textWidth / 2),
-          y: height - ((sigY_Base - 1) * mmToPt), 
-          size: fontSize,
+          x: (sigCenterX * mmToPt) - (textWidth / 2),
+          y: height - (sigY_Line * mmToPt) + 4,
+          size: sigFontSize,
           font: boldFont,
           color: rgb(0.1, 0.2, 0.6),
         });
       }
 
-      const footerY = 148 - 10;
-      drawText("S-302-T", 15, footerY, 9);
-      const text1214Width = font.widthOfTextAtSize("12/14", 9);
-      drawText("12/14", 210 - 15 - (text1214Width / mmToPt), footerY, 9);
+      // Footer
+      const footerY = 148 - 12; // 1.2cm from bottom
+      drawText("S-302-T", 15, footerY, 11);
+      const text1214Width = font.widthOfTextAtSize("12/14", 11);
+      drawText("12/14", 15 + 25, footerY, 11); // Gap of 20pt suggested in HTML
 
       const modifiedPdfBytes = await pdfDoc.save();
       const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
@@ -600,10 +609,9 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
               >
                 {/* Header */}
                 <h1 
-                  className={`absolute w-full text-center font-bold tracking-wide uppercase px-[10mm] cursor-pointer transition-all ${selectedElement === 'header' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  className={`absolute left-0 right-0 text-center font-bold tracking-wide uppercase cursor-pointer transition-all ${selectedElement === 'header' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
                   style={{ 
                     top: `${layout.header.top}mm`, 
-                    left: layout.header.left === 0 ? '0' : `${layout.header.left}mm`,
                     fontSize: `${layout.header.fontSize}pt` 
                   }}
                   onClick={() => isDesignMode && setSelectedElement('header')}
@@ -613,77 +621,73 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   
                 {/* Body Content */}
                 <div 
-                  className={`absolute right-[25mm] space-y-[2mm] cursor-pointer transition-all ${selectedElement === 'body' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  className={`absolute cursor-pointer transition-all ${selectedElement === 'body' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
                   style={{ 
                     top: `${layout.body.top}mm`, 
                     left: `${layout.body.left}mm`,
-                    fontSize: `${layout.body.fontSize}pt`
+                    right: '15mm',
+                    fontSize: `${layout.body.fontSize}pt`,
+                    lineHeight: '1.4'
                   }}
                   onClick={() => isDesignMode && setSelectedElement('body')}
                 >
-                  <p className="leading-[1.15]">Prezados Irmãos:</p>
-                  <p className="indent-[12mm] leading-[1.15] text-justify mt-[3mm]">
-                    Por favor notem os seguintes arranjos para a próxima visita do superintendente de circuito. 
+                  <p className="mb-[8pt]">Prezados Irmãos:</p>
+                  <p className="indent-[40pt] text-justify">
+                    Por favor notem os seguintes arranjos para a próxima visita do supe- rintendente de circuito. 
                     Informe a congregação e depois coloque este aviso no quadro de anúncios.
                   </p>
                 </div>
 
-                {/* Form Fields */}
-                <div 
-                  className={`absolute h-[8mm] flex items-end gap-2 cursor-pointer transition-all ${selectedElement === 'congregation' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.congregation.top}mm`, 
-                    left: `${layout.congregation.left}mm`,
-                    right: '25mm'
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('congregation')}
-                >
-                  <span className="pb-1" style={{ fontSize: `${layout.congregation.fontSize - 3}pt` }}>Congregação:</span>
+                {/* Form Fields Section */}
+                <div className="absolute left-0 right-0">
                   <div 
-                    className="flex-1 border-b border-black border-dotted font-bold px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap"
-                    style={{ fontSize: `${layout.congregation.fontSize}pt` }}
+                    className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'congregation' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                    style={{ 
+                      top: `${layout.congregation.top}mm`,
+                      left: `${layout.congregation.left}mm`, 
+                      right: '15mm' 
+                    }}
+                    onClick={() => isDesignMode && setSelectedElement('congregation')}
                   >
-                    {fullCongName}
+                    <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.congregation.fontSize}pt` }}>Congregação:</span>
+                    <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                      {fullCongName}
+                    </div>
+                  </div>
+ 
+                  <div 
+                    className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitor' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                    style={{ 
+                      top: `${layout.visitor.top}mm`,
+                      left: `${layout.visitor.left}mm`, 
+                      right: '15mm' 
+                    }}
+                    onClick={() => isDesignMode && setSelectedElement('visitor')}
+                  >
+                    <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitor.fontSize}pt` }}>Superintendente de circuito:</span>
+                    <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                      {visitorName}
+                    </div>
+                  </div>
+ 
+                  <div 
+                    className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitDate' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                    style={{ 
+                      top: `${layout.visitDate.top}mm`,
+                      left: `${layout.visitDate.left}mm`, 
+                      right: '15mm' 
+                    }}
+                    onClick={() => isDesignMode && setSelectedElement('visitDate')}
+                  >
+                    <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitDate.fontSize}pt` }}>Data da visita:</span>
+                    <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                      {data}
+                    </div>
                   </div>
                 </div>
-
+                
+                {/* Signature Block */}
                 <div 
-                  className={`absolute h-[8mm] flex items-end gap-2 cursor-pointer transition-all ${selectedElement === 'visitor' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.visitor.top}mm`, 
-                    left: `${layout.visitor.left}mm`,
-                    right: '25mm'
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('visitor')}
-                >
-                  <span className="pb-1" style={{ fontSize: `${layout.visitor.fontSize - 3}pt` }}>Superintendente de circuito:</span>
-                  <div 
-                    className="flex-1 border-b border-black border-dotted font-bold px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap"
-                    style={{ fontSize: `${layout.visitor.fontSize}pt` }}
-                  >
-                    {visitorName}
-                  </div>
-                </div>
-
-                <div 
-                  className={`absolute h-[8mm] flex items-end gap-2 cursor-pointer transition-all ${selectedElement === 'visitDate' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.visitDate.top}mm`, 
-                    left: `${layout.visitDate.left}mm`,
-                    right: '25mm'
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('visitDate')}
-                >
-                  <span className="pb-1" style={{ fontSize: `${layout.visitDate.fontSize - 3}pt` }}>Data da visita:</span>
-                  <div 
-                    className="flex-1 border-b border-black border-dotted font-bold px-3 pb-0.5 flex items-end overflow-hidden whitespace-nowrap"
-                    style={{ fontSize: `${layout.visitDate.fontSize}pt` }}
-                  >
-                    {data}
-                  </div>
-                </div>
-
-                           <div 
                   className={`absolute flex flex-col items-center cursor-pointer transition-all ${selectedElement === 'signature' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
                   style={{ 
                     bottom: `${layout.signature.bottom}mm`, 
@@ -692,48 +696,23 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                   }}
                   onClick={() => isDesignMode && setSelectedElement('signature')}
                 >
-                  <span className="mb-0.5" style={{ fontSize: `${layout.signature.fontSize + 1}pt` }}>Seu irmão,</span>
+                  <div className="w-full text-center mb-[4pt]" style={{ fontSize: `${layout.signature.fontSize}pt` }}>Seu irmão,</div>
                   
                   <div className="w-full relative flex flex-col items-center group">
-                    <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                        className="p-1.5 bg-white shadow-md rounded-full text-[#512da8] hover:bg-gray-50 border border-gray-100"
-                        title="Alterar Assinatura"
-                      >
-                        <Upload size={14} />
-                      </button>
-                    </div>
- 
-                    <div className="h-10 w-full relative flex items-center justify-center">
+                    <div className="h-12 w-full relative flex items-center justify-center">
                       {signatureImage ? (
                         <div className="h-full w-full relative">
-                          <Image 
-                            src={signatureImage} 
-                            alt="Assinatura" 
-                            fill 
-                            className="object-contain"
-                            referrerPolicy="no-referrer"
-                          />
+                          <Image src={signatureImage} alt="Assinatura" fill className="object-contain" referrerPolicy="no-referrer" />
                         </div>
                       ) : (
-                        <input 
-                          type="text"
-                          value={signatureName}
-                          onChange={(e) => setSignatureName(e.target.value)}
-                          className="font-signature text-[#004aad] text-center bg-transparent border-none outline-none w-full"
-                          style={{ 
-                            fontFamily: 'var(--font-signature), "Dancing Script", cursive',
-                            fontSize: '32px'
-                          }}
-                        />
+                        <span className="font-signature text-[#004aad] text-2xl">{signatureName}</span>
                       )}
                     </div>
                     <div className="w-full border-b border-black border-dotted"></div>
                   </div>
                 </div>
 
-                <div className="absolute bottom-[10mm] left-[15mm] right-[15mm] flex justify-between text-[9pt] font-sans text-gray-400 print:text-black">
+                <div className="absolute bottom-[1.2cm] left-[1.5cm] flex gap-[20pt] text-[11pt] font-sans">
                   <span>S-302-T</span>
                   <span>12/14</span>
                 </div>
