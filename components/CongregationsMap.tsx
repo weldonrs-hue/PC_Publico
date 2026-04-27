@@ -164,9 +164,9 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
                     {onEdit && (
                       <button 
                         onClick={() => onEdit(cong)}
-                        className="w-full py-2 bg-amber-600 text-white text-[10px] font-bold rounded-lg hover:bg-amber-700 transition-colors shadow-sm"
+                        className="w-full py-2 bg-[#512da8] text-white text-[10px] font-bold rounded-lg hover:opacity-90 transition-colors shadow-sm"
                       >
-                        Editar Detalhes
+                        Carta de Designação
                       </button>
                     )}
                     <button 

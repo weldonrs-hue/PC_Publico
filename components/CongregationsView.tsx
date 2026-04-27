@@ -6,6 +6,7 @@ import {
   Store, 
   Plus, 
   Edit2, 
+  FileText,
   Trash2, 
   ChevronLeft,
   Search,
@@ -27,6 +28,7 @@ const CongregationsMap = dynamic(() => import('./CongregationsMap'), {
   ssr: false,
   loading: () => <div className="h-[600px] w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Carregando Mapa...</div>
 });
+import AppointmentLetterView from './AppointmentLetterView';
 import {
   AnimatePresence,
   motion
@@ -105,6 +107,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
   }, [userId]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [showLetter, setShowLetter] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [isPasting, setIsPasting] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -671,6 +674,25 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
     c.numero.includes(searchTerm)
   );
 
+  if (showLetter && selectedCong) {
+    return (
+      <AppointmentLetterView
+        userId={userId}
+        congregation={{
+          nome: selectedCong.nome,
+          numero: selectedCong.numero,
+          cidade: selectedCong.cidade,
+          estado: selectedCong.estado,
+          endereco: selectedCong.endereco,
+          coordenador: selectedCong.coordenador,
+          cep: selectedCong.cep
+        }}
+        visitDate={new Date().toLocaleDateString('pt-BR')}
+        onBack={() => setShowLetter(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with Back Button */}
@@ -767,7 +789,10 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                 <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 h-[600px]">
                   <CongregationsMap 
                     congregations={filteredCongregations} 
-                    onEdit={(cong) => handleEdit(cong)}
+                    onEdit={(cong) => {
+                      setSelectedCong(cong);
+                      setShowLetter(true);
+                    }}
                   />
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -800,13 +825,16 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                             <p className="text-xs text-gray-500 font-mono">Nº {cong.numero} • Parte {cong.parte}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                           <button 
-                            onClick={() => handleEdit(cong)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Editar"
+                            onClick={() => {
+                              setSelectedCong(cong);
+                              setShowLetter(true);
+                            }}
+                            className="p-2 text-[#512da8] hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Carta de Designação"
                           >
-                            <Edit2 size={16} />
+                            <FileText size={16} />
                           </button>
                           <button 
                             onClick={() => setShowDeleteConfirm(cong.id)}
@@ -848,10 +876,14 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
 
                       <div className="grid grid-cols-2 gap-2 mt-4">
                         <button 
-                          onClick={() => handleEdit(cong)}
-                          className="py-2.5 text-xs font-bold text-amber-600 border border-amber-100 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
+                          onClick={() => {
+                            setSelectedCong(cong);
+                            setShowLetter(true);
+                          }}
+                          className="py-2.5 text-xs font-bold text-[#512da8] border border-indigo-100 rounded-xl hover:bg-[#512da8] hover:text-white transition-all flex items-center justify-center gap-2"
                         >
-                          Ver Detalhes
+                          <FileText size={14} />
+                          Abrir Carta
                         </button>
                         <button 
                           onClick={() => handleNavigate(cong)}
