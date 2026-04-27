@@ -224,14 +224,21 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       });
 
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
-        format: 'a5',
+        format: 'a4',
         compress: true
       });
 
-      // Fit the image to A5 landscape (210 x 148 mm)
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, 210, 148, undefined, 'FAST');
+      // Calculate 7% reduction dimensions (scale 0.93)
+      const scale = 0.93;
+      const imgWidth = 210 * scale;
+      const imgHeight = 148 * scale;
+      const xOffset = (210 - imgWidth) / 2;
+      const yOffset = 20; // Match the top: 20mm from print CSS
+
+      // Fit the image to A4 with the specified scale and position
+      pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgHeight, undefined, 'FAST');
       
       const filename = `S-302_${congregacao.nome.replace(/\s+/g, '_')}.pdf`;
       pdf.save(filename);
@@ -294,7 +301,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             overflow: hidden !important;
             z-index: 9999 !important;
             background: white !important;
-            transform: scale(0.95) !important;
+            transform: scale(0.93) !important;
             transform-origin: top center !important;
           }
         }
