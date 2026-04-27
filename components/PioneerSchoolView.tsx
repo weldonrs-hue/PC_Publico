@@ -1006,7 +1006,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 title="Baixar PDF"
               >
                 {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
-                <span className="hidden lg:inline">{generating ? 'Gerando...' : 'PDF'}</span>
+                <span className="hidden lg:inline">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
               </button>
               <button
                 onClick={() => window.print()}

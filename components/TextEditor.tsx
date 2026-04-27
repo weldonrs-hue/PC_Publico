@@ -845,7 +845,7 @@ export default function TextEditor({ userId, onBack }: TextEditorProps) {
                   className="w-full text-left px-3 py-2 hover:bg-red-50 rounded-lg text-xs transition-colors flex items-center gap-2"
                 >
                   <FileText size={14} className="text-red-600" />
-                  Exportar PDF (A4)
+                  Baixar PDF
                 </button>
                 <button 
                   onClick={handleExportDocx}

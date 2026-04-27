@@ -973,7 +973,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               ) : (
                 <FileDown size={16} />
               )}
-              {generating ? 'Gerando...' : 'Salvar PDF'}
+              {generating ? 'Gerando...' : 'Baixar PDF'}
             </button>
             <button 
               onClick={handlePrint}

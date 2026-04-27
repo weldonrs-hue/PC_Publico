@@ -413,10 +413,11 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
             <button 
               onClick={handleSavePDF}
               disabled={generating}
-              className="p-2 text-[#464555] hover:text-[#3525cd] hover:bg-white rounded-full transition-all border border-transparent hover:border-[#c7c4d8]/30 disabled:opacity-50"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-[#c7c4d8]/30 text-[#464555] rounded-xl font-bold text-sm hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
               title="Baixar PDF"
             >
-              {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
+              {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+              <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
             </button>
             <button 
               onClick={() => window.print()}

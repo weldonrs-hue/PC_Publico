@@ -289,7 +289,7 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
               title="Exportar PDF"
             >
               <FileDown size={18} />
-              <span className="hidden md:inline">PDF</span>
+              <span className="hidden md:inline">Baixar PDF</span>
             </button>
             <button 
               onClick={handlePrint}

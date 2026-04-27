@@ -462,7 +462,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                   className="bg-white text-[#512da8] px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
                   {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                  BAIXAR PDF
+                  Baixar PDF
                 </button>
               </div>
             </div>
@@ -599,7 +599,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
               ) : (
                 <Download size={24} />
               )}
-              {generating ? 'Gerando PDF...' : 'Baixar PDF Preenchido'}
+              {generating ? 'Gerando PDF...' : 'Baixar PDF'}
             </button>
           </div>
 

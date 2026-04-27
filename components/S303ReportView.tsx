@@ -627,7 +627,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
               className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
             >
               {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
-              <span>{generating ? 'Gerando...' : 'PDF'}</span>
+              <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
               <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
             </button>
             
@@ -645,7 +645,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
                   className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
                 >
                   <FileDown size={18} className="text-[#7B1FA2]" />
-                  PDF Original
+                  Baixar PDF Original
                 </button>
                 <button
                   onClick={() => {
@@ -655,7 +655,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
                   className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
                 >
                   <FileDown size={18} className="text-[#7B1FA2]" />
-                  PDF ProgCir
+                  Baixar PDF ProgCir
                 </button>
               </motion.div>
             )}
@@ -877,15 +877,15 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
                   {/* Font Size */}
                   <div className="flex items-center gap-0.5">
                     <button 
-                      onMouseDown={(e) => { e.preventDefault(); setReportFontSize(prev => Math.max(8, prev - 1)); }}
+                      onMouseDown={(e) => { e.preventDefault(); setReportFontSize(prev => Math.max(8, prev - 0.5)); }}
                       className="p-1.5 hover:bg-gray-100 rounded-lg transition-all"
                       title="Diminuir fonte"
                     >
                       <Minus size={16} />
                     </button>
-                    <span className="text-sm font-bold w-6 text-center">{Math.round(reportFontSize)}</span>
+                    <span className="text-sm font-bold min-w-[32px] text-center">{parseFloat(reportFontSize.toFixed(1)).toString().replace('.', ',')}</span>
                     <button 
-                      onMouseDown={(e) => { e.preventDefault(); setReportFontSize(prev => Math.min(24, prev + 1)); }}
+                      onMouseDown={(e) => { e.preventDefault(); setReportFontSize(prev => Math.min(24, prev + 0.5)); }}
                       className="p-1.5 hover:bg-gray-100 rounded-lg transition-all"
                       title="Aumentar fonte"
                     >

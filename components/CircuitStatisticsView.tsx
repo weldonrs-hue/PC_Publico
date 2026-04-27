@@ -421,7 +421,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
             ) : (
               <FileDown size={18} className="text-sky-600" />
             )}
-            <span>{generating ? 'Gerando...' : 'Salvar PDF'}</span>
+            <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
           </button>
           <button 
             onClick={() => window.print()} 

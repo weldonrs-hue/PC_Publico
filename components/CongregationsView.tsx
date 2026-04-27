@@ -94,7 +94,11 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
         ...doc.data(),
         id: doc.id
       })) as Congregation[];
-      setCongregations(congsData);
+      
+      // Sort alphabetically by name
+      const sortedCongs = congsData.sort((a, b) => a.nome.localeCompare(b.nome));
+      
+      setCongregations(sortedCongs);
       setLoading(false);
     }, (error) => {
       if (auth.currentUser) {

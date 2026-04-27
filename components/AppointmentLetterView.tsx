@@ -363,7 +363,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               className="bg-[#512da8] text-white px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
             >
               {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
-              <span>{generating ? '...' : 'PDF'}</span>
+              <span>{generating ? '...' : 'Baixar PDF'}</span>
             </button>
             <button 
               onClick={handlePrint}
