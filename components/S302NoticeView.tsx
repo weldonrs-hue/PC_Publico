@@ -230,8 +230,8 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         compress: true
       });
 
-      // Calculate 7% reduction dimensions (scale 0.93)
-      const scale = 0.93;
+      // Calculate 8% reduction dimensions (scale 0.92)
+      const scale = 0.92;
       const imgWidth = 210 * scale;
       const imgHeight = 148 * scale;
       const xOffset = (210 - imgWidth) / 2;
@@ -301,7 +301,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             overflow: hidden !important;
             z-index: 9999 !important;
             background: white !important;
-            transform: scale(0.93) !important;
+            transform: scale(0.92) !important;
             transform-origin: top center !important;
           }
         }
