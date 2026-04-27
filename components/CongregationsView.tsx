@@ -789,10 +789,7 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                 <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 h-[600px]">
                   <CongregationsMap 
                     congregations={filteredCongregations} 
-                    onEdit={(cong) => {
-                      setSelectedCong(cong);
-                      setShowLetter(true);
-                    }}
+                    onEdit={(cong) => handleEdit(cong)}
                   />
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -876,14 +873,11 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
 
                       <div className="grid grid-cols-2 gap-2 mt-4">
                         <button 
-                          onClick={() => {
-                            setSelectedCong(cong);
-                            setShowLetter(true);
-                          }}
-                          className="py-2.5 text-xs font-bold text-[#512da8] border border-indigo-100 rounded-xl hover:bg-[#512da8] hover:text-white transition-all flex items-center justify-center gap-2"
+                          onClick={() => handleEdit(cong)}
+                          className="py-2.5 text-xs font-bold text-amber-600 border border-amber-100 rounded-xl hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center gap-2"
                         >
-                          <FileText size={14} />
-                          Abrir Carta
+                          <Edit2 size={14} />
+                          Editar Detalhes
                         </button>
                         <button 
                           onClick={() => handleNavigate(cong)}

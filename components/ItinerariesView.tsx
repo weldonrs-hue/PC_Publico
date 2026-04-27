@@ -149,8 +149,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [modalMode, setModalMode] = useState<'actions' | 'edit' | 'confirmDelete' | null>(null);
   const defaultEditFormData: Partial<ItineraryItem> = {
     dataEvento: '',
-    evento: '',
-    tipoEvento: '',
+    evento: 'Visita a Congregação',
+    tipoEvento: 'Visita a Congregação',
     observacoes: '',
     dataInicialDia: 'Terça-Feira',
     dataTerminoDia: 'Domingo',
@@ -687,7 +687,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         evento: tipo,
         tipoEvento: tipo,
         observacoes: selectedItem.observacoes,
-        dataInicialDia: selectedItem.dataInicialDia || 'Terça-Feira',
+        dataInicialDia: selectedItem.dataInicialDia || (tipo === 'SEMANA LIVRE' ? 'Segunda-Feira' : 'Terça-Feira'),
         dataTerminoDia: selectedItem.dataTerminoDia || 'Domingo',
         congregacao: selectedItem.congregacao || '',
         substituto: selectedItem.substituto || '',
@@ -700,8 +700,22 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
   const handleAddClick = () => {
     if (selectedItem) {
+      const isEmpty = !selectedItem.evento && !selectedItem.observacoes && !selectedItem.dataEvento && !selectedItem.congregacao;
+      
+      if (isEmpty) {
+        // If the row is empty, "Adding" is just "Editing" the empty slot
+        handleEditClick();
+        return;
+      }
+
       setIsAddingNew(true);
-      setEditFormData(defaultEditFormData);
+      setEditFormData({
+        ...defaultEditFormData,
+        evento: 'Visita a Congregação',
+        tipoEvento: 'Visita a Congregação',
+        dataInicialDia: 'Terça-Feira',
+        dataTerminoDia: 'Domingo'
+      });
       setModalMode('edit');
     }
   };
@@ -1099,7 +1113,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               {/* Modal Header */}
               <div className={`${modalMode === 'confirmDelete' ? 'bg-red-600' : 'bg-violet-600'} p-3 text-white flex justify-between items-center transition-colors`}>
                 <h3 className="font-bold flex items-center gap-2 text-sm">
-                  {modalMode === 'actions' ? 'Opções do Evento' : modalMode === 'confirmDelete' ? 'Confirmar Exclusão' : 'Editar Evento'}
+                  {modalMode === 'actions' ? 'Opções do Evento' : 
+                   modalMode === 'confirmDelete' ? 'Confirmar Exclusão' : 
+                   isAddingNew ? 'Adicionar Novo Evento' : 'Editar Evento'}
                 </h3>
                 <button 
                   onClick={() => setModalMode(null)}
@@ -1130,34 +1146,32 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </div>
                     </button>
 
-                    {selectedItem?.evento && (
-                      <>
-                        <button 
-                          onClick={handleAddClick}
-                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
-                        >
-                          <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                            <Plus size={18} />
-                          </div>
-                          <div className="text-left">
-                            <div className="font-bold text-sm text-gray-800">Adicionar Evento</div>
-                            <div className="text-[10px] text-gray-500 leading-tight">Adicionar evento na mesma semana</div>
-                          </div>
-                        </button>
+                    <button 
+                      onClick={handleAddClick}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+                    >
+                      <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        <Plus size={18} />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-sm text-gray-800">Adicionar Evento</div>
+                        <div className="text-[10px] text-gray-500 leading-tight">Adicionar evento na mesma semana</div>
+                      </div>
+                    </button>
 
-                        <button 
-                          onClick={handleDeleteClick}
-                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-red-500 hover:bg-red-50 transition-all group"
-                        >
-                          <div className="bg-red-100 p-1.5 rounded-lg text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                            <Trash2 size={18} />
-                          </div>
-                          <div className="text-left">
-                            <div className="font-bold text-sm text-gray-800">Excluir Evento</div>
-                            <div className="text-[10px] text-gray-500 leading-tight">Remover evento desta semana</div>
-                          </div>
-                        </button>
-                      </>
+                    {selectedItem?.evento && (
+                      <button 
+                        onClick={handleDeleteClick}
+                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-red-500 hover:bg-red-50 transition-all group"
+                      >
+                        <div className="bg-red-100 p-1.5 rounded-lg text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                          <Trash2 size={18} />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-bold text-sm text-gray-800">Excluir Evento</div>
+                          <div className="text-[10px] text-gray-500 leading-tight">Remover evento desta semana</div>
+                        </div>
+                      </button>
                     )}
 
                     {selectedItem?.congregacao && (
@@ -1380,7 +1394,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </div>
                     )}
 
-                    {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Recebendo visita de pastoreio') && (
+                    {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Visita a Grupo' || editFormData.evento === 'Recebendo visita de pastoreio') && (
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
                           Congregação:
@@ -1442,9 +1456,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </button>
                       <button 
                         onClick={handleFormSave}
-                        className="flex-1 py-2 rounded-lg font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-indigo-200 transition-all text-sm"
+                        disabled={saving}
+                        className="flex-1 py-2 rounded-lg font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-indigo-200 transition-all text-sm disabled:opacity-50"
                       >
-                        Confirmar
+                        {saving ? <Loader2 size={18} className="animate-spin mx-auto" /> : (isAddingNew ? 'Adicionar' : 'Salvar Alterações')}
                       </button>
                     </div>
                   </div>
