@@ -508,18 +508,6 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                 className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-400 shrink-0 overflow-hidden print:overflow-visible"
                 style={{ backgroundColor: 'white' }}
               >
-                {/* Background Template */}
-                <div className="absolute inset-0 pointer-events-none opacity-100">
-                  <Image 
-                    src="/S302.png" 
-                    alt="S-302 Template"
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    priority
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-
                 {/* Header */}
                 <h1 
                   className={`absolute left-0 right-0 text-center font-bold tracking-wide uppercase cursor-pointer transition-all ${selectedElement === 'header' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
