@@ -213,7 +213,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         pixelRatio: 3, // High resolution for text clarity
         backgroundColor: '#ffffff',
         width: 793.7, // 210mm at 96dpi is ~793.7px
-        height: 559.4, // 148mm at 96dpi is ~559.4px
+        height: 536.7, // 142mm at 96dpi is ~536.7px
         style: {
           margin: '0',
           boxShadow: 'none',
@@ -233,7 +233,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       // Calculate 20% reduction dimensions (scale 0.8)
       const scale = 0.8;
       const imgWidth = 210 * scale;
-      const imgHeight = 148 * scale;
+      const imgHeight = 142 * scale;
       const xOffset = (210 - imgWidth) / 2;
       const yOffset = 20; // Match the top: 20mm from print CSS
 
@@ -295,7 +295,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             margin-left: auto !important;
             margin-right: auto !important;
             width: 210mm !important;
-            height: 148mm !important;
+            height: 142mm !important;
             border: 0.5pt solid #000 !important;
             box-shadow: none !important;
             overflow: hidden !important;
@@ -381,7 +381,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                         </span>
                       </div>
                       <input 
-                        type="range" min="0" max="148" step="1"
+                        type="range" min="0" max="142" step="1"
                         value={selectedElement === 'signature' ? (layout.signature as any).bottom : (layout as any)[selectedElement].top}
                         onChange={(e) => updateLayout(selectedElement, selectedElement === 'signature' ? 'bottom' : 'top', parseInt(e.target.value))}
                         className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
@@ -512,7 +512,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
               {/* Visual Form Representation */}
               <div 
                 id="s302-print-container"
-                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-400 shrink-0 overflow-hidden print:overflow-visible"
+                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[142mm] relative font-serif-document text-black border border-gray-400 shrink-0 overflow-hidden print:overflow-visible"
                 style={{ backgroundColor: 'white' }}
               >
                 {/* Header */}
@@ -617,7 +617,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                   </div>
                 </div>
 
-                <div className="absolute bottom-[1.2cm] left-[1.5cm] flex gap-[20pt] text-[11pt] font-sans">
+                <div className="absolute bottom-[1.6cm] left-[1.5cm] flex gap-[20pt] text-[11pt] font-sans">
                   <span>S-302-T</span>
                   <span>12/14</span>
                 </div>
