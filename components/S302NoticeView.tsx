@@ -266,29 +266,34 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
-            size: A5 landscape;
+            size: A4 portrait;
             margin: 0;
           }
           body {
-            background: white;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .no-print {
             display: none !important;
           }
           #s302-print-container {
             display: block !important;
-            position: fixed !important;
-            top: 0 !important;
+            position: absolute !important;
+            top: 20mm !important;
             left: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            right: 0 !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
             width: 210mm !important;
             height: 148mm !important;
-            z-index: 9999 !important;
-            border: none !important;
+            border: 0.5pt solid #000 !important;
             box-shadow: none !important;
+            overflow: hidden !important;
+            z-index: 9999 !important;
+            background: white !important;
           }
         }
       `}} />
@@ -498,9 +503,21 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
               {/* Visual Form Representation */}
               <div 
                 id="s302-print-container"
-                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-200 print:border-none shrink-0 overflow-hidden print:overflow-visible"
+                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-400 shrink-0 overflow-hidden print:overflow-visible"
                 style={{ backgroundColor: 'white' }}
               >
+                {/* Background Template */}
+                <div className="absolute inset-0 pointer-events-none opacity-100">
+                  <Image 
+                    src="https://firebasestorage.googleapis.com/v0/b/as-circuit.appspot.com/o/templates%2FS-302.jpg?alt=media" 
+                    alt="S-302 Template"
+                    fill
+                    style={{ objectFit: 'cover' }}
+                    priority
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+
                 {/* Header */}
                 <h1 
                   className={`absolute left-0 right-0 text-center font-bold tracking-wide uppercase cursor-pointer transition-all ${selectedElement === 'header' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
