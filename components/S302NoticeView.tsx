@@ -294,6 +294,8 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             overflow: hidden !important;
             z-index: 9999 !important;
             background: white !important;
+            transform: scale(0.6) !important;
+            transform-origin: top center !important;
           }
         }
       `}} />
@@ -509,7 +511,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                 {/* Background Template */}
                 <div className="absolute inset-0 pointer-events-none opacity-100">
                   <Image 
-                    src="https://firebasestorage.googleapis.com/v0/b/as-circuit.appspot.com/o/templates%2FS-302.jpg?alt=media" 
+                    src="/S302.png" 
                     alt="S-302 Template"
                     fill
                     style={{ objectFit: 'cover' }}
