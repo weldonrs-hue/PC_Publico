@@ -294,7 +294,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             overflow: hidden !important;
             z-index: 9999 !important;
             background: white !important;
-            transform: scale(0.6) !important;
+            transform: scale(0.8) !important;
             transform-origin: top center !important;
           }
         }
