@@ -86,11 +86,11 @@ interface S302NoticeViewProps {
   events: S302Event[];
   initialIndex: number;
   userId: string;
+  isAdmin: boolean;
   onBack: () => void;
-  isAdmin?: boolean;
 }
 
-export default function S302NoticeView({ events, initialIndex, userId, onBack, isAdmin }: S302NoticeViewProps) {
+export default function S302NoticeView({ events, initialIndex, userId, isAdmin, onBack }: S302NoticeViewProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const currentEvent = events[currentIndex];
   const { congregacao, data, substituteName } = currentEvent;
@@ -114,7 +114,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack, i
     const fetchData = async () => {
       try {
         const personalRef = doc(db, 'personal_data', userId);
-        const layoutRef = doc(db, 'config', 's302_layout');
+        const layoutRef = doc(db, 's302_layouts', 'shared_layout');
         
         const [personalSnap, layoutSnap] = await Promise.all([
           getDoc(personalRef),
@@ -142,7 +142,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack, i
     if (!isAdmin) return;
     setIsSavingLayout(true);
     try {
-      await setDoc(doc(db, 'config', 's302_layout'), layout);
+      await setDoc(doc(db, 's302_layouts', 'shared_layout'), layout);
       setIsDesignMode(false);
     } catch (error) {
       console.error('Error saving layout:', error);
@@ -267,16 +267,16 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack, i
       `}} />
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg print:hidden gap-4 m-4">
-        <div className="flex items-center gap-4 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg print:hidden gap-4 m-2 sm:m-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button 
             onClick={onBack}
             className="p-2 hover:bg-white/20 rounded-full transition-all text-white bg-white/10 shadow-md border border-white/20"
             title="Voltar"
           >
-            <ChevronLeft size={28} strokeWidth={3} />
+            <ChevronLeft size={24} strokeWidth={3} />
           </button>
-          <h2 className="text-2xl font-black text-white tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             S-302 Aviso de Visitas
           </h2>
         </div>
@@ -296,7 +296,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack, i
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 flex flex-col lg:flex-row gap-6">
+      <div className="max-w-7xl mx-auto p-2 sm:p-4 flex flex-col lg:flex-row gap-4 sm:gap-6">
         {/* Design Sidebar */}
         {isDesignMode && (
           <motion.div 
@@ -422,33 +422,33 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack, i
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
           >
-            <div className="bg-[#512da8] p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="bg-[#512da8] p-3 sm:p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto">
                 <button
                   onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
                   disabled={currentIndex === 0}
-                  className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <ChevronsLeft size={18} />
+                  <ChevronsLeft size={20} />
                 </button>
-                <div className="px-4 flex flex-col items-center min-w-[100px]">
-                  <span className="text-sm font-bold truncate max-w-[150px]">
+                <div className="px-2 sm:px-4 flex flex-col items-center flex-1 sm:flex-initial min-w-[120px]">
+                  <span className="text-xs sm:text-sm font-bold truncate max-w-[150px] sm:max-w-none">
                     {congregacao.nome}
                   </span>
-                  <span className="text-[9px] text-white/60 font-bold uppercase tracking-widest leading-none">
+                  <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest leading-none">
                     {currentIndex + 1} / {events.length}
                   </span>
                 </div>
                 <button
                   onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
                   disabled={currentIndex === events.length - 1}
-                  className="p-1.5 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <ChevronsRight size={18} />
+                  <ChevronsRight size={20} />
                 </button>
               </div>
 
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
                 <button 
                   onClick={handlePrint}
                   className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
@@ -467,7 +467,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack, i
               </div>
             </div>
 
-            <div className="p-8 overflow-x-auto flex justify-center bg-gray-100 print:bg-white print:p-0">
+            <div className="p-2 sm:p-8 overflow-x-auto flex justify-start sm:justify-center bg-gray-100 print:bg-white print:p-0">
               {/* Visual Form Representation */}
               <div 
                 id="s302-print-container"

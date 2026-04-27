@@ -877,6 +877,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     return (
       <S302NoticeView 
         userId={userId}
+        isAdmin={user?.role === 'admin'}
         events={s302Params.events}
         initialIndex={s302Params.initialIndex}
         onBack={() => setShowS302(false)}
