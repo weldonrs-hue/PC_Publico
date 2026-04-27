@@ -95,7 +95,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const currentEvent = events[currentIndex];
   const { congregacao, data, substituteName } = currentEvent;
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   
@@ -129,10 +129,21 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         }
 
         if (layoutSnap.exists()) {
-          setLayout(layoutSnap.data() as S302Layout);
+          const remoteLayout = layoutSnap.data() as S302Layout;
+          // Deep merge with defaults to ensure no missing keys cause undefined values
+          setLayout({
+            header: { ...DEFAULT_LAYOUT.header, ...remoteLayout.header },
+            body: { ...DEFAULT_LAYOUT.body, ...remoteLayout.body },
+            congregation: { ...DEFAULT_LAYOUT.congregation, ...remoteLayout.congregation },
+            visitor: { ...DEFAULT_LAYOUT.visitor, ...remoteLayout.visitor },
+            visitDate: { ...DEFAULT_LAYOUT.visitDate, ...remoteLayout.visitDate },
+            signature: { ...DEFAULT_LAYOUT.signature, ...remoteLayout.signature }
+          });
         }
       } catch (error) {
         console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -241,8 +252,17 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
     ? `${congregacao.nome}, ${congregacao.cidade}` 
     : congregacao.nome;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <Loader2 className="animate-spin text-[#512da8] mb-4" size={48} />
+        <p className="text-gray-500 font-bold">Carregando formulário...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 print:bg-white print:pb-0">
+    <div className="min-h-screen bg-gray-50 pb-20 print:bg-white print:pb-0 print:min-h-0">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
@@ -251,23 +271,30 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
           }
           body {
             background: white;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
-          /* Hide everything except the form */
-          body > :not(#s302-print-container) {
+          .no-print {
             display: none !important;
           }
           #s302-print-container {
             display: block !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
             width: 210mm !important;
             height: 148mm !important;
+            z-index: 9999 !important;
+            border: none !important;
+            box-shadow: none !important;
           }
         }
       `}} />
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg print:hidden gap-4 m-2 sm:m-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg no-print gap-4 m-2 sm:m-4">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button 
             onClick={onBack}
@@ -296,13 +323,13 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-2 sm:p-4 flex flex-col lg:flex-row gap-4 sm:gap-6">
+      <div className="max-w-7xl mx-auto p-2 sm:p-4 flex flex-col lg:flex-row gap-4 sm:gap-6 no-print-container">
         {/* Design Sidebar */}
         {isDesignMode && (
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="w-full lg:w-80 shrink-0 space-y-6"
+            className="w-full lg:w-80 shrink-0 space-y-6 no-print"
           >
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -415,14 +442,14 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
           </motion.div>
         )}
 
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 space-y-6 no-print-container">
           {/* Info Card - Simplified/Updated Controls */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
+            className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print:border-none print:shadow-none print:overflow-visible"
           >
-            <div className="bg-[#512da8] p-3 sm:p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="bg-[#512da8] p-3 sm:p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
               <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto">
                 <button
                   onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
@@ -467,11 +494,11 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
               </div>
             </div>
 
-            <div className="p-2 sm:p-8 overflow-x-auto flex justify-start sm:justify-center bg-gray-100 print:bg-white print:p-0">
+            <div className="p-2 sm:p-8 overflow-x-auto flex justify-start sm:justify-center bg-gray-100 print:bg-white print:p-0 print:overflow-visible">
               {/* Visual Form Representation */}
               <div 
                 id="s302-print-container"
-                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-200 print:border-none shrink-0 overflow-hidden"
+                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[148mm] relative font-serif-document text-black border border-gray-200 print:border-none shrink-0 overflow-hidden print:overflow-visible"
                 style={{ backgroundColor: 'white' }}
               >
                 {/* Header */}
@@ -505,51 +532,48 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                   </p>
                 </div>
 
-                {/* Form Fields Section */}
-                <div className="absolute left-0 right-0">
-                  <div 
-                    className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'congregation' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                    style={{ 
-                      top: `${layout.congregation.top}mm`,
-                      left: `${layout.congregation.left}mm`, 
-                      right: '15mm' 
-                    }}
-                    onClick={() => isDesignMode && setSelectedElement('congregation')}
-                  >
-                    <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.congregation.fontSize}pt` }}>Congregação:</span>
-                    <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
-                      {fullCongName}
-                    </div>
+                <div 
+                  className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'congregation' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.congregation.top}mm`,
+                    left: `${layout.congregation.left}mm`, 
+                    right: '15mm' 
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('congregation')}
+                >
+                  <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.congregation.fontSize}pt` }}>Congregação:</span>
+                  <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                    {fullCongName}
                   </div>
- 
-                  <div 
-                    className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitor' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                    style={{ 
-                      top: `${layout.visitor.top}mm`,
-                      left: `${layout.visitor.left}mm`, 
-                      right: '15mm' 
-                    }}
-                    onClick={() => isDesignMode && setSelectedElement('visitor')}
-                  >
-                    <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitor.fontSize}pt` }}>Superintendente de circuito:</span>
-                    <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
-                      {visitorName}
-                    </div>
+                </div>
+
+                <div 
+                  className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitor' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.visitor.top}mm`,
+                    left: `${layout.visitor.left}mm`, 
+                    right: '15mm' 
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('visitor')}
+                >
+                  <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitor.fontSize}pt` }}>Superintendente de circuito:</span>
+                  <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                    {visitorName}
                   </div>
- 
-                  <div 
-                    className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitDate' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                    style={{ 
-                      top: `${layout.visitDate.top}mm`,
-                      left: `${layout.visitDate.left}mm`, 
-                      right: '15mm' 
-                    }}
-                    onClick={() => isDesignMode && setSelectedElement('visitDate')}
-                  >
-                    <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitDate.fontSize}pt` }}>Data da visita:</span>
-                    <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
-                      {data}
-                    </div>
+                </div>
+
+                <div 
+                  className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitDate' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
+                  style={{ 
+                    top: `${layout.visitDate.top}mm`,
+                    left: `${layout.visitDate.left}mm`, 
+                    right: '15mm' 
+                  }}
+                  onClick={() => isDesignMode && setSelectedElement('visitDate')}
+                >
+                  <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitDate.fontSize}pt` }}>Data da visita:</span>
+                  <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                    {data}
                   </div>
                 </div>
                 
@@ -588,7 +612,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
           </motion.div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 no-print">
             <button
               onClick={handleDownloadPDF}
               disabled={generating}
@@ -603,7 +627,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             </button>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex gap-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex gap-3 no-print">
             <div className="shrink-0 mt-0.5">⚠️</div>
             <p>
               Este recurso preenche o formulário oficial S-302-T. Se os dados não aparecerem nos locais corretos, 

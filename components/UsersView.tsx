@@ -16,6 +16,9 @@ import {
   AlertCircle,
   Trash2,
   Loader2,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
   X
 } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
@@ -62,6 +65,10 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'reauth' | 'deleting' | 'success' | 'error'>('idle');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: keyof UserMetadata | 'nome' | 'numeroPessoal'; direction: 'asc' | 'desc' } | null>({ 
+    key: 'createdAt', 
+    direction: 'desc' 
+  });
 
   const fetchUsers = async () => {
     setRefreshing(true);
@@ -110,11 +117,44 @@ export default function UsersView({ onBack }: UsersViewProps) {
     fetchUsers();
   }, []);
 
-  const filteredUsers = users.filter(user => 
+  const handleSort = (key: keyof UserMetadata | 'nome' | 'numeroPessoal') => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedUsers = (usersList: UserMetadata[]) => {
+    if (!sortConfig) return usersList;
+
+    return [...usersList].sort((a, b) => {
+      let valA = a[sortConfig.key] ?? '';
+      let valB = b[sortConfig.key] ?? '';
+
+      // Handle dates
+      if (sortConfig.key === 'createdAt' || sortConfig.key === 'lastLogin') {
+        const dateA = valA ? (typeof valA === 'object' && 'seconds' in valA ? valA.seconds : new Date(valA).getTime()) : 0;
+        const dateB = valB ? (typeof valB === 'object' && 'seconds' in valB ? valB.seconds : new Date(valB).getTime()) : 0;
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+
+      // Handle strings
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+
+      return 0;
+    });
+  };
+
+  const filteredUsers = getSortedUsers(users.filter(user => 
     user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ));
 
   const handleDeleteUser = async () => {
     if (!userToDelete || !auth.currentUser) return;
@@ -256,10 +296,58 @@ export default function UsersView({ onBack }: UsersViewProps) {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-bottom border-gray-100">
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Usuário / Nome</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">ID Pessoal</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Criação</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Último login</th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  onClick={() => handleSort('nome')}
+                >
+                  <div className="flex items-center gap-1">
+                    Usuário / Nome
+                    {sortConfig?.key === 'nome' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-300" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  onClick={() => handleSort('numeroPessoal')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    ID Pessoal
+                    {sortConfig?.key === 'numeroPessoal' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-300" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  onClick={() => handleSort('createdAt')}
+                >
+                  <div className="flex items-center gap-1">
+                    Criação
+                    {sortConfig?.key === 'createdAt' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-300" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  onClick={() => handleSort('lastLogin')}
+                >
+                  <div className="flex items-center gap-1">
+                    Último login
+                    {sortConfig?.key === 'lastLogin' ? (
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                    ) : (
+                      <ArrowUpDown size={14} className="text-gray-300" />
+                    )}
+                  </div>
+                </th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>

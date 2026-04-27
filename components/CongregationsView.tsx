@@ -65,6 +65,8 @@ interface Congregation {
 
 interface CongregationsViewProps {
   userId: string;
+  isAdmin?: boolean;
+  importEnabledForAll?: boolean;
   onBack: () => void;
   initialCongregation?: Congregation | null;
 }
@@ -74,7 +76,13 @@ const defaultFormData: Congregation = {
   telefone: '', cidade: '', cep: '', estado: '', gps: '', grupos: []
 };
 
-export default function CongregationsView({ userId, onBack, initialCongregation }: CongregationsViewProps) {
+export default function CongregationsView({ 
+  userId, 
+  isAdmin = false,
+  importEnabledForAll = false, 
+  onBack, 
+  initialCongregation 
+}: CongregationsViewProps) {
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -762,13 +770,15 @@ export default function CongregationsView({ userId, onBack, initialCongregation 
                     <ExternalLink size={20} />
                     Buscar no JW.org
                   </a>
-                  <button 
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="w-full md:w-auto bg-white text-amber-600 border border-amber-200 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors shadow-sm"
-                  >
-                    <ClipboardPaste size={20} />
-                    Importação em Massa
-                  </button>
+                  {(isAdmin || importEnabledForAll) && (
+                    <button 
+                      onClick={() => setIsImportModalOpen(true)}
+                      className="w-full md:w-auto bg-white text-amber-600 border border-amber-200 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors shadow-sm"
+                    >
+                      <ClipboardPaste size={20} />
+                      Importação em Massa
+                    </button>
+                  )}
                   <button 
                     onClick={handleAddNew}
                     className="w-full md:w-auto bg-amber-600 text-white px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-700 transition-colors shadow-lg shadow-amber-200 active:scale-95"

@@ -50,6 +50,7 @@ interface SettingsViewProps {
   appConfig?: { 
     reportEnabledForAll: boolean;
     textEditorEnabledForAll: boolean;
+    congregationImportEnabledForAll: boolean;
   };
 }
 
@@ -274,6 +275,19 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
     }
   };
 
+  const handleToggleImportVisibility = async () => {
+    if (!isAdmin) return;
+    try {
+      const configRef = doc(db, 'config', 'app_settings');
+      await setDoc(configRef, { 
+        congregationImportEnabledForAll: !appConfig?.congregationImportEnabledForAll 
+      }, { merge: true });
+    } catch (err) {
+      console.error('Erro ao atualizar configuração global:', err);
+      alert('Erro ao atualizar configuração. Verifique suas permissões.');
+    }
+  };
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.new !== passwordForm.confirm) {
@@ -491,6 +505,25 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                    className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200 ${appConfig?.textEditorEnabledForAll ? 'bg-amber-500' : 'bg-gray-200'}`}
                  >
                    <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${appConfig?.textEditorEnabledForAll ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
+                 </button>
+               </div>
+             </div>
+
+             <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+               <div className="flex items-center justify-between gap-4">
+                 <div className="space-y-1">
+                   <h4 className="font-bold text-gray-900">Importação em Massa</h4>
+                   <p className="text-xs text-gray-500 max-w-md">
+                     Ao ativar esta opção, o botão de Importação em Massa na Gestão de Congregações ficará visível e utilizável por todos os usuários. 
+                     Enquanto desativado, apenas administradores têm acesso.
+                   </p>
+                 </div>
+                 
+                 <button 
+                   onClick={handleToggleImportVisibility}
+                   className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200 ${appConfig?.congregationImportEnabledForAll ? 'bg-amber-500' : 'bg-gray-200'}`}
+                 >
+                   <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${appConfig?.congregationImportEnabledForAll ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
                  </button>
                </div>
              </div>

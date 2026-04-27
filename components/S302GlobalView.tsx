@@ -98,6 +98,7 @@ export default function GlobalS302View({ userId, isAdmin, onBack }: GlobalS302Vi
   const mappedEvents = filteredEvents.map(item => {
     const cong = congregations.find(c => c.nome === item.congregacao);
     return {
+      id: item.id,
       congregacao: cong || { nome: item.congregacao, numero: '', cidade: '', estado: '' } as any,
       data: item.dataEvento || item.semana,
       substituteName: item.substituto
@@ -148,7 +149,7 @@ export default function GlobalS302View({ userId, isAdmin, onBack }: GlobalS302Vi
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin text-orange-500" size={48} />
         </div>
-      ) : filteredEvents.length === 0 ? (
+      ) : mappedEvents.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
           <div className="bg-orange-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="text-orange-400" size={40} />
@@ -160,9 +161,9 @@ export default function GlobalS302View({ userId, isAdmin, onBack }: GlobalS302Vi
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map((item, index) => (
+          {mappedEvents.map((event, index) => (
             <motion.div
-              key={item.id}
+              key={event.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
@@ -179,17 +180,17 @@ export default function GlobalS302View({ userId, isAdmin, onBack }: GlobalS302Vi
               </div>
 
               <h4 className="text-lg font-bold text-gray-800 mb-4 group-hover:text-orange-600 transition-colors line-clamp-1">
-                {item.congregacao}
+                {event.congregacao.nome}
               </h4>
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Calendar size={16} className="text-orange-400" />
-                  <span className="font-medium">{item.dataEvento || item.semana}</span>
+                  <span className="font-medium">{event.data}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <User size={16} className="text-orange-400" />
-                  <span className="truncate">{item.substituto ? `${item.substituto} (SCS)` : 'Superintendente'}</span>
+                  <span className="truncate">{event.substituteName ? `${event.substituteName} (SCS)` : 'Superintendente'}</span>
                 </div>
               </div>
 

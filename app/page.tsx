@@ -155,7 +155,8 @@ export default function Home() {
   const [appConfig, setAppConfig] = useState<{ 
     reportEnabledForAll: boolean;
     textEditorEnabledForAll: boolean;
-  }>({ reportEnabledForAll: false, textEditorEnabledForAll: false });
+    congregationImportEnabledForAll: boolean;
+  }>({ reportEnabledForAll: false, textEditorEnabledForAll: false, congregationImportEnabledForAll: false });
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
@@ -326,7 +327,8 @@ export default function Home() {
         console.log('Home: App settings updated:', data);
         setAppConfig({ 
           reportEnabledForAll: !!data.reportEnabledForAll,
-          textEditorEnabledForAll: !!data.textEditorEnabledForAll
+          textEditorEnabledForAll: !!data.textEditorEnabledForAll,
+          congregationImportEnabledForAll: !!data.congregationImportEnabledForAll
         });
       } else {
         console.log('Home: App settings doc not found.');
@@ -334,12 +336,17 @@ export default function Home() {
           console.log('Home: Initializing app settings for admin...');
           setDoc(configRef, { 
             reportEnabledForAll: false,
-            textEditorEnabledForAll: false
+            textEditorEnabledForAll: false,
+            congregationImportEnabledForAll: false
           }).catch(err => {
             console.error('Home: Failed to init app settings:', err);
           });
         }
-        setAppConfig({ reportEnabledForAll: false, textEditorEnabledForAll: false });
+        setAppConfig({ 
+          reportEnabledForAll: false, 
+          textEditorEnabledForAll: false, 
+          congregationImportEnabledForAll: false 
+        });
       }
     }, (err) => {
       console.warn('Home: Error listening to app settings (likely permissions):', err);
@@ -935,6 +942,8 @@ export default function Home() {
           {currentView === 'congregations' && (
             <CongregationsView 
               userId={user.id} 
+              isAdmin={user.role === 'admin'}
+              importEnabledForAll={appConfig.congregationImportEnabledForAll}
               onBack={() => {
                 changeView('dashboard');
                 setSelectedCongregation(null);
