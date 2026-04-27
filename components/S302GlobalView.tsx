@@ -43,9 +43,10 @@ interface ItineraryItem {
 interface GlobalS302ViewProps {
   userId: string;
   onBack: () => void;
+  isAdmin?: boolean;
 }
 
-export default function GlobalS302View({ userId, onBack }: GlobalS302ViewProps) {
+export default function GlobalS302View({ userId, onBack, isAdmin }: GlobalS302ViewProps) {
   const [loading, setLoading] = useState(true);
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -110,6 +111,7 @@ export default function GlobalS302View({ userId, onBack }: GlobalS302ViewProps) 
         events={mappedEvents}
         initialIndex={selectedEventIndex}
         onBack={() => setSelectedEventIndex(null)}
+        isAdmin={isAdmin}
       />
     );
   }

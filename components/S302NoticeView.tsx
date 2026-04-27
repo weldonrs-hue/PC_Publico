@@ -87,9 +87,10 @@ interface S302NoticeViewProps {
   initialIndex: number;
   userId: string;
   onBack: () => void;
+  isAdmin?: boolean;
 }
 
-export default function S302NoticeView({ events, initialIndex, userId, onBack }: S302NoticeViewProps) {
+export default function S302NoticeView({ events, initialIndex, userId, onBack, isAdmin }: S302NoticeViewProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const currentEvent = events[currentIndex];
   const { congregacao, data, substituteName } = currentEvent;
@@ -113,7 +114,7 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
     const fetchData = async () => {
       try {
         const personalRef = doc(db, 'personal_data', userId);
-        const layoutRef = doc(db, 's302_layouts', userId);
+        const layoutRef = doc(db, 'config', 's302_layout');
         
         const [personalSnap, layoutSnap] = await Promise.all([
           getDoc(personalRef),
@@ -138,9 +139,10 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
   }, [userId]);
 
   const handleSaveLayout = async () => {
+    if (!isAdmin) return;
     setIsSavingLayout(true);
     try {
-      await setDoc(doc(db, 's302_layouts', userId), layout);
+      await setDoc(doc(db, 'config', 's302_layout'), layout);
       setIsDesignMode(false);
     } catch (error) {
       console.error('Error saving layout:', error);
@@ -280,15 +282,17 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
         </div>
 
         <div className="flex gap-2 w-full sm:w-auto justify-end">
-          <button 
-            onClick={() => setIsDesignMode(!isDesignMode)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-md ${
-              isDesignMode ? 'bg-white text-[#512da8]' : 'bg-white/10 text-white hover:bg-white/20'
-            }`}
-          >
-            <Settings2 size={20} />
-            {isDesignMode ? 'Sair do Design' : 'Personalizar Layout'}
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => setIsDesignMode(!isDesignMode)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-md ${
+                isDesignMode ? 'bg-white text-[#512da8]' : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              <Settings2 size={20} />
+              {isDesignMode ? 'Sair do Design' : 'Personalizar Layout'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -562,13 +566,13 @@ export default function S302NoticeView({ events, initialIndex, userId, onBack }:
                   <div className="w-full text-center mb-[4pt]" style={{ fontSize: `${layout.signature.fontSize}pt` }}>Seu irmão,</div>
                   
                   <div className="w-full relative flex flex-col items-center group">
-                    <div className="h-12 w-full relative flex items-center justify-center">
+                    <div className="h-10 w-full relative flex items-end justify-center pb-[2pt]">
                       {signatureImage ? (
                         <div className="h-full w-full relative">
-                          <Image src={signatureImage} alt="Assinatura" fill className="object-contain" referrerPolicy="no-referrer" />
+                          <Image src={signatureImage} alt="Assinatura" fill className="object-contain object-bottom" referrerPolicy="no-referrer" />
                         </div>
                       ) : (
-                        <span className="font-signature text-[#004aad] text-2xl">{signatureName}</span>
+                        <span className="font-signature text-[#004aad] text-2xl leading-none">{signatureName}</span>
                       )}
                     </div>
                     <div className="w-full border-b border-black border-dotted"></div>

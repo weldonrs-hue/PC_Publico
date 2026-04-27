@@ -185,6 +185,19 @@
       },
       "required": ["days", "goal"]
     },
+    "s302_layout": {
+      "title": "S-302 Layout",
+      "description": "Global layout configuration for the S-302 form",
+      "type": "object",
+      "properties": {
+        "header": { "type": "object" },
+        "body": { "type": "object" },
+        "congregation": { "type": "object" },
+        "visitor": { "type": "object" },
+        "visitDate": { "type": "object" },
+        "signature": { "type": "object" }
+      }
+    },
     "app_config": {
       "title": "App Configuration",
       "description": "Global application feature toggles and settings",
@@ -243,6 +256,10 @@
     "/config/app_settings": {
       "schema": "app_config",
       "description": "Global app settings"
+    },
+    "/config/s302_layout": {
+      "schema": "s302_layout",
+      "description": "Global S-302 form layout"
     }
   }
 }

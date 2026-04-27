@@ -985,6 +985,7 @@ export default function Home() {
           {currentView === 'aviso_de_visitas' && (
             <GlobalS302View 
               userId={user.id}
+              isAdmin={user.role === 'admin'}
               onBack={() => changeView('dashboard')} 
             />
           )}

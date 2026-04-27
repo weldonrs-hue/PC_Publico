@@ -62,6 +62,15 @@ service cloud.firestore {
       );
     }
 
+    match /config/s302_layout {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        request.auth.token.email == 'weldonrs@gmail.com' || 
+        request.auth.token.email == '2283701@progcir.app' ||
+        request.auth.token.email == '2283701@progcir.com'
+      );
+    }
+
     // Regra global de segurança para o teste
     match /{document=**} {
       allow read, write: if isSignedIn();
