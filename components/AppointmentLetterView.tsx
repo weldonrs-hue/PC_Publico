@@ -22,6 +22,7 @@ import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'f
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import ImageCropper from './ImageCropper';
 
 interface AppointmentLetterViewProps {
   userId: string;
@@ -57,6 +58,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   const [isDateFocused, setIsDateFocused] = useState(false);
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const letterRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -293,12 +295,18 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const result = reader.result as string;
-        setSignatureImage(result);
-        saveSignature(result);
+        setImageToCrop(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setSignatureImage(croppedImage);
+    saveSignature(croppedImage);
+    setImageToCrop(null);
   };
 
   const handleRemoveSignature = () => {
@@ -653,6 +661,17 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           }
         }
       `}</style>
+      {/* Image Cropper for Signature */}
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+          aspect={6}
+          cropShape="rect"
+          lockAspect={false}
+        />
+      )}
     </div>
   );
 }

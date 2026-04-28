@@ -31,6 +31,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import ImageCropper from './ImageCropper';
 
 interface ElementLayout {
   top: number;
@@ -120,6 +121,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   // Signature States (Similar to AppointmentLetterView)
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -256,12 +258,18 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const result = reader.result as string;
-        setSignatureImage(result);
-        saveSignature(result);
+        setImageToCrop(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setSignatureImage(croppedImage);
+    saveSignature(croppedImage);
+    setImageToCrop(null);
   };
 
   const handleRemoveSignature = () => {
@@ -787,6 +795,18 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
           </div>
         </div>
       </div>
+
+      {/* Image Cropper for Signature */}
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+          aspect={6}
+          cropShape="rect"
+          lockAspect={false}
+        />
+      )}
     </div>
   );
 }

@@ -22,11 +22,13 @@ import {
   Eraser,
   Check,
   X,
-  Sparkles
+  Sparkles,
+  Crop
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'motion/react';
 import SignatureCanvas from 'react-signature-canvas';
+import ImageCropper from './ImageCropper';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -71,6 +73,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const [isDrawing, setIsDrawing] = useState(false);
   const sigPad = useRef<SignatureCanvas>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
   const removeImageBackground = () => {
     if (!formData.signatureImage) return;
@@ -196,10 +199,17 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData({ ...formData, signatureImage: reader.result as string });
+        setImageToCrop(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setFormData({ ...formData, signatureImage: croppedImage });
+    setImageToCrop(null);
   };
 
   const removeSignature = () => {
@@ -501,6 +511,15 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
                     <button 
                       type="button"
+                      onClick={() => setImageToCrop(formData.signatureImage)}
+                      className="absolute -top-4 right-20 p-2 bg-emerald-100 text-emerald-600 rounded-full hover:bg-emerald-200 transition-all shadow-sm opacity-0 group-hover:opacity-100 z-10"
+                      title="Recortar Assinatura"
+                    >
+                      <Crop size={16} />
+                    </button>
+
+                    <button 
+                      type="button"
                       onClick={removeImageBackground}
                       disabled={isProcessing}
                       className="absolute -top-4 right-8 p-2 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-all shadow-sm opacity-0 group-hover:opacity-100 z-10 disabled:opacity-50"
@@ -595,7 +614,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </motion.div>
         </div>
       )}
-      {/* Draw Signature Modal */}
       <AnimatePresence>
         {isDrawing && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
@@ -663,6 +681,18 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </div>
         )}
       </AnimatePresence>
+
+      {/* Image Cropper for Signature */}
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+          aspect={6}
+          cropShape="rect"
+          lockAspect={false}
+        />
+      )}
     </div>
   );
 }
