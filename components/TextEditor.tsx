@@ -33,28 +33,9 @@ import 'react-quill-new/dist/quill.snow.css';
 // Dynamic import for ReactQuill to avoid SSR errors
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 
-const editorFormats = [
-  'header', 'font', 'size',
-  'bold', 'italic', 'underline', 'strike', 'blockquote',
-  'list', 'indent',
-  'link', 'image', 'video', 'color', 'background', 'align'
-];
-
-const editorModules = {
-  toolbar: {
-    container: "#quill-toolbar-container",
-  },
-  history: {
-    delay: 2000,
-    maxStack: 500,
-    userOnly: true
-  }
-};
-
 export default function TextEditor({ onBack }: { onBack?: () => void }) {
   const [mounted, setMounted] = useState(false);
   const [content, setContent] = useState('');
-  const quillRef = useRef<any>(null);
   const [title, setTitle] = useState('Documento Sem Título');
   const [zoom, setZoom] = useState(100);
   const [isSaving, setIsSaving] = useState(false);
@@ -70,7 +51,31 @@ export default function TextEditor({ onBack }: { onBack?: () => void }) {
   const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    const handle = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(handle);
+  }, []);
+
+  const formats = useMemo(() => [
+    'header', 'font', 'size',
+    'bold', 'italic', 'underline', 'strike', 'blockquote',
+    'list', 'indent',
+    'link', 'image', 'video', 'color', 'background', 'align'
+  ], []);
+
+  const modules = useMemo(() => ({
+    toolbar: {
+      container: "#quill-toolbar-container",
+    },
+    history: {
+      delay: 2000,
+      maxStack: 500,
+      userOnly: true
+    }
+  }), []);
+
+  const showNotification = useCallback((msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3000);
   }, []);
 
   const handleSave = useCallback(() => {
@@ -79,7 +84,7 @@ export default function TextEditor({ onBack }: { onBack?: () => void }) {
       setIsSaving(false);
       showNotification('Documento salvo com sucesso!');
     }, 1000);
-  }, []);
+  }, [showNotification]);
 
   const handlePrint = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -102,11 +107,6 @@ export default function TextEditor({ onBack }: { onBack?: () => void }) {
 
   const handleRedo = () => {
     // Manual redo would need a ref
-  };
-
-  const showNotification = (msg: string) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleClearAll = () => {
@@ -201,22 +201,6 @@ export default function TextEditor({ onBack }: { onBack?: () => void }) {
               <Save size={24} />
               <span className="text-[10px] font-medium text-slate-700">Salvar</span>
             </button>
-            <div className="flex flex-col gap-0.5">
-              <button 
-                type="button" 
-                className="ql-undo p-1 hover:bg-white rounded-sm flex items-center gap-2 pr-4 text-slate-600"
-              >
-                <span className="text-[10px] font-bold">↶</span>
-                <span className="text-[10px]">Desfazer</span>
-              </button>
-              <button 
-                type="button" 
-                className="ql-redo p-1 hover:bg-white rounded-sm flex items-center gap-2 pr-4 text-slate-600"
-              >
-                <span className="text-[10px] font-bold">↷</span>
-                <span className="text-[10px]">Refazer</span>
-              </button>
-            </div>
           </div>
           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 text-center w-full">SISTEMA</span>
         </div>
@@ -225,6 +209,25 @@ export default function TextEditor({ onBack }: { onBack?: () => void }) {
         <div className="flex flex-col items-center px-3 border-r border-slate-200 py-2">
           <div className="mb-auto">
             <div id="quill-toolbar-container" className="flex items-center gap-0.5">
+              <div className="flex flex-col gap-0.5 mr-2">
+                <button 
+                  type="button" 
+                  className="ql-undo p-1 hover:bg-white rounded-sm flex items-center gap-2 pr-4 text-slate-600"
+                >
+                  <span className="pointer-events-none text-[10px] font-bold">↶</span>
+                  <span className="pointer-events-none text-[10px]">Desfazer</span>
+                </button>
+                <button 
+                  type="button" 
+                  className="ql-redo p-1 hover:bg-white rounded-sm flex items-center gap-2 pr-4 text-slate-600"
+                >
+                  <span className="pointer-events-none text-[10px] font-bold">↷</span>
+                  <span className="pointer-events-none text-[10px]">Refazer</span>
+                </button>
+              </div>
+              
+              <div className="w-px h-10 bg-slate-200 mx-2"></div>
+
               {/* Font Group (Quill) */}
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-1">
@@ -353,8 +356,8 @@ export default function TextEditor({ onBack }: { onBack?: () => void }) {
                 theme="snow"
                 value={content}
                 onChange={handleChange}
-                modules={editorModules}
-                formats={editorFormats}
+                modules={modules}
+                formats={formats}
                 className="h-full"
                 placeholder="Comece a digitar seu documento..."
               />
