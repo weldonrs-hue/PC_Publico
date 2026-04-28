@@ -583,7 +583,12 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                     </div>
 
                     {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
-                      <div className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible">
+                      <div 
+                        className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible transition-transform"
+                        style={{ 
+                          transform: `translateY(${personalData?.signatureOffset || 0}px)`
+                        }}
+                      >
                         <Image 
                           src={signatureImage} 
                           alt="Assinatura" 

@@ -63,7 +63,8 @@ const defaultData = {
   telefoneCircuito: '',
   emailPessoal: '',
   telefonePessoal: '',
-  signatureImage: null as string | null
+  signatureImage: null as string | null,
+  signatureOffset: 0
 };
 
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
@@ -485,21 +486,40 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
               <div className="flex flex-col items-center justify-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm relative group overflow-hidden">
                 {formData.signatureImage ? (
-                  <div className="relative w-full max-w-[400px]">
-                    <div className="h-24 flex items-center justify-center relative w-full overflow-hidden">
+                  <div className="relative w-full max-w-[300px] mx-auto">
+                    <div 
+                      className="h-20 flex items-end justify-center relative w-full overflow-visible transition-transform duration-200"
+                      style={{ 
+                        transform: `translateY(${formData.signatureOffset}px)`
+                      }}
+                    >
                       <Image 
                         src={formData.signatureImage} 
                         alt="Assinatura Digital" 
                         fill 
-                        className="object-contain"
+                        className="object-contain object-bottom"
                         referrerPolicy="no-referrer"
                       />
                     </div>
-                    <div className="border-t border-black w-full mt-2" />
-                    <p className="text-center font-bold text-xs mt-2 uppercase tracking-widest text-gray-900">
+                    <div className="border-t border-black w-full mt-1 relative z-10" />
+                    <p className="text-center font-bold text-[11px] mt-1 uppercase tracking-tight text-gray-900">
                       {formData.nome || 'SEU NOME'}
                     </p>
                     
+                    {/* Offset Control Slider overlay */}
+                    <div className="absolute -left-12 top-0 bottom-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none group-hover:pointer-events-auto">
+                      <span className="text-[10px] font-black text-emerald-600 vertical-text">POSIÇÃO</span>
+                      <input 
+                        type="range"
+                        min="-40"
+                        max="40"
+                        value={formData.signatureOffset}
+                        onChange={(e) => setFormData({ ...formData, signatureOffset: parseInt(e.target.value) })}
+                        className="h-32 appearance-none bg-gray-200 rounded-full w-1.5 cursor-pointer accent-emerald-600"
+                        style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' } as any}
+                      />
+                    </div>
+
                     <button 
                       type="button"
                       onClick={removeSignature}

@@ -734,10 +734,13 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                   
                   <div className="w-full relative flex flex-col items-center group">
                     <div 
-                      className="w-full relative flex items-end justify-center"
+                      className="w-full relative flex items-end justify-center transition-transform"
                       style={{ 
                         height: `${layout.signature.imageHeight || 12}mm`,
-                        marginBottom: `${layout.signature.imageOffset || 0}mm`,
+                        // marginBottom: `${layout.signature.imageOffset || 0}mm`, // Original
+                        // We combine the local mm offset with the global pixel offset (approx 4px = 1mm at 96dpi)
+                        // Note: marginBottom moves up, so we NEGATE the translateY logic if needed
+                        marginBottom: `${(layout.signature.imageOffset || 0) - (personalData?.signatureOffset || 0) / 3.78}mm`,
                         transform: `translateX(${layout.signature.imageShiftX || 0}mm)`
                       }}
                     >
@@ -758,7 +761,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                         <span className="font-signature text-[#004aad] text-2xl leading-none">{signatureName}</span>
                       )}
                     </div>
-                    <div className="w-full border-b border-black border-dotted"></div>
+                    <div className="w-full border-b border-black"></div>
                   </div>
                 </div>
 
