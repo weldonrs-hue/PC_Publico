@@ -1,116 +1,51 @@
 @import "tailwindcss";
-@import "leaflet/dist/leaflet.css";
 
 @theme {
-  --font-sans: var(--font-inter);
+  --color-primary: #2b579a;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #d2e3fc;
+  --color-on-primary-container: #174ea6;
+  
+  --color-surface: #f8f9fa;
+  --color-on-surface: #202124;
+  --color-surface-variant: #f1f3f4;
+  --color-on-surface-variant: #5f6368;
+  
+  --color-outline: #dadce0;
+  --color-outline-variant: #e8eaed;
+
   --font-headline: var(--font-manrope);
-  --font-signature: var(--font-signature);
+  --font-body: var(--font-inter);
 }
 
-@layer base {
-  .font-serif-document {
-    font-family: var(--font-serif), "Times New Roman", Times, serif;
-  }
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-manrope: 'Manrope', sans-serif;
 }
 
 @layer base {
   body {
-    @apply text-[#3a264b];
+    @apply bg-surface text-on-surface font-body;
   }
 }
 
-.sidebar-gradient {
-  background: linear-gradient(180deg, #6c40bd 0%, #3a0082 100%);
+@layer utilities {
+  /* Ribbon and Document Typography */
+  .font-ribbon-tab { font-family: var(--font-inter); font-size: 13px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; }
+  .font-caption { font-family: var(--font-inter); font-size: 12px; line-height: 16px; font-weight: 400; }
+  .font-body-md { font-family: var(--font-inter); font-size: 14px; line-height: 20px; font-weight: 400; }
+  .font-label-caps { font-family: var(--font-inter); font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.05em; }
+  .font-display-sm { font-family: var(--font-manrope); font-size: 24px; line-height: 32px; font-weight: 700; }
+  .font-h1 { font-family: var(--font-manrope); font-size: 20px; line-height: 28px; font-weight: 600; }
+
+  .text-ribbon-tab { font-size: 13px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; }
+  .text-caption { font-size: 12px; line-height: 16px; font-weight: 400; }
+  .text-body-md { font-size: 14px; line-height: 20px; font-weight: 400; }
+  .text-label-caps { font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.05em; }
+  .text-display-sm { font-size: 24px; line-height: 32px; font-weight: 700; }
+  .text-h1 { font-size: 20px; line-height: 28px; font-weight: 600; }
+  
+  .canvas-shadow {
+    box-shadow: 0 0 1px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.05) !important;
+  }
 }
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(76, 175, 80, 0.3) rgba(255, 255, 255, 0.05);
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(76, 175, 80, 0.3);
-  border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(76, 175, 80, 0.5);
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.custom-scrollbar-wide::-webkit-scrollbar {
-  height: 6px;
-}
-
-.custom-scrollbar-wide::-webkit-scrollbar-track {
-  background: rgba(136, 14, 79, 0.05);
-  border-radius: 10px;
-}
-
-.custom-scrollbar-wide::-webkit-scrollbar-thumb {
-  background: rgba(136, 14, 79, 0.2);
-  border-radius: 10px;
-}
-
-.custom-scrollbar-wide::-webkit-scrollbar-thumb:hover {
-  background: rgba(136, 14, 79, 0.4);
-}
-
-/* Quill custom fonts and sizes */
-.ql-font-arial { font-family: Arial, sans-serif; }
-.ql-font-courier-new { font-family: 'Courier New', Courier, monospace; }
-.ql-font-georgia { font-family: Georgia, serif; }
-.ql-font-lucida { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; }
-.ql-font-tahoma { font-family: Tahoma, Geneva, sans-serif; }
-.ql-font-times-new-roman { font-family: 'Times New Roman', Times, serif; }
-.ql-font-trebuchet { font-family: 'Trebuchet MS', Helvetica, sans-serif; }
-.ql-font-verdana { font-family: Verdana, Geneva, sans-serif; }
-
-.ql-size-small { font-size: 0.75em; }
-.ql-size-large { font-size: 1.5em; }
-.ql-size-huge { font-size: 2.5em; }
-
-/* Ensure pickers show correct text */
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="arial"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="arial"]::before { content: "Arial"; }
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="courier-new"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="courier-new"]::before { content: "Courier New"; }
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="georgia"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="georgia"]::before { content: "Georgia"; }
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="lucida"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="lucida"]::before { content: "Lucida Sans"; }
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="tahoma"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="tahoma"]::before { content: "Tahoma"; }
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="times-new-roman"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="times-new-roman"]::before { content: "Times New Roman"; }
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="trebuchet"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="trebuchet"]::before { content: "Trebuchet MS"; }
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="verdana"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="verdana"]::before { content: "Verdana"; }
-
-.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="small"]::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="small"]::before { content: "Pequeno"; }
-.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="large"]::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="large"]::before { content: "Grande"; }
-.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="huge"]::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before { content: "Enorme"; }
-.ql-snow .ql-picker.ql-size .ql-picker-label::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item::before { content: "Normal"; }

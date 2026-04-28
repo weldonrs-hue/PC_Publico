@@ -1,5 +1,4 @@
 {
-  "name": "ProgCir - Programador de Atividades do Circuito",
-  "description": "Sistema de gestão e programação das atividades do circuito",
-  "requestFramePermissions": []
+  "name": "ProgCir Editor",
+  "description": "Um editor de texto profissional com assistente de IA, templates e exportação."
 }

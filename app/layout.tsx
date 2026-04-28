@@ -1,63 +1,27 @@
-import type { Metadata, Viewport } from 'next';
-import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display } from 'next/font/google';
-import './globals.css';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import LGPDConsent from '@/components/LGPDConsent';
+import type { Metadata } from "next";
+import { Inter, Manrope } from "next/font/google";
+import "./globals.css";
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-});
-
-const manrope = Manrope({
-  subsets: ['latin'],
-  variable: '--font-manrope',
-});
-
-const libreBaskerville = Libre_Baskerville({
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  variable: '--font-serif-libre',
-});
-
-const playfairDisplay = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-serif',
-});
-
-const dancingScript = Dancing_Script({
-  subsets: ['latin'],
-  variable: '--font-signature',
-});
-
-export const viewport: Viewport = {
-  themeColor: '#673ab7',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-};
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
 export const metadata: Metadata = {
-  title: 'ProgCir - Programador de Atividades do Circuito',
-  description: 'Sistema de gestão e programação das atividades do circuito',
-  icons: {
-    icon: [
-      { url: '/ProgCir_Ico.svg', type: 'image/svg+xml' },
-    ],
-    apple: [
-      { url: '/ProgCir_Ico.svg', type: 'image/svg+xml' },
-    ],
-  },
+  title: "ProgCir Editor",
+  description: "Um editor de texto profissional",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="pt-br" className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${playfairDisplay.variable} ${dancingScript.variable}`}>
-      <body suppressHydrationWarning className="bg-gray-50 font-sans">
-        <ErrorBoundary>
-          {children}
-          <LGPDConsent />
-        </ErrorBoundary>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+      </head>
+      <body className={`${inter.variable} ${manrope.variable} antialiased`}>
+        {children}
       </body>
     </html>
   );
