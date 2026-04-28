@@ -1,10 +1,10 @@
 'use client';
-// Force rebuild
+// Force rebuild - 2026-04-28
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import Sidebar from '@/components/Sidebar';
 
-const Sidebar = dynamic(() => import('@/components/Sidebar'), { ssr: false });
 const DashboardCards = dynamic(() => import('@/components/DashboardCards'), { ssr: false });
 const SecondarySection = dynamic(() => import('@/components/SecondarySection'), { ssr: false });
 const AuthForm = dynamic(() => import('@/components/AuthForm'), { ssr: false });
@@ -22,9 +22,9 @@ const RegionalConventionView = dynamic(() => import('@/components/RegionalConven
 const MiscView = dynamic(() => import('@/components/MiscView'), { ssr: false });
 const TextEditor = dynamic(() => import('@/components/TextEditor'), { ssr: false });
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
-const ImageCropper = dynamic(() => import('@/components/ImageCropper'), { ssr: false });
-const TermsAndPrivacy = dynamic(() => import('@/components/TermsAndPrivacy'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
+import ImageCropper from '@/components/ImageCropper';
+import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
 import { auth, db } from '@/lib/firebase';
 import { 

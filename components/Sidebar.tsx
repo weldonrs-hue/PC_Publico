@@ -1,5 +1,5 @@
 'use client';
-// Force rebuild
+// Force rebuild - updated
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList } from 'lucide-react';
