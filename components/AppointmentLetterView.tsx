@@ -555,32 +555,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                   <p className="text-[15px] mt-0 mb-[18px] text-left pl-4">Seu irmão,</p>
                   {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center overflow-visible">
-                    {/* Signature Upload Controls */}
-                    <div className="absolute -left-12 top-0 flex flex-col gap-2 print:hidden opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-1.5 bg-white shadow-md rounded-full text-indigo-600 hover:bg-indigo-50 border border-gray-100"
-                        title="Adicionar imagem da assinatura"
-                      >
-                        <Upload size={14} />
-                      </button>
-                      {signatureImage && (
-                        <button 
-                          onClick={handleRemoveSignature}
-                          className="p-1.5 bg-white shadow-md rounded-full text-red-600 hover:bg-red-50 border border-gray-100"
-                          title="Remover imagem"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                      <input 
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </div>
+                    {/* Signature Upload Controls removed */}
 
                     {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
                       <div 

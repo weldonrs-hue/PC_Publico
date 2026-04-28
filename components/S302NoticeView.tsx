@@ -747,15 +747,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                       {signatureImage ? (
                         <div className="h-full w-full relative">
                           <Image src={signatureImage} alt="Assinatura" fill className="object-contain object-bottom" referrerPolicy="no-referrer" />
-                          <button 
-                            type="button"
-                            onClick={removeImageBackground}
-                            disabled={isProcessing}
-                            className="absolute -top-1 -right-1 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-all shadow-sm opacity-0 group-hover:opacity-100 z-10 disabled:opacity-50"
-                            title="Remover Fundo Branco"
-                          >
-                            {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                          </button>
+                          {/* Background removal button removed as requested */}
                         </div>
                       ) : (
                         <span className="font-signature text-[#004aad] text-2xl leading-none">{signatureName}</span>
