@@ -1,20 +1,248 @@
 {
   "entities": {
-    "personalData": {
-      "title": "Dados Pessoais",
-      "description": "Dados básicos do usuário e assinatura",
+    "personal_data": {
+      "title": "Personal Data",
+      "description": "Personal information of the circuit overseer",
       "type": "object",
       "properties": {
+        "userId": { "type": "string", "description": "The ID of the user" },
+        "numeroPessoal": { "type": "string", "description": "The personal identification number" },
         "nome": { "type": "string" },
-        "email": { "type": "string" },
+        "nomeEsposa": { "type": "string" },
+        "endereco": { "type": "string" },
+        "cidade": { "type": "string" },
+        "cep": { "type": "string" },
+        "uf": { "type": "string" },
+        "circuito": { "type": "string" },
+        "emailJwpub": { "type": "string" },
+        "emailPessoal": { "type": "string" },
+        "telefoneCircuito": { "type": "string" },
+        "telefonePessoal": { "type": "string" },
         "signatureImage": { "type": "string", "description": "Base64 encoded signature image" }
-      }
+      },
+      "required": ["userId", "nome"]
+    },
+    "congregation": {
+      "title": "Congregation",
+      "description": "Details of a congregation in the circuit",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "numero": { "type": "string" },
+        "parte": { "type": "string" },
+        "endereco": { "type": "string" },
+        "coordenador": { "type": "string" },
+        "telefone": { "type": "string" },
+        "cidade": { "type": "string" },
+        "cep": { "type": "string" },
+        "estado": { "type": "string" },
+        "grupos": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "nome", "numero"]
+    },
+    "substitute": {
+      "title": "Substitute",
+      "description": "Details of a substitute overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "congregacaoId": { "type": "string" },
+        "congregacaoNome": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" }
+      },
+      "required": ["userId", "nome", "congregacaoId"]
+    },
+    "itinerary": {
+      "title": "Itinerary",
+      "description": "Itinerary of the circuit overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "semana": { "type": "string" },
+        "dataEvento": { "type": "string" },
+        "evento": { "type": "string" },
+        "tipoEvento": { "type": "string" },
+        "observacoes": { "type": "string" },
+        "escritorioNotificado": { "type": "boolean" },
+        "congregacaoNotificada": { "type": "boolean" },
+        "ordem": { "type": "integer" },
+        "dataInicialDia": { "type": "string" },
+        "dataTerminoDia": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "substituto": { "type": "string" },
+        "grupo": { "type": "string" },
+        "outroEvento": { "type": "string" }
+      },
+      "required": ["userId", "semana", "ordem"]
+    },
+    "activity_analysis": {
+      "title": "Activity Analysis",
+      "description": "Congregation activity analysis data",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "dataVisita": { "type": "string" },
+        "pubAtivos": { "type": "string" },
+        "ministério": { "type": "object" },
+        "estatisticas": { "type": "object" },
+        "donativos": { "type": "object" },
+        "reunioes": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "congregacao", "dataVisita"]
+    },
+    "s303_report": {
+      "title": "S-303 Report",
+      "description": "Circuit Overseer's report on the congregation visit",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "dataVisita": { "type": "string" },
+        "relatorio": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "textStyles": {
+          "type": "object",
+          "properties": {
+            "fontFamily": { "type": "string" },
+            "fontSize": { "type": "number" },
+            "fontWeight": { "type": "string" },
+            "fontStyle": { "type": "string" },
+            "color": { "type": "string" }
+          }
+        }
+      },
+      "required": ["userId", "congregacao", "dataVisita"]
+    },
+    "user": {
+      "title": "User",
+      "description": "User profile and roles",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "photoURL": { "type": "string", "description": "Base64 encoded profile picture" }
+      },
+      "required": ["email", "role"]
+    },
+    "pioneer_school_student": {
+      "title": "Pioneer School Student",
+      "description": "Details of a student invited to the pioneer school",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "circuito": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "nome", "congregacao", "circuito"]
+    },
+    "pioneer_school_workshop": {
+      "title": "Pioneer School Workshop",
+      "description": "Assignments of participants to workshop scenarios",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "scenarioId": { "type": "integer" },
+        "participants": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "scenarioId", "participants"]
+    },
+    "regional_convention_speakers": {
+      "title": "Regional Convention Speakers",
+      "description": "List of speakers for the regional convention program",
+      "type": "object",
+      "properties": {
+        "speakers": { 
+          "type": "object", 
+          "description": "Map of program item IDs to speaker names" 
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["speakers"]
+    },
+    "service_report": {
+      "title": "Field Service Report",
+      "description": "Monthly report of field service hours and goals",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "days": {
+          "type": "object",
+          "description": "Map of date strings to day data (hours and notes)"
+        },
+        "goal": { "type": "integer", "description": "Monthly hour goal" }
+      },
+      "required": ["days", "goal"]
+    },
+    "app_config": {
+      "title": "App Configuration",
+      "description": "Global application feature toggles and settings",
+      "type": "object",
+      "properties": {
+        "reportEnabledForAll": { "type": "boolean", "description": "Whether the field service report is enabled for all users" }
+      },
+      "required": ["reportEnabledForAll"]
     }
   },
   "firestore": {
-    "users/{userId}": {
-      "schema": "personalData",
-      "description": "Documento de dados pessoais do usuário"
+    "/personal_data/{dataId}": {
+      "schema": "personal_data",
+      "description": "Collection of personal data for overseers"
+    },
+    "/congregations/{congId}": {
+      "schema": "congregation",
+      "description": "Collection of congregations"
+    },
+    "/substitutes/{subId}": {
+      "schema": "substitute",
+      "description": "Collection of substitute overseers"
+    },
+    "/itineraries/{itId}": {
+      "schema": "itinerary",
+      "description": "Collection of itineraries"
+    },
+    "/activity_analysis/{analysisId}": {
+      "schema": "activity_analysis",
+      "description": "Collection of congregation activity analysis"
+    },
+    "/s303_reports/{reportId}": {
+      "schema": "s303_report",
+      "description": "Collection of S-303 reports"
+    },
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Collection of user profiles"
+    },
+    "/pioneer_school_students/{studentId}": {
+      "schema": "pioneer_school_student",
+      "description": "Collection of students invited to the pioneer school"
+    },
+    "/pioneer_school_workshops/{workshopId}": {
+      "schema": "pioneer_school_workshop",
+      "description": "Collection of workshop assignments"
+    },
+    "/regional_convention_speakers/{userId}": {
+      "schema": "regional_convention_speakers",
+      "description": "Collection of speaker assignments for regional conventions"
+    },
+    "/service_reports/{reportId}": {
+      "schema": "service_report",
+      "description": "Collection of monthly service reports"
+    },
+    "/config/app_settings": {
+      "schema": "app_config",
+      "description": "Global app settings"
     }
   }
 }

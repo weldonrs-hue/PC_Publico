@@ -1,22 +1,64 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
+import type { Metadata, Viewport } from 'next';
+import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display } from 'next/font/google';
+import './globals.css';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import LGPDConsent from '@/components/LGPDConsent';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
 
-export const metadata: Metadata = {
-  title: "Assinatura Global",
-  description: "Gerenciamento de Assinaturas e Documentos",
+const manrope = Manrope({
+  subsets: ['latin'],
+  variable: '--font-manrope',
+});
+
+const libreBaskerville = Libre_Baskerville({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-serif-libre',
+});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-serif',
+});
+
+const dancingScript = Dancing_Script({
+  subsets: ['latin'],
+  variable: '--font-signature',
+});
+
+export const viewport: Viewport = {
+  themeColor: '#673ab7',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const metadata: Metadata = {
+  title: 'ProgCir - Programador de Atividades do Circuito',
+  description: 'Sistema de gestão e programação das atividades do circuito',
+  icons: {
+    icon: [
+      { url: '/ProgCir_Ico.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/ProgCir_Ico.svg', type: 'image/svg+xml' },
+    ],
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body className={inter.className}>{children}</body>
+    <html lang="pt-br" className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${playfairDisplay.variable} ${dancingScript.variable}`}>
+      <body suppressHydrationWarning className="bg-gray-50 font-sans">
+        <ErrorBoundary>
+          {children}
+          <LGPDConsent />
+        </ErrorBoundary>
+      </body>
     </html>
   );
 }
