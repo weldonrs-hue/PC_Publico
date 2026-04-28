@@ -598,7 +598,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                                   />
                                   <button 
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
-                                    className="absolute right-0 opacity-0 group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
+                                    className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
                                   >
                                     <Calculator size={18} />
                                   </button>
@@ -614,7 +614,7 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
                                   />
                                   <button 
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
-                                    className="absolute right-0 opacity-0 group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
+                                    className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
                                   >
                                     <Calculator size={18} />
                                   </button>

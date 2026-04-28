@@ -1319,7 +1319,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                           >
                             <span className="font-bold mr-2">({scenario.id})</span>
                             {scenario.text}
-                            <div className="inline-block ml-2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden pdf-only-element:hidden">
+                            <div className="inline-block ml-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity print:hidden pdf-only-element:hidden">
                               <ChevronDown size={14} className={`transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
                             </div>
                           </div>

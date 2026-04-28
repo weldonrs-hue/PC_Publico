@@ -410,7 +410,7 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
                                 placeholder="..."
                                 rows={3}
                                 maxLength={50}
-                                className={`w-full text-center font-serif italic text-[15px] leading-tight text-gray-800 bg-transparent border-none outline-none placeholder:text-gray-50 focus:text-gray-950 resize-none overflow-hidden transition-all duration-500 h-[95px] mb-[-45px] ${dayData.notes ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 focus:opacity-100 focus:translate-y-0'}`}
+                                className={`w-full text-center font-serif italic text-[15px] leading-tight text-gray-800 bg-transparent border-none outline-none placeholder:text-gray-50 focus:text-gray-950 resize-none overflow-hidden transition-all duration-500 h-[95px] mb-[-45px] ${dayData.notes ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-hover:translate-y-0 lg:translate-y-1 focus:opacity-100 focus:translate-y-0'}`}
                               />
                             </div>
                           </div>

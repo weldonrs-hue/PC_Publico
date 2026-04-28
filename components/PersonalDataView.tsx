@@ -507,7 +507,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     </p>
                     
                     {/* Offset Control Slider overlay */}
-                    <div className="absolute -left-12 top-0 bottom-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none group-hover:pointer-events-auto">
+                    <div className="absolute -left-12 top-0 bottom-0 flex flex-col items-center justify-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all pointer-events-auto lg:pointer-events-none lg:group-hover:pointer-events-auto">
                       <span className="text-[10px] font-black text-emerald-600 vertical-text">POSIÇÃO</span>
                       <input 
                         type="range"
@@ -523,7 +523,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     <button 
                       type="button"
                       onClick={removeSignature}
-                      className="absolute -top-4 -right-4 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all shadow-sm opacity-0 group-hover:opacity-100 z-10"
+                      className="absolute -top-4 -right-4 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10"
                       title="Remover Assinatura"
                     >
                       <Trash2 size={16} />
@@ -532,7 +532,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     <button 
                       type="button"
                       onClick={() => setImageToCrop(formData.signatureImage)}
-                      className="absolute -top-4 right-20 p-2 bg-emerald-100 text-emerald-600 rounded-full hover:bg-emerald-200 transition-all shadow-sm opacity-0 group-hover:opacity-100 z-10"
+                      className="absolute -top-4 right-20 p-2 bg-emerald-100 text-emerald-600 rounded-full hover:bg-emerald-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10"
                       title="Recortar Assinatura"
                     >
                       <Crop size={16} />
@@ -542,7 +542,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                       type="button"
                       onClick={removeImageBackground}
                       disabled={isProcessing}
-                      className="absolute -top-4 right-8 p-2 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-all shadow-sm opacity-0 group-hover:opacity-100 z-10 disabled:opacity-50"
+                      className="absolute -top-4 right-8 p-2 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10 disabled:opacity-50"
                       title="Remover Fundo Branco"
                     >
                       {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}

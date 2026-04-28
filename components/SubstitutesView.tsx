@@ -239,7 +239,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                             <p className="text-xs text-gray-500 font-medium">{sub.congregacaoNome}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                           <button 
                             onClick={() => handleEdit(sub)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

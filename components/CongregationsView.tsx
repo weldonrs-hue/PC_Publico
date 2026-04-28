@@ -1116,7 +1116,7 @@ export default function CongregationsView({
                       <button 
                         type="button"
                         onClick={() => handleRemoveGroup(index)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                       >
                         <Trash2 size={14} />
                       </button>

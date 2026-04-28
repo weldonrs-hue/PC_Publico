@@ -194,7 +194,7 @@ export default function GlobalS302View({ userId, isAdmin, onBack }: GlobalS302Vi
                 </div>
               </div>
 
-              <div className="mt-6 flex items-center justify-end text-orange-600 font-bold text-sm gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+              <div className="mt-6 flex items-center justify-end text-orange-600 font-bold text-sm gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all transform lg:translate-x-2 lg:group-hover:translate-x-0">
                 Gerar Aviso <ArrowRight size={16} />
               </div>
             </motion.div>
