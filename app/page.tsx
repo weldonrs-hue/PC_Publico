@@ -23,6 +23,7 @@ const MiscView = dynamic(() => import('@/components/MiscView'), { ssr: false });
 const TextEditor = dynamic(() => import('@/components/TextEditor'), { ssr: false });
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
 const DocxToPdfDemo = dynamic(() => import('@/components/DocxToPdfDemo'), { ssr: false });
+const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
@@ -43,7 +44,7 @@ import {
 } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
-import { Camera, User } from 'lucide-react';
+import { Camera, User, ArrowLeft } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -103,7 +104,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard'>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -1064,16 +1065,25 @@ export default function Home() {
             />
           )}
 
+          {currentView === 'cartas_dashboard' && (
+            <CartasDashboard 
+              onViewChange={(view) => changeView(view as any)}
+            />
+          )}
+
           {currentView === 'docx_demo' && (
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[80vh]">
               <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                <h2 className="font-bold text-gray-800">Gerador de Documentos</h2>
-                <button 
-                  onClick={() => changeView('dashboard')}
-                  className="text-sm font-medium text-blue-600 hover:underline"
-                >
-                  Voltar ao Dashboard
-                </button>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => changeView('cartas_dashboard')}
+                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
+                    title="Voltar ao Painel de Cartas"
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <h2 className="font-bold text-gray-800">Gerador de Documentos</h2>
+                </div>
               </div>
               <DocxToPdfDemo />
             </div>

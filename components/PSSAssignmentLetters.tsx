@@ -93,6 +93,7 @@ export default function PSSAssignmentLetters({
     const emailValue = schoolInfo.confirmacaoEmail || '________________';
     const telefoneValue = schoolInfo.confirmacaoWhatsapp || '________________';
     const instrutorValue = schoolInfo.instrutorA || '________________';
+    const signatureBlock = `__________________________\n${instrutorValue}`;
 
     return {
       'data': dataValue,
@@ -110,10 +111,12 @@ export default function PSSAssignmentLetters({
       'TELEFONE': telefoneValue,
       'whatsapp': telefoneValue,
       'WHATSAPP': telefoneValue,
-      'nome do instrutor': instrutorValue,
-      'NOME DO INSTRUTOR': instrutorValue,
-      'instrutor': instrutorValue,
-      'INSTRUTOR': instrutorValue,
+      'nome do instrutor': signatureBlock,
+      'NOME DO INSTRUTOR': signatureBlock,
+      'instrutor': signatureBlock,
+      'INSTRUTOR': signatureBlock,
+      'assinatura': signatureBlock,
+      'ASSINATURA': signatureBlock,
     };
   };
 
@@ -379,7 +382,7 @@ export default function PSSAssignmentLetters({
           </div>
 
           <p className="text-[9px] text-gray-400 text-center italic">
-            * As substituições são automáticas. Use marcadores no formato [TAG] nos arquivos Word. Para negrito, formate o marcador como negrito no Word.
+            * As substituições são automáticas. Use marcadores no formato [TAG] nos arquivos Word. Por exemplo: [NOME], [DATA], [ASSINATURA]. Para negrito, formate o marcador como negrito no Word.
           </p>
         </div>
       </div>

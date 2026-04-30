@@ -14,7 +14,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
   { icon: GraduationCap, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
-  { icon: ClipboardList, label: 'Docs', view: 'docx_demo' },
+  { icon: ClipboardList, label: 'Cartas', view: 'cartas_dashboard' },
   { icon: Shapes, label: 'Diversos', view: 'misc' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
@@ -119,7 +119,7 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
   const isAdminUser = user?.role === 'admin' || user?.usuario === '2283701' || user?.email === 'weldonrs@gmail.com';
   
   const menuItems = navItems.filter(item => {
-    if (item.view === 'docx_demo') return isAdminUser;
+    if (item.view === 'cartas_dashboard') return isAdminUser;
     return true;
   });
 
