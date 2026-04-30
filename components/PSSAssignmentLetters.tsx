@@ -284,37 +284,41 @@ export default function PSSAssignmentLetters({
 
   return (
     <div className="space-y-6">
-      <div className="grid md:grid-cols-12 gap-8">
-        {/* Lado Esquerdo: Lista de Templates */}
-        <div className="md:col-span-3 space-y-4">
-          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="flex flex-col gap-6">
+        {/* Top: Lista de Templates em Grid */}
+        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-800 flex items-center gap-2">
               <List size={18} />
-              Templates
+              Selecione o Template
             </h3>
-            <div className="space-y-1 overflow-y-auto max-h-[600px] pr-2 custom-scrollbar">
-              {TEMPLATE_NAMES.map(name => (
-                <button
-                  key={name}
-                  onClick={() => setSelectedTemplate(name)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black transition-all uppercase tracking-tighter ${
-                    selectedTemplate === name 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="truncate">{name.replace('PSS assignment letter_', '')}</span>
-                    {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
-                  </div>
-                </button>
-              ))}
-            </div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+              {TEMPLATE_NAMES.length} Modelos Disponíveis
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            {TEMPLATE_NAMES.map(name => (
+              <button
+                key={name}
+                onClick={() => setSelectedTemplate(name)}
+                className={`text-left px-3 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
+                  selectedTemplate === name 
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                    : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate">{name.replace('PSS assignment letter_', '')}</span>
+                  {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Lado Direito: Preview e Ações */}
-        <div className="md:col-span-9 space-y-4">
+        <div className="w-full space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
             <div className="flex items-center gap-3">
               <div className="bg-blue-100 p-2 rounded-lg">

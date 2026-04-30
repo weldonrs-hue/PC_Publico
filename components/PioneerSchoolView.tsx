@@ -910,31 +910,31 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Escola do Serviço de Pioneiro</h2>
-            <div className="flex items-center gap-4 mt-1">
+            <div className="flex items-center gap-4 mt-1 overflow-x-auto pb-2 scrollbar-none md:pb-0">
               <button 
                 onClick={() => handleTabChange('students')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Users size={16} />
                 Lista de Alunos
               </button>
               <button 
                 onClick={() => handleTabChange('workshops')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <LayoutList size={16} />
                 Sessão de Treino
               </button>
               <button 
                 onClick={() => handleTabChange('info')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'info' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <Info size={16} />
                 Informações
               </button>
               <button 
                 onClick={() => handleTabChange('templates_pss')}
-                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'templates_pss' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'templates_pss' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
               >
                 <FileText size={16} />
                 Templates PSS
