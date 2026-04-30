@@ -193,6 +193,17 @@
         "reportEnabledForAll": { "type": "boolean", "description": "Whether the field service report is enabled for all users" }
       },
       "required": ["reportEnabledForAll"]
+    },
+    "document_template": {
+      "title": "Document Template",
+      "description": "Templates for document generation",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the template" },
+        "content": { "type": "string", "description": "The base64 encoded docx content" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "content"]
     }
   },
   "firestore": {
@@ -243,6 +254,10 @@
     "/config/app_settings": {
       "schema": "app_config",
       "description": "Global app settings"
+    },
+    "/document_templates/{templateId}": {
+      "schema": "document_template",
+      "description": "Collection of document templates managed by admin"
     }
   }
 }

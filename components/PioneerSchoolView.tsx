@@ -21,9 +21,11 @@ import {
   Printer,
   FileDown,
   Info,
-  Undo2
+  Undo2,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import PSSAssignmentLetters from './PSSAssignmentLetters';
 import { db } from '@/lib/firebase';
 import { 
   collection, 
@@ -207,10 +209,10 @@ interface PioneerSchoolViewProps {
 }
 
 export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
-  const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info'>(() => {
+  const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info' | 'templates_pss'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('pioneer_school_active_tab');
-      if (saved === 'students' || saved === 'workshops' || saved === 'info') {
+      if (saved === 'students' || saved === 'workshops' || saved === 'info' || saved === 'templates_pss') {
         return saved;
       }
     }
@@ -353,7 +355,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
 
   const hasInfoChanges = JSON.stringify(schoolInfo) !== JSON.stringify(originalSchoolInfo);
 
-  const handleTabChange = (tab: 'students' | 'workshops' | 'info') => {
+  const handleTabChange = (tab: 'students' | 'workshops' | 'info' | 'templates_pss') => {
     if (activeTab === 'info' && hasInfoChanges) {
       setPendingAction(() => () => setActiveTab(tab));
       setIsUnsavedModalOpen(true);
@@ -930,6 +932,13 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
                 <Info size={16} />
                 Informações
               </button>
+              <button 
+                onClick={() => handleTabChange('templates_pss')}
+                className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-1 border-b-2 whitespace-nowrap ${activeTab === 'templates_pss' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+              >
+                <FileText size={16} />
+                Templates PSS
+              </button>
             </div>
           </div>
         </div>
@@ -997,7 +1006,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           )}
 
           {/* Action Buttons: PDF and Print moved to end */}
-          {activeTab !== 'info' && (
+          {activeTab !== 'info' && activeTab !== 'templates_pss' && (
             <div className="flex items-center gap-2 ml-2">
               <button
                 onClick={handleDownloadPDF}
@@ -1140,7 +1149,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
 
         <div id="pdf-content">
           {activeTab === 'students' ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
@@ -1377,6 +1386,13 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               </table>
             </div>
           </div>
+        ) : activeTab === 'templates_pss' ? (
+          <PSSAssignmentLetters 
+            userId={userId}
+            selectedTurma={selectedTurma}
+            schoolInfo={schoolInfo}
+            workshopAssignments={workshopAssignments}
+          />
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-[#37616b] p-4 text-white">

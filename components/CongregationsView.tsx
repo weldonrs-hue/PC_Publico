@@ -86,24 +86,6 @@ export default function CongregationsView({
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [showLetter, setShowLetter] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [isPasting, setIsPasting] = useState(false);
-  const [pasteText, setPasteText] = useState('');
-  const [selectedCong, setSelectedCong] = useState<Congregation | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isSearchingCEP, setIsSearchingCEP] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importText, setImportText] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importSuccess, setImportSuccess] = useState<number | null>(null);
-  
-  const [formData, setFormData] = useState<Congregation>(defaultFormData);
-
   useEffect(() => {
     if (initialCongregation) {
       setSelectedCong(initialCongregation);
@@ -135,6 +117,24 @@ export default function CongregationsView({
 
     return () => unsubscribe();
   }, [userId]);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [showLetter, setShowLetter] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [isPasting, setIsPasting] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [selectedCong, setSelectedCong] = useState<Congregation | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchingCEP, setIsSearchingCEP] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<number | null>(null);
+  
+  const [formData, setFormData] = useState<Congregation>(defaultFormData);
 
   const formatCEP = (value: string) => {
     const numbers = value.replace(/\D/g, '').slice(0, 8);
