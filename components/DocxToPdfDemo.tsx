@@ -116,17 +116,17 @@ export default function DocxToPdfDemo() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8 bg-white min-h-screen">
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900 uppercase tracking-tight">Gerenciador de Templates</h1>
-        <p className="text-gray-500 font-medium">Upload e gestão de templates Word para as cartas da PSS.</p>
+        <h1 className="text-3xl font-bold text-gray-900 uppercase tracking-tight">Gerenciador de Uploads</h1>
+        <p className="text-gray-500 font-medium">Upload e gestão de templates Word para os documentos da PSS.</p>
       </div>
 
       <div className="flex flex-col gap-6">
-        {/* Top: Lista de Templates em Grid */}
+        {/* Top: Lista de Uploads em Grid */}
         <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-800 flex items-center gap-2">
               <List size={18} />
-              Gerenciamento de Templates
+              Gerenciamento de Uploads
             </h3>
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
               {TEMPLATE_NAMES.length} Modelos

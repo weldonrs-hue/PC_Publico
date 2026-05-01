@@ -14,7 +14,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
   { icon: GraduationCap, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
-  { icon: ClipboardList, label: 'Cartas', view: 'cartas_dashboard' },
+  { icon: ClipboardList, label: 'Uploads', view: 'cartas_dashboard' },
   { icon: Shapes, label: 'Diversos', view: 'misc' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];

@@ -480,7 +480,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 Assinatura Global
               </h3>
               <p className="text-xs text-gray-500 mb-6 italic">
-                Esta assinatura será utilizada automaticamente em todos os documentos (S-302, Cartas, etc). 
+                Esta assinatura será utilizada automaticamente em todos os documentos (S-302, Uploads, etc). 
                 Se você remover aqui, ela será removida de todos os formulários.
               </p>
 

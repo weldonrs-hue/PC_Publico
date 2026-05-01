@@ -25,6 +25,7 @@ const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceRe
 const DocxToPdfDemo = dynamic(() => import('@/components/DocxToPdfDemo'), { ssr: false });
 const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
 const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
+const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
@@ -105,7 +106,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes'>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -171,7 +172,7 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
-    } else if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
+    } else if (['misc', 'text_editor', 'field_service_report', 'cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
     }
   }, [currentView]);
@@ -844,7 +845,7 @@ export default function Home() {
               }
             } else if (view === 'misc') {
               // If already in a Misc sub-view, reset to main misc
-              if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
+              if (['misc', 'text_editor', 'field_service_report', 'cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
                 changeView('misc');
               } else {
                 // Restore last visited sub-view in Misc
@@ -1074,8 +1075,88 @@ export default function Home() {
 
           {currentView === 'cartas_esp' && (
             <CartasESPView 
-              onBack={() => changeView('cartas_dashboard')}
+              userId={user.id}
+              onBack={() => changeView('cartas')}
             />
+          )}
+
+          {currentView === 'cartas' && (
+            <CartasSeletorView 
+              onBack={() => changeView('misc')}
+              onViewChange={(view) => changeView(view as any)}
+            />
+          )}
+
+          {currentView === 'cartas_emr' && (
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
+              <div className="bg-blue-100 p-6 rounded-full text-blue-600 shadow-inner">
+                <Send size={64} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Cartas EMR</h2>
+                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
+              </div>
+              <button 
+                onClick={() => changeView('cartas')}
+                className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 uppercase tracking-widest text-xs"
+              >
+                Voltar para Cartas
+              </button>
+            </div>
+          )}
+
+          {currentView === 'cartas_congresso' && (
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
+              <div className="bg-violet-100 p-6 rounded-full text-violet-600 shadow-inner">
+                <Layout size={64} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Cartas Congresso</h2>
+                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
+              </div>
+              <button 
+                onClick={() => changeView('cartas')}
+                className="px-8 py-3 bg-violet-600 text-white rounded-2xl font-bold hover:bg-violet-700 transition-all shadow-lg shadow-violet-200 uppercase tracking-widest text-xs"
+              >
+                Voltar para Cartas
+              </button>
+            </div>
+          )}
+
+          {currentView === 'cartas_assembleias' && (
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
+              <div className="bg-amber-100 p-6 rounded-full text-amber-600 shadow-inner">
+                <Mail size={64} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Cartas Assembleias</h2>
+                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
+              </div>
+              <button 
+                onClick={() => changeView('cartas')}
+                className="px-8 py-3 bg-amber-600 text-white rounded-2xl font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 uppercase tracking-widest text-xs"
+              >
+                Voltar para Cartas
+              </button>
+            </div>
+          )}
+
+          {currentView === 'cartas_programacoes' && (
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
+              <div className="bg-pink-100 p-6 rounded-full text-pink-600 shadow-inner">
+                <FileText size={64} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Programações</h2>
+                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
+              </div>
+              <button 
+                onClick={() => changeView('cartas')}
+                className="px-8 py-3 bg-pink-600 text-white rounded-2xl font-bold hover:bg-pink-700 transition-all shadow-lg shadow-pink-200 uppercase tracking-widest text-xs"
+              >
+                Voltar para Cartas
+              </button>
+            </div>
           )}
 
           {currentView === 'docx_demo' && (

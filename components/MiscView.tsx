@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Shapes, Calendar } from 'lucide-react';
+import { FileText, Shapes, Calendar, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface MiscViewProps {
@@ -28,6 +28,14 @@ const miscItems = [
     color: '#D81B60', // Magenta
     gradient: 'from-pink-500 to-rose-600',
     icon: Calendar,
+  },
+  {
+    id: 'cartas',
+    title: 'CARTAS',
+    subtitle: 'GERENCIAMENTO DE CARTAS PERSONALIZADAS',
+    color: '#10B981', // Emerald
+    gradient: 'from-emerald-500 to-teal-600',
+    icon: Mail,
   },
 ];
 

@@ -21,7 +21,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     },
     {
       id: 'esp',
-      title: 'Cartas ESP',
+      title: 'Uploads ESP',
       description: 'Carta à anfitriã, convites refeições e pioneiros.',
       icon: Mail,
       view: 'cartas_esp',
@@ -34,7 +34,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 uppercase tracking-tight">Painel de Cartas</h2>
+          <h2 className="text-2xl font-bold text-gray-800 uppercase tracking-tight">Painel de Uploads</h2>
           <p className="text-gray-500 text-sm font-medium uppercase tracking-widest leading-none">Gerencie templates e gere documentos oficiais.</p>
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
               
               <div className="flex-1 flex items-center px-6 gap-5">
                 <div 
-                  className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-black/5 bg-gradient-to-br ${card.gradient}`}
+                   className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-black/5 bg-gradient-to-br ${card.gradient}`}
                 >
                   <card.icon size={30} strokeWidth={2.5} className="text-white drop-shadow-md" />
                 </div>
@@ -87,7 +87,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
           </div>
           <div>
             <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Em Breve</p>
-            <p className="text-[10px] font-bold text-gray-300 uppercase tracking-tighter">Novas funcionalidades de cartas</p>
+            <p className="text-[10px] font-bold text-gray-300 uppercase tracking-tighter">Novas funcionalidades de uploads</p>
           </div>
         </div>
       </div>
