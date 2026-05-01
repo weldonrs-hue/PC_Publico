@@ -24,6 +24,7 @@ const TextEditor = dynamic(() => import('@/components/TextEditor'), { ssr: false
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
 const DocxToPdfDemo = dynamic(() => import('@/components/DocxToPdfDemo'), { ssr: false });
 const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
+const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
@@ -104,7 +105,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp'>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -1068,6 +1069,12 @@ export default function Home() {
           {currentView === 'cartas_dashboard' && (
             <CartasDashboard 
               onViewChange={(view) => changeView(view as any)}
+            />
+          )}
+
+          {currentView === 'cartas_esp' && (
+            <CartasESPView 
+              onBack={() => changeView('cartas_dashboard')}
             />
           )}
 
