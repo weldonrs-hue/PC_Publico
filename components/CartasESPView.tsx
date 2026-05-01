@@ -28,10 +28,11 @@ const ESP_TEMPLATES = [
 
 interface CartasESPViewProps {
   userId: string;
+  isAdmin?: boolean;
   onBack: () => void;
 }
 
-export default function CartasESPView({ userId, onBack }: CartasESPViewProps) {
+export default function CartasESPView({ userId, isAdmin, onBack }: CartasESPViewProps) {
   const [showManager, setShowManager] = useState(false);
   const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
@@ -208,17 +209,19 @@ export default function CartasESPView({ userId, onBack }: CartasESPViewProps) {
             </div>
           )}
           
-          <button
-            onClick={() => setShowManager(!showManager)}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border ${
-              showManager 
-                ? 'bg-emerald-600 text-white border-emerald-600' 
-                : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-600'
-            }`}
-          >
-            {showManager ? <List size={14} /> : <FileUp size={14} />}
-            {showManager ? 'Voltar para Cartas' : 'Gerenciar Uploads'}
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowManager(!showManager)}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border ${
+                showManager 
+                  ? 'bg-emerald-600 text-white border-emerald-600' 
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-600'
+              }`}
+            >
+              {showManager ? <List size={14} /> : <FileUp size={14} />}
+              {showManager ? 'Voltar para Cartas' : 'Gerenciar Uploads'}
+            </button>
+          )}
         </div>
       </div>
 

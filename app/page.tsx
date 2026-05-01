@@ -1076,6 +1076,7 @@ export default function Home() {
           {currentView === 'cartas_esp' && (
             <CartasESPView 
               userId={user.id}
+              isAdmin={user.role === 'admin'}
               onBack={() => changeView('cartas')}
             />
           )}
