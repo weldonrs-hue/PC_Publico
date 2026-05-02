@@ -1,5 +1,5 @@
 'use client';
-
+// Force rebuild - 2026-05-02
 import { FileText, Shapes, Calendar, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 

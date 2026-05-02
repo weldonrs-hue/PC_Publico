@@ -12,8 +12,8 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
   const cards = [
     {
       id: 'workshops',
-      title: 'Workshops',
-      description: 'Gerador de documentos e templates para treinamentos.',
+      title: 'Workshops PSS',
+      description: 'Templates de designação para Escola de Pioneiros.',
       icon: Wrench,
       view: 'docx_demo',
       color: '#3B82F6',
@@ -22,11 +22,51 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     {
       id: 'esp',
       title: 'Uploads ESP',
-      description: 'Carta à anfitriã, convites refeições e pioneiros.',
+      description: 'Anfitriã, refeições e convites pioneiros.',
       icon: Mail,
       view: 'cartas_esp',
       color: '#10B981',
       gradient: 'from-emerald-500 to-teal-600',
+    },
+    {
+      id: 'emr',
+      title: 'Uploads EMR',
+      description: 'Modelos para Escola de Evangelizadores.',
+      icon: Mail,
+      view: 'cartas_emr',
+      color: '#3B82F6',
+      gradient: 'from-blue-500 to-indigo-600',
+      inactive: true
+    },
+    {
+      id: 'congresso',
+      title: 'Uploads Congresso',
+      description: 'Documentação oficial de Congressos.',
+      icon: Mail,
+      view: 'cartas_congresso',
+      color: '#8B5CF6',
+      gradient: 'from-violet-500 to-purple-600',
+      inactive: true
+    },
+    {
+      id: 'assembleias',
+      title: 'Uploads Assembleias',
+      description: 'Documentação para Assembleias de Circuito.',
+      icon: Mail,
+      view: 'cartas_assembleias',
+      color: '#F59E0B',
+      gradient: 'from-amber-500 to-orange-600',
+      inactive: true
+    },
+    {
+      id: 'programacoes',
+      title: 'Uploads Program.',
+      description: 'Gestão de templates de programações.',
+      icon: FileText,
+      view: 'cartas_programacoes',
+      color: '#EC4899',
+      gradient: 'from-pink-500 to-rose-600',
+      inactive: true
     },
   ];
 
@@ -35,7 +75,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 uppercase tracking-tight">Painel de Uploads</h2>
-          <p className="text-gray-500 text-sm font-medium uppercase tracking-widest leading-none">Gerencie templates e gere documentos oficiais.</p>
+          <p className="text-gray-500 text-sm font-medium uppercase tracking-widest leading-none">Gerencie templates e ferramentas de docs.</p>
         </div>
       </div>
 
@@ -46,8 +86,8 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            onClick={() => onViewChange(card.view)}
-            className="relative group cursor-pointer"
+            onClick={() => !card.inactive && onViewChange(card.view)}
+            className={`relative group ${card.inactive ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
           >
             {/* Static Background Glow */}
             <div 
@@ -61,35 +101,24 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
               
               <div className="flex-1 flex items-center px-6 gap-5">
                 <div 
-                   className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-black/5 bg-gradient-to-br ${card.gradient}`}
+                   className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 bg-gradient-to-br ${card.gradient} ${!card.inactive && 'group-hover:scale-110 group-hover:rotate-3'}`}
                 >
                   <card.icon size={30} strokeWidth={2.5} className="text-white drop-shadow-md" />
                 </div>
 
                 <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
-                  <div className="font-black text-sm md:text-base leading-tight text-gray-900 uppercase truncate mb-1 group-hover:text-black transition-colors">
+                  <div className="font-black text-[13px] md:text-sm leading-tight text-gray-900 uppercase truncate mb-1 group-hover:text-black transition-colors">
                     {card.title}
                   </div>
                   
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter line-clamp-2">
-                    {card.description}
+                  <p className="text-[9px] font-bold text-gray-500 uppercase tracking-tighter line-clamp-2">
+                    {card.inactive ? 'EM DESENVOLVIMENTO' : card.description}
                   </p>
                 </div>
               </div>
             </div>
           </motion.div>
         ))}
-        
-        {/* Placeholder for future features */}
-        <div className="flex bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200 h-28 items-center px-6 gap-5 opacity-60">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-gray-100 border border-gray-200">
-            <FileText size={24} className="text-gray-300" />
-          </div>
-          <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Em Breve</p>
-            <p className="text-[10px] font-bold text-gray-300 uppercase tracking-tighter">Novas funcionalidades de uploads</p>
-          </div>
-        </div>
       </div>
     </div>
   );

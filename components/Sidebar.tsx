@@ -72,13 +72,16 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
       return ['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView);
     }
     if (itemView === 'schools') {
-      return ['schools', 'pioneer_school'].includes(currentView);
+      return ['schools', 'pioneer_school', 'cartas'].includes(currentView);
     }
     if (itemView === 'events') {
       return ['events', 'regional_convention_program'].includes(currentView);
     }
     if (itemView === 'misc') {
       return ['misc', 'text_editor', 'field_service_report'].includes(currentView);
+    }
+    if (itemView === 'cartas_dashboard') {
+      return ['cartas_dashboard', 'docx_demo', 'cartas_esp'].includes(currentView);
     }
     return currentView === itemView;
   };

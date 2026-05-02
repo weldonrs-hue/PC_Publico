@@ -202,8 +202,39 @@ export default function PioneerSchoolLetters({
       
       zip.file('word/document.xml', xmlContent);
 
+      const replacements = getReplacements();
+
       // Setup Image Module
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
+      
+      // Calculate signature dimensions to avoid "squeezing"
+      // Default standard size
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      if (replacements.ASSINATURA && replacements.ASSINATURA.startsWith('data:image')) {
+        try {
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = replacements.ASSINATURA;
+          });
+          
+          const aspectRatio = img.width / img.height;
+          // Maintain a max height of 60 and calculate width, or max width of 200
+          sigHeight = 60;
+          sigWidth = sigHeight * aspectRatio;
+          
+          if (sigWidth > 220) {
+            sigWidth = 220;
+            sigHeight = sigWidth / aspectRatio;
+          }
+        } catch (e) {
+          console.warn('Could not determine signature dimensions:', e);
+        }
+      }
+
       const opts: any = {
         centered: false,
         getImage: (tagValue: string) => {
@@ -217,7 +248,7 @@ export default function PioneerSchoolLetters({
           }
           return bytesArray.buffer;
         },
-        getSize: () => [150, 60], // Standard signature size
+        getSize: () => [sigWidth, sigHeight],
       };
 
       const doc = new Docxtemplater(zip, {
@@ -227,7 +258,6 @@ export default function PioneerSchoolLetters({
         modules: [new ImageModule(opts)]
       });
 
-      const replacements = getReplacements();
       doc.render(replacements);
 
       const out = doc.getZip().generate({
@@ -396,18 +426,16 @@ export default function PioneerSchoolLetters({
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={processAndPreview}
-                disabled={isProcessing}
-                className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md ${
-                  needsProcessing 
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                    : 'bg-gray-100 text-gray-500 cursor-default'
-                }`}
-              >
-                {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                <span>{needsProcessing ? 'Gerar PDF/Prévia' : 'Atualizado'}</span>
-              </button>
+              {needsProcessing && (
+                <button
+                  onClick={processAndPreview}
+                  disabled={isProcessing}
+                  className="px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Gerar PDF/Prévia</span>
+                </button>
+              )}
 
               <button
                 onClick={downloadAsDocx}

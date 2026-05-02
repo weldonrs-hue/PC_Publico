@@ -19,7 +19,15 @@ const SchoolsView = dynamic(() => import('@/components/SchoolsView'), { ssr: fal
 const PioneerSchoolView = dynamic(() => import('@/components/PioneerSchoolView'), { ssr: false });
 const EventsView = dynamic(() => import('@/components/EventsView'), { ssr: false });
 const RegionalConventionView = dynamic(() => import('@/components/RegionalConventionView'), { ssr: false });
-const MiscView = dynamic(() => import('@/components/MiscView'), { ssr: false });
+const MiscView = dynamic(() => import('@/components/MiscView'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center p-20 space-y-4">
+      <div className="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+      <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Carregando Módulo Diversos...</p>
+    </div>
+  )
+});
 const TextEditor = dynamic(() => import('@/components/TextEditor'), { ssr: false });
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
 const DocxToPdfDemo = dynamic(() => import('@/components/DocxToPdfDemo'), { ssr: false });
@@ -161,6 +169,8 @@ export default function Home() {
     textEditorEnabledForAll: boolean;
     congregationImportEnabledForAll: boolean;
   }>({ reportEnabledForAll: false, textEditorEnabledForAll: false, congregationImportEnabledForAll: false });
+
+  const [espInitialMode, setEspInitialMode] = useState<'geracao' | 'manager'>('geracao');
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
@@ -1069,7 +1079,10 @@ export default function Home() {
 
           {currentView === 'cartas_dashboard' && (
             <CartasDashboard 
-              onViewChange={(view) => changeView(view as any)}
+              onViewChange={(view) => {
+                if (view === 'cartas_esp') setEspInitialMode('manager');
+                changeView(view as any);
+              }}
             />
           )}
 
@@ -1077,14 +1090,18 @@ export default function Home() {
             <CartasESPView 
               userId={user.id}
               isAdmin={user.role === 'admin'}
-              onBack={() => changeView('cartas')}
+              initialMode={espInitialMode}
+              onBack={() => changeView(espInitialMode === 'manager' ? 'cartas_dashboard' : 'cartas')}
             />
           )}
 
           {currentView === 'cartas' && (
             <CartasSeletorView 
               onBack={() => changeView('misc')}
-              onViewChange={(view) => changeView(view as any)}
+              onViewChange={(view) => {
+                if (view === 'cartas_esp') setEspInitialMode('geracao');
+                changeView(view as any);
+              }}
             />
           )}
 
