@@ -65,6 +65,7 @@ interface ItineraryItem {
   dataInicialDia?: string;
   dataTerminoDia?: string;
   congregacao?: string;
+  congregacaoId?: string;
   substituto?: string;
   grupo?: string;
   outroEvento?: string;
@@ -132,7 +133,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [initializing, setInitializing] = useState(false);
   const initializingRef = useRef(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
-  const [analysisParams, setAnalysisParams] = useState<{congregacao: string, data: string} | null>(null);
+  const [analysisParams, setAnalysisParams] = useState<{congregacao: string, congregacaoId?: string, data: string} | null>(null);
   const [showS303, setShowS303] = useState(false);
   const [s303Params, setS303Params] = useState<{congregacao: Congregation, data: string, substituto?: string} | null>(null);
   const [showS302, setShowS302] = useState(false);
@@ -155,6 +156,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     dataInicialDia: 'Terça-Feira',
     dataTerminoDia: 'Domingo',
     congregacao: '',
+    congregacaoId: '',
     substituto: '',
     grupo: '',
     outroEvento: ''
@@ -594,9 +596,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleAnalysisClick = () => {
-    if (selectedItem && selectedItem.congregacao) {
+    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
       setAnalysisParams({
-        congregacao: selectedItem.congregacao,
+        congregacao: selectedItem.congregacao || '',
+        congregacaoId: selectedItem.congregacaoId || '',
         data: selectedItem.dataEvento || selectedItem.semana
       });
       setShowAnalysis(true);
@@ -605,8 +608,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleS303Click = () => {
-    if (selectedItem && selectedItem.congregacao) {
-      const cong = congregations.find(c => c.nome === selectedItem.congregacao);
+    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
+      const cong = congregations.find(c => 
+        selectedItem.congregacaoId ? c.id === selectedItem.congregacaoId : c.nome === selectedItem.congregacao
+      );
       if (cong) {
         setS303Params({
           congregacao: cong,
@@ -620,12 +625,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleS302Click = () => {
-    if (selectedItem && selectedItem.congregacao) {
+    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
       // Filter all itineraries that have a congregation and map to the format S302NoticeView expects
       const s302Events = itineraries
-        .filter(item => item.congregacao)
+        .filter(item => item.congregacaoId || item.congregacao)
         .map(item => {
-          const cong = congregations.find(c => c.nome === item.congregacao);
+          const cong = congregations.find(c => 
+            item.congregacaoId ? c.id === item.congregacaoId : c.nome === item.congregacao
+          );
           return {
             congregacao: cong,
             data: item.dataEvento || item.semana,
@@ -636,7 +643,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
       // Find the index of the selected item in this filtered list
       const initialIndex = s302Events.findIndex(event => 
-        event.congregacao?.nome === selectedItem.congregacao && 
+        (selectedItem.congregacaoId ? event.congregacao?.id === selectedItem.congregacaoId : event.congregacao?.nome === selectedItem.congregacao) && 
         event.data === (selectedItem.dataEvento || selectedItem.semana)
       );
 
@@ -652,8 +659,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleAppointmentLetterClick = () => {
-    if (selectedItem && selectedItem.congregacao) {
-      const cong = congregations.find(c => c.nome === selectedItem.congregacao);
+    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
+      const cong = congregations.find(c => 
+        selectedItem.congregacaoId ? c.id === selectedItem.congregacaoId : c.nome === selectedItem.congregacao
+      );
       if (cong) {
         setAppointmentLetterParams({
           congregacao: cong,
@@ -690,6 +699,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         dataInicialDia: selectedItem.dataInicialDia || (tipo === 'SEMANA LIVRE' ? 'Segunda-Feira' : 'Terça-Feira'),
         dataTerminoDia: selectedItem.dataTerminoDia || 'Domingo',
         congregacao: selectedItem.congregacao || '',
+        congregacaoId: selectedItem.congregacaoId || '',
         substituto: selectedItem.substituto || '',
         grupo: selectedItem.grupo || '',
         outroEvento: selectedItem.outroEvento || (tipo === 'Outros Eventos' ? selectedItem.evento : '')
@@ -815,8 +825,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           finalEvento = `${editFormData.grupo || ''} - ${editFormData.congregacao || ''}`;
         } else if (editFormData.evento === 'Outros Eventos') {
           finalEvento = editFormData.outroEvento || 'Outros Eventos';
-        } else if (editFormData.congregacao) {
-          const cong = congregations.find(c => c.nome === editFormData.congregacao);
+        } else if (editFormData.congregacaoId || editFormData.congregacao) {
+          const cong = congregations.find(c => 
+            editFormData.congregacaoId ? c.id === editFormData.congregacaoId : c.nome === editFormData.congregacao
+          );
           if (cong) {
             // Check if name and city are the same (ignoring case)
             if (cong.nome.trim().toLowerCase() === cong.cidade.trim().toLowerCase()) {
@@ -825,7 +837,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               finalEvento = `${cong.nome} - ${cong.cidade}`;
             }
           } else {
-            finalEvento = editFormData.congregacao;
+            finalEvento = editFormData.congregacao || '';
           }
         }
 
@@ -869,6 +881,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       <ActivityAnalysisView 
         userId={userId}
         congregationName={analysisParams.congregacao}
+        congregationId={analysisParams.congregacaoId}
         visitDate={analysisParams.data}
         onBack={() => setShowAnalysis(false)}
       />
@@ -1351,22 +1364,24 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           Grupo:
                         </label>
                         <select 
-                          value={editFormData.grupo}
+                          value={editFormData.congregacaoId && editFormData.grupo ? `${editFormData.congregacaoId}|${editFormData.grupo}` : ''}
                           onChange={(e) => {
-                            const grupoNome = e.target.value;
-                            // Find the congregation this group belongs to
-                            const cong = congregations.find(c => c.grupos?.includes(grupoNome));
+                            const val = e.target.value;
+                            if (!val) return;
+                            const [congId, grupoNome] = val.split('|');
+                            const cong = congregations.find(c => c.id === congId);
                             setEditFormData({ 
                               ...editFormData, 
                               grupo: grupoNome,
-                              congregacao: cong ? cong.nome : ''
+                              congregacao: cong ? cong.nome : '',
+                              congregacaoId: congId
                             });
                           }}
                           className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione um grupo...</option>
-                          {congregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome }))).map((g, idx) => (
-                            <option key={idx} value={g.nome}>{g.nome} ({g.congNome})</option>
+                          {congregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome, congId: c.id }))).map((g, idx) => (
+                            <option key={idx} value={`${g.congId}|${g.nome}`}>{g.nome} ({g.congNome})</option>
                           ))}
                         </select>
                       </div>
@@ -1400,13 +1415,21 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           Congregação:
                         </label>
                         <select 
-                          value={editFormData.congregacao}
-                          onChange={(e) => setEditFormData({ ...editFormData, congregacao: e.target.value })}
+                          value={editFormData.congregacaoId || editFormData.congregacao}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const cong = congregations.find(c => c.id === val || c.nome === val);
+                            setEditFormData({ 
+                              ...editFormData, 
+                              congregacao: cong ? cong.nome : val,
+                              congregacaoId: cong ? cong.id : ''
+                            });
+                          }}
                           className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione uma congregação...</option>
                           {congregations.map(c => (
-                            <option key={c.id} value={c.nome}>{c.nome} - {c.cidade}</option>
+                            <option key={c.id} value={c.id}>{c.nome} - {c.cidade}</option>
                           ))}
                         </select>
                       </div>

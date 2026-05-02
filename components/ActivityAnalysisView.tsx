@@ -25,6 +25,7 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 interface ActivityAnalysisViewProps {
   userId: string;
   congregationName: string;
+  congregationId?: string;
   visitDate: string;
   onBack: () => void;
 }
@@ -36,6 +37,7 @@ interface MinistryActivity {
 
 interface AnalysisData {
   congregacao: string;
+  congregacaoId?: string;
   dataVisita: string;
   pubAtivos: string;
   ministério: {
@@ -69,6 +71,7 @@ interface AnalysisData {
 
 const defaultData: AnalysisData = {
   congregacao: '',
+  congregacaoId: '',
   dataVisita: '',
   pubAtivos: '',
   ministério: {
@@ -100,10 +103,11 @@ const defaultData: AnalysisData = {
   },
 };
 
-export default function ActivityAnalysisView({ userId, congregationName, visitDate, onBack }: ActivityAnalysisViewProps) {
+export default function ActivityAnalysisView({ userId, congregationName, congregationId, visitDate, onBack }: ActivityAnalysisViewProps) {
   const [data, setData] = useState<AnalysisData>({
     ...defaultData,
     congregacao: congregationName,
+    congregacaoId: congregationId || '',
     dataVisita: visitDate
   });
   const [loading, setLoading] = useState(true);
@@ -142,12 +146,27 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const docId = `${userId}_${congregationName}_${visitDate.replace(/\//g, '-')}`;
+        const identifier = congregationId || congregationName;
+        const docId = `${userId}_${identifier}_${visitDate.replace(/\//g, '-')}`;
         const docRef = doc(db, 'activity_analysis', docId);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
           setData(docSnap.data() as AnalysisData);
+        } else if (congregationId) {
+          // Fallback to name for older data
+          const oldDocId = `${userId}_${congregationName}_${visitDate.replace(/\//g, '-')}`;
+          const oldDocRef = doc(db, 'activity_analysis', oldDocId);
+          const oldDocSnap = await getDoc(oldDocRef);
+          
+          if (oldDocSnap.exists()) {
+            const oldData = oldDocSnap.data() as AnalysisData;
+            setData({
+              ...oldData,
+              congregacaoId: congregationId
+            });
+            setIsDirty(true);
+          }
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, 'activity_analysis');
@@ -157,14 +176,16 @@ export default function ActivityAnalysisView({ userId, congregationName, visitDa
     };
 
     fetchData();
-  }, [userId, congregationName, visitDate]);
+  }, [userId, congregationName, congregationId, visitDate]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const docId = `${userId}_${congregationName}_${visitDate.replace(/\//g, '-')}`;
+      const identifier = congregationId || congregationName;
+      const docId = `${userId}_${identifier}_${visitDate.replace(/\//g, '-')}`;
       await setDoc(doc(db, 'activity_analysis', docId), {
         ...data,
+        congregacaoId: congregationId || '',
         estatisticas: {
           ...data.estatisticas,
           mediaEstudos: totalEstudos

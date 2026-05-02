@@ -295,11 +295,7 @@ export default function CartasESPView({ userId, isAdmin, initialMode = 'geracao'
               <div className="lg:col-span-12 xl:col-span-5 space-y-6">
                 <div className="bg-emerald-50 p-6 rounded-2xl border-2 border-dashed border-emerald-200 relative">
                   <h4 className="text-xs font-black text-emerald-600 uppercase mb-4 tracking-widest">Atualizar Template</h4>
-                  <div className="bg-white p-4 rounded-xl border border-emerald-100 mb-4 shadow-sm">
-                    <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-2">Destino:</p>
-                    <p className="text-xs font-black text-gray-800 break-all">{getTemplateName(selectedTemplate)}</p>
-                  </div>
-
+                  
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -333,17 +329,7 @@ export default function CartasESPView({ userId, isAdmin, initialMode = 'geracao'
                     </button>
                   )}
 
-                  <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                    <div className="flex gap-2">
-                      <AlertCircle className="text-amber-600 flex-shrink-0" size={16} />
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Instruções</p>
-                        <p className="text-[9px] text-amber-700 font-medium leading-relaxed">
-                          Use marcadores como [DATA], [LOCAL], [INSTRUTORES], [HOJE] no seu arquivo Word. O sistema fará as substituições automáticas.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+
                 </div>
               </div>
 
