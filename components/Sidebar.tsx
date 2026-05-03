@@ -24,13 +24,14 @@ interface SidebarProps {
   user: any;
   personalData: any;
   currentView: string;
+  espInitialMode?: 'geracao' | 'manager';
   onBack: () => void;
   onViewChange: (view: any) => void;
 }
 
 import Logo from './Logo';
 
-export default function Sidebar({ onLogout, user, personalData, currentView, onBack, onViewChange }: SidebarProps) {
+export default function Sidebar({ onLogout, user, personalData, currentView, espInitialMode, onBack, onViewChange }: SidebarProps) {
   const navRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -68,22 +69,30 @@ export default function Sidebar({ onLogout, user, personalData, currentView, onB
 
   // Determine if an item is active. For now, 'Circuito' is active for dashboard, congregations, and personal_data
   const isActive = (itemView: string) => {
+    // Exact match takes precedence
+    if (currentView === itemView) return true;
+
     if (itemView === 'dashboard') {
-      return ['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView);
+      const dashboardViews = ['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics', 'aviso_de_visitas'];
+      return dashboardViews.includes(currentView);
     }
     if (itemView === 'schools') {
-      return ['schools', 'pioneer_school', 'cartas'].includes(currentView);
+      return ['schools', 'pioneer_school'].includes(currentView);
     }
     if (itemView === 'events') {
       return ['events', 'regional_convention_program'].includes(currentView);
     }
     if (itemView === 'misc') {
-      return ['misc', 'text_editor', 'field_service_report'].includes(currentView);
+      const miscViews = ['misc', 'text_editor', 'field_service_report', 'cartas', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
+      if (currentView === 'cartas_esp' && espInitialMode === 'geracao') return true;
+      return miscViews.includes(currentView);
     }
     if (itemView === 'cartas_dashboard') {
-      return ['cartas_dashboard', 'docx_demo', 'cartas_esp'].includes(currentView);
+      const uploadsViews = ['cartas_dashboard', 'docx_demo'];
+      if (currentView === 'cartas_esp' && espInitialMode === 'manager') return true;
+      return uploadsViews.includes(currentView);
     }
-    return currentView === itemView;
+    return false;
   };
 
   const checkScroll = () => {

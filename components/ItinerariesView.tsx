@@ -1415,13 +1415,13 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           Congregação:
                         </label>
                         <select 
-                          value={editFormData.congregacaoId || editFormData.congregacao}
+                          value={editFormData.congregacaoId || ''}
                           onChange={(e) => {
                             const val = e.target.value;
-                            const cong = congregations.find(c => c.id === val || c.nome === val);
+                            const cong = congregations.find(c => c.id === val);
                             setEditFormData({ 
                               ...editFormData, 
-                              congregacao: cong ? cong.nome : val,
+                              congregacao: cong ? cong.nome : '',
                               congregacaoId: cong ? cong.id : ''
                             });
                           }}
@@ -1429,7 +1429,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         >
                           <option value="">Selecione uma congregação...</option>
                           {congregations.map(c => (
-                            <option key={c.id} value={c.id}>{c.nome} - {c.cidade}</option>
+                            <option key={c.id} value={c.id}>{c.nome} - {c.cidade} / {c.estado}</option>
                           ))}
                         </select>
                       </div>

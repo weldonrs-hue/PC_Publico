@@ -819,6 +819,7 @@ export default function Home() {
           user={user}
           personalData={personalData}
           currentView={currentView}
+          espInitialMode={espInitialMode}
           onBack={() => changeView('dashboard')}
           onViewChange={(view) => {
             if (view === 'dashboard') {

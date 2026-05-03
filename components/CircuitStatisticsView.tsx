@@ -11,13 +11,28 @@ import {
   BarChart3,
   Printer,
   FileDown,
-  Download
+  Download,
+  Activity,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { createCircuitFolderStructure } from '@/utils/fileSystem';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 interface CircuitStatisticsViewProps {
   userId: string;
@@ -452,6 +467,82 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           <span className="bg-[#e9ecef] px-4 py-1 rounded font-bold text-[24px] text-[#002060] border border-gray-300 ml-2 min-w-[80px] text-center">
             {stats.pubAtivos}
           </span>
+        </div>
+
+        {/* Dynamic Charts Section - Hidden in Print */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
+          <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px]">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-sky-100 text-sky-600 rounded-xl">
+                <PieChartIcon size={20} />
+              </div>
+              <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Composição do Circuito</h3>
+            </div>
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Publicadores', value: stats.ministério.publicadores.relatando },
+                      { name: 'Pio. Regulares', value: stats.ministério.pioneirosRegulares.relatando },
+                      { name: 'Pio. Especiais', value: stats.ministério.pioneirosEspeciais.relatando },
+                      { name: 'Pio. Auxiliares', value: stats.ministério.pioneirosAuxiliares.relatando },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {[
+                      '#0EA5E9', // Sky
+                      '#8B5CF6', // Violet
+                      '#F59E0B', // Amber
+                      '#10B981', // Emerald
+                    ].map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36}/>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px]">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-violet-100 text-violet-600 rounded-xl">
+                <Activity size={20} />
+              </div>
+              <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Assistência às Reuniões</h3>
+            </div>
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={[
+                    { name: 'Meio de Semana', valor: Math.round(stats.reunioes.meioSemana) },
+                    { name: 'Fim de Semana', valor: Math.round(stats.reunioes.fimSemana) },
+                    { name: 'Não Publicadores', valor: Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos) },
+                  ]}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
+                    <Cell fill="#8B5CF6" />
+                    <Cell fill="#3B82F6" />
+                    <Cell fill="#F59E0B" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
         {/* Section 1: Ministry Averages */}
