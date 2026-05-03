@@ -424,7 +424,7 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
                     </div>
                     <button 
                       onClick={() => setShowSettings(true)}
-                      className="text-lg font-black uppercase tracking-widest text-[#000666] hover:bg-[#000666] hover:text-white px-6 py-3 rounded-full transition-all border border-[#000666]/20 bg-white/50 backdrop-blur-sm shadow-sm"
+                      className="text-6xl font-black uppercase tracking-[0.2em] text-[#000666] hover:bg-[#000666] hover:text-white px-12 py-8 rounded-full transition-all border-[6px] border-[#000666]/30 bg-white shadow-2xl shadow-[#000666]/10 active:scale-95"
                     >
                       Meta: {report.goal}h
                     </button>
@@ -465,28 +465,28 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
               >
                 <div className="relative z-10 space-y-6">
                   <div className="flex items-center gap-3">
-                    <div className={`bg-white/10 p-2 rounded-xl ${paceTextColor}`}>
-                      <TrendingUp size={20} />
+                    <div className={`bg-white/10 p-2.5 rounded-2xl ${paceTextColor} shadow-[0_0_20px_rgba(255,255,255,0.05)]`}>
+                      <TrendingUp size={22} />
                     </div>
-                    <span className="text-xs font-black uppercase tracking-[0.3em] text-white/50">Sugestão Dinâmica</span>
+                    <span className={`text-xs font-black uppercase tracking-[0.4em] ${paceTextColor}`}>Sugestão Dinâmica</span>
                   </div>
 
                   <div>
-                    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 mb-1">
+                    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 mb-2">
                       <div className="flex items-baseline gap-2">
-                        <span className={`text-3xl font-black tracking-tighter ${paceTextColor} font-mono leading-none`}>
+                        <span className={`text-4xl font-black tracking-tighter ${paceTextColor} font-mono leading-none`}>
                           {minutesToTime(Math.round(minutesPerShift))}
                         </span>
-                        <span className="text-sm font-bold text-white/40 uppercase tracking-widest">/ turno</span>
+                        <span className={`text-[10px] font-black ${paceTextColor} opacity-60 uppercase tracking-widest`}>/ turno</span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className={`text-3xl font-black tracking-tighter ${paceTextColor} font-mono leading-none`}>
+                        <span className={`text-4xl font-black tracking-tighter ${paceTextColor} font-mono leading-none`}>
                           {minutesToTime(Math.round(minutesTodayTarget))}
                         </span>
-                        <span className="text-sm font-bold text-white/40 uppercase tracking-widest">/ hoje</span>
+                        <span className={`text-[10px] font-black ${paceTextColor} opacity-60 uppercase tracking-widest`}>/ hoje</span>
                       </div>
                     </div>
-                    <p className="text-base font-serif italic text-white/80 leading-relaxed font-medium">
+                    <p className={`text-base font-serif italic ${paceTextColor} opacity-90 leading-relaxed font-medium`}>
                       Baseado em {totalRemainingShifts} turnos planejados restantes até o fim de {monthNames[currentMonth].toLowerCase()}.
                     </p>
                   </div>
@@ -597,8 +597,8 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
             >
               <div className="flex justify-between items-center shrink-0">
                 <div className="space-y-1">
-                  <h3 className="text-2xl font-black tracking-tight text-gray-900">Ajustar <span className="font-serif italic font-normal text-[#000666]">Objetivo</span></h3>
-                  <p className="text-sm text-gray-400 font-medium italic font-serif">Configure seu ritmo espiritual</p>
+                  <h3 className="text-3xl font-black tracking-tight text-gray-900">Ajustar <span className="font-serif italic font-normal text-[#000666]">Objetivo</span></h3>
+                  <p className="text-base text-gray-500 font-medium italic font-serif">Configure seu ritmo espiritual</p>
                 </div>
                 <button onClick={() => setShowSettings(false)} className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-colors text-gray-400">
                   <X size={20} />
@@ -606,63 +606,63 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
               </div>
 
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
-                <div className="relative pt-2">
+                <div className="relative pt-4">
                   <input 
                     type="number" 
                     value={tempGoal} 
                     onChange={(e) => setTempGoal(Number(e.target.value))}
-                    className="w-full text-6xl font-black tracking-tighter text-[#000666] p-0 bg-transparent border-none outline-none text-center selection:bg-blue-50 font-mono"
+                    className="w-full text-8xl font-black tracking-tighter text-[#000666] p-0 bg-transparent border-none outline-none text-center selection:bg-blue-50 font-mono"
                   />
-                  <div className="text-center font-bold text-xs uppercase tracking-[0.2em] text-orange-400 mt-3">Horas {isSettingAllMonths ? 'como Padrão' : 'este Mês'}</div>
+                  <div className="text-center font-black text-xs uppercase tracking-[0.3em] text-orange-500 mt-4 leading-relaxed">Horas {isSettingAllMonths ? 'como Padrão' : 'este Mês'}</div>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-4">
                   {[30, 50, 70].map(h => (
                     <button 
                       key={h}
                       onClick={() => setTempGoal(h)}
-                      className={`h-12 rounded-xl font-black text-sm transition-all ${tempGoal === h ? 'bg-[#000666] text-white shadow-lg' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                      className={`h-20 rounded-2xl font-black text-2xl transition-all border-4 ${tempGoal === h ? 'bg-[#000666] border-[#000666] text-white shadow-2xl scale-105' : 'bg-gray-50 text-gray-400 border-transparent hover:border-gray-200'}`}
                     >
                       {h}h
                     </button>
                   ))}
                 </div>
 
-                <div className="space-y-6 pt-6 border-t border-orange-50">
+                <div className="space-y-6 pt-10 border-t-2 border-orange-50">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Meta Padrão</h4>
-                      <p className="text-[11px] text-gray-400 italic">Aplicar em todos os meses futuros.</p>
+                      <h4 className="text-xs font-black uppercase tracking-[0.2em] text-[#000666]">Meta Padrão</h4>
+                      <p className="text-[11px] text-gray-500 font-serif italic">Aplicar em todos os meses futuros</p>
                     </div>
                     <button 
                       onClick={() => setIsSettingAllMonths(!isSettingAllMonths)}
-                      className={`relative w-12 h-6 rounded-full transition-all duration-300 ${isSettingAllMonths ? 'bg-[#000666]' : 'bg-gray-100'}`}
+                      className={`relative w-14 h-7 rounded-full transition-all duration-300 ${isSettingAllMonths ? 'bg-[#000666]' : 'bg-gray-200'}`}
                     >
                       <motion.div 
-                        animate={{ x: isSettingAllMonths ? 24 : 4 }}
-                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                        animate={{ x: isSettingAllMonths ? 28 : 4 }}
+                        className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md"
                       />
                     </button>
                   </div>
 
-                  <div className="space-y-4 pt-6 border-t border-orange-50/50">
+                  <div className="space-y-8 pt-10 border-t-2 border-orange-50/50">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-orange-900">Programação de Turnos</h4>
-                      <span className="text-xs font-serif italic text-orange-400">0-3 por dia</span>
+                      <h4 className="text-xs font-black uppercase tracking-[0.2em] text-[#000666]">Programação de Turnos</h4>
+                      <span className="text-[11px] font-black uppercase tracking-widest text-orange-500 bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100 italic">0-3 por dia</span>
                     </div>
-                    <div className="grid grid-cols-7 gap-2">
-                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((dayName, idx) => {
+                    <div className="grid grid-cols-7 gap-3">
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((dayName, idx) => {
                         const dayIdx = idx;
                         const shifts = tempShifts[dayIdx] || 0;
                         return (
-                          <div key={idx} className="flex flex-col items-center gap-2">
-                            <span className="text-[10px] font-black text-orange-300 uppercase">{dayName}</span>
+                          <div key={idx} className="flex flex-col items-center gap-4">
+                            <span className="text-xs font-black text-[#000666]/40 uppercase tracking-tighter">{dayName}</span>
                             <button 
                               onClick={() => {
                                 const next = (shifts + 1) % 4;
                                 setTempShifts(prev => ({ ...prev, [dayIdx]: next }));
                               }}
-                              className={`w-full aspect-square rounded-lg font-mono font-bold text-xs transition-all flex items-center justify-center border-2 ${shifts > 0 ? 'bg-[#000666] border-[#000666] text-white shadow-md' : 'bg-white border-orange-50 text-orange-100'}`}
+                              className={`w-full aspect-square rounded-2xl font-mono font-black text-base transition-all flex items-center justify-center border-4 ${shifts > 0 ? 'bg-[#000666] border-[#000666] text-white shadow-2xl scale-110' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
                             >
                               {shifts}
                             </button>
