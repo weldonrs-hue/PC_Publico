@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import mammoth from 'mammoth';
-import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List } from 'lucide-react';
+import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
@@ -12,7 +12,11 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 const TEMPLATE_NAMES = Array.from({ length: 18 }, (_, i) => `PSS assignment letter_T_${(i + 1).toString().padStart(2, '0')}`);
 
-export default function DocxToPdfDemo() {
+interface DocxToPdfDemoProps {
+  onBack: () => void;
+}
+
+export default function DocxToPdfDemo({ onBack }: DocxToPdfDemoProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
   const [file, setFile] = useState<File | null>(null);
@@ -115,25 +119,38 @@ export default function DocxToPdfDemo() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8 bg-white min-h-screen">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900 uppercase tracking-tight">Gerenciador de Uploads</h1>
-        <p className="text-gray-500 font-medium">Upload e gestão de templates Word para os documentos da PSS.</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={onBack}
+            className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-500 hover:text-blue-600 hover:scale-110 active:scale-95"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Gerenciador de Uploads PSS</h1>
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100 w-fit mt-1">Gestão de Modelos</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-6">
         {/* Top: Lista de Uploads em Grid */}
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-800 flex items-center gap-2">
-              <List size={18} />
-              Gerenciamento de Uploads
-            </h3>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 opacity-5 rounded-bl-[5rem]" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <div>
+              <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-tight">
+                <List size={18} className="text-blue-600" />
+                Gerenciamento de Uploads PSS
+              </h3>
+            </div>
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
               {TEMPLATE_NAMES.length} Modelos
             </span>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 relative z-10">
             {TEMPLATE_NAMES.map(name => (
               <button
                 key={name}
@@ -232,23 +249,27 @@ export default function DocxToPdfDemo() {
 
       <style jsx global>{`
         .docx-preview-container {
-          color: #374151 !important;
-          background-color: #ffffff !important;
+          background-color: white !important;
+          color: #333 !important;
+          font-family: serif !important;
         }
-        .docx-preview-container * {
-          border-color: #e5e7eb !important;
-          outline-color: transparent !important;
-          text-decoration-color: transparent !important;
-          box-shadow: none !important;
+        .docx-preview-container p {
+          margin-bottom: 1em;
+          line-height: 1.5;
         }
-        .docx-preview-container h1 { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; color: #111827 !important; }
-        .docx-preview-container h2 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.75rem; color: #1f2937 !important; }
-        .docx-preview-container p { margin-bottom: 0.5rem; line-height: 1.5; color: #374151 !important; }
-        .docx-preview-container table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; border: 1px solid #e5e7eb; background: #ffffff; }
-        .docx-preview-container td, .docx-preview-container th { border: 1px solid #e5e7eb; padding: 0.5rem; color: #374151 !important; }
-        .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
-        .docx-preview-container ul, .docx-preview-container ol { margin-bottom: 0.5rem; padding-left: 1.5rem; }
-        .docx-preview-container li { margin-bottom: 0.25rem; color: #374151 !important; }
+        .docx-preview-container table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 1em;
+        }
+        .docx-preview-container td, .docx-preview-container th {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        .docx-preview-container img {
+          max-width: 100%;
+          height: auto;
+        }
         
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;

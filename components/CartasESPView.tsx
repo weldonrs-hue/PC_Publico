@@ -361,17 +361,27 @@ export default function CartasESPView({ userId, isAdmin, initialMode = 'geracao'
 
       <style jsx global>{`
         .docx-preview-container {
-          color: #374151 !important;
-          background-color: #ffffff !important;
-          font-family: 'Inter', sans-serif;
+          background-color: white !important;
+          color: #333 !important;
+          font-family: serif !important;
         }
-        .docx-preview-container * {
-          border-color: #e5e7eb !important;
+        .docx-preview-container p {
+          margin-bottom: 1em;
+          line-height: 1.5;
         }
-        .docx-preview-container h1 { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.5rem; line-height: 1.5; color: #374151 !important; }
-        .docx-preview-container table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; border: 1px solid #e5e7eb; }
-        .docx-preview-container td, .docx-preview-container th { border: 1px solid #e5e7eb; padding: 0.5rem; }
+        .docx-preview-container table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 1em;
+        }
+        .docx-preview-container td, .docx-preview-container th {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        .docx-preview-container img {
+          max-width: 100%;
+          height: auto;
+        }
       `}</style>
     </div>
   );

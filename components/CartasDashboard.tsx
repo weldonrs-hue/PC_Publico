@@ -12,7 +12,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
   const cards = [
     {
       id: 'workshops',
-      title: 'Workshops PSS',
+      title: 'Gerenciador de Uploads PSS',
       description: 'Templates de designação para Escola de Pioneiros.',
       icon: Wrench,
       view: 'docx_demo',

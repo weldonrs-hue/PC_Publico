@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import * as docxPreview from 'docx-preview';
+import mammoth from 'mammoth';
 import { 
   FileText, 
   Download, 
@@ -268,17 +268,8 @@ export default function PioneerSchoolLetters({
       const processedArrayBuffer = await out.arrayBuffer();
       setProcessedDocBuffer(processedArrayBuffer);
       
-      if (previewRef.current) {
-        previewRef.current.innerHTML = '';
-        await docxPreview.renderAsync(processedArrayBuffer, previewRef.current, undefined, {
-          className: "docx-preview",
-          inWrapper: false,
-          ignoreWidth: true,
-          ignoreHeight: true,
-          breakPages: false,
-          useBase64URL: true,
-        });
-      }
+      const { value } = await mammoth.convertToHtml({ arrayBuffer: processedArrayBuffer });
+      setPreviewHtml(value);
       
       setStatus('success');
       setNeedsProcessing(false);
@@ -308,42 +299,35 @@ export default function PioneerSchoolLetters({
   };
 
   const downloadAsPdf = async () => {
-    if (!processedDocBuffer) return;
+    if (!previewHtml) return;
 
     setIsProcessing(true);
     try {
-      const html2pdf = (await import('html2pdf.js')).default;
+      const { toPng } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
       
-      // Create a unique ID for the container
+      // Create a hidden container to ensure correct dimensions for capture
       const containerId = 'pdf-gen-container-' + Date.now();
       const hiddenContainer = document.createElement('div');
       hiddenContainer.id = containerId;
       
-      // html2canvas needs the element to be "visible" in the DOM and layout
-      // Using a positioning that is technically visible (opacity 1) but off-screen
-      hiddenContainer.style.position = 'absolute';
-      hiddenContainer.style.left = '-10000px'; 
+      hiddenContainer.style.position = 'fixed';
       hiddenContainer.style.top = '0';
+      hiddenContainer.style.left = '0';
       hiddenContainer.style.width = '210mm';
+      hiddenContainer.style.padding = '20mm';
       hiddenContainer.style.backgroundColor = 'white';
       hiddenContainer.style.zIndex = '-9999';
       hiddenContainer.style.opacity = '1';
-      hiddenContainer.style.visibility = 'visible';
+      hiddenContainer.style.pointerEvents = 'none';
+      hiddenContainer.className = 'docx-preview-container prose prose-sm';
+      hiddenContainer.innerHTML = previewHtml;
+      
+      // Apply some basic styles that might be needed
+      hiddenContainer.style.fontFamily = 'serif';
+      
       document.body.appendChild(hiddenContainer);
 
-      // Render the DOCX into the container
-      await docxPreview.renderAsync(processedDocBuffer, hiddenContainer, undefined, {
-        className: "docx-pdf-rendering",
-        inWrapper: false,
-        ignoreWidth: false,
-        ignoreHeight: false, 
-        breakPages: true,
-        useBase64URL: true,
-      });
-
-      // Increase delay to ensure full rendering of images and fonts
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
       // Wait for any images in the rendered document
       const images = hiddenContainer.querySelectorAll('img');
       await Promise.all(Array.from(images).map(img => {
@@ -354,74 +338,23 @@ export default function PioneerSchoolLetters({
         });
       }));
 
-      const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
+      // Capture the content
+      const dataUrl = await toPng(hiddenContainer, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
       
-      const opt = {
-        margin: [0, 0, 0, 0],
-        filename: `${templateName}_Turma${selectedTurma}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true,
-          logging: false,
-          letterRendering: true,
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: 794,
-          onclone: (clonedDoc: Document) => {
-            // Fix oklch crash by selectively removing Tailwind v4 styles 
-            // without removing docx-preview styles
-            const styleTags = clonedDoc.querySelectorAll('style');
-            styleTags.forEach(style => {
-              const content = style.innerHTML;
-              if (content.includes('oklch') && (content.includes('--tw-') || content.includes('tailwindcss'))) {
-                style.remove();
-              } else if (content.includes('oklch')) {
-                style.innerHTML = content.replace(/oklch\([^)]+\)/g, '#333333');
-              }
-            });
-
-            // Ensure the specific container is visible in the clone
-            const target = clonedDoc.getElementById(containerId);
-            if (target) {
-              target.style.position = 'relative';
-              target.style.left = '0';
-              target.style.opacity = '1';
-              target.style.visibility = 'visible';
-              target.style.display = 'block';
-            }
-
-            // Inject simple base styles to ensure the document looks okay without Tailwind
-            const style = clonedDoc.createElement('style');
-            style.innerHTML = `
-              body { background: white !important; margin: 0 !important; padding: 0 !important; }
-              .docx-pdf-rendering {
-                background-color: #ffffff !important;
-                color: #000000 !important;
-                width: 794px !important;
-                opacity: 1 !important;
-                visibility: visible !important;
-                display: block !important;
-              }
-              .docx-pdf-rendering section.docx {
-                box-shadow: none !important;
-                padding: 20mm !important; 
-                margin: 0 auto !important;
-                background: white !important;
-                border: none !important;
-              }
-              .docx-pdf-rendering p { margin: 0 0 10pt 0 !important; line-height: 1.15; font-family: "Calibri", "Arial", sans-serif; }
-              .docx-pdf-rendering table { border-collapse: collapse !important; width: 100% !important; margin-bottom: 10pt !important; }
-              .docx-pdf-rendering td, .docx-pdf-rendering th { border: 0.5pt solid #000 !important; padding: 4pt !important; }
-              .no-print { display: none !important; }
-            `;
-            clonedDoc.head.appendChild(style);
-          }
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt).from(hiddenContainer).save();
+      const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
+      pdf.save(`${templateName}_Turma${selectedTurma}.pdf`);
       
       // Cleanup
       if (document.body.contains(hiddenContainer)) {
@@ -523,18 +456,12 @@ export default function PioneerSchoolLetters({
 
           <div className="relative group">
             <div 
-              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-3xl shadow-inner-lg overflow-hidden p-4 md:p-12"
-              style={{ overflowY: 'auto' }}
+              className="w-full h-[600px] md:h-[800px] bg-gray-100 border border-gray-300 rounded-3xl shadow-inner overflow-auto p-2 md:p-8 custom-scrollbar"
             >
               <div 
-                ref={previewRef}
-                className="docx-preview-container mx-auto"
-                style={{ width: '100%' }}
-              >
-                {!processedDocBuffer && !isProcessing && (
-                  <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                )}
-              </div>
+                className="docx-preview-container bg-white p-12 shadow-lg border border-gray-200 min-h-[1058px] w-full max-w-[210mm] mx-auto prose prose-sm"
+                dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">Processando visualização...</div>' }}
+              />
             </div>
             {isProcessing && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
@@ -557,19 +484,40 @@ export default function PioneerSchoolLetters({
 
       <style jsx global>{`
         .docx-preview-container {
-          background-color: #ffffff !important;
+          background-color: white !important;
+          color: #333 !important;
+          font-family: serif !important;
         }
-        .docx-preview-container .docx-preview {
-          padding: 0 !important;
-          margin: 0 !important;
-          box-shadow: none !important;
-          width: 100% !important;
+        .docx-preview-container p {
+          margin-bottom: 1em;
+          line-height: 1.5;
         }
-        .docx-preview-container section.docx {
-          padding: 0 !important;
-          margin: 0 !important;
-          background: white !important;
-          box-shadow: none !important;
+        .docx-preview-container table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 1em;
+        }
+        .docx-preview-container td, .docx-preview-container th {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        .docx-preview-container img {
+          max-width: 100%;
+          height: auto;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0,0,0,0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0,0,0,0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(0,0,0,0.2);
         }
       `}</style>
     </div>
