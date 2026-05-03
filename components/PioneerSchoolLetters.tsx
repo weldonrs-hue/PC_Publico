@@ -314,18 +314,24 @@ export default function PioneerSchoolLetters({
     try {
       const html2pdf = (await import('html2pdf.js')).default;
       
-      // Create a hidden div specifically for PDF generation to avoid "screen capture" look
+      // Create a unique ID for the container
+      const containerId = 'pdf-gen-container-' + Date.now();
       const hiddenContainer = document.createElement('div');
-      hiddenContainer.style.position = 'fixed';
-      hiddenContainer.style.left = '-10000px'; // Way off-screen but "visible"
+      hiddenContainer.id = containerId;
+      
+      // html2canvas needs the element to be "visible" in the DOM and layout
+      // Using a positioning that is technically visible (opacity 1) but off-screen
+      hiddenContainer.style.position = 'absolute';
+      hiddenContainer.style.left = '-10000px'; 
       hiddenContainer.style.top = '0';
-      hiddenContainer.style.width = '210mm'; // A4 Width
+      hiddenContainer.style.width = '210mm';
       hiddenContainer.style.backgroundColor = 'white';
-      hiddenContainer.style.zIndex = '-1000';
+      hiddenContainer.style.zIndex = '-9999';
       hiddenContainer.style.opacity = '1';
+      hiddenContainer.style.visibility = 'visible';
       document.body.appendChild(hiddenContainer);
 
-      // Render the DOCX into the hidden container for a clean output
+      // Render the DOCX into the container
       await docxPreview.renderAsync(processedDocBuffer, hiddenContainer, undefined, {
         className: "docx-pdf-rendering",
         inWrapper: false,
@@ -335,42 +341,79 @@ export default function PioneerSchoolLetters({
         useBase64URL: true,
       });
 
-      // Give more time for all assets and styles to settle
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Increase delay to ensure full rendering of images and fonts
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
+      // Wait for any images in the rendered document
+      const images = hiddenContainer.querySelectorAll('img');
+      await Promise.all(Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }));
+
       const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
       
       const opt = {
-        margin: 0,
+        margin: [0, 0, 0, 0],
         filename: `${templateName}_Turma${selectedTurma}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-          scale: 2,
+          scale: 2, 
           useCORS: true,
-          logging: true,
+          logging: false,
           letterRendering: true,
           scrollX: 0,
           scrollY: 0,
           windowWidth: 794,
           onclone: (clonedDoc: Document) => {
+            // Fix oklch crash by selectively removing Tailwind v4 styles 
+            // without removing docx-preview styles
+            const styleTags = clonedDoc.querySelectorAll('style');
+            styleTags.forEach(style => {
+              const content = style.innerHTML;
+              if (content.includes('oklch') && (content.includes('--tw-') || content.includes('tailwindcss'))) {
+                style.remove();
+              } else if (content.includes('oklch')) {
+                style.innerHTML = content.replace(/oklch\([^)]+\)/g, '#333333');
+              }
+            });
+
+            // Ensure the specific container is visible in the clone
+            const target = clonedDoc.getElementById(containerId);
+            if (target) {
+              target.style.position = 'relative';
+              target.style.left = '0';
+              target.style.opacity = '1';
+              target.style.visibility = 'visible';
+              target.style.display = 'block';
+            }
+
+            // Inject simple base styles to ensure the document looks okay without Tailwind
             const style = clonedDoc.createElement('style');
             style.innerHTML = `
+              body { background: white !important; margin: 0 !important; padding: 0 !important; }
               .docx-pdf-rendering {
                 background-color: #ffffff !important;
                 color: #000000 !important;
-                width: 794px !important; /* 210mm at 96dpi */
-                position: relative !important;
-                left: 0 !important;
-                top: 0 !important;
+                width: 794px !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                display: block !important;
               }
               .docx-pdf-rendering section.docx {
                 box-shadow: none !important;
-                padding: 20mm !important;
-                margin: 0 !important;
+                padding: 20mm !important; 
+                margin: 0 auto !important;
                 background: white !important;
+                border: none !important;
               }
-              /* Ensure all oklch values are replaced with simple colors if any leaked through docx styles */
-              * { border-color: #e5e7eb !important; }
+              .docx-pdf-rendering p { margin: 0 0 10pt 0 !important; line-height: 1.15; font-family: "Calibri", "Arial", sans-serif; }
+              .docx-pdf-rendering table { border-collapse: collapse !important; width: 100% !important; margin-bottom: 10pt !important; }
+              .docx-pdf-rendering td, .docx-pdf-rendering th { border: 0.5pt solid #000 !important; padding: 4pt !important; }
+              .no-print { display: none !important; }
             `;
             clonedDoc.head.appendChild(style);
           }
@@ -381,10 +424,12 @@ export default function PioneerSchoolLetters({
       await html2pdf().set(opt).from(hiddenContainer).save();
       
       // Cleanup
-      document.body.removeChild(hiddenContainer);
+      if (document.body.contains(hiddenContainer)) {
+        document.body.removeChild(hiddenContainer);
+      }
     } catch (err) {
       console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF.');
+      alert('Erro ao gerar PDF: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsProcessing(false);
     }
