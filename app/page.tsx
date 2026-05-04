@@ -182,8 +182,10 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
-    } else if (['misc', 'text_editor', 'field_service_report', 'cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
+    } else if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
+    } else if (['cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
+      setLastSubViews(prev => ({ ...prev, cartas: currentView }));
     }
   }, [currentView]);
 
@@ -856,11 +858,19 @@ export default function Home() {
               }
             } else if (view === 'misc') {
               // If already in a Misc sub-view, reset to main misc
-              if (['misc', 'text_editor', 'field_service_report', 'cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
+              if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
                 changeView('misc');
               } else {
                 // Restore last visited sub-view in Misc
                 changeView(lastSubViews.misc || 'misc');
+              }
+            } else if (view === 'cartas') {
+              // If already in a Cartas sub-view, reset to main selector
+              if (['cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
+                changeView('cartas');
+              } else {
+                // Restore last visited sub-view in Cartas
+                changeView(lastSubViews.cartas || 'cartas');
               }
             } else {
               changeView(view as any);
@@ -1098,7 +1108,7 @@ export default function Home() {
 
           {currentView === 'cartas' && (
             <CartasSeletorView 
-              onBack={() => changeView('misc')}
+              onBack={() => changeView('dashboard')}
               onViewChange={(view) => {
                 if (view === 'cartas_esp') setEspInitialMode('geracao');
                 changeView(view as any);

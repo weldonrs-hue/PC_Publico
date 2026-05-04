@@ -257,101 +257,117 @@ export default function CartasESPView({ userId, isAdmin, initialMode = 'geracao'
             exit={{ opacity: 0, y: -20 }}
             className="flex flex-col gap-6"
           >
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 opacity-5 rounded-bl-[5rem]" />
-               <div className="flex items-center justify-between mb-4 relative z-10">
-                <div>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              {/* Left Side: Template Selection */}
+              <div className="xl:col-span-8 bg-gray-50 p-6 rounded-2xl border border-gray-200 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 opacity-5 rounded-bl-[5rem]" />
+                <div className="flex items-center justify-between mb-4 relative z-10">
                   <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-tight">
                     <List size={18} className="text-emerald-600" />
-                    Gerenciamento de Uploads ESP
+                    Selecione o Modelo
                   </h3>
+                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+                    {ESP_TEMPLATES.length} Disponíveis
+                  </span>
                 </div>
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
-                  {ESP_TEMPLATES.length} Modelos
-                </span>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 relative z-10">
+                  {ESP_TEMPLATES.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => loadTemplate(template.id)}
+                      className={`text-left px-4 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
+                        selectedTemplate === template.id 
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' 
+                          : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{template.name}</span>
+                        {templates[template.id] && <CheckCircle2 size={12} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                {ESP_TEMPLATES.map(template => (
-                  <button
-                    key={template.id}
-                    onClick={() => loadTemplate(template.id)}
-                    className={`text-left px-3 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
-                      selectedTemplate === template.id 
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' 
-                        : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="truncate">{template.name}</span>
-                      {templates[template.id] && <CheckCircle2 size={12} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />}
+
+              {/* Right Side: Actions & Upload */}
+              <div className="xl:col-span-4 bg-emerald-50 p-6 rounded-2xl border border-emerald-100 relative">
+                <h4 className="text-xs font-black text-emerald-600 uppercase mb-4 tracking-widest flex items-center gap-2">
+                  <FileUp size={16} />
+                  Ações do Template
+                </h4>
+                
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept=".docx"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`w-full flex flex-col items-center justify-center p-4 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
+                        file 
+                          ? 'bg-amber-50 text-amber-700 border-amber-300' 
+                          : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2 text-center">
+                        <FileUp size={20} className={file ? 'text-amber-500' : 'text-emerald-500'} />
+                        <span className="truncate max-w-full">{file ? file.name : 'Carregar novo arquivo DOCX'}</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {file ? (
+                    <div className="space-y-2">
+                      <button
+                        onClick={saveTemplate}
+                        disabled={isSaving}
+                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-100"
+                      >
+                        {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Salvar Alterações
+                      </button>
+
+                      <button
+                        onClick={() => { setFile(null); setPreviewHtml(''); loadTemplate(selectedTemplate); }}
+                        className="w-full py-2 text-gray-500 font-bold text-[9px] uppercase tracking-widest hover:text-red-500 transition-colors"
+                      >
+                        Cancelar
+                      </button>
                     </div>
-                  </button>
-                ))}
+                  ) : (
+                    <div className="text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest text-center px-2">
+                      Selecione um arquivo DOCX para atualizar o modelo <span className="text-emerald-700 font-black">{getTemplateName(selectedTemplate)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-12 xl:col-span-5 space-y-6">
-                <div className="bg-emerald-50 p-6 rounded-2xl border-2 border-dashed border-emerald-200 relative">
-                  <h4 className="text-xs font-black text-emerald-600 uppercase mb-4 tracking-widest">Atualizar Template</h4>
-                  
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept=".docx"
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex flex-col items-center justify-center space-y-3 py-6 bg-white/50 hover:bg-white transition-colors rounded-xl border border-emerald-100 shadow-sm"
-                  >
-                    <div className="w-8 h-8 text-emerald-500">
-                      <FileUp className="w-8 h-8" />
-                    </div>
-                    <div className="text-center px-4">
-                      <span className="text-emerald-600 font-bold text-xs uppercase tracking-widest">Carregar DOCX</span>
-                      <p className="text-[9px] text-gray-500 mt-1 truncate max-w-[200px] font-bold italic line-clamp-1">
-                        {file ? file.name : 'Nenhum arquivo selecionado'}
-                      </p>
-                    </div>
-                  </button>
-                  
-                  {file && (
-                    <button
-                      onClick={saveTemplate}
-                      disabled={isSaving}
-                      className="w-full mt-4 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-100"
-                    >
-                      {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Salvar no Banco de Dados
-                    </button>
-                  )}
-
-
-                </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-2">
+                <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest flex items-center gap-2">
+                  <FileText size={16} className="text-gray-400" />
+                  Visualização do Documento
+                </h3>
+                <span className="text-[9px] bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-black uppercase tracking-tighter border border-emerald-200">
+                  {file ? 'Arquivo Carregado' : 'Versão no Servidor'}
+                </span>
               </div>
-
-              <div className="lg:col-span-12 xl:col-span-7 space-y-3">
-                <div className="flex justify-between items-center px-2">
-                  <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest flex items-center gap-2">
-                    Visualização
-                  </h3>
-                  <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter">
-                    {file ? 'Arquivo Local' : 'Versão no Banco'}
-                  </span>
-                </div>
-                <div className="relative group">
+              <div className="relative">
+                <div 
+                  className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-hidden p-8 md:p-16"
+                  style={{ overflowY: 'auto' }}
+                >
                   <div 
-                    className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-hidden p-10"
-                    style={{ overflowY: 'auto' }}
-                  >
-                    <div 
-                      className="prose prose-sm max-w-none docx-preview-container mx-auto"
-                      dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">Selecione um template para visualizar</div>' }}
-                    />
-                  </div>
+                    className="prose prose-sm max-w-none docx-preview-container mx-auto"
+                    dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">Selecione um template para visualizar</div>' }}
+                  />
                 </div>
               </div>
             </div>

@@ -29,14 +29,6 @@ const miscItems = [
     gradient: 'from-pink-500 to-rose-600',
     icon: Calendar,
   },
-  {
-    id: 'cartas',
-    title: 'CARTAS',
-    subtitle: 'GERENCIAMENTO DE CARTAS PERSONALIZADAS',
-    color: '#10B981', // Emerald
-    gradient: 'from-emerald-500 to-teal-600',
-    icon: Mail,
-  },
 ];
 
 export default function MiscView({ onViewChange, isAdmin, appConfig }: MiscViewProps) {

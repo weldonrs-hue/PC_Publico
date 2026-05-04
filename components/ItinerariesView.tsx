@@ -265,15 +265,16 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     }
   };
 
-  const fetchAuxiliaryData = useCallback(async () => {
-    try {
-      // Fetch congregations
-      const congQuery = query(collection(db, 'congregations'), where('userId', '==', userId));
-      const congSnap = await getDocs(congQuery);
-      const congList = congSnap.docs.map(doc => ({
+  useEffect(() => {
+    if (!userId) return;
+
+    // Real-time congregations fetch
+    const congQuery = query(collection(db, 'congregations'), where('userId', '==', userId));
+    const unsubscribeCongs = onSnapshot(congQuery, (snap) => {
+      const congList = snap.docs.map(doc => ({
         id: doc.id,
-        nome: doc.data().nome,
-        cidade: doc.data().cidade,
+        nome: doc.data().nome || '',
+        cidade: doc.data().cidade || '',
         numero: doc.data().numero || '',
         estado: doc.data().estado || '',
         endereco: doc.data().endereco || '',
@@ -282,25 +283,30 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         grupos: doc.data().grupos || []
       })) as Congregation[];
       setCongregations(congList);
-
-      // Fetch substitutes
-      const subQuery = query(collection(db, 'substitutes'), where('userId', '==', userId));
-      const subSnap = await getDocs(subQuery);
-      const subList = subSnap.docs.map(doc => ({
-        id: doc.id,
-        nome: doc.data().nome
-      })) as Substitute[];
-      setSubstitutes(subList);
-    } catch (error) {
+    }, (error) => {
       if (auth.currentUser) {
-        console.error('Error fetching auxiliary data:', error);
+        handleFirestoreError(error, OperationType.GET, 'congregations_realtime');
       }
-    }
-  }, [userId]);
+    });
 
-  useEffect(() => {
-    fetchAuxiliaryData();
-  }, [fetchAuxiliaryData]);
+    // Real-time substitutes fetch
+    const subQuery = query(collection(db, 'substitutes'), where('userId', '==', userId));
+    const unsubscribeSubs = onSnapshot(subQuery, (snap) => {
+      setSubstitutes(snap.docs.map(doc => ({ 
+        id: doc.id, 
+        nome: doc.data().nome || '' 
+      })) as Substitute[]);
+    }, (error) => {
+      if (auth.currentUser) {
+        handleFirestoreError(error, OperationType.GET, 'substitutes_realtime');
+      }
+    });
+
+    return () => {
+      unsubscribeCongs();
+      unsubscribeSubs();
+    };
+  }, [userId]);
 
   const isCurrentWeek = (semanaStr: string) => {
     const [day, month, year] = semanaStr.split('/').map(Number);

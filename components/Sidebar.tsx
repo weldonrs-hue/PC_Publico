@@ -2,7 +2,7 @@
 // Force rebuild - updated
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import ImageCropper from './ImageCropper';
@@ -14,6 +14,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
   { icon: GraduationCap, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
+  { icon: Mail, label: 'Cartas', view: 'cartas' },
   { icon: ClipboardList, label: 'Uploads', view: 'cartas_dashboard' },
   { icon: Shapes, label: 'Diversos', view: 'misc' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
@@ -83,9 +84,13 @@ export default function Sidebar({ onLogout, user, personalData, currentView, esp
       return ['events', 'regional_convention_program'].includes(currentView);
     }
     if (itemView === 'misc') {
-      const miscViews = ['misc', 'text_editor', 'field_service_report', 'cartas', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
-      if (currentView === 'cartas_esp' && espInitialMode === 'geracao') return true;
+      const miscViews = ['misc', 'text_editor', 'field_service_report'];
       return miscViews.includes(currentView);
+    }
+    if (itemView === 'cartas') {
+      const cartasViews = ['cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
+      if (currentView === 'cartas_esp' && espInitialMode === 'manager') return false;
+      return cartasViews.includes(currentView);
     }
     if (itemView === 'cartas_dashboard') {
       const uploadsViews = ['cartas_dashboard', 'docx_demo'];
