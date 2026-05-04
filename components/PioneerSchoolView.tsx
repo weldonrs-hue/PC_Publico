@@ -28,7 +28,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import PSSAssignmentLetters from './PSSAssignmentLetters';
 import PioneerSchoolLetters from './PioneerSchoolLetters';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { 
   collection, 
   query, 
@@ -38,9 +38,12 @@ import {
   updateDoc, 
   deleteDoc, 
   doc,
+  getDoc,
   orderBy,
   writeBatch
 } from 'firebase/firestore';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface Student {
@@ -247,6 +250,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     key: 'nome',
     direction: 'asc',
   });
+  const [downloadingDesignacao, setDownloadingDesignacao] = useState(false);
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -833,6 +837,90 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     }
   };
 
+  const handleDownloadDesignacao = async () => {
+    if (selectedStudents.length === 0) return;
+    
+    setDownloadingDesignacao(true);
+    try {
+      // 1. Fetch the template
+      const templateDoc = await getDoc(doc(db, 'document_templates', 'esp_pioneiros'));
+      if (!templateDoc.exists()) {
+        alert('Template "esp_pioneiros" não encontrado. Carregue-o primeiro.');
+        setDownloadingDesignacao(false);
+        return;
+      }
+      
+      const templateData = templateDoc.data();
+      const binaryString = window.atob(templateData.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const templateBuffer = bytes.buffer;
+
+      // 2. Process each selected student
+      for (const studentId of selectedStudents) {
+        const student = students.find(s => s.id === studentId);
+        if (!student) continue;
+
+        const zip = new PizZip(templateBuffer);
+        
+        // Pre-process XML to convert @TAG to [TAG] for Docxtemplater compatibility
+        let xmlContent = zip.file('word/document.xml').asText();
+        xmlContent = xmlContent.replace(/<\/w:t>(?:<w:rPr>.*?<\/w:rPr>|<w:proofErr[^>]*>|<w:noProof[^>]*>|<\/w:r><w:r[^>]*>)*?<w:t[^>]*>/g, '');
+        
+        // Map other @tags to [tags]
+        xmlContent = xmlContent.replace(/@([A-Za-z0-9À-ÿ\u00C0-\u00FF]+)/g, (match, p1) => {
+          return `[${p1.toUpperCase()}]`;
+        });
+        
+        zip.file('word/document.xml', xmlContent);
+
+        const docObj = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+          delimiters: { start: '[', end: ']' }
+        });
+
+        // 3. Replacements
+        const replacements: any = {
+          'ALUNO': student.nome,
+          'CONGREGAÇÃO': student.congregacao,
+          'CONGREGACAO': student.congregacao,
+          'DATA': schoolInfo.dataTurma || '',
+          'LOCAL': schoolInfo.localEscola || '',
+        };
+
+        docObj.render(replacements);
+
+        const out = docObj.getZip().generate({
+          type: 'blob',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+
+        // 4. Download
+        const url = URL.createObjectURL(out);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Carta_Convite_${student.nome.replace(/\s+/g, '_')}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        // Small delay to avoid browser blocking multiple downloads
+        if (selectedStudents.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao baixar designações:', error);
+      alert('Erro ao processar documentos.');
+    } finally {
+      setDownloadingDesignacao(false);
+    }
+  };
+
   const SortIcon = ({ column }: { column: keyof Student | 'index' }) => {
     if (sortConfig.key !== column) return <ArrowUpDown size={14} className="ml-1 opacity-50" />;
     return sortConfig.direction === 'asc' ? 
@@ -867,28 +955,43 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-6 py-4 flex items-center gap-6"
+            className="fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden"
           >
-            <div className="flex items-center gap-2">
-              <span className="bg-[#37616b] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="bg-[#37616b] text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
                 {selectedStudents.length}
               </span>
-              <span className="text-sm font-medium text-gray-600">selecionados</span>
+              <span className="text-[10px] sm:text-sm font-medium text-gray-600 hidden xs:inline">selecionados</span>
             </div>
-            <div className="h-8 w-px bg-gray-200" />
-            <div className="flex items-center gap-3">
+            <div className="h-6 sm:h-8 w-px bg-gray-200 shrink-0" />
+            <div className="flex items-center gap-1.5 sm:gap-3 flex-1 sm:flex-none justify-around sm:justify-start">
               <button
                 onClick={() => setSelectedStudents([])}
-                className="text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-[10px] sm:text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors px-1 shrink-0"
               >
-                Cancelar
+                <span className="sm:hidden">Sair</span>
+                <span className="hidden sm:inline">Cancelar</span>
+              </button>
+              <button
+                onClick={handleDownloadDesignacao}
+                disabled={downloadingDesignacao}
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-[#37616b] text-white rounded-lg sm:rounded-xl hover:bg-[#2c4d55] transition-all font-bold disabled:opacity-50 shrink-0"
+              >
+                {downloadingDesignacao ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                <span className="text-[10px] sm:text-sm">
+                  <span className="hidden sm:inline">Baixar Designação</span>
+                  <span className="sm:hidden">Baixar</span>
+                </span>
               </button>
               <button
                 onClick={() => setIsBulkDeleteModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all font-bold"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-red-50 text-red-600 rounded-lg sm:rounded-xl hover:bg-red-100 transition-all font-bold shrink-0"
               >
-                <Trash2 size={18} />
-                Excluir Selecionados
+                <Trash2 size={16} />
+                <span className="text-[10px] sm:text-sm">
+                  <span className="hidden sm:inline">Excluir Selecionados</span>
+                  <span className="sm:hidden">Excluir</span>
+                </span>
               </button>
             </div>
           </motion.div>

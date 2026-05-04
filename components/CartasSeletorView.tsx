@@ -5,11 +5,10 @@ import { Mail, ArrowLeft, Send, Sparkles, Layout, FileText } from 'lucide-react'
 import { motion } from 'motion/react';
 
 interface CartasSeletorViewProps {
-  onBack: () => void;
   onViewChange: (view: string) => void;
 }
 
-export default function CartasSeletorView({ onBack, onViewChange }: CartasSeletorViewProps) {
+export default function CartasSeletorView({ onViewChange }: CartasSeletorViewProps) {
   const options = [
     {
       id: 'esp',
@@ -66,16 +65,15 @@ export default function CartasSeletorView({ onBack, onViewChange }: CartasSeleto
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
-        <button 
-          onClick={onBack}
-          className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-500 hover:text-emerald-600 hover:scale-110 active:scale-95"
-        >
-          <ArrowLeft size={24} />
-        </button>
+        <div className="bg-emerald-100 p-3 rounded-2xl text-emerald-600 shadow-inner">
+          <Mail size={24} strokeWidth={2.5} />
+        </div>
         <div>
-          <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Módulo de Cartas</h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100 w-fit mt-1">
-            Selecione uma categoria
+          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+            Cartas
+          </h2>
+          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mt-0.5 opacity-70">
+            Módulo de Cartas Personalizadas
           </p>
         </div>
       </div>

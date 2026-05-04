@@ -212,19 +212,7 @@ export default function CartasESPView({ userId, isAdmin, initialMode = 'geracao'
             </div>
           )}
           
-          {isAdmin && (
-            <button
-              onClick={() => setShowManager(!showManager)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border ${
-                showManager 
-                  ? 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200 hover:text-emerald-600'
-                  : 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-              }`}
-            >
-              {showManager ? <ArrowLeft size={14} /> : <FileUp size={14} />}
-              {showManager ? 'Ir para Geração' : 'Gerenciar Modelos'}
-            </button>
-          )}
+
         </div>
       </div>
 

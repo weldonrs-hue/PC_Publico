@@ -1108,7 +1108,6 @@ export default function Home() {
 
           {currentView === 'cartas' && (
             <CartasSeletorView 
-              onBack={() => changeView('dashboard')}
               onViewChange={(view) => {
                 if (view === 'cartas_esp') setEspInitialMode('geracao');
                 changeView(view as any);
