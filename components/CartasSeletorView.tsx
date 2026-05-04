@@ -14,7 +14,7 @@ export default function CartasSeletorView({ onViewChange }: CartasSeletorViewPro
       id: 'esp',
       title: 'Cartas ESP',
       subtitle: 'ESCOLA DE PIONEIROS',
-      icon: Sparkles,
+      icon: Mail,
       color: '#10B981', // Emerald
       gradient: 'from-emerald-500 to-teal-600',
       view: 'cartas_esp',
@@ -24,7 +24,7 @@ export default function CartasSeletorView({ onViewChange }: CartasSeletorViewPro
       id: 'emr',
       title: 'Cartas EMR',
       subtitle: 'EM BREVE',
-      icon: Send,
+      icon: Mail,
       color: '#3B82F6', // Blue
       gradient: 'from-blue-200 to-indigo-300',
       view: 'cartas_emr',
@@ -34,7 +34,7 @@ export default function CartasSeletorView({ onViewChange }: CartasSeletorViewPro
       id: 'congresso',
       title: 'Cartas Congresso',
       subtitle: 'EM BREVE',
-      icon: Layout,
+      icon: Mail,
       color: '#8B5CF6', // Violet
       gradient: 'from-violet-200 to-purple-300',
       view: 'cartas_congresso',

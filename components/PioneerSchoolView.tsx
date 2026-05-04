@@ -1115,18 +1115,18 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             Lista de Alunos
           </button>
           <button 
-            onClick={() => handleTabChange('workshops')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-          >
-            <LayoutList size={16} />
-            Sessão de Treino
-          </button>
-          <button 
             onClick={() => handleTabChange('info')}
             className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'info' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
           >
             <Info size={16} />
             Informações
+          </button>
+          <button 
+            onClick={() => handleTabChange('workshops')}
+            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+          >
+            <LayoutList size={16} />
+            Sessão de Treino
           </button>
           <button 
             onClick={() => handleTabChange('templates_pss')}
