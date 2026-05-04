@@ -185,6 +185,16 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
     setGenerating(true);
     try {
+      // Temporarily hide placeholders using a style block
+      const style = document.createElement('style');
+      style.innerHTML = `
+        #appointment-letter-container input::placeholder {
+          color: transparent !important;
+          opacity: 0 !important;
+        }
+      `;
+      document.head.appendChild(style);
+
       // Ensure fonts are loaded before capture
       try {
         // Load Dancing Script specifically
@@ -230,8 +240,14 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
       pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
       pdf.save(filename);
+      
+      // Remove temporary style
+      document.head.removeChild(style);
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
+      // Ensure style is removed even on error
+      const style = document.querySelector('style[innerHTML*="appointment-letter-container input::placeholder"]');
+      if (style) style.remove();
     } finally {
       setGenerating(false);
     }
@@ -491,17 +507,17 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             </div>
 
             {/* Content Sections */}
-            <div className="space-y-12 text-[15px] leading-snug flex-1 mt-[-17px]">
+            <div className="space-y-6 text-[15px] leading-snug flex-1 mt-[-17px]">
               <section>
                 <p className="mb-1">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">ancião(s)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.ancianosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.8rem] mb-[0.2rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.6rem] mb-[0.1rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('ancianosDesignados', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full print:placeholder-transparent"
+                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder={i === 0 ? "Nome do irmão..." : ""}
                       />
                     </div>
@@ -510,15 +526,15 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="mb-1 mt-[-30px]">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">servo(s) ministerial(is)</strong>:</p>
+                <p className="mb-1 mt-[-10px]">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">servo(s) ministerial(is)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.servosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.8rem] mb-[0.2rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.6rem] mb-[0.1rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('servosDesignados', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full print:placeholder-transparent"
+                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder={i === 0 ? "Nome do irmão..." : ""}
                       />
                     </div>
@@ -527,15 +543,15 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="mb-1 mt-[-30px]">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
+                <p className="mb-1 mt-[-10px]">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
                 <div className="space-y-0">
                   {letterData.irmaosRemovidos.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.8rem] mb-[0.2rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.6rem] mb-[0.1rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('irmaosRemovidos', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full print:placeholder-transparent"
+                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder={i === 0 ? "Nome do irmão..." : ""}
                       />
                     </div>
@@ -564,12 +580,11 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                           transform: `translateY(${personalData?.signatureOffset || 0}px)`
                         }}
                       >
-                        <Image 
+                        <img 
                           src={signatureImage} 
                           alt="Assinatura" 
-                          fill 
-                          className="object-contain"
-                          referrerPolicy="no-referrer"
+                          className="h-full object-contain max-w-full"
+                          crossOrigin="anonymous"
                         />
                       </div>
                     ) : (
@@ -634,7 +649,8 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             display: none !important;
           }
           input::placeholder {
-            color: transparent;
+            color: transparent !important;
+            opacity: 0 !important;
           }
           input {
             border: none !important;
