@@ -495,7 +495,7 @@ export default function PSSAssignmentLetters({
           box-shadow: none !important;
         }
         .docx-preview-container h1 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.75rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.5rem; line-height: 1.4; color: #374151 !important; font-size: 0.85rem; }
+        .docx-preview-container p { margin-bottom: 0.5rem; line-height: 1.4; color: #374151 !important; font-size: 1rem; }
         .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
         
         .custom-scrollbar::-webkit-scrollbar {

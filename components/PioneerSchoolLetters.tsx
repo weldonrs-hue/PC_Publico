@@ -526,6 +526,11 @@ export default function PioneerSchoolLetters({
         .docx-preview-container {
           background-color: #ffffff !important;
         }
+        .docx-preview-container p {
+          font-size: 1rem !important;
+          line-height: 1.5 !important;
+          color: #1a1a1a !important;
+        }
         .docx-preview-container .docx-preview {
           padding: 0 !important;
           margin: 0 !important;
