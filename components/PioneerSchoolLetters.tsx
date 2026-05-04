@@ -137,29 +137,50 @@ export default function PioneerSchoolLetters({
     const email = schoolInfo.confirmacaoEmail || '________________';
     const contato = schoolInfo.confirmacaoWhatsapp || '________________';
     
-    const assinatura = personalData?.signatureImage || '';
-    const viajante = personalData?.nome || '________________';
+    const signatureImage = personalData?.signatureImage || '';
+    const signatureName = personalData?.nome || '________________';
     const circuito = personalData?.circuito || '________________';
     const telefoneCircuito = personalData?.telefoneCircuito || '________________';
 
     return {
       'TURMA': turma,
       'DATA': dataValue,
+      'TURMA_DATA': dataValue,
+      'DATATURMA': dataValue,
       'INSTRUTORES': instrutores,
+      'INSTRUTOR1': schoolInfo.instrutorA || '________________',
+      'INSTRUTOR2': schoolInfo.instrutorB || '________________',
+      'INSTRUTORA': schoolInfo.instrutorA || '________________',
+      'INSTRUTORB': schoolInfo.instrutorB || '________________',
       'LOCAL': local,
+      'LOCALESCOLA': local,
+      'LOCAL_ESCOLA': local,
       'ENDEREÇO': endereco,
+      'ENDERECO': endereco,
+      'ENDEREÇOESCOLA': endereco,
+      'ENDERECOESCOLA': endereco,
+      'ENDEREÇO_ESCOLA': endereco,
       'ENDERECOENTREGA': enderecoEntrega,
       'ENDEREÇOENTREGA': enderecoEntrega,
       'DATAENTREGA': dataEntrega,
       'DATACONFIRMAÇÃO': dataConfirmacao,
+      'DATACONFIRMACAO': dataConfirmacao,
       'EMAIL': email,
       'CONTATO': contato,
-      'ASSINATURA': assinatura,
-      '%ASSINATURA': assinatura,
-      'VIAJANTE': viajante,
+      'WHATSAPP': contato,
+      'ASSINATURA': signatureImage,
+      '%ASSINATURA': signatureImage,
+      'ASSINATURA_GLOBAL': signatureImage,
+      'VIAJANTE': signatureName,
+      'NOME_VIAJANTE': signatureName,
       'CIRCUITO': circuito,
+      'NOME_CIRCUITO': circuito,
       'TELEFONE': telefoneCircuito,
-      'HOJE': hoje
+      'FONE': telefoneCircuito,
+      'TELEFONE_CIRCUITO': telefoneCircuito,
+      'TELEFONECIRCUITO': telefoneCircuito,
+      'HOJE': hoje,
+      'DATA_ATUAL': hoje
     };
   };
 
@@ -180,28 +201,38 @@ export default function PioneerSchoolLetters({
 
       const zip = new PizZip(content);
       
-      // Pre-process XML to convert @TAG to [TAG] for Docxtemplater compatibility
-      let xmlContent = zip.file('word/document.xml').asText();
+      // Pre-process all XML files in the zip (document, headers, footers) to handle Word-specific tag splitting and @TAG to [TAG] conversion
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       
-      // Join broken text nodes (Common Word issue where tags like @DATA are split into multiple nodes)
-      // This handles cases like <w:t>@</w:t><w:t>DATA</w:t>
-      // We only merge if it's safe (doesn't cross paragraph or structural boundaries)
-      // We also check for space preservation
-      xmlContent = xmlContent.replace(/<\/w:t>(?:<w:rPr>.*?<\/w:rPr>|<w:proofErr[^>]*>|<w:noProof[^>]*>|<\/w:r><w:r[^>]*>)*?<w:t[^>]*>/g, '');
-      
-      // Special handle for signature image tagging (using % prefix for ImageModule)
-      // We convert it to uppercase for consistency with the normalization below
-      xmlContent = xmlContent.replace(/@Assinatura/gi, '[%ASSINATURA]');
-      
-      // Map other @tags to [tags]
-      // We normalize all @tags to [UPPERCASE] during pre-processing to avoid Case Sensitivity issues
-      // Range À-ÿ covers Portuguese accented characters
-      xmlContent = xmlContent.replace(/@([A-Za-z0-9À-ÿ\u00C0-\u00FF]+)/g, (match, p1) => {
-        return `[${p1.toUpperCase()}]`;
+      xmlFiles.forEach(file => {
+        let xmlContent = file.asText();
+        
+        // 1. Clean up common Word junk that splits tags
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        // 2. Join split tag characters together into the first text node of the tag. 
+        // We include spaces in the join to handle tags like "@Assinatura Global" that Word often splits
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        
+        // 3. Surgical replacement of @TAG to [TAG] ONLY inside text nodes to avoid breaking XML structure
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          let newText = text;
+          // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          // Handle other tags - convert to uppercase, and handle common variations like @NOME_ALUNO
+          // We avoid matching emails (e.g. test@email.com) by checking that @ is preceded by start of line or non-word char
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            return `${p1}[${p2.toUpperCase()}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        
+        zip.file(file.name, xmlContent);
       });
       
-      zip.file('word/document.xml', xmlContent);
-
       const replacements = getReplacements();
 
       // Setup Image Module
@@ -255,7 +286,7 @@ export default function PioneerSchoolLetters({
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
-        modules: [new ImageModule(opts)]
+        modules: ImageModule ? [new ImageModule(opts)] : []
       });
 
       doc.render(replacements);

@@ -39,6 +39,8 @@ import {
   deleteDoc, 
   doc,
   getDoc,
+  getDocs,
+  limit,
   orderBy,
   writeBatch
 } from 'firebase/firestore';
@@ -251,6 +253,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
     direction: 'asc',
   });
   const [downloadingDesignacao, setDownloadingDesignacao] = useState(false);
+  const [personalData, setPersonalData] = useState<any>(null);
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -347,6 +350,27 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       unsubscribeInfo();
     };
   }, [userId, selectedTurma]);
+
+  useEffect(() => {
+    const fetchPersonalData = async () => {
+      try {
+        const docRef = doc(db, 'personal_data', userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setPersonalData(docSnap.data());
+        } else {
+          const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            setPersonalData(querySnapshot.docs[0].data());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching personal data:', error);
+      }
+    };
+    fetchPersonalData();
+  }, [userId]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -858,6 +882,61 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
       }
       const templateBuffer = bytes.buffer;
 
+      // Prepare HOJE replacement
+      const now = new Date();
+      let hoje = now.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      hoje = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+
+      // Load Image Module
+      const ImageModule = (await import('docxtemplater-image-module-free')).default;
+      
+      const signatureImage = personalData?.signatureImage || '';
+      
+      // Calculate signature dimensions
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      if (signatureImage && signatureImage.startsWith('data:image')) {
+        try {
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = signatureImage;
+          });
+          const aspectRatio = img.width / img.height;
+          sigHeight = 60;
+          sigWidth = sigHeight * aspectRatio;
+          if (sigWidth > 220) {
+            sigWidth = 220;
+            sigHeight = sigWidth / aspectRatio;
+          }
+        } catch (e) {
+          console.warn('Could not determine signature dimensions:', e);
+        }
+      }
+
+      const imgOpts: any = {
+        centered: false,
+        getImage: (tagValue: string) => {
+          if (!tagValue || !tagValue.startsWith('data:image')) return null;
+          const base64Data = tagValue.split(',')[1];
+          const binaryStringArray = window.atob(base64Data);
+          const len = binaryStringArray.length;
+          const bytesArray = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          }
+          return bytesArray.buffer;
+        },
+        getSize: () => [sigWidth, sigHeight],
+      };
+
       // 2. Process each selected student
       for (const studentId of selectedStudents) {
         const student = students.find(s => s.id === studentId);
@@ -865,30 +944,95 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
 
         const zip = new PizZip(templateBuffer);
         
-        // Pre-process XML to convert @TAG to [TAG] for Docxtemplater compatibility
-        let xmlContent = zip.file('word/document.xml').asText();
-        xmlContent = xmlContent.replace(/<\/w:t>(?:<w:rPr>.*?<\/w:rPr>|<w:proofErr[^>]*>|<w:noProof[^>]*>|<\/w:r><w:r[^>]*>)*?<w:t[^>]*>/g, '');
+        // Pre-process all XML files in the zip (document, headers, footers) to handle Word-specific tag splitting and @TAG to [TAG] conversion
+        const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
         
-        // Map other @tags to [tags]
-        xmlContent = xmlContent.replace(/@([A-Za-z0-9À-ÿ\u00C0-\u00FF]+)/g, (match, p1) => {
-          return `[${p1.toUpperCase()}]`;
+        xmlFiles.forEach(file => {
+          let xmlContent = file.asText();
+          
+          // 1. Clean up common Word junk that splits tags
+          xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+          xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+          
+          // 2. Join split tag characters together into the first text node of the tag. 
+          // We include spaces in the join to handle tags like "@Assinatura Global" that Word often splits
+          for (let i = 0; i < 6; i++) {
+            xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          }
+          
+          // 3. Surgical replacement of @TAG to [TAG] ONLY inside text nodes
+          xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+            let newText = text;
+            // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
+            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+            // Handle other tags - convert to uppercase, and handle common variations like @NOME_ALUNO
+            // We avoid matching emails (e.g. test@email.com) by checking that @ is preceded by start of line or non-word char
+            newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+              return `${p1}[${p2.toUpperCase()}]`;
+            });
+            return `${opening}${newText}${closing}`;
+          });
+          
+          zip.file(file.name, xmlContent);
         });
-        
-        zip.file('word/document.xml', xmlContent);
 
         const docObj = new Docxtemplater(zip, {
           paragraphLoop: true,
           linebreaks: true,
-          delimiters: { start: '[', end: ']' }
+          delimiters: { start: '[', end: ']' },
+          modules: ImageModule ? [new ImageModule(imgOpts)] : []
         });
 
         // 3. Replacements
         const replacements: any = {
           'ALUNO': student.nome,
+          'NOME': student.nome,
+          'NOME_ALUNO': student.nome,
           'CONGREGAÇÃO': student.congregacao,
           'CONGREGACAO': student.congregacao,
-          'DATA': schoolInfo.dataTurma || '',
-          'LOCAL': schoolInfo.localEscola || '',
+          'TURMA': `Turma ${selectedTurma}`,
+          'DATA': schoolInfo.dataTurma || '________________',
+          'DATATURMA': schoolInfo.dataTurma || '________________',
+          'INSTRUTORES': `${schoolInfo.instrutorA || '________________'} e ${schoolInfo.instrutorB || '________________'}`,
+          'INSTRUTOR1': schoolInfo.instrutorA || '________________',
+          'INSTRUTOR2': schoolInfo.instrutorB || '________________',
+          'LOCAL': schoolInfo.localEscola || '________________',
+          'LOCALESCOLA': schoolInfo.localEscola || '________________',
+          'ENDEREÇO': schoolInfo.enderecoEscola || '________________',
+          'ENDERECO': schoolInfo.enderecoEscola || '________________',
+          'ENDEREÇOESCOLA': schoolInfo.enderecoEscola || '________________',
+          'ENDERECOENTREGA': schoolInfo.entregaLivroEndereco || '________________',
+          'ENDEREÇOENTREGA': schoolInfo.entregaLivroEndereco || '________________',
+          'DATAENTREGA': schoolInfo.entregaLivroDataHora || '________________',
+          'DATACONFIRMAÇÃO': schoolInfo.confirmacaoDataLimite || '________________',
+          'DATACONFIRMACAO': schoolInfo.confirmacaoDataLimite || '________________',
+          'EMAIL': schoolInfo.confirmacaoEmail || '________________',
+          'CONTATO': schoolInfo.confirmacaoWhatsapp || '________________',
+          'WHATSAPP': schoolInfo.confirmacaoWhatsapp || '________________',
+          'ASSINATURA': signatureImage,
+          '%ASSINATURA': signatureImage,
+          'ASSINATURA_GLOBAL': signatureImage,
+          'VIAJANTE': personalData?.nome || '________________',
+          'NOME_VIAJANTE': personalData?.nome || '________________',
+          'CIRCUITO': personalData?.circuito || '________________',
+          'NOME_CIRCUITO': personalData?.circuito || '________________',
+          'TELEFONE': personalData?.telefoneCircuito || '________________',
+          'FONE': personalData?.telefoneCircuito || '________________',
+          'TELEFONE_CIRCUITO': personalData?.telefoneCircuito || '________________',
+          'TELEFONECIRCUITO': personalData?.telefoneCircuito || '________________',
+          'HOJE': hoje,
+          'DATA_ATUAL': hoje,
+          'DATATURMA': schoolInfo.dataTurma || '________________',
+          'TURMA_DATA': schoolInfo.dataTurma || '________________',
+          'LOCALESCOLA': schoolInfo.localEscola || '________________',
+          'LOCAL_ESCOLA': schoolInfo.localEscola || '________________',
+          'ENDERECOESCOLA': schoolInfo.enderecoEscola || '________________',
+          'ENDEREÇOESCOLA': schoolInfo.enderecoEscola || '________________',
+          'ENDEREÇO_ESCOLA': schoolInfo.enderecoEscola || '________________',
+          'INSTRUTOR1': schoolInfo.instrutorA || '________________',
+          'INSTRUTOR2': schoolInfo.instrutorB || '________________',
+          'INSTRUTORA': schoolInfo.instrutorA || '________________',
+          'INSTRUTORB': schoolInfo.instrutorB || '________________',
         };
 
         docObj.render(replacements);
@@ -955,7 +1099,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden"
+            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800"
           >
             <div className="flex items-center gap-2 shrink-0">
               <span className="bg-[#37616b] text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">

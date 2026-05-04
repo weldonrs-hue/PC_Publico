@@ -14,7 +14,12 @@ import {
   FileDown
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  getDoc 
+} from 'firebase/firestore';
 
 interface PSSAssignmentLettersProps {
   userId: string;
@@ -43,12 +48,27 @@ export default function PSSAssignmentLetters({
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [personalData, setPersonalData] = useState<any>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchTemplates();
+    fetchPersonalData();
   }, []);
+
+  const fetchPersonalData = async () => {
+    if (!userId) return;
+    try {
+      const docRef = doc(db, 'personal_data', userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setPersonalData(docSnap.data());
+      }
+    } catch (error) {
+      console.error('Error fetching personal data:', error);
+    }
+  };
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -94,6 +114,8 @@ export default function PSSAssignmentLetters({
     const telefoneValue = schoolInfo.confirmacaoWhatsapp || '________________';
     const instrutorValue = schoolInfo.instrutorA || '________________';
     const signatureBlock = `__________________________\n${instrutorValue}`;
+    
+    const signatureImage = personalData?.signatureImage || '';
 
     return {
       'data': dataValue,
@@ -115,8 +137,10 @@ export default function PSSAssignmentLetters({
       'NOME DO INSTRUTOR': signatureBlock,
       'instrutor': signatureBlock,
       'INSTRUTOR': signatureBlock,
-      'assinatura': signatureBlock,
-      'ASSINATURA': signatureBlock,
+      'assinatura': signatureImage || signatureBlock,
+      'ASSINATURA': signatureImage || signatureBlock,
+      '%ASSINATURA': signatureImage || '',
+      'ASSINATURA_GLOBAL': signatureImage || '',
     };
   };
 
@@ -128,6 +152,48 @@ export default function PSSAssignmentLetters({
     setStatus('idle');
 
     try {
+      const ImageModule = (await import('docxtemplater-image-module-free')).default;
+      
+      const signatureImage = personalData?.signatureImage || '';
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      if (signatureImage && signatureImage.startsWith('data:image')) {
+        try {
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = signatureImage;
+          });
+          const aspectRatio = img.width / img.height;
+          sigHeight = 60;
+          sigWidth = sigHeight * aspectRatio;
+          if (sigWidth > 220) {
+            sigWidth = 220;
+            sigHeight = sigWidth / aspectRatio;
+          }
+        } catch (e) {
+          console.warn('Could not determine signature dimensions:', e);
+        }
+      }
+
+      const imgOpts: any = {
+        centered: false,
+        getImage: (tagValue: string) => {
+          if (!tagValue || !tagValue.startsWith('data:image')) return null;
+          const base64Data = tagValue.split(',')[1];
+          const binaryStringArray = window.atob(base64Data);
+          const len = binaryStringArray.length;
+          const bytesArray = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          }
+          return bytesArray.buffer;
+        },
+        getSize: () => [sigWidth, sigHeight],
+      };
+
       const binaryString = window.atob(template.content);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
@@ -136,10 +202,40 @@ export default function PSSAssignmentLetters({
       const content = bytes.buffer;
 
       const zip = new PizZip(content);
+      
+      // Pre-process all XML files in the zip (document, headers, footers) to handle Word-specific tag splitting and @TAG to [TAG] conversion
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      
+      xmlFiles.forEach(file => {
+        let xmlContent = file.asText();
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        // Join split tags
+        // We include spaces in the join to handle tags like "@Assinatura Global" that Word often splits
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        
+        // Convert @TAG to [TAG] or [%TAG]
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          let newText = text;
+          // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            return `${p1}[${p2.toUpperCase()}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        
+        zip.file(file.name, xmlContent);
+      });
+
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
-        delimiters: { start: '[', end: ']' }
+        delimiters: { start: '[', end: ']' },
+        modules: ImageModule ? [new ImageModule(imgOpts)] : []
       });
 
       const replacements = getReplacements(selectedTemplate);
