@@ -153,8 +153,8 @@ export default function PSSAssignmentLetters({
       const processedArrayBuffer = await out.arrayBuffer();
       setProcessedDocBuffer(processedArrayBuffer);
       
-      const { value } = await mammoth.convertToHtml({ arrayBuffer: processedArrayBuffer });
-      setPreviewHtml(value);
+      const previewResult = await mammoth.convertToHtml({ arrayBuffer: processedArrayBuffer });
+      setPreviewHtml(previewResult.value);
       
       setStatus('success');
     } catch (err: any) {
@@ -181,66 +181,96 @@ export default function PSSAssignmentLetters({
   };
 
   const downloadAsPdf = async () => {
-    if (!previewHtml) return;
+    if (!previewRef.current) return;
+
     setIsProcessing(true);
     try {
-      const { toPng } = await import('html-to-image');
-      const { jsPDF } = await import('jspdf');
+      const html2pdf = (await import('html2pdf.js')).default;
       
-      // Create a unique ID for the container
-      const containerId = 'pdf-gen-container-' + Date.now();
-      const hiddenContainer = document.createElement('div');
-      hiddenContainer.id = containerId;
-      
-      hiddenContainer.style.position = 'fixed';
-      hiddenContainer.style.top = '0';
-      hiddenContainer.style.left = '0';
-      hiddenContainer.style.width = '210mm';
-      hiddenContainer.style.padding = '20mm';
-      hiddenContainer.style.backgroundColor = 'white';
-      hiddenContainer.style.zIndex = '-9999';
-      hiddenContainer.style.opacity = '1';
-      hiddenContainer.style.pointerEvents = 'none';
-      hiddenContainer.className = 'docx-preview-container prose prose-sm';
-      hiddenContainer.innerHTML = previewHtml;
-      
-      hiddenContainer.style.fontFamily = 'serif';
-      
-      document.body.appendChild(hiddenContainer);
+      const element = previewRef.current;
+      const opt = {
+        margin: 0.5,
+        filename: `${selectedTemplate}_Turma${selectedTurma}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          onclone: (clonedDoc: Document) => {
+            const style = clonedDoc.createElement('style');
+            style.innerHTML = `
+              :root {
+                --tw-prose-body: #374151 !important;
+                --tw-prose-headings: #111827 !important;
+                --tw-prose-lead: #4b5563 !important;
+                --tw-prose-links: #111827 !important;
+                --tw-prose-bold: #111827 !important;
+                --tw-prose-counters: #6b7280 !important;
+                --tw-prose-bullets: #d1d5db !important;
+                --tw-prose-hr: #e5e7eb !important;
+                --tw-prose-quotes: #111827 !important;
+                --tw-prose-quote-borders: #e5e7eb !important;
+                --tw-prose-captions: #6b7280 !important;
+                --tw-prose-code: #111827 !important;
+                --tw-prose-pre-code: #e5e7eb !important;
+                --tw-prose-pre-bg: #1f2937 !important;
+                --tw-prose-th-borders: #d1d5db !important;
+                --tw-prose-td-borders: #e5e7eb !important;
+              }
+              * {
+                color: #374151 !important;
+                border-color: #e5e7eb !important;
+                background-color: transparent !important;
+                outline-color: transparent !important;
+                text-decoration-color: transparent !important;
+                box-shadow: none !important;
+                filter: none !important;
+                -webkit-tap-highlight-color: transparent !important;
+              }
+              h1, h2, h3, h4, strong, b {
+                color: #111827 !important;
+              }
+              body, html {
+                background-color: #ffffff !important;
+              }
+            `;
+            clonedDoc.head.appendChild(style);
 
-      // Wait for any images in the rendered document
-      const images = hiddenContainer.querySelectorAll('img');
-      await Promise.all(Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-      }));
+            const el = clonedDoc.querySelector('.docx-preview-container') as HTMLElement;
+            if (el) {
+              el.className = 'docx-preview-container'; 
+              el.style.fontFamily = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
+              el.style.color = '#374151';
+              el.style.backgroundColor = '#ffffff';
+              el.style.padding = '40px'; 
+              el.style.width = '100%';
+              
+              const all = el.getElementsByTagName('*');
+              for (let i = 0; i < all.length; i++) {
+                const child = all[i] as HTMLElement;
+                // Aggressively remove classes and inline styles that might use oklch
+                child.classList.remove('prose', 'prose-sm', 'prose-invert', 'shadow', 'shadow-sm', 'shadow-md', 'shadow-lg', 'shadow-xl');
+                
+                // Clear any computed oklch values by forcing safe values
+                child.style.setProperty('color', '#374151', 'important');
+                if (['H1', 'H2', 'H3', 'H4', 'STRONG', 'B'].includes(child.tagName)) {
+                  child.style.setProperty('color', '#111827', 'important');
+                }
+                child.style.setProperty('outline-color', 'transparent', 'important');
+                child.style.setProperty('text-decoration-color', 'transparent', 'important');
+                child.style.setProperty('box-shadow', 'none', 'important');
+                child.style.setProperty('filter', 'none', 'important');
+              }
+            }
+          }
+        },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
 
-      const dataUrl = await toPng(hiddenContainer, {
-        quality: 0.95,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-      });
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
-
-      pdf.save(`${selectedTemplate}_Turma${selectedTurma}.pdf`);
-      
-      // Cleanup
-      if (document.body.contains(hiddenContainer)) {
-        document.body.removeChild(hiddenContainer);
-      }
+      await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF: ' + (err instanceof Error ? err.message : String(err)));
+      alert('Erro ao gerar PDF.');
     } finally {
       setIsProcessing(false);
     }
@@ -328,11 +358,14 @@ export default function PSSAssignmentLetters({
 
           <div className="relative group">
             <div 
-              className="w-full h-[600px] md:h-[800px] bg-gray-100 border border-gray-300 rounded-3xl shadow-inner overflow-auto p-2 md:p-8 custom-scrollbar"
+              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-hidden p-12"
+              style={{ overflowY: 'auto' }}
             >
               <div 
-                className="docx-preview-container bg-white p-12 shadow-lg border border-gray-200 min-h-[1058px] w-full max-w-[210mm] mx-auto prose prose-sm"
-                dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">Processando visualização...</div>' }}
+                ref={previewRef}
+                className="prose prose-sm max-w-none docx-preview-container mx-auto"
+                style={{ width: '100%', maxWidth: '800px' }}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
             </div>
             {isProcessing && (
@@ -356,40 +389,28 @@ export default function PSSAssignmentLetters({
 
       <style jsx global>{`
         .docx-preview-container {
-          background-color: white !important;
-          color: #333 !important;
-          font-family: serif !important;
+          color: #374151 !important;
+          background-color: #ffffff !important;
         }
-        .docx-preview-container p {
-          margin-bottom: 1em;
-          line-height: 1.5;
+        .docx-preview-container * {
+          border-color: #e5e7eb !important;
+          outline-color: transparent !important;
+          text-decoration-color: transparent !important;
+          box-shadow: none !important;
         }
-        .docx-preview-container table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 1em;
-        }
-        .docx-preview-container td, .docx-preview-container th {
-          border: 1px solid #ddd;
-          padding: 8px;
-        }
-        .docx-preview-container img {
-          max-width: 100%;
-          height: auto;
-        }
+        .docx-preview-container h1 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.75rem; color: #111827 !important; }
+        .docx-preview-container p { margin-bottom: 0.5rem; line-height: 1.4; color: #374151 !important; font-size: 0.85rem; }
+        .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
+        
         .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
+          width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(0,0,0,0.05);
-          border-radius: 10px;
+          background: #f1f1f1;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(0,0,0,0.1);
+          background: #d1d5db;
           border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(0,0,0,0.2);
         }
       `}</style>
     </div>

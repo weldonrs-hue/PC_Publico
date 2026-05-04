@@ -1179,7 +1179,21 @@ export default function Home() {
           )}
 
           {currentView === 'docx_demo' && (
-            <DocxToPdfDemo onBack={() => changeView('cartas_dashboard')} />
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[80vh]">
+              <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => changeView('cartas_dashboard')}
+                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
+                    title="Voltar ao Painel de Cartas"
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <h2 className="font-bold text-gray-800">Gerador de Documentos</h2>
+                </div>
+              </div>
+              <DocxToPdfDemo />
+            </div>
           )}
         </div>
 

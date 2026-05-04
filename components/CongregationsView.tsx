@@ -99,8 +99,16 @@ export default function CongregationsView({
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const congsData = snapshot.docs.map(doc => ({
+        id: doc.id,
         ...doc.data(),
-        id: doc.id
+        nome: doc.data().nome || '',
+        numero: doc.data().numero || '',
+        cidade: doc.data().cidade || '',
+        estado: doc.data().estado || '',
+        endereco: doc.data().endereco || '',
+        coordenador: doc.data().coordenador || '',
+        cep: doc.data().cep || '',
+        parte: doc.data().parte || 'A'
       })) as Congregation[];
       
       // Sort alphabetically by name

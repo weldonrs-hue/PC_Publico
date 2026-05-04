@@ -77,6 +77,9 @@ interface Congregation {
   cidade: string;
   numero: string;
   estado: string;
+  endereco?: string;
+  coordenador?: string;
+  cep?: string;
   grupos?: string[];
 }
 
@@ -273,6 +276,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         cidade: doc.data().cidade,
         numero: doc.data().numero || '',
         estado: doc.data().estado || '',
+        endereco: doc.data().endereco || '',
+        coordenador: doc.data().coordenador || '',
+        cep: doc.data().cep || '',
         grupos: doc.data().grupos || []
       })) as Congregation[];
       setCongregations(congList);

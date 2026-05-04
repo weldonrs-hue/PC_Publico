@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import mammoth from 'mammoth';
+import * as docxPreview from 'docx-preview';
 import { 
   FileText, 
   Download, 
@@ -268,8 +268,17 @@ export default function PioneerSchoolLetters({
       const processedArrayBuffer = await out.arrayBuffer();
       setProcessedDocBuffer(processedArrayBuffer);
       
-      const { value } = await mammoth.convertToHtml({ arrayBuffer: processedArrayBuffer });
-      setPreviewHtml(value);
+      if (previewRef.current) {
+        previewRef.current.innerHTML = '';
+        await docxPreview.renderAsync(processedArrayBuffer, previewRef.current, undefined, {
+          className: "docx-preview",
+          inWrapper: false,
+          ignoreWidth: true,
+          ignoreHeight: true,
+          breakPages: false,
+          useBase64URL: true,
+        });
+      }
       
       setStatus('success');
       setNeedsProcessing(false);
@@ -299,70 +308,64 @@ export default function PioneerSchoolLetters({
   };
 
   const downloadAsPdf = async () => {
-    if (!previewHtml) return;
+    if (!previewRef.current) return;
 
     setIsProcessing(true);
     try {
-      const { toPng } = await import('html-to-image');
-      const { jsPDF } = await import('jspdf');
+      const html2pdf = (await import('html2pdf.js')).default;
       
-      // Create a hidden container to ensure correct dimensions for capture
-      const containerId = 'pdf-gen-container-' + Date.now();
-      const hiddenContainer = document.createElement('div');
-      hiddenContainer.id = containerId;
-      
-      hiddenContainer.style.position = 'fixed';
-      hiddenContainer.style.top = '0';
-      hiddenContainer.style.left = '0';
-      hiddenContainer.style.width = '210mm';
-      hiddenContainer.style.padding = '20mm';
-      hiddenContainer.style.backgroundColor = 'white';
-      hiddenContainer.style.zIndex = '-9999';
-      hiddenContainer.style.opacity = '1';
-      hiddenContainer.style.pointerEvents = 'none';
-      hiddenContainer.className = 'docx-preview-container prose prose-sm';
-      hiddenContainer.innerHTML = previewHtml;
-      
-      // Apply some basic styles that might be needed
-      hiddenContainer.style.fontFamily = 'serif';
-      
-      document.body.appendChild(hiddenContainer);
-
-      // Wait for any images in the rendered document
-      const images = hiddenContainer.querySelectorAll('img');
-      await Promise.all(Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-      }));
-
-      // Capture the content
-      const dataUrl = await toPng(hiddenContainer, {
-        quality: 0.95,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-      });
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      pdf.addImage(dataUrl, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
-      
+      const element = previewRef.current;
       const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
-      pdf.save(`${templateName}_Turma${selectedTurma}.pdf`);
       
-      // Cleanup
-      if (document.body.contains(hiddenContainer)) {
-        document.body.removeChild(hiddenContainer);
-      }
+      const opt = {
+        margin: 0.5,
+        filename: `${templateName}_Turma${selectedTurma}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          onclone: (clonedDoc: Document) => {
+            // Find and remove specifically the Tailwind styles that contain oklch
+            // We look for style tags that contain 'oklch' which is known to break html2canvas
+            const styleTags = clonedDoc.querySelectorAll('style');
+            styleTags.forEach(style => {
+              if (style.innerHTML.includes('oklch')) {
+                style.remove();
+              }
+            });
+
+            // We do NOT remove all styles anymore to preserve docx-preview layout
+            const style = clonedDoc.createElement('style');
+            style.innerHTML = `
+              .docx-preview-container {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+              }
+              /* Force non-oklch colors for basic elements if Tailwind was removed */
+              * {
+                box-shadow: none !important;
+                filter: none !important;
+              }
+            `;
+            clonedDoc.head.appendChild(style);
+
+            const el = clonedDoc.querySelector('.docx-preview-container') as HTMLElement;
+            if (el) {
+              // We do NOT clear classes or force styles on all children anymore
+              // This was breaking the Word layout generated by docx-preview
+              el.style.backgroundColor = '#ffffff';
+              el.style.color = '#000000';
+            }
+          }
+        },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+
+      await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF: ' + (err instanceof Error ? err.message : String(err)));
+      alert('Erro ao gerar PDF.');
     } finally {
       setIsProcessing(false);
     }
@@ -456,12 +459,18 @@ export default function PioneerSchoolLetters({
 
           <div className="relative group">
             <div 
-              className="w-full h-[600px] md:h-[800px] bg-gray-100 border border-gray-300 rounded-3xl shadow-inner overflow-auto p-2 md:p-8 custom-scrollbar"
+              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-3xl shadow-inner-lg overflow-hidden p-4 md:p-12"
+              style={{ overflowY: 'auto' }}
             >
               <div 
-                className="docx-preview-container bg-white p-12 shadow-lg border border-gray-200 min-h-[1058px] w-full max-w-[210mm] mx-auto prose prose-sm"
-                dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">Processando visualização...</div>' }}
-              />
+                ref={previewRef}
+                className="docx-preview-container mx-auto"
+                style={{ width: '100%' }}
+              >
+                {!processedDocBuffer && !isProcessing && (
+                  <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                )}
+              </div>
             </div>
             {isProcessing && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
@@ -484,40 +493,19 @@ export default function PioneerSchoolLetters({
 
       <style jsx global>{`
         .docx-preview-container {
-          background-color: white !important;
-          color: #333 !important;
-          font-family: serif !important;
+          background-color: #ffffff !important;
         }
-        .docx-preview-container p {
-          margin-bottom: 1em;
-          line-height: 1.5;
+        .docx-preview-container .docx-preview {
+          padding: 0 !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          width: 100% !important;
         }
-        .docx-preview-container table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 1em;
-        }
-        .docx-preview-container td, .docx-preview-container th {
-          border: 1px solid #ddd;
-          padding: 8px;
-        }
-        .docx-preview-container img {
-          max-width: 100%;
-          height: auto;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(0,0,0,0.05);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(0,0,0,0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(0,0,0,0.2);
+        .docx-preview-container section.docx {
+          padding: 0 !important;
+          margin: 0 !important;
+          background: white !important;
+          box-shadow: none !important;
         }
       `}</style>
     </div>
