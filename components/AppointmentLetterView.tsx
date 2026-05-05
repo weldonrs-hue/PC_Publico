@@ -282,7 +282,8 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
         style: {
           transform: 'none',
           margin: '0',
-          padding: '0'
+          left: '0',
+          top: '0'
         }
       });
 
@@ -571,22 +572,22 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
             {/* Salutation */}
             <div className="mb-6">
-              <p className="text-[15px] mt-[-26px]">Prezados Irmãos:</p>
+              <p className="text-[17px] mt-[-26px]">Prezados Irmãos:</p>
             </div>
 
             {/* Content Sections */}
-            <div className="space-y-2 text-[15px] leading-snug flex-1 mt-[-17px]">
+            <div className="space-y-2 text-[17px] leading-snug flex-1 mt-[-17px]">
               <section>
                 <p className="mb-0.5">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">ancião(s)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.ancianosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.5rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('ancianosDesignados', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[16px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
-                        placeholder={i === 0 ? "Nome do irmão..." : ""}
+                        className="w-full bg-transparent outline-none text-[17px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
+                        placeholder=""
                       />
                     </div>
                   ))}
@@ -594,16 +595,16 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="mb-0.5 mt-[-10px]">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">servo(s) ministerial(is)</strong>:</p>
+                <p className="mb-0.5 mt-2">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">servo(s) ministerial(is)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.servosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.5rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('servosDesignados', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[16px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
-                        placeholder={i === 0 ? "Nome do irmão..." : ""}
+                        className="w-full bg-transparent outline-none text-[17px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
+                        placeholder=""
                       />
                     </div>
                   ))}
@@ -611,16 +612,16 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="mb-0.5 mt-[-10px]">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
+                <p className="mb-0.5 mt-2">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
                 <div className="space-y-0">
                   {letterData.irmaosRemovidos.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.5rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('irmaosRemovidos', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[16px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
-                        placeholder={i === 0 ? "Nome do irmão..." : ""}
+                        className="w-full bg-transparent outline-none text-[17px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
+                        placeholder=""
                       />
                     </div>
                   ))}
@@ -628,7 +629,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="text-[15px] mt-[-10px]">Aceitem meu cordial amor cristão.</p>
+                <p className="text-[17px] mt-4">Aceitem meu cordial amor cristão.</p>
               </section>
             </div>
 
@@ -636,12 +637,12 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             <div className="mt-8 relative group">
               <div className="flex flex-col items-end mb-[58px] pr-[5mm]">
                 <div className="w-full max-w-[450px] px-4 text-center relative">
-                  <p className="text-[15px] mt-0 mb-[18px] text-left pl-4">Seu irmão,</p>
+                  <p className="text-[17px] mt-0 mb-[18px] text-left pl-4">Seu irmão,</p>
                   {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center overflow-visible">
                     {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
                       <div 
-                        className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible transition-transform"
+                        className="h-[45px] flex items-center justify-center mb-[-10px] relative w-full overflow-visible transition-transform"
                         style={{ 
                           transform: `translateY(${personalData?.signatureOffset || 0}px)`
                         }}
@@ -649,7 +650,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                         <img 
                           src={signatureImage} 
                           alt="Assinatura" 
-                          className="h-full object-contain max-w-full"
+                          className="h-[45px] w-[407px] object-contain max-w-full"
                           crossOrigin="anonymous"
                         />
                       </div>
