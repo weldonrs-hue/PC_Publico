@@ -415,22 +415,7 @@ export default function Home() {
         }
       }
       
-      console.log(`fetchData: Starting for UID ${activeUid}. Auth UID: ${auth.currentUser?.uid}, Email: ${auth.currentUser?.email}, Verified: ${auth.currentUser?.emailVerified}`);
-      const emailPrefix = auth.currentUser?.email?.split('@')[0] || '';
-      console.log(`fetchData: Email prefix: ${emailPrefix}`);
-      console.log(`fetchData: Provider data count: ${auth.currentUser?.providerData.length}`);
-      if (auth.currentUser?.providerData.length > 0) {
-        console.log(`fetchData: First provider: ${auth.currentUser?.providerData[0].providerId}`);
-      }
-      
-      // Get ID token result to check claims
-      try {
-        const tokenResult = await auth.currentUser?.getIdTokenResult();
-        console.log('fetchData: Token claims:', JSON.stringify(tokenResult?.claims));
-      } catch (tokenErr) {
-        console.warn('fetchData: Failed to get token result:', tokenErr);
-      }
-
+      // fetchData: Starting logic removed slowgetIdTokenResult call
       try {
         // Fetch Personal Data if not already loaded or if it's been a while
         if (!personalData || isDashboard) {
@@ -774,7 +759,7 @@ export default function Home() {
     };
 
     fetchData();
-  }, [user?.id, user?.usuario, user?.migrationCompleted, user?.migrationV2Completed, currentView, personalData, quotaExceeded]); // Only re-run when entering dashboard or user changes
+  }, [user?.id, user?.usuario, user?.migrationCompleted, user?.migrationV2Completed, currentView, quotaExceeded]); // Removed personalData to avoid potential loops
 
   const handlePersonalDataSave = () => {
     // Trigger re-fetch

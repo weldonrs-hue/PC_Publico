@@ -20,8 +20,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { toJpeg } from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
 
 interface AppointmentLetterViewProps {
@@ -54,7 +52,30 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     servosDesignados: ['', '', '', ''],
     irmaosRemovidos: ['', '', '', '']
   });
-  const [letterDate, setLetterDate] = useState<Date>(new Date());
+  const parseVisitDate = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      // Assuming DD/MM/YYYY or YYYY/MM/DD
+      let d, m, y;
+      if (parts[0].length === 4) { // YYYY/MM/DD
+        y = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10) - 1;
+        d = parseInt(parts[2], 10);
+      } else { // DD/MM/YYYY
+        d = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10) - 1;
+        y = parseInt(parts[2], 10);
+      }
+      const date = new Date(y, m, d);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    return null;
+  };
+
+  const [letterDate, setLetterDate] = useState<Date>(() => {
+    return parseVisitDate(visitDate) || new Date();
+  });
   const [isDateFocused, setIsDateFocused] = useState(false);
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
@@ -120,19 +141,23 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!userId) return;
-      
-      // Wait for auth.currentUser to be ready and match userId
-      if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        let attempts = 0;
-        while ((!auth.currentUser || auth.currentUser.uid !== userId) && attempts < 20) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
-        }
-        if (!auth.currentUser || auth.currentUser.uid !== userId) return;
+      // If no userId, we can't fetch but we shouldn't hang the UI
+      if (!userId) {
+        console.warn('AppointmentLetterView: No userId provided');
+        setLoading(false);
+        return;
       }
-
+      
       try {
+        // Wait for auth.currentUser to be ready with a slightly longer timeout
+        if (!auth.currentUser) {
+          let attempts = 0;
+          while (!auth.currentUser && attempts < 15) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
+          }
+        }
+
         // Fetch personal data
         const pdRef = doc(db, 'personal_data', userId);
         const pdSnap = await getDoc(pdRef);
@@ -142,7 +167,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           setSignatureName(data.nome || '');
           setSignatureImage(data.signatureImage || null);
         } else {
-          // Fallback
+          // Fallback search
           const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
           const snap = await getDocs(q);
           if (!snap.empty) {
@@ -153,26 +178,42 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           }
         }
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'appointment_letter');
+        console.error('Error in AppointmentLetter fetchData:', error);
+        handleFirestoreError(error, OperationType.GET, 'personal_data');
       } finally {
         setLoading(false);
       }
     };
 
+    // Safety timeout to ensure loading state is cleared
+    const safetyTimeout = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn('AppointmentLetterView: Loading safety timeout triggered');
+          return false;
+        }
+        return prev;
+      });
+    }, 5000);
+
     fetchData();
-  }, [userId, congregation.nome, visitDate]);
+    return () => clearTimeout(safetyTimeout);
+  }, [userId]);
 
   useEffect(() => {
-    // No longer needed to set string date here, we use Date object
-  }, []);
+    const date = parseVisitDate(visitDate);
+    if (date) {
+      setLetterDate(date);
+    }
+  }, [visitDate]);
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportPDF = async () => {
-    const element = document.getElementById('appointment-letter-container');
-    if (!element) return;
+    const captureElement = document.getElementById('appointment-letter-container');
+    if (!captureElement) return;
 
     // Simple date format for filename: DD-MM-YYYY
     const now = new Date();
@@ -185,46 +226,67 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
     setGenerating(true);
     try {
-      // Temporarily hide placeholders using a style block
-      const style = document.createElement('style');
-      style.innerHTML = `
-        #appointment-letter-container input::placeholder {
-          color: transparent !important;
-          opacity: 0 !important;
-        }
-      `;
-      document.head.appendChild(style);
+      const { toJpeg } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
 
-      // Ensure fonts are loaded before capture
-      try {
-        // Load Dancing Script specifically
-        await document.fonts.load('16px "Dancing Script"');
-        const font = new FontFace('Dancing Script', 'url(https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6fe34-3S3SM1uQ_Lp.woff2)');
-        await font.load();
-        document.fonts.add(font);
-      } catch (e) {
-        console.warn('Erro ao carregar fonte para PDF:', e);
-      }
-      
-      // Wait for all fonts and add a small safety buffer
-      await document.fonts.ready;
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const dataUrl = await toJpeg(element, {
-        quality: 0.85,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        width: 793.7, // 210mm at 96dpi
-        height: 1122.5, // 297mm at 96dpi
-        style: {
-          margin: '0',
-          boxShadow: 'none',
-          borderRadius: '0',
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
+      // 1. Prepare for capture: Temporarily remove placeholder attributes
+      const inputs = captureElement.querySelectorAll('input');
+      const originalPlaceholders = new Map<HTMLInputElement, string>();
+      inputs.forEach(input => {
+        if (input.placeholder) {
+          originalPlaceholders.set(input, input.placeholder);
+          input.placeholder = '';
         }
       });
 
+      // 2. Clear any selected text that might cause artifacts
+      window.getSelection()?.removeAllRanges();
+
+      // 3. Ensure fonts are loaded
+      try {
+        await document.fonts.load('16px "Dancing Script"');
+        await document.fonts.ready;
+      } catch (e) {
+        console.warn('Erro ao carregar fontes:', e);
+      }
+      
+      // 4. Ensure all images are loaded and CORS-ready
+      const images = captureElement.querySelectorAll('img');
+      const imagePromises = Array.from(images).map(async (img) => {
+        if (!img.complete) {
+          await new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+        }
+      });
+      await Promise.all(imagePromises);
+
+      // 5. Temporarily reset zoom/transform for capture to ensure 1:1 scale
+      const originalTransform = captureElement.style.transform;
+      const originalTransformOrigin = captureElement.style.transformOrigin;
+      captureElement.style.transform = 'scale(1)';
+      captureElement.style.transformOrigin = 'top left';
+
+      // 6. Extra buffer for rendering stabilization
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // 7. Capture using html-to-image with specific dimensions (A4 at 96dpi * 2 for pixelRatio)
+      const dataUrl = await toJpeg(captureElement, {
+        quality: 1.0,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        width: 793.7, 
+        height: 1122.5,
+        cacheBust: true,
+        style: {
+          transform: 'none',
+          margin: '0',
+          padding: '0'
+        }
+      });
+
+      // 8. Build PDF
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -232,22 +294,18 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
         compress: true
       });
 
-      const scale = 0.95;
-      const w = 210 * scale;
-      const h = 297 * scale;
-      const x = (210 - w) / 2;
-      const y = (297 - h) / 2;
-
-      pdf.addImage(dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
       pdf.save(filename);
       
-      // Remove temporary style
-      document.head.removeChild(style);
+      // 9. Cleanup: Restore elements state
+      captureElement.style.transform = originalTransform;
+      captureElement.style.transformOrigin = originalTransformOrigin;
+      
+      originalPlaceholders.forEach((value, input) => {
+        input.placeholder = value;
+      });
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
-      // Ensure style is removed even on error
-      const style = document.querySelector('style[innerHTML*="appointment-letter-container input::placeholder"]');
-      if (style) style.remove();
     } finally {
       setGenerating(false);
     }
@@ -298,9 +356,19 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   const saveSignature = async (image: string | null) => {
     if (!userId) return;
     try {
-      await setDoc(doc(db, 'personal_data', userId), {
-        signatureImage: image
-      }, { merge: true });
+      if (image) {
+        await setDoc(doc(db, 'personal_data', userId), {
+          signatureImage: image
+        }, { merge: true });
+      } else {
+        const docRef = doc(db, 'personal_data', userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          delete data.signatureImage;
+          await setDoc(docRef, data);
+        }
+      }
     } catch (error) {
       console.error('Erro ao salvar assinatura:', error);
     }
@@ -507,17 +575,17 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             </div>
 
             {/* Content Sections */}
-            <div className="space-y-6 text-[15px] leading-snug flex-1 mt-[-17px]">
+            <div className="space-y-2 text-[15px] leading-snug flex-1 mt-[-17px]">
               <section>
-                <p className="mb-1">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">ancião(s)</strong>:</p>
+                <p className="mb-0.5">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">ancião(s)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.ancianosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.6rem] mb-[0.1rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('ancianosDesignados', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
+                        className="w-full bg-transparent outline-none text-[16px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder={i === 0 ? "Nome do irmão..." : ""}
                       />
                     </div>
@@ -526,15 +594,15 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="mb-1 mt-[-10px]">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">servo(s) ministerial(is)</strong>:</p>
+                <p className="mb-0.5 mt-[-10px]">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">servo(s) ministerial(is)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.servosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.6rem] mb-[0.1rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('servosDesignados', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
+                        className="w-full bg-transparent outline-none text-[16px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder={i === 0 ? "Nome do irmão..." : ""}
                       />
                     </div>
@@ -543,15 +611,15 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="mb-1 mt-[-10px]">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
+                <p className="mb-0.5 mt-[-10px]">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
                 <div className="space-y-0">
                   {letterData.irmaosRemovidos.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.6rem] mb-[0.1rem] w-full flex items-end">
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1rem] w-full flex items-end">
                       <input 
                         type="text"
                         value={name}
                         onChange={(e) => updateField('irmaosRemovidos', i, e.target.value)}
-                        className="w-full bg-transparent outline-none text-[18px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
+                        className="w-full bg-transparent outline-none text-[16px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder={i === 0 ? "Nome do irmão..." : ""}
                       />
                     </div>
@@ -560,7 +628,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               </section>
 
               <section>
-                <p className="text-[15px] mt-[-30px]">Aceitem meu cordial amor cristão.</p>
+                <p className="text-[15px] mt-[-10px]">Aceitem meu cordial amor cristão.</p>
               </section>
             </div>
 
@@ -571,8 +639,6 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                   <p className="text-[15px] mt-0 mb-[18px] text-left pl-4">Seu irmão,</p>
                   {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center overflow-visible">
-                    {/* Signature Upload Controls removed */}
-
                     {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
                       <div 
                         className="h-16 flex items-center justify-center mb-[-10px] relative w-full overflow-visible transition-transform"
