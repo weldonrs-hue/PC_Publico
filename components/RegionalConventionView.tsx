@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'f
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
+import * as docxPreview from 'docx-preview';
 
 interface RegionalConventionViewProps {
   userId: string;
@@ -586,73 +587,51 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         document.body.removeChild(link);
       } else {
         // PDF conversion using html2pdf
-        const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'fixed';
-        tempContainer.style.left = '0';
-        tempContainer.style.top = '0';
-        tempContainer.style.width = '210mm';
-        tempContainer.style.zIndex = '-9999';
-        tempContainer.style.backgroundColor = 'white';
-        document.body.appendChild(tempContainer);
-        
         const tempDiv = document.createElement('div');
-        tempDiv.className = 'docx-pdf-temp';
-        tempContainer.appendChild(tempDiv);
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.top = '0';
+        tempDiv.style.left = '0';
+        tempDiv.style.width = '816px'; // Standard US Letter width at 96dpi
+        tempDiv.style.backgroundColor = 'white';
+        tempDiv.style.zIndex = '-9999';
+        tempDiv.className = 'docx-pdf-rendering';
+        document.body.appendChild(tempDiv);
         
-        const arrayBuffer = await out.arrayBuffer();
-        const docxPreview = await import('docx-preview');
-        await docxPreview.renderAsync(arrayBuffer, tempDiv, undefined, {
-          inWrapper: false,
-          ignoreWidth: false,
-          ignoreHeight: false,
-        });
+        try {
+          const arrayBuffer = await out.arrayBuffer();
+          await docxPreview.renderAsync(arrayBuffer, tempDiv, undefined, {
+            inWrapper: false,
+            ignoreWidth: false,
+            ignoreHeight: false,
+            debug: false,
+          });
 
-        // Add some basic styling to the rendered docx to ensure it fits A4 nicely
-        const docxContent = tempDiv.querySelector('.docx') as HTMLElement;
-        if (docxContent) {
-          docxContent.style.width = '100%';
-          docxContent.style.margin = '0';
-          docxContent.style.padding = '0';
+          // Wait for rendering and images to fully load within the preview
+          await new Promise(resolve => setTimeout(resolve, 800));
+
+          const html2pdf = (await import('html2pdf.js')).default;
+          const opt = {
+            margin: 0,
+            filename: `Carta_${speakerName.replace(/\s+/g, '_')}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+              scale: 2, 
+              useCORS: true,
+              logging: false,
+              letterRendering: true
+            },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+          };
+          
+          await html2pdf().set(opt).from(tempDiv).save();
+        } catch (pdfError) {
+          console.error('Detailed PDF error:', pdfError);
+          throw pdfError;
+        } finally {
+          if (document.body.contains(tempDiv)) {
+            document.body.removeChild(tempDiv);
+          }
         }
-
-        // Wait a bit for rendering to finish
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const html2pdfLib = (await import('html2pdf.js')).default;
-        const opt = {
-          margin: [10, 10, 10, 10],
-          filename: `Carta_${speakerName.replace(/\s+/g, '_')}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: 2, 
-            useCORS: true,
-            logging: false,
-            letterRendering: true,
-            onclone: (clonedDoc: Document) => {
-              // Attempt to remove all OKLCH colors from the cloned DOM
-              const elements = clonedDoc.getElementsByTagName('*');
-              for (let i = 0; i < elements.length; i++) {
-                const el = elements[i] as HTMLElement;
-                if (el.style) {
-                  // Check computed style and override if it contains oklch
-                  // Note: html2canvas doesn't like oklch in variables either
-                  el.style.setProperty('--tw-ring-color', 'rgba(0,0,0,0)', 'important');
-                  el.style.setProperty('--tw-ring-shadow', 'none', 'important');
-                  el.style.setProperty('--tw-shadow', 'none', 'important');
-                  // We could potentially try to convert oklch to rgb here but it's complex
-                  // Stripping them or forcing them to safe values is easier
-                  if (el.style.color && el.style.color.includes('oklch')) el.style.color = 'black';
-                  if (el.style.backgroundColor && el.style.backgroundColor.includes('oklch')) el.style.backgroundColor = 'transparent';
-                  if (el.style.borderColor && el.style.borderColor.includes('oklch')) el.style.borderColor = 'gray';
-                }
-              }
-            }
-          },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        
-        await html2pdfLib().set(opt).from(tempDiv).save();
-        document.body.removeChild(tempContainer);
       }
     } catch (err) {
       console.error('Error generating document:', err);
@@ -1080,14 +1059,6 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                                   <FileDown size={12} />
                                   Word
                                 </button>
-                                <button
-                                  onClick={() => generateDocument(item, 'pdf')}
-                                  title="Baixar PDF"
-                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-red-100 shadow-sm"
-                                >
-                                  <FileText size={12} />
-                                  PDF
-                                </button>
                               </div>
                             </>
                           )}
@@ -1158,14 +1129,6 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                                   >
                                     <FileDown size={12} />
                                     Word
-                                  </button>
-                                  <button
-                                    onClick={() => generateDocument(sub, 'pdf')}
-                                    title="Baixar PDF"
-                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-red-100 shadow-sm"
-                                  >
-                                    <FileText size={12} />
-                                    PDF
                                   </button>
                                 </div>
                               </div>

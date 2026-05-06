@@ -1,5 +1,5 @@
 'use client';
-// Force rebuild - 2026-05-06 - Fixing chunk loading
+// Force rebuild - 2026-04-28
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
