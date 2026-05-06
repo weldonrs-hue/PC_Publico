@@ -477,6 +477,7 @@ export default function PioneerSchoolLetters({
                 <span>Baixar Word</span>
               </button>
 
+{/* PDF button hidden temporarily due to instability
               <button
                 onClick={downloadAsPdf}
                 disabled={status !== 'success' || isProcessing}
@@ -485,6 +486,7 @@ export default function PioneerSchoolLetters({
                 <Download size={14} />
                 <span>Baixar PDF</span>
               </button>
+              */}
             </div>
           </div>
 
