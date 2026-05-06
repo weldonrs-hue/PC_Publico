@@ -438,10 +438,15 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
     if (item.title.toLowerCase().includes('oração')) {
       templateId = 'cong_convite_oracao';
-      designation = item.title;
+      if (item.title.toLowerCase().includes('final')) {
+        designation = 'Oração Final';
+      } else {
+        designation = 'Oração Inicial';
+      }
     } else if (item.isRole && item.title.includes('PRESIDENTE')) {
       templateId = 'cong_presidente_sessao';
-      designation = `${item.title} (${currentDay.sessions.find(s => s.items.includes(item))?.period || ''})`;
+      const session = currentDay.sessions.find(s => s.items.includes(item));
+      designation = `PRESIDENTE DE SESSÃO da ${session?.period || ''}`;
     } else {
       // Fallback or general template
       templateId = 'cong_aviso_treinamentos';
@@ -496,7 +501,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         'LOCAL': details.eventLocation || '________________',
         'DESIGNAÇÃO': designation,
         'DESIGNACAO': designation,
-        'DIA': currentDay.day,
+        'DIA': currentDay.day.split('-')[0],
         'ORADOR': speakerName,
         'ASSINATURA': signatureImage,
         '%ASSINATURA': signatureImage,
