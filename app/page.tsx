@@ -33,6 +33,7 @@ const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceRe
 const DocxToPdfDemo = dynamic(() => import('@/components/DocxToPdfDemo'), { ssr: false });
 const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
 const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
+const CartasCongressoView = dynamic(() => import('@/components/CartasCongressoView'), { ssr: false });
 const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
@@ -1119,21 +1120,11 @@ export default function Home() {
           )}
 
           {currentView === 'cartas_congresso' && (
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
-              <div className="bg-violet-100 p-6 rounded-full text-violet-600 shadow-inner">
-                <Layout size={64} />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Cartas Congresso</h2>
-                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
-              </div>
-              <button 
-                onClick={() => changeView('cartas')}
-                className="px-8 py-3 bg-violet-600 text-white rounded-2xl font-bold hover:bg-violet-700 transition-all shadow-lg shadow-violet-200 uppercase tracking-widest text-xs"
-              >
-                Voltar para Cartas
-              </button>
-            </div>
+            <CartasCongressoView 
+              userId={user.id}
+              isAdmin={user.role === 'admin'}
+              onBack={() => changeView('cartas_dashboard')}
+            />
           )}
 
           {currentView === 'cartas_assembleias' && (

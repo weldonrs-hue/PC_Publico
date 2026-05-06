@@ -41,12 +41,11 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     {
       id: 'congresso',
       title: 'Uploads Congresso',
-      description: 'Documentação oficial de Congressos.',
+      description: 'Convite oração, Presidente e Treinamentos.',
       icon: Mail,
       view: 'cartas_congresso',
       color: '#8B5CF6',
       gradient: 'from-violet-500 to-purple-600',
-      inactive: true
     },
     {
       id: 'assembleias',
