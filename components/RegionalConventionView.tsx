@@ -1,15 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Landmark, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer } from 'lucide-react';
+import { Landmark, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import * as docxPreview from 'docx-preview';
 
 interface RegionalConventionViewProps {
   userId: string;
   onBack: () => void;
+}
+
+interface ConventionDetails {
+  eventDate: string;
+  eventLocation: string;
+  conventionTheme: string;
+  trainingDate: string;
+  trainingLocation: string;
 }
 
 const regionalConventionProgram = [
@@ -235,45 +246,110 @@ const regionalConventionProgram = [
 export default function RegionalConventionView({ userId, onBack }: RegionalConventionViewProps) {
   const [speakers, setSpeakers] = useState<Record<string, string>>({});
   const [initialSpeakers, setInitialSpeakers] = useState<Record<string, string>>({});
+  const [personalData, setPersonalData] = useState<any>(null);
+  const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
+  const [details, setDetails] = useState<ConventionDetails>({
+    eventDate: '',
+    eventLocation: '',
+    conventionTheme: '',
+    trainingDate: '',
+    trainingLocation: '',
+  });
+  const [initialDetails, setInitialDetails] = useState<ConventionDetails>({
+    eventDate: '',
+    eventLocation: '',
+    conventionTheme: '',
+    trainingDate: '',
+    trainingLocation: '',
+  });
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   const currentDay = regionalConventionProgram[selectedDayIndex];
-  const hasChanges = JSON.stringify(speakers) !== JSON.stringify(initialSpeakers);
+  const hasChanges = JSON.stringify(speakers) !== JSON.stringify(initialSpeakers) || 
+                     JSON.stringify(details) !== JSON.stringify(initialDetails);
 
   // Load data from Firestore and localStorage
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // 1. Try Firestore
+        // Fetch personal data
+        const personalDocRef = doc(db, 'personal_data', userId);
+        const personalSnap = await getDoc(personalDocRef);
+        if (personalSnap.exists()) {
+          setPersonalData(personalSnap.data());
+        } else {
+          const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            setPersonalData(querySnapshot.docs[0].data());
+          }
+        }
+
+        // Fetch templates
+        const templatesSnapshot = await getDocs(collection(db, 'document_templates'));
+        const fetchedTemplates: Record<string, any> = {};
+        templatesSnapshot.forEach((doc) => {
+          fetchedTemplates[doc.id] = doc.data();
+        });
+        setTemplates(fetchedTemplates);
+
+        // 1. Try Firestore for speakers/details
         const docRef = doc(db, 'regional_convention_speakers', userId);
         const docSnap = await getDoc(docRef);
         
         let loadedSpeakers = {};
+        let loadedDetails = {
+          eventDate: '',
+          eventLocation: '',
+          conventionTheme: '',
+          trainingDate: '',
+          trainingLocation: '',
+        };
+
         if (docSnap.exists()) {
-          loadedSpeakers = docSnap.data().speakers || {};
+          const data = docSnap.data();
+          loadedSpeakers = data.speakers || {};
+          loadedDetails = {
+            eventDate: data.details?.eventDate || '',
+            eventLocation: data.details?.eventLocation || '',
+            conventionTheme: data.details?.conventionTheme || '',
+            trainingDate: data.details?.trainingDate || '',
+            trainingLocation: data.details?.trainingLocation || '',
+          };
         } else {
           // 2. Fallback to localStorage
           const localData = localStorage.getItem(`speakers_${userId}`);
           if (localData) {
             loadedSpeakers = JSON.parse(localData);
           }
+          const localDetails = localStorage.getItem(`convention_details_${userId}`);
+          if (localDetails) {
+            loadedDetails = JSON.parse(localDetails);
+          }
         }
         
         setSpeakers(loadedSpeakers);
         setInitialSpeakers(loadedSpeakers);
+        setDetails(loadedDetails);
+        setInitialDetails(loadedDetails);
       } catch (error) {
-        console.error('Error loading speakers:', error);
+        console.error('Error loading data:', error);
         // Fallback to localStorage on error
         const localData = localStorage.getItem(`speakers_${userId}`);
         if (localData) {
           const parsed = JSON.parse(localData);
           setSpeakers(parsed);
           setInitialSpeakers(parsed);
+        }
+        const localDetails = localStorage.getItem(`convention_details_${userId}`);
+        if (localDetails) {
+          setDetails(JSON.parse(localDetails));
         }
       } finally {
         setIsLoading(false);
@@ -287,8 +363,9 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
   useEffect(() => {
     if (!isLoading) {
       localStorage.setItem(`speakers_${userId}`, JSON.stringify(speakers));
+      localStorage.setItem(`convention_details_${userId}`, JSON.stringify(details));
     }
-  }, [speakers, userId, isLoading]);
+  }, [speakers, details, userId, isLoading]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -296,9 +373,11 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
       const docRef = doc(db, 'regional_convention_speakers', userId);
       await setDoc(docRef, { 
         speakers,
+        details,
         updatedAt: new Date().toISOString()
-      });
+      }, { merge: true });
       setInitialSpeakers(speakers);
+      setInitialDetails(details);
       return true;
     } catch (error) {
       console.error('Error saving speakers:', error);
@@ -337,12 +416,184 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
   const confirmDiscard = () => {
     setSpeakers(initialSpeakers);
+    setDetails(initialDetails);
     setShowConfirmModal(false);
     if (pendingAction) pendingAction();
   };
 
   const handleSpeakerChange = (id: string, value: string) => {
     setSpeakers(prev => ({ ...prev, [id]: value }));
+  };
+
+  const generateDocument = async (item: any, type: 'docx' | 'pdf') => {
+    const speakerName = speakers[item.id];
+    if (!speakerName) {
+      alert('Por favor, informe o nome do orador primeiro.');
+      return;
+    }
+
+    // Determine which template to use
+    let templateId = '';
+    let designation = '';
+
+    if (item.title.toLowerCase().includes('oração')) {
+      templateId = 'cong_convite_oracao';
+      designation = item.title;
+    } else if (item.isRole && item.title.includes('PRESIDENTE')) {
+      templateId = 'cong_presidente_sessao';
+      designation = `${item.title} (${currentDay.sessions.find(s => s.items.includes(item))?.period || ''})`;
+    } else {
+      // Fallback or general template
+      templateId = 'cong_aviso_treinamentos';
+      designation = item.title;
+    }
+
+    const template = templates[templateId];
+    if (!template) {
+      alert(`Template "${templateId}" não encontrado. Por favor, carregue-o no Gerenciador de Uploads primeiro.`);
+      return;
+    }
+
+    setIsSaving(true); // Reusing as loading state for generation
+    try {
+      const binaryString = window.atob(template.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const zip = new PizZip(bytes.buffer);
+      
+      // Pre-process all XML files in the zip to handle Word-specific tag splitting and @TAG replacement
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      xmlFiles.forEach(file => {
+        let xmlContent = file.asText();
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          let newText = text;
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            return `${p1}[${p2.toUpperCase()}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        zip.file(file.name, xmlContent);
+      });
+
+      const signatureImage = personalData?.signatureImage || '';
+      const signatureName = personalData?.nome || '________________';
+      const circuito = personalData?.circuito || '________________';
+      const telefoneCircuito = personalData?.telefoneCircuito || '________________';
+
+      const replacements = {
+        'ANO': '2026',
+        'TEMA': details.conventionTheme || '________________',
+        'DATA': details.eventDate || '________________',
+        'LOCAL': details.eventLocation || '________________',
+        'DESIGNAÇÃO': designation,
+        'DESIGNACAO': designation,
+        'DIA': currentDay.day,
+        'ORADOR': speakerName,
+        'ASSINATURA': signatureImage,
+        '%ASSINATURA': signatureImage,
+        'VIAJANTE': signatureName,
+        'CIRCUITO': circuito,
+        'FONE': telefoneCircuito,
+        'TELEFONE': telefoneCircuito,
+      };
+
+      // Set up Image Module
+      const ImageModule = (await import('docxtemplater-image-module-free')).default;
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      if (signatureImage && signatureImage.startsWith('data:image')) {
+        const img = new Image();
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.src = signatureImage;
+        });
+        const aspectRatio = img.width / img.height;
+        sigHeight = 60;
+        sigWidth = sigHeight * aspectRatio;
+        if (sigWidth > 220) {
+          sigWidth = 220;
+          sigHeight = sigWidth / aspectRatio;
+        }
+      }
+
+      const opts: any = {
+        centered: false,
+        getImage: (tagValue: string) => {
+          if (!tagValue || !tagValue.startsWith('data:image')) return null;
+          const base64Data = tagValue.split(',')[1];
+          const binaryStringArray = window.atob(base64Data);
+          const bytesArray = new Uint8Array(binaryStringArray.length);
+          for (let i = 0; i < binaryStringArray.length; i++) {
+            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          }
+          return bytesArray.buffer;
+        },
+        getSize: () => [sigWidth, sigHeight],
+      };
+
+      const docObj = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: { start: '[', end: ']' },
+        modules: [new ImageModule(opts)]
+      });
+
+      docObj.render(replacements);
+
+      const out = docObj.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      if (type === 'docx') {
+        const url = URL.createObjectURL(out);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Carta_${speakerName.replace(/\s+/g, '_')}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // PDF conversion using html2pdf
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        document.body.appendChild(tempDiv);
+        
+        const arrayBuffer = await out.arrayBuffer();
+        await docxPreview.renderAsync(arrayBuffer, tempDiv, undefined, {
+          inWrapper: false,
+          ignoreWidth: true,
+          ignoreHeight: true,
+        });
+
+        const html2pdf = (await import('html2pdf.js')).default;
+        const opt = {
+          margin: 0.5,
+          filename: `Carta_${speakerName.replace(/\s+/g, '_')}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        await html2pdf().set(opt).from(tempDiv).save();
+        document.body.removeChild(tempDiv);
+      }
+    } catch (err) {
+      console.error('Error generating document:', err);
+      alert('Erro ao gerar documento. Verifique se os modelos estão carregados.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePrint = () => {
@@ -541,7 +792,134 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           style={{ objectPosition: 'center 33%' }}
           referrerPolicy="no-referrer"
         />
+        
+        {/* Overlay with some convention info if it exists */}
+        {(details.eventDate || details.eventLocation || details.conventionTheme) && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 text-white pt-10">
+            {details.conventionTheme && (
+              <div className="text-xl font-black uppercase tracking-tight mb-2 text-violet-300 drop-shadow-sm">
+                {details.conventionTheme}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {details.eventDate && (
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+                  <CalendarDays size={18} className="text-white/70" />
+                  {details.eventDate}
+                </div>
+              )}
+              {details.eventLocation && (
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+                  <MapPin size={18} className="text-white/70" />
+                  {details.eventLocation}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </motion.div>
+
+      {/* Toggle Convention Details */}
+      <div className="flex justify-center no-print">
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="flex items-center gap-2 px-6 py-2 bg-violet-100 hover:bg-violet-200 text-violet-700 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-violet-200 shadow-sm hover:scale-105 active:scale-95"
+        >
+          {showDetails ? (
+            <>
+              <ChevronUp size={14} />
+              Ocultar Informações Gerais
+            </>
+          ) : (
+            <>
+              <ChevronDown size={14} />
+              Exibir Dados do Evento e Treinamento
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Convention General Info Inputs */}
+      <AnimatePresence>
+        {showDetails && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 0 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            className="overflow-hidden no-print"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-[#512da8] uppercase tracking-widest flex items-center gap-2">
+                  <Landmark size={18} />
+                  Dados do Congresso
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tema do Congresso</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 'Felicidade Eterna'"
+                      value={details.conventionTheme}
+                      onChange={(e) => setDetails(prev => ({ ...prev, conventionTheme: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Data do Evento</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 12-14 de Junho, 2026"
+                      value={details.eventDate}
+                      onChange={(e) => setDetails(prev => ({ ...prev, eventDate: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Local (Endereço)</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Ginásio do Ibirapuera, São Paulo"
+                      value={details.eventLocation}
+                      onChange={(e) => setDetails(prev => ({ ...prev, eventLocation: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-violet-50 p-6 rounded-3xl border border-violet-100 shadow-sm space-y-4">
+                <h3 className="text-sm font-black text-violet-600 uppercase tracking-widest flex items-center gap-2">
+                  <BookOpen size={18} />
+                  Treinamento
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Data do Treinamento</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 15 de Maio, 2026"
+                      value={details.trainingDate}
+                      onChange={(e) => setDetails(prev => ({ ...prev, trainingDate: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white border border-violet-100 rounded-2xl text-sm font-bold focus:bg-violet-50 outline-none transition-all placeholder:text-violet-200"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Local do Treinamento</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Salão do Reino Central"
+                      value={details.trainingLocation}
+                      onChange={(e) => setDetails(prev => ({ ...prev, trainingLocation: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white border border-violet-100 rounded-2xl text-sm font-bold focus:bg-violet-50 outline-none transition-all placeholder:text-violet-200"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <img 
         src={currentDay.headerImage} 
         alt="" 
@@ -611,21 +989,41 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
                       <div className="flex flex-row gap-4 md:gap-6 no-print">
                         {/* Speaker Input - Left Side */}
-                        <div className="w-64 shrink-0">
+                        <div className="w-64 shrink-0 flex flex-col gap-2">
                           {!item.noSpeaker && (
-                            <div className="relative group">
-                              <input 
-                                type="text"
-                                placeholder="Orador..."
-                                value={speakers[item.id] || ''}
-                                onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
-                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
-                                style={{ 
-                                  borderColor: speakers[item.id] ? currentDay.color : undefined,
-                                  borderWidth: speakers[item.id] ? '2px' : '1px'
-                                }}
-                              />
-                            </div>
+                            <>
+                              <div className="relative group">
+                                <input 
+                                  type="text"
+                                  placeholder="Orador..."
+                                  value={speakers[item.id] || ''}
+                                  onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
+                                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
+                                  style={{ 
+                                    borderColor: speakers[item.id] ? currentDay.color : undefined,
+                                    borderWidth: speakers[item.id] ? '2px' : '1px'
+                                  }}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => generateDocument(item, 'docx')}
+                                  title="Baixar Word"
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-violet-100 shadow-sm"
+                                >
+                                  <FileDown size={12} />
+                                  Word
+                                </button>
+                                <button
+                                  onClick={() => generateDocument(item, 'pdf')}
+                                  title="Baixar PDF"
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-red-100 shadow-sm"
+                                >
+                                  <FileText size={12} />
+                                  PDF
+                                </button>
+                              </div>
+                            </>
                           )}
                         </div>
 
@@ -672,7 +1070,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                               </div>
 
                               {/* Speaker Input - Left Side (Hidden in Print) */}
-                              <div className="w-64 shrink-0 no-print">
+                              <div className="w-64 shrink-0 no-print flex flex-col gap-2">
                                 <div className="relative group">
                                   <input 
                                     type="text"
@@ -685,6 +1083,24 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                                       borderWidth: speakers[sub.id] ? '2px' : '1px'
                                     }}
                                   />
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => generateDocument(sub, 'docx')}
+                                    title="Baixar Word"
+                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-violet-100 shadow-sm"
+                                  >
+                                    <FileDown size={12} />
+                                    Word
+                                  </button>
+                                  <button
+                                    onClick={() => generateDocument(sub, 'pdf')}
+                                    title="Baixar PDF"
+                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border border-red-100 shadow-sm"
+                                  >
+                                    <FileText size={12} />
+                                    PDF
+                                  </button>
                                 </div>
                               </div>
                               
