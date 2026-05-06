@@ -473,14 +473,23 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       xmlFiles.forEach(file => {
         let xmlContent = file.asText();
+        // Remove spell check tags that often split @TAGS
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        // Join split tags
         for (let i = 0; i < 6; i++) {
           xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
         }
+        
+        // Final cleaning of common split patterns
+        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
+
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
+          // Handle @Assinatura specially as an image tag
           newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          // Generic @TAG replacement
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
@@ -492,7 +501,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
       const signatureImage = personalData?.signatureImage || '';
       const signatureName = personalData?.nome || '________________';
       const circuito = personalData?.circuito || '________________';
-      const telefoneCircuito = personalData?.telefoneCircuito || '________________';
+      const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
 
       const replacements = {
         'ANO': '2026',
@@ -516,12 +525,15 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
       let sigWidth = 150;
       let sigHeight = 60;
       
-      if (signatureImage && signatureImage.startsWith('data:image')) {
+      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
+      
+      if (isBase64Image) {
         const img = new Image();
-        await new Promise((resolve) => {
+        const promise = new Promise((resolve) => {
           img.onload = resolve;
           img.src = signatureImage;
         });
+        await promise;
         const aspectRatio = img.width / img.height;
         sigHeight = 60;
         sigWidth = sigHeight * aspectRatio;
@@ -534,14 +546,19 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
       const opts: any = {
         centered: false,
         getImage: (tagValue: string) => {
-          if (!tagValue || !tagValue.startsWith('data:image')) return null;
-          const base64Data = tagValue.split(',')[1];
-          const binaryStringArray = window.atob(base64Data);
-          const bytesArray = new Uint8Array(binaryStringArray.length);
-          for (let i = 0; i < binaryStringArray.length; i++) {
-            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            const binaryStringArray = window.atob(base64Data);
+            const bytesArray = new Uint8Array(binaryStringArray.length);
+            for (let i = 0; i < binaryStringArray.length; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding image:', e);
+            return null;
           }
-          return bytesArray.buffer;
         },
         getSize: () => [sigWidth, sigHeight],
       };
