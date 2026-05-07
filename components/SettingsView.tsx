@@ -65,7 +65,7 @@ const settingsButtons = [
   {
     id: 'pioneer_access',
     icon: UserPlus,
-    title: 'COLABORADORES',
+    title: 'INSTRUTOR B (ESP)',
     subtitle: 'ACESSO ESCOLA PIONEIROS',
     color: '#37616b',
     gradient: 'from-[#37616b] to-[#2c4d55]'
@@ -676,9 +676,10 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                 <div className="w-16 h-16 bg-[#37616b]/10 rounded-2xl flex items-center justify-center mb-6">
                   <UserPlus className="text-[#37616b]" size={32} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Convidar Instrutor</h3>
-                <p className="text-xs text-gray-500 mb-8 text-center italic">
-                  Dê acesso a outro instrutor para gerenciar uma turma da Escola de Pioneiros com você.
+                <h3 className="text-lg font-bold text-gray-900 mb-2 text-center uppercase">Instrutor B (ESP)</h3>
+                <p className="text-[10px] text-gray-500 mb-8 text-center leading-relaxed">
+                  Conceda acesso a outro instrutor. <br/>
+                  <span className="font-bold text-[#37616b]">Importante:</span> O convidado deve primeiro cadastrar seu <span className="font-bold">Número Pessoal</span> na seção "Dados Pessoais" para ser encontrado.
                 </p>
 
                 <form onSubmit={handleInviteInstructor} className="w-full space-y-6">

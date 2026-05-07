@@ -315,8 +315,19 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-            {/* Row 1: Names */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Row 1: Names and ID */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-1 space-y-2">
+                <label className="text-xs font-bold text-gray-500 uppercase">
+                  Número Pessoal (ID)
+                </label>
+                <input 
+                  value={formData.numeroPessoal}
+                  onChange={(e) => setFormData({...formData, numeroPessoal: e.target.value})}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all font-mono"
+                  placeholder="Ex: 2283701"
+                />
+              </div>
               <div className="md:col-span-2 space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase">
                   Nome Completo
