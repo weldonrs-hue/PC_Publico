@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Presentation, ChevronLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Presentation, ChevronLeft, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import PioneerSchoolView from './PioneerSchoolView';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface SchoolsViewProps {
   userId: string;
@@ -41,6 +43,22 @@ const schools = [
 ];
 
 export default function SchoolsView({ userId, onBack, onViewChange, congregations, personalData }: SchoolsViewProps) {
+  const [guestSchools, setGuestSchools] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'pioneer_school_invitations'),
+      where('collaboratorId', '==', userId),
+      where('status', '==', 'accepted')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setGuestSchools(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -100,6 +118,37 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
                       Acessar Agora
                     </span>
                   )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+
+        {/* Guest Pioneer Schools */}
+        {guestSchools.map((gs, index) => (
+          <motion.div
+            key={gs.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: (schools.length + index) * 0.1 }}
+            onClick={() => onViewChange(`pioneer_school_guest:${gs.ownerId}:${gs.turma}`)}
+            className="relative group h-28 cursor-pointer"
+          >
+            <div className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-[2rem] bg-[#37616b]" />
+            
+            <div className="relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:border-transparent transition-all duration-300 h-full group">
+              <div className="w-2 h-full bg-gradient-to-b from-[#37616b] to-[#2c4d55] opacity-40 group-hover:opacity-100 transition-opacity"></div>
+              <div className="flex-1 flex items-center px-6 gap-6">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 bg-gradient-to-br from-[#37616b] to-[#2c4d55] group-hover:scale-110 group-hover:rotate-3">
+                  <Users size={30} strokeWidth={2.5} className="text-white drop-shadow-md" />
+                </div>
+                <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
+                  <div className="font-black text-xs md:text-sm leading-tight uppercase mb-1 transition-colors text-gray-900 group-hover:text-black">
+                    E.S.P. (Convidado) - Turma {gs.turma}
+                  </div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#37616b]">
+                    Instrutor: {gs.ownerName}
+                  </div>
                 </div>
               </div>
             </div>

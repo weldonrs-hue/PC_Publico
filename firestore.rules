@@ -53,6 +53,14 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    match /pioneer_school_invitations/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /pioneer_school_info/{id} {
+      allow read, write: if isSignedIn();
+    }
+
     match /config/app_settings {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && (

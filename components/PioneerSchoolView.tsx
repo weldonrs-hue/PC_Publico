@@ -213,10 +213,21 @@ interface PioneerSchoolViewProps {
   onBack: () => void;
   congregations: any[];
   defaultCircuit: string;
+  isGuest?: boolean;
+  guestTurma?: string | null;
 }
 
-export default function PioneerSchoolView({ userId, onBack, congregations, defaultCircuit }: PioneerSchoolViewProps) {
+export default function PioneerSchoolView({ 
+  userId: initialUserId, 
+  onBack, 
+  congregations, 
+  defaultCircuit,
+  isGuest = false,
+  guestTurma = null
+}: PioneerSchoolViewProps) {
+  const [userId, setUserId] = useState(initialUserId);
   const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info' | 'templates_pss'>(() => {
+    if (isGuest) return 'students';
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('pioneer_school_active_tab');
       if (saved === 'students' || saved === 'workshops' || saved === 'info' || saved === 'templates_pss') {
@@ -227,9 +238,26 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   });
 
   useEffect(() => {
-    localStorage.setItem('pioneer_school_active_tab', activeTab);
-  }, [activeTab]);
-  const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
+    if (!isGuest) {
+      localStorage.setItem('pioneer_school_active_tab', activeTab);
+    }
+  }, [activeTab, isGuest]);
+
+  const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>(() => {
+    if (isGuest && guestTurma && guestTurma !== 'all') {
+      return guestTurma as '1' | '2' | '3';
+    }
+    return '1';
+  });
+
+  useEffect(() => {
+    if (isGuest && guestTurma) {
+      if (guestTurma !== 'all') {
+        setSelectedTurma(guestTurma as '1' | '2' | '3');
+      }
+      setUserId(initialUserId);
+    }
+  }, [isGuest, guestTurma, initialUserId]);
   const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
@@ -447,6 +475,7 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
   };
 
   const handleTurmaChange = (turma: '1' | '2' | '3') => {
+    if (isGuest && guestTurma !== 'all') return;
     if (activeTab === 'info' && hasInfoChanges) {
       setPendingAction(() => () => setSelectedTurma(turma));
       setIsUnsavedModalOpen(true);
@@ -1022,6 +1051,10 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
           'TELEFONECIRCUITO': personalData?.telefoneCircuito || '________________',
           'HOJE': hoje,
           'DATA_ATUAL': hoje,
+          'DATAHORA': schoolInfo.entregaLivroDataHora || '________________',
+          'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
+          'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
+          'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
           'DATATURMA': schoolInfo.dataTurma || '________________',
           'TURMA_DATA': schoolInfo.dataTurma || '________________',
           'LOCALESCOLA': schoolInfo.localEscola || '________________',
@@ -1158,7 +1191,14 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             >
               <ChevronLeft size={24} strokeWidth={3} />
             </button>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-800 truncate">Escola do Serviço de Pioneiro</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800 truncate flex items-center gap-2">
+              Escola do Serviço de Pioneiro
+              {isGuest && (
+                <span className="bg-amber-100 text-amber-700 text-[10px] uppercase font-black px-2 py-0.5 rounded-full border border-amber-200">
+                  Convidado
+                </span>
+              )}
+            </h2>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1205,21 +1245,28 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
             </>
           ) : (
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
+              <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">
+                Turma:
+              </span>
               <div className="flex gap-1">
-                {(['1', '2', '3'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => handleTurmaChange(t)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      selectedTurma === t 
-                        ? 'bg-amber-100 text-amber-700 shadow-sm' 
-                        : 'text-gray-400 hover:bg-gray-50'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
+                {(['1', '2', '3'] as const).map((t) => {
+                  const isDisabled = isGuest && guestTurma !== 'all' && guestTurma !== t;
+                  if (isGuest && guestTurma !== 'all' && guestTurma !== t) return null;
+                  
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => handleTurmaChange(t)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        selectedTurma === t 
+                          ? 'bg-amber-100 text-amber-700 shadow-sm' 
+                          : 'text-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

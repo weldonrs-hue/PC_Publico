@@ -29,6 +29,8 @@ interface PSSAssignmentLettersProps {
     instrutorA: string;
     confirmacaoEmail: string;
     confirmacaoWhatsapp: string;
+    entregaLivroEndereco?: string;
+    entregaLivroDataHora?: string;
   };
   workshopAssignments: Record<number, { id: string, participants: string }>;
 }
@@ -133,6 +135,10 @@ export default function PSSAssignmentLetters({
       'TELEFONE': telefoneValue,
       'whatsapp': telefoneValue,
       'WHATSAPP': telefoneValue,
+      'DATAHORA': schoolInfo.entregaLivroDataHora || '________________',
+      'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
+      'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
+      'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
       'nome do instrutor': signatureBlock,
       'NOME DO INSTRUTOR': signatureBlock,
       'instrutor': signatureBlock,

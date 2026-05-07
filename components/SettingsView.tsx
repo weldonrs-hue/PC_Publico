@@ -17,7 +17,10 @@ import {
   UserX,
   X,
   ShieldCheck,
-  ExternalLink
+  ExternalLink,
+  UserPlus,
+  Mail,
+  UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -30,7 +33,11 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  addDoc,
+  onSnapshot,
+  limit,
+  updateDoc
 } from 'firebase/firestore';
 import { 
   EmailAuthProvider, 
@@ -55,6 +62,14 @@ interface SettingsViewProps {
 }
 
 const settingsButtons = [
+  {
+    id: 'pioneer_access',
+    icon: UserPlus,
+    title: 'COLABORADORES',
+    subtitle: 'ACESSO ESCOLA PIONEIROS',
+    color: '#37616b',
+    gradient: 'from-[#37616b] to-[#2c4d55]'
+  },
   {
     id: 'pastas',
     icon: FolderPlus,
@@ -110,6 +125,13 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isFormattingAccount, setIsFormattingAccount] = useState(false);
   const [isShowingPrivacy, setIsShowingPrivacy] = useState(false);
+  const [isManagingPioneerAccess, setIsManagingPioneerAccess] = useState(false);
+  const [pioneerInvites, setPioneerInvites] = useState<any[]>([]);
+  const [receivedPioneerInvites, setReceivedPioneerInvites] = useState<any[]>([]);
+  const [personalData, setPersonalData] = useState<any>(null);
+  const [inviteNumber, setInviteNumber] = useState('');
+  const [inviteTurma, setInviteTurma] = useState<'1' | '2' | '3' | 'all'>('1');
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [formatStep, setFormatStep] = useState<'confirm' | 'formatting' | 'success'>('confirm');
   const [formatPassword, setFormatPassword] = useState('');
   const [formatError, setFormatError] = useState<string | null>(null);
@@ -150,6 +172,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+          setPersonalData(data);
           if (data.pastaCircuito) {
             setPastaCircuito(data.pastaCircuito);
           }
@@ -173,7 +196,23 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
     fetchSettings();
 
-    return () => window.removeEventListener('resize', checkDesktop);
+    // Listen for invitations sent by this user
+    const qSent = query(collection(db, 'pioneer_school_invitations'), where('ownerId', '==', userId));
+    const unsubscribeSent = onSnapshot(qSent, (snap) => {
+      setPioneerInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    // Listen for invitations received by this user
+    const qReceived = query(collection(db, 'pioneer_school_invitations'), where('collaboratorId', '==', userId));
+    const unsubscribeReceived = onSnapshot(qReceived, (snap) => {
+      setReceivedPioneerInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      window.removeEventListener('resize', checkDesktop);
+      unsubscribeSent();
+      unsubscribeReceived();
+    };
   }, [userId]);
 
   const handleCreateFolders = async () => {
@@ -237,6 +276,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       onViewChange('users');
     } else if (id === 'senha') {
       setIsChangingPassword(true);
+    } else if (id === 'pioneer_access') {
+      setIsManagingPioneerAccess(true);
     } else if (id === 'formatar') {
       setIsFormattingAccount(true);
       setFormatStep('confirm');
@@ -321,6 +362,89 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       }
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleInviteInstructor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteNumber.trim() || inviteLoading) return;
+    
+    setInviteLoading(true);
+    try {
+      const q = query(collection(db, 'personal_data'), where('numeroPessoal', '==', inviteNumber.trim()), limit(1));
+      const snap = await getDocs(q);
+      
+      if (snap.empty) {
+        alert('Usuário não encontrado com este número pessoal.');
+        setInviteLoading(false);
+        return;
+      }
+      
+      const instructorData = snap.docs[0].data();
+      const instructorId = instructorData.userId;
+      
+      if (instructorId === auth.currentUser?.uid) {
+        alert('Você não pode convidar a si mesmo.');
+        setInviteLoading(false);
+        return;
+      }
+
+      // Check if already invited for this turma
+      const existing = pioneerInvites.find(inv => inv.collaboratorId === instructorId && inv.turma === inviteTurma);
+      if (existing) {
+        alert('Este usuário já possui um convite pendente ou ativo para esta turma.');
+        setInviteLoading(false);
+        return;
+      }
+
+      await addDoc(collection(db, 'pioneer_school_invitations'), {
+        ownerId: auth.currentUser?.uid,
+        ownerName: personalData?.nome || 'Instrutor',
+        collaboratorId: instructorId,
+        collaboratorNumber: inviteNumber.trim(),
+        turma: inviteTurma,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      setInviteNumber('');
+      alert('Convite enviado com sucesso!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'pioneer_school_invitations');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'pioneer_school_invitations', inviteId), {
+        status: 'accepted',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'pioneer_school_invitations');
+    }
+  };
+
+  const handleRejectInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'pioneer_school_invitations', inviteId), {
+        status: 'rejected',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'pioneer_school_invitations');
+    }
+  };
+
+  const handleRemoveInvite = async (inviteId: string) => {
+    if (!confirm('Tem certeza que deseja remover este acesso/convite?')) return;
+    try {
+      await deleteDoc(doc(db, 'pioneer_school_invitations', inviteId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'pioneer_school_invitations');
     }
   };
 
@@ -531,6 +655,217 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         </section>
       )}
     </motion.div>
+
+    {/* Pioneer Access Management Modal */}
+      <AnimatePresence>
+        {isManagingPioneerAccess && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-gray-50 rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col md:flex-row overflow-hidden min-h-[500px] max-h-[95vh]"
+            >
+              {/* Left Sidebar: Form to Invite */}
+              <div className="w-full md:w-80 bg-white p-8 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col items-center">
+                <div className="w-16 h-16 bg-[#37616b]/10 rounded-2xl flex items-center justify-center mb-6">
+                  <UserPlus className="text-[#37616b]" size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Convidar Instrutor</h3>
+                <p className="text-xs text-gray-500 mb-8 text-center italic">
+                  Dê acesso a outro instrutor para gerenciar uma turma da Escola de Pioneiros com você.
+                </p>
+
+                <form onSubmit={handleInviteInstructor} className="w-full space-y-6">
+                   <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Turma Escolhida</label>
+                    <div className="grid grid-cols-4 gap-2">
+                       {['1', '2', '3', 'all'].map((t) => (
+                         <button
+                           key={t}
+                           type="button"
+                           onClick={() => setInviteTurma(t as any)}
+                           className={`py-2 rounded-xl text-xs font-black transition-all ${
+                             inviteTurma === t 
+                               ? 'bg-[#37616b] text-white shadow-lg shadow-[#37616b]/20 scale-105' 
+                               : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                           }`}
+                         >
+                           {t === 'all' ? 'TODAS' : `T${t}`}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Código de Usuário (B)</label>
+                    <input 
+                      type="text"
+                      required
+                      value={inviteNumber}
+                      onChange={(e) => setInviteNumber(e.target.value)}
+                      placeholder="Ex: 2283701"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-[#37616b] focus:ring-2 focus:ring-[#37616b]/10 outline-none transition-all text-sm font-bold"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={inviteLoading || !inviteNumber.trim()}
+                    className="w-full py-4 bg-[#37616b] text-white font-black rounded-2xl hover:bg-[#2c4d55] transition-all shadow-xl shadow-[#37616b]/20 flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest"
+                  >
+                    {inviteLoading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                    Enviar Convite
+                  </button>
+                </form>
+
+                <button 
+                  onClick={() => setIsManagingPioneerAccess(false)}
+                  className="mt-6 w-full py-3 text-gray-400 font-bold text-xs uppercase tracking-widest hover:text-gray-600 transition-colors"
+                >
+                   Voltar
+                </button>
+              </div>
+
+              {/* Right Content: Lists of Invites */}
+              <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+                <div className="space-y-10">
+                   {/* Received Invites Section */}
+                   <section>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600">
+                        <UserCheck size={20} />
+                      </div>
+                      <h4 className="font-black text-sm text-gray-800 uppercase tracking-widest">Convites Recebidos</h4>
+                    </div>
+
+                    {receivedPioneerInvites.length === 0 ? (
+                      <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center text-gray-400 border-dashed">
+                        <Mail size={32} className="mx-auto mb-3 opacity-20" />
+                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum convite recebido</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {receivedPioneerInvites.map((inv) => (
+                          <div key={inv.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:border-[#37616b] transition-all">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center font-black text-[#37616b]">
+                                T{inv.turma}
+                              </div>
+                              <div>
+                                <div className="text-sm font-black text-gray-800">C.O. {inv.ownerName}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    inv.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' : 
+                                    inv.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                                  }`}>
+                                    {inv.status === 'accepted' ? 'Aceito' : inv.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                               {inv.status === 'pending' && (
+                                 <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+                                   <button 
+                                     onClick={() => handleAcceptInvite(inv.id)}
+                                     className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                                   >
+                                     Aceitar
+                                   </button>
+                                   <button 
+                                     onClick={() => handleRejectInvite(inv.id)}
+                                     className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+                                   >
+                                     Recusar
+                                   </button>
+                                 </div>
+                               )}
+                               {inv.status === 'accepted' && (
+                                 <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                                   <button 
+                                      onClick={() => onViewChange(`pioneer_school_guest:${inv.ownerId}:${inv.turma}`)}
+                                      className="flex-1 sm:flex-none px-4 py-2 bg-[#37616b] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#2c4d55] transition-all"
+                                   >
+                                      Acessar Turma
+                                   </button>
+                                   <button 
+                                     onClick={() => handleRemoveInvite(inv.id)}
+                                     className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                     title="Remover Acesso"
+                                   >
+                                     <Trash2 size={16} />
+                                   </button>
+                                 </div>
+                               )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                   </section>
+
+                   {/* Sent Invites Section */}
+                   <section>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                        <Mail size={20} />
+                      </div>
+                      <h4 className="font-black text-sm text-gray-800 uppercase tracking-widest">Convites Enviados</h4>
+                    </div>
+
+                    {pioneerInvites.length === 0 ? (
+                      <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center text-gray-400 border-dashed">
+                        <Users size={32} className="mx-auto mb-3 opacity-20" />
+                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum convite enviado</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {pioneerInvites.map((inv) => (
+                          <div key={inv.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex items-center justify-between group">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center font-black text-gray-400">
+                                T{inv.turma}
+                              </div>
+                              <div>
+                                <div className="text-sm font-black text-gray-800">Para: C.O. {inv.collaboratorNumber}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    inv.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' : 
+                                    inv.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                                  }`}>
+                                    {inv.status === 'accepted' ? 'Ativo' : inv.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                               <button 
+                                 onClick={() => handleRemoveInvite(inv.id)}
+                                 className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                 title="Remover Acesso"
+                               >
+                                 <Trash2 size={20} />
+                               </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                   </section>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     {/* Format Account Modal */}
       <AnimatePresence>

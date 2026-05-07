@@ -63,6 +63,7 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const quotaExceededRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -115,7 +116,7 @@ export default function Home() {
     }
   }, [quotaExceeded]);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
 
   // Browser back button support
   useEffect(() => {
@@ -139,6 +140,14 @@ export default function Home() {
 
   const changeView = (view: any, pushState = true) => {
     if (view === currentView) return;
+    
+    if (typeof view === 'string' && view.startsWith('pioneer_school_guest:')) {
+      const [, ownerId, turma] = view.split(':');
+      setGuestPioneerData({ ownerId, turma });
+    } else {
+      setGuestPioneerData(null);
+    }
+
     setCurrentView(view);
     if (pushState) {
       window.history.pushState({ view }, '', '');
@@ -1035,6 +1044,17 @@ export default function Home() {
               congregations={congregations}
               defaultCircuit={personalData?.circuito || ''}
             />
+          )}
+
+          {typeof currentView === 'string' && currentView.startsWith('pioneer_school_guest') && guestPioneerData && (
+             <PioneerSchoolView 
+               userId={guestPioneerData.ownerId}
+               isGuest={true}
+               guestTurma={guestPioneerData.turma}
+               onBack={() => changeView('schools')}
+               congregations={congregations} // We use the guest's congregations if needed, but the view might fetch them
+               defaultCircuit=""
+             />
           )}
 
           {currentView === 'events' && (

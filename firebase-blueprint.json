@@ -204,6 +204,45 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "content"]
+    },
+    "pioneer_school_invitation": {
+      "title": "Pioneer School Invitation",
+      "description": "Invitations for other users to collaborate as instructors",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "collaboratorId": { "type": "string" },
+        "collaboratorNumber": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "collaboratorId", "status", "turma"]
+    },
+    "pioneer_school_info": {
+      "title": "Pioneer School Information",
+      "description": "General information about the pioneer school session",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "dataTurma": { "type": "string" },
+        "instrutorA": { "type": "string" },
+        "instrutorB": { "type": "string" },
+        "localEscola": { "type": "string" },
+        "enderecoEscola": { "type": "string" },
+        "entregaLivroEndereco": { "type": "string" },
+        "entregaLivroDataHora": { "type": "string" },
+        "confirmacaoDataLimite": { "type": "string" },
+        "confirmacaoEmail": { "type": "string" },
+        "confirmacaoWhatsapp": { "type": "string" },
+        "dataTreinamento": { "type": "string" },
+        "localTreinamento": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "turma"]
     }
   },
   "firestore": {
@@ -242,6 +281,14 @@
     "/pioneer_school_workshops/{workshopId}": {
       "schema": "pioneer_school_workshop",
       "description": "Collection of workshop assignments"
+    },
+    "/pioneer_school_info/{infoId}": {
+      "schema": "pioneer_school_info",
+      "description": "General information for pioneer school sessions"
+    },
+    "/pioneer_school_invitations/{invitationId}": {
+      "schema": "pioneer_school_invitation",
+      "description": "Invitations for pioneer school instructors"
     },
     "/regional_convention_speakers/{userId}": {
       "schema": "regional_convention_speakers",
