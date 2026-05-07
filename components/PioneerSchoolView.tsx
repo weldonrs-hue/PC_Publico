@@ -1188,18 +1188,19 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               </div>
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm font-bold whitespace-nowrap"
+                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm overflow-hidden whitespace-nowrap pl-[9px] hover:pl-4"
                 title="Importar da Área de Transferência"
               >
-                <Plus size={20} className="text-gray-400" />
-                <span className="hidden sm:inline">Importar</span>
+                <Plus size={20} className="text-gray-400 shrink-0" />
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Importar</span>
               </button>
               <button
                 onClick={() => handleOpenModal()}
-                className="flex items-center gap-2 px-4 py-2 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] transition-all shadow-md font-bold whitespace-nowrap"
+                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-[#37616b] text-white shadow-md overflow-hidden whitespace-nowrap pl-[9px] hover:pl-4"
+                title="Adicionar Aluno"
               >
-                <UserPlus size={20} />
-                <span className="hidden sm:inline">Adicionar</span>
+                <UserPlus size={20} className="shrink-0" />
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Adicionar</span>
               </button>
             </>
           ) : (
@@ -1229,20 +1230,24 @@ export default function PioneerSchoolView({ userId, onBack, congregations, defau
               <button
                 onClick={handleDownloadPDF}
                 disabled={generating}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-md font-bold whitespace-nowrap disabled:opacity-50"
+                className="group flex items-center h-10 w-10 hover:w-36 transition-all duration-500 ease-in-out rounded-full bg-indigo-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[10px] hover:pl-4 disabled:opacity-50"
                 title="Baixar PDF"
               >
-                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
-                <span className="hidden lg:inline">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
+                <div className="shrink-0">
+                  {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+                </div>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">
+                  {generating ? 'Gerando...' : 'Baixar PDF'}
+                </span>
               </button>
               <button
                 onClick={() => window.print()}
                 disabled={generating}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all shadow-md font-bold whitespace-nowrap"
+                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-gray-500 text-white shadow-md overflow-hidden whitespace-nowrap pl-[10px] hover:pl-4"
                 title="Imprimir"
               >
-                <Printer size={18} />
-                <span className="hidden lg:inline">Imprimir</span>
+                <Printer size={18} className="shrink-0" />
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Imprimir</span>
               </button>
             </div>
           )}

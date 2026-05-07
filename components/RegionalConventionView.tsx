@@ -518,6 +518,8 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         'CIRCUITO': circuito,
         'FONE': telefoneCircuito,
         'TELEFONE': telefoneCircuito,
+        'DATAHORA': details.trainingDate || '________________',
+        'LOCALTREINO': details.trainingLocation || '________________',
       };
 
       // Set up Image Module
@@ -815,10 +817,11 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         <div className="flex items-center gap-4 self-start sm:self-center">
           <button
             onClick={handlePrint}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-600 bg-white shadow-md border border-gray-200"
+            className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-white text-gray-600 shadow-md border border-gray-200 overflow-hidden whitespace-nowrap pl-[7px] hover:pl-4"
             title="Imprimir"
           >
-            <Printer size={24} />
+            <Printer size={24} className="shrink-0" />
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Imprimir</span>
           </button>
         </div>
       </div>
