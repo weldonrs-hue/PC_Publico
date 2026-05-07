@@ -18,9 +18,14 @@
         "emailPessoal": { "type": "string" },
         "telefoneCircuito": { "type": "string" },
         "telefonePessoal": { "type": "string" },
-        "signatureImage": { "type": "string", "description": "Base64 encoded signature image" }
+        "signatureImage": { "type": "string", "description": "Base64 encoded signature image" },
+        "role": { 
+          "type": "string", 
+          "enum": ["viajante", "pioneiro_especial", "pioneiro_regular"],
+          "description": "User role determining access level"
+        }
       },
-      "required": ["userId", "nome"]
+      "required": ["userId", "nome", "role"]
     },
     "congregation": {
       "title": "Congregation",

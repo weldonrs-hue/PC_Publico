@@ -59,6 +59,14 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
     return () => unsubscribe();
   }, [userId]);
 
+  const role = personalData?.role || 'viajante';
+  const isPioneer = role === 'pioneiro_especial' || role === 'pioneiro_regular';
+
+  const visibleSchools = schools.filter(s => {
+    if (isPioneer) return false; // Pioneers only see guest schools
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -68,7 +76,7 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {schools.map((school, index) => (
+        {visibleSchools.map((school, index) => (
           <motion.div
             key={school.title}
             initial={{ opacity: 0, y: 20 }}

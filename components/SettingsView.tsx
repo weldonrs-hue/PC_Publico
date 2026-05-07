@@ -533,6 +533,12 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         {settingsButtons
           .filter(btn => {
             if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
+            
+            const role = personalData?.role || 'viajante';
+            if ((role === 'pioneiro_especial' || role === 'pioneiro_regular') && btn.id === 'pastas') {
+              return false;
+            }
+            
             return true;
           })
           .map((btn, index) => {

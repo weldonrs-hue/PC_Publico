@@ -44,6 +44,8 @@ interface DashboardCardsProps {
   analyzedCongregationsCount?: number;
   currentEvent?: string;
   user?: any;
+  personalData?: any;
+  hasGuestInvites?: boolean;
 }
 
 export default function DashboardCards({ 
@@ -53,11 +55,25 @@ export default function DashboardCards({
   substituteCount = 0,
   analyzedCongregationsCount = 0,
   currentEvent = '',
-  user
+  user,
+  personalData,
+  hasGuestInvites = false
 }: DashboardCardsProps) {
+  const role = personalData?.role || 'viajante';
+  const isPioneer = role === 'pioneiro_especial' || role === 'pioneiro_regular';
+
+  const filteredCards = cards.filter(card => {
+    if (isPioneer) {
+      // For pioneers, within "Circuito" dashboard:
+      // Only "Dados Pessoais" and "Congregações"
+      if (['Substitutos', 'Itinerários', 'Estatísticas'].includes(card.title)) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-      {cards.map((card, index) => (
+      {filteredCards.map((card, index) => (
         <motion.div
           key={card.title}
           initial={{ opacity: 0, y: 20 }}
@@ -85,18 +101,20 @@ export default function DashboardCards({
 
               <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
                 <div className="font-black text-sm md:text-base leading-tight text-gray-900 uppercase truncate mb-1 group-hover:text-black transition-colors">
-                  {card.title}
+                  {card.title === 'Congregações' && isPioneer ? 'Congregação' : card.title}
                 </div>
                 
                 <div className="flex flex-col">
                   {card.title === 'Congregações' ? (
                     <div className="flex gap-3">
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
-                        CONG: <span className="text-amber-600 font-black">{congregationCount}</span>
+                        {isPioneer ? 'SUA CONGREGAÇÃO' : `CONG: ${congregationCount}`}
                       </p>
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
-                        GRUPOS: <span className="text-amber-600 font-black">{groupCount}</span>
-                      </p>
+                      {!isPioneer && (
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
+                          GRUPOS: <span className="text-amber-600 font-black">{groupCount}</span>
+                        </p>
+                      )}
                     </div>
                   ) : card.title === 'Dados Pessoais' ? (
                     <div className="flex flex-col">

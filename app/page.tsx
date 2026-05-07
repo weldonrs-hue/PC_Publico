@@ -179,8 +179,44 @@ export default function Home() {
     textEditorEnabledForAll: boolean;
     congregationImportEnabledForAll: boolean;
   }>({ reportEnabledForAll: false, textEditorEnabledForAll: false, congregationImportEnabledForAll: false });
+  const [hasGuestInvites, setHasGuestInvites] = useState(false);
 
   const [espInitialMode, setEspInitialMode] = useState<'geracao' | 'manager'>('geracao');
+
+  // Monitorar convites de instrutor convidado
+  useEffect(() => {
+    if (!user?.id || quotaExceeded) return;
+    
+    // Check invitations by number OR by ID
+    const numeroPessoal = personalData?.numeroPessoal;
+    if (!numeroPessoal && !user?.id) return;
+
+    // We check both because some might be saved by number, some by ID
+    const qByNumber = query(
+      collection(db, 'pioneer_school_invitations'), 
+      where('collaboratorNumber', '==', numeroPessoal || 'NONE'),
+      where('status', '==', 'accepted')
+    );
+
+    const qById = query(
+      collection(db, 'pioneer_school_invitations'), 
+      where('collaboratorId', '==', user.id),
+      where('status', '==', 'accepted')
+    );
+    
+    const unsubByNumber = onSnapshot(qByNumber, (snap) => {
+      if (!snap.empty) setHasGuestInvites(true);
+    });
+
+    const unsubById = onSnapshot(qById, (snap) => {
+      if (!snap.empty) setHasGuestInvites(true);
+    });
+
+    return () => {
+      unsubByNumber();
+      unsubById();
+    };
+  }, [user?.id, personalData?.numeroPessoal, quotaExceeded]);
 
   // Track last sub-views for navigation persistence
   useEffect(() => {
@@ -817,6 +853,7 @@ export default function Home() {
           personalData={personalData}
           currentView={currentView}
           espInitialMode={espInitialMode}
+          hasGuestInvites={hasGuestInvites}
           onBack={() => changeView('dashboard')}
           onViewChange={(view) => {
             if (view === 'dashboard') {
@@ -937,6 +974,8 @@ export default function Home() {
                 analyzedCongregationsCount={congStats.analyzedCongregations}
                 currentEvent={currentEvent}
                 user={user}
+                personalData={personalData}
+                hasGuestInvites={hasGuestInvites}
               />
 
               {/* Statistics Summary Bar */}
@@ -964,6 +1003,7 @@ export default function Home() {
               userId={user.id} 
               isAdmin={user.role === 'admin'}
               importEnabledForAll={appConfig.congregationImportEnabledForAll}
+              userRole={personalData?.role || 'viajante'}
               onBack={() => {
                 changeView('dashboard');
                 setSelectedCongregation(null);
@@ -980,14 +1020,14 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'substitutes' && (
+          {currentView === 'substitutes' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <SubstitutesView 
               userId={user.id}
               onBack={() => changeView('dashboard')} 
             />
           )}
 
-          {currentView === 'itineraries' && (
+          {currentView === 'itineraries' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <ItinerariesView 
               userId={user.id}
               user={user}
@@ -1019,7 +1059,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'statistics' && (
+          {currentView === 'statistics' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <CircuitStatisticsView 
               userId={user.id}
               personalData={personalData}
@@ -1027,7 +1067,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'schools' && (
+          {currentView === 'schools' && ((personalData?.role === 'viajante' || user?.role === 'admin') || hasGuestInvites) && (
             <SchoolsView 
               userId={user.id}
               congregations={congregations}
@@ -1037,7 +1077,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'pioneer_school' && (
+          {currentView === 'pioneer_school' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <PioneerSchoolView 
               userId={user.id}
               onBack={() => changeView('schools')}
@@ -1057,7 +1097,7 @@ export default function Home() {
              />
           )}
 
-          {currentView === 'events' && (
+          {currentView === 'events' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <EventsView 
               userId={user.id}
               onBack={() => changeView('dashboard')}
@@ -1112,7 +1152,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'cartas' && (
+          {currentView === 'cartas' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <CartasSeletorView 
               onViewChange={(view) => {
                 if (view === 'cartas_esp') setEspInitialMode('geracao');

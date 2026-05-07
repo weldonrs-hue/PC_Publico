@@ -64,7 +64,8 @@ const defaultData = {
   emailPessoal: '',
   telefonePessoal: '',
   signatureImage: null as string | null,
-  signatureOffset: 0
+  signatureOffset: 0,
+  role: '' as 'viajante' | 'pioneiro_especial' | 'pioneiro_regular' | ''
 };
 
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
@@ -305,7 +306,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       >
         <div className="bg-emerald-600 p-4 text-white">
           <h3 className="font-bold flex items-center gap-2">
-            Informações de Perfil
+            Perfil e Acesso
           </h3>
         </div>
 
@@ -315,6 +316,42 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+            {/* Role Selection */}
+            <div className="space-y-4 mb-8 bg-gray-50 p-6 rounded-2xl border border-gray-200">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">
+                Selecione sua categoria de conta
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { id: 'viajante', label: 'Viajante no Circuito', icon: Globe },
+                  { id: 'pioneiro_especial', label: 'Pioneiro Especial', icon: Sparkles },
+                  { id: 'pioneiro_regular', label: 'Pioneiro Regular', icon: User }
+                ].map((role) => (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: role.id as any })}
+                    className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                      formData.role === role.id 
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md scale-[1.02]' 
+                        : 'border-gray-100 bg-white text-gray-500 hover:border-emerald-200'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg ${formData.role === role.id ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}>
+                      <role.icon size={20} />
+                    </div>
+                    <span className="font-bold text-sm">{role.label}</span>
+                    {formData.role === role.id && <Check size={18} className="ml-auto" />}
+                  </button>
+                ))}
+              </div>
+              {!formData.role && (
+                <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-2 ml-1">
+                  * Você precisa selecionar uma categoria para continuar
+                </p>
+              )}
+            </div>
+
             {/* Row 1: Names and ID */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-1 space-y-2">
@@ -594,9 +631,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             <div className="flex justify-end pt-6 border-t border-gray-100">
               <button 
                 type="submit"
-                disabled={!hasChanges}
+                disabled={!hasChanges || !formData.role}
                 className={`px-10 py-3 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 ${
-                  hasChanges 
+                  hasChanges && formData.role
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                 }`}

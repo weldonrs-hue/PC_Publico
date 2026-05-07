@@ -28,11 +28,21 @@ interface SidebarProps {
   espInitialMode?: 'geracao' | 'manager';
   onBack: () => void;
   onViewChange: (view: any) => void;
+  hasGuestInvites?: boolean;
 }
 
 import Logo from './Logo';
 
-export default function Sidebar({ onLogout, user, personalData, currentView, espInitialMode, onBack, onViewChange }: SidebarProps) {
+export default function Sidebar({ 
+  onLogout, 
+  user, 
+  personalData, 
+  currentView, 
+  espInitialMode, 
+  onBack, 
+  onViewChange,
+  hasGuestInvites = false
+}: SidebarProps) {
   const navRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -137,6 +147,16 @@ export default function Sidebar({ onLogout, user, personalData, currentView, esp
   
   const menuItems = navItems.filter(item => {
     if (item.view === 'cartas_dashboard') return isAdminUser;
+    
+    const role = personalData?.role || 'viajante';
+    if (role === 'pioneiro_especial' || role === 'pioneiro_regular') {
+      // Forbidden modules for pioneers
+      if (['events', 'cartas'].includes(item.view)) return false;
+      
+      // Schools only if they have guest invites
+      if (item.view === 'schools') return hasGuestInvites;
+    }
+    
     return true;
   });
 
