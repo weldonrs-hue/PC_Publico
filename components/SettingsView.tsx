@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { 
   RefreshCw, 
   Printer, 
@@ -48,6 +49,7 @@ import {
 import { auth } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { createCircuitFolderStructure } from '@/utils/fileSystem';
+const RoleChangeRequestModal = dynamic(() => import('@/components/RoleChangeRequestModal'), { ssr: false });
 
 interface SettingsViewProps {
   userId: string;
@@ -77,6 +79,14 @@ const settingsButtons = [
     subtitle: 'DE PASTAS DO CIRCUITO',
     color: '#6c40bd',
     gradient: 'from-[#6c40bd] to-[#5a35a0]'
+  },
+  {
+    id: 'role_change',
+    icon: RefreshCw,
+    title: 'ALTERAR CATEGORIA',
+    subtitle: 'SOLICITAR MUDANÇA AO ADMIN',
+    color: '#6c40bd',
+    gradient: 'from-[#6c40bd] to-[#4c1d95]'
   },
   {
     id: 'usuarios',
@@ -124,6 +134,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isFormattingAccount, setIsFormattingAccount] = useState(false);
+  const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
   const [isShowingPrivacy, setIsShowingPrivacy] = useState(false);
   const [isManagingPioneerAccess, setIsManagingPioneerAccess] = useState(false);
   const [pioneerInvites, setPioneerInvites] = useState<any[]>([]);
@@ -285,6 +296,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       setFormatError(null);
     } else if (id === 'privacidade') {
       setIsShowingPrivacy(true);
+    } else if (id === 'role_change') {
+      setShowRoleChangeModal(true);
     } else {
       alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
     }
@@ -1219,6 +1232,17 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               <p className="text-xs opacity-90">As pastas foram organizadas em: {circuito || 'Circuito'}</p>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showRoleChangeModal && (
+          <RoleChangeRequestModal 
+            userId={userId}
+            currentRole={personalData?.role || 'viajante'}
+            userName={personalData?.nome || ''}
+            onClose={() => setShowRoleChangeModal(false)}
+          />
         )}
       </AnimatePresence>
     </>

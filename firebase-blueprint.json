@@ -83,6 +83,22 @@
       },
       "required": ["userId", "semana", "ordem"]
     },
+    "role_change_request": {
+      "title": "Role Change Request",
+      "description": "Request to change the user category",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "currentRole": { "type": "string" },
+        "requestedRole": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "requestedRole", "phoneNumber", "status"]
+    },
     "activity_analysis": {
       "title": "Activity Analysis",
       "description": "Congregation activity analysis data",
@@ -266,6 +282,10 @@
     "/itineraries/{itId}": {
       "schema": "itinerary",
       "description": "Collection of itineraries"
+    },
+    "/role_change_requests/{requestId}": {
+      "schema": "role_change_request",
+      "description": "Role change requests for admin approval"
     },
     "/activity_analysis/{analysisId}": {
       "schema": "activity_analysis",

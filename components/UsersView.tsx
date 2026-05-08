@@ -19,7 +19,8 @@ import {
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
-  X
+  X,
+  Phone
 } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import { 
@@ -51,12 +52,24 @@ interface UserMetadata {
   numeroPessoal?: string;
 }
 
+interface RoleChangeRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  currentRole: string;
+  requestedRole: string;
+  phoneNumber: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
 interface UsersViewProps {
   onBack: () => void;
 }
 
 export default function UsersView({ onBack }: UsersViewProps) {
   const [users, setUsers] = useState<UserMetadata[]>([]);
+  const [roleRequests, setRoleRequests] = useState<RoleChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -73,10 +86,11 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const fetchUsers = async () => {
     setRefreshing(true);
     try {
-      // Fetch users and personal data in parallel to save time
-      const [usersSnapshot, personalDataSnapshot] = await Promise.all([
+      // Fetch users, personal data, and role requests in parallel
+      const [usersSnapshot, personalDataSnapshot, requestsSnapshot] = await Promise.all([
         getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'personal_data'))
+        getDocs(collection(db, 'personal_data')),
+        getDocs(query(collection(db, 'role_change_requests'), orderBy('createdAt', 'desc')))
       ]);
 
       // Map personal data for quick lookup
@@ -104,6 +118,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
         return dateB - dateA;
       });
       
+      const requestsData = requestsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as RoleChangeRequest[];
+
+      setRoleRequests(requestsData);
       setUsers(usersData);
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, 'users_and_personal_data');
@@ -216,6 +236,46 @@ export default function UsersView({ onBack }: UsersViewProps) {
     }
   };
 
+  const handleApproveRequest = async (request: RoleChangeRequest) => {
+    try {
+      const batch = writeBatch(db);
+      
+      // Update request status
+      batch.update(doc(db, 'role_change_requests', request.id), { 
+        status: 'approved',
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update user personal_data role
+      batch.update(doc(db, 'personal_data', request.userId), { 
+        role: request.requestedRole 
+      });
+      
+      await batch.commit();
+      
+      // Update local state
+      setRoleRequests(prev => prev.map(r => r.id === request.id ? { ...r, status: 'approved' } : r));
+      // Refresh users to reflect role change
+      fetchUsers();
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Erro ao aprovar solicitação.');
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      await updateDoc(doc(db, 'role_change_requests', requestId), { 
+        status: 'rejected',
+        updatedAt: new Date().toISOString()
+      });
+      setRoleRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' } : r));
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Erro ao rejeitar solicitação.');
+    }
+  };
+
   const formatDate = (dateStr: any) => {
     if (!dateStr) return 'N/A';
     try {
@@ -283,6 +343,73 @@ export default function UsersView({ onBack }: UsersViewProps) {
           </button>
         </div>
       </div>
+
+      {/* Role Change Requests Section */}
+      {roleRequests.some(r => r.status === 'pending') && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 ml-1">
+            <RefreshCw className="text-purple-600" size={20} />
+            <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">Solicitações de Categoria Pendentes</h3>
+            <span className="bg-purple-100 text-purple-600 text-[10px] font-black px-2 py-0.5 rounded-full">
+              {roleRequests.filter(r => r.status === 'pending').length}
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roleRequests.filter(r => r.status === 'pending').map((request) => (
+              <motion.div 
+                key={request.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm space-y-4"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-black text-sm text-gray-900 uppercase tracking-tight">{request.userName || 'Usuário'}</h4>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">{formatDate(request.createdAt)}</p>
+                  </div>
+                  <div className="bg-purple-50 p-2 rounded-xl text-purple-600">
+                    <Fingerprint size={20} />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
+                  <div className="flex-1 text-center">
+                    <p className="text-[9px] text-gray-400 font-black uppercase">Atual</p>
+                    <p className="text-[10px] font-bold text-gray-600 uppercase truncate">{request.currentRole.replace('_', ' ')}</p>
+                  </div>
+                  <div className="text-purple-300">→</div>
+                  <div className="flex-1 text-center font-black">
+                    <p className="text-[9px] text-purple-400 uppercase">Solicitada</p>
+                    <p className="text-[11px] text-purple-700 uppercase truncate">{request.requestedRole.replace('_', ' ')}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                  <Phone size={14} className="text-emerald-600" />
+                  <span className="text-xs font-black text-emerald-700">{request.phoneNumber}</span>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => handleApproveRequest(request)}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black py-2.5 rounded-xl transition-all uppercase tracking-widest shadow-md shadow-emerald-100"
+                  >
+                    Aprovar
+                  </button>
+                  <button
+                    onClick={() => handleRejectRequest(request.id)}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 text-[10px] font-black py-2.5 rounded-xl transition-all uppercase tracking-widest"
+                  >
+                    Recusar
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Users Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

@@ -61,6 +61,17 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    match /role_change_requests/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        request.auth.token.email == 'weldonrs@gmail.com' || 
+        request.auth.token.email == '2283701@progcir.app' ||
+        request.auth.token.email == '2283701@progcir.com'
+      );
+      allow delete: if false;
+    }
+
     match /config/app_settings {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && (

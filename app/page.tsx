@@ -36,6 +36,7 @@ const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr:
 const CartasCongressoView = dynamic(() => import('@/components/CartasCongressoView'), { ssr: false });
 const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
+const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
@@ -842,6 +843,8 @@ export default function Home() {
     return <AuthForm onLoginSuccess={(userData) => setUser(userData)} />;
   }
 
+  const showRoleSelection = user && !loadingPersonalData && (!personalData || !personalData.role) && !quotaExceeded;
+
   const handleCardClick = (title: string) => {
     if (title === 'Dados Pessoais') {
       changeView('personal_data');
@@ -1255,6 +1258,15 @@ export default function Home() {
               </div>
               <DocxToPdfDemo />
             </div>
+          )}
+
+          {showRoleSelection && (
+            <RoleSelectionModal 
+              userId={user.id} 
+              onRoleSelected={(role) => {
+                setPersonalData((prev: any) => ({ ...prev, role }));
+              }} 
+            />
           )}
         </div>
 

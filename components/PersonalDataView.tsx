@@ -330,12 +330,13 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   <button
                     key={role.id}
                     type="button"
+                    disabled={!!initialData.role}
                     onClick={() => setFormData({ ...formData, role: role.id as any })}
                     className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                       formData.role === role.id 
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md scale-[1.02]' 
                         : 'border-gray-100 bg-white text-gray-500 hover:border-emerald-200'
-                    }`}
+                    } ${initialData.role ? 'cursor-not-allowed opacity-80' : ''}`}
                   >
                     <div className={`p-2 rounded-lg ${formData.role === role.id ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}>
                       <role.icon size={20} />
@@ -345,7 +346,11 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                   </button>
                 ))}
               </div>
-              {!formData.role && (
+              {initialData.role ? (
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 ml-1">
+                  Sua categoria é permanente. Solicite alteração nos Ajustes se necessário.
+                </p>
+              ) : !formData.role && (
                 <p className="text-red-500 text-[10px] font-bold uppercase tracking-widest mt-2 ml-1">
                   * Você precisa selecionar uma categoria para continuar
                 </p>
