@@ -579,6 +579,9 @@ export default function Home() {
                 const batch = writeBatch(db);
                 let batchCount = 0;
                 
+                // Track documents to delete from old user
+                const docsToDelete: { collection: string; id: string }[] = [];
+                
                 for (const collName of collectionsToMigrate) {
                   try {
                     const q = query(collection(db, collName), where('userId', '==', oldUserId));
@@ -598,23 +601,43 @@ export default function Home() {
                       }
                       
                       batch.set(newDocRef, { ...docData, userId: activeUid });
+                      docsToDelete.push({ collection: collName, id: d.id });
                       batchCount++;
-                      if (batchCount >= 450) break; 
+                      if (batchCount >= 400) break; // Leave room for deletions
                     }
                   } catch (error) {
                     console.warn(`Migration of ${collName} failed:`, error);
                   }
-                  if (batchCount >= 450) break;
+                  if (batchCount >= 400) break;
                 }
 
                 if (batchCount > 0) {
                   await batch.commit();
                 }
 
-                // Mark migration as completed in user doc
+                // Delete old documents to prevent duplication in the system
+                const deleteBatch = writeBatch(db);
+                let deleteCount = 0;
+                
+                // Delete old personal_data and old user profile
+                deleteBatch.delete(doc(db, 'personal_data', oldUserId));
+                deleteBatch.delete(doc(db, 'users', oldUserId));
+                deleteCount += 2;
+
+                for (const docInfo of docsToDelete) {
+                  deleteBatch.delete(doc(db, docInfo.collection, docInfo.id));
+                  deleteCount++;
+                  if (deleteCount >= 450) break;
+                }
+                
+                if (deleteCount > 0) {
+                  await deleteBatch.commit();
+                }
+
+                // Mark migration as completed in current user doc
                 await updateDoc(doc(db, 'users', activeUid), { 
                   migrationCompleted: true,
-                  migrationV2Completed: true // Added to track that analysis/reports were also migrated
+                  migrationV2Completed: true
                 });
               } catch (error) {
                 console.error('Migration process failed:', error);
@@ -650,6 +673,7 @@ export default function Home() {
                     const collectionsToMigrate = ['activity_analysis', 's303_reports'];
                     const batch = writeBatch(db);
                     let batchCount = 0;
+                    const docsToDelete: { collection: string; id: string }[] = [];
                     
                     for (const collName of collectionsToMigrate) {
                       const q = query(collection(db, collName), where('userId', '==', oldUserId));
@@ -662,6 +686,7 @@ export default function Home() {
                         const newDocRef = doc(db, collName, newId);
                         
                         batch.set(newDocRef, { ...docData, userId: activeUid });
+                        docsToDelete.push({ collection: collName, id: d.id });
                         batchCount++;
                         if (batchCount >= 450) break;
                       }
@@ -670,6 +695,13 @@ export default function Home() {
                     
                     if (batchCount > 0) {
                       await batch.commit();
+                      
+                      // Delete old docs for V2 migration too
+                      const deleteBatch = writeBatch(db);
+                      for (const docInfo of docsToDelete) {
+                        deleteBatch.delete(doc(db, docInfo.collection, docInfo.id));
+                      }
+                      await deleteBatch.commit();
                     }
                     
                     await updateDoc(doc(db, 'users', activeUid), { migrationV2Completed: true });

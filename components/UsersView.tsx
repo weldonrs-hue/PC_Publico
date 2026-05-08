@@ -110,7 +110,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
           numeroPessoal: pd?.numeroPessoal || data.email?.split('@')[0] || '---'
         } as UserMetadata;
       });
-      
+
       // Sort in-memory: newest first, users without date at the end
       usersData.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -413,11 +413,19 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
       {/* Users Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 bg-amber-50 border-b border-amber-100 flex items-start gap-3">
-          <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-700 leading-relaxed">
-            <strong>Nota:</strong> As datas de criação e último login são sincronizadas a partir do Firebase Authentication quando o usuário realiza login no sistema. Se um usuário ainda não acessou esta versão do sistema, os dados podem aparecer como &quot;N/A&quot;.
-          </p>
+        <div className="p-4 bg-amber-50 border-b border-amber-100 flex flex-col gap-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 leading-relaxed">
+              <strong>Nota:</strong> Se você excluiu um usuário do Firebase Auth, ele ainda aparecerá aqui até que seus dados sejam removidos manualmente. Contas marcadas como <span className="text-red-700 font-bold">DUPLICADO</span> indicam que o mesmo Número Pessoal está em dois perfis diferentes. 
+            </p>
+          </div>
+          <div className="flex items-start gap-3">
+            <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 leading-relaxed">
+              As datas de criação e último login são sincronizadas a partir do Firebase Authentication quando o usuário realiza login.
+            </p>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -519,10 +527,17 @@ export default function UsersView({ onBack }: UsersViewProps) {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <span className="text-xs font-mono font-bold text-[#512da8] bg-[#512da8]/5 px-2 py-1 rounded-lg">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className={`text-xs font-mono font-bold px-2 py-1 rounded-lg ${
+                          users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1
+                            ? 'bg-red-100 text-red-700 border border-red-200'
+                            : 'bg-[#512da8]/5 text-[#512da8]'
+                        }`}>
                           {user.numeroPessoal}
                         </span>
+                        {users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1 && (
+                          <span className="text-[9px] text-red-500 font-black uppercase">Duplicado</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">

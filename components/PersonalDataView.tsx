@@ -266,10 +266,37 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
+    // Validar Número Pessoal
+    if (!formData.numeroPessoal || formData.numeroPessoal.trim().length === 0) {
+      alert('O Número Pessoal é obrigatório.');
+      return;
+    }
+
+    setIsProcessing(true);
+
     try {
       if (isQuotaExceeded()) {
         throw new Error('quota/limit-exceeded');
       }
+
+      // 1. Verificar se o número pessoal já existe em outro perfil
+      const q = query(
+        collection(db, 'personal_data'), 
+        where('numeroPessoal', '==', formData.numeroPessoal.trim())
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
+      const conflictDocs = querySnapshot.docs.filter(doc => doc.id !== userId);
+      
+      if (conflictDocs.length > 0) {
+        const conflictData = conflictDocs[0].data();
+        setIsProcessing(false);
+        alert(`ERRO: Este Número Pessoal (${formData.numeroPessoal}) já está sendo usado pela conta de: ${conflictData.nome || conflictData.emailPessoal || conflictDocs[0].id}.\n\nNão é permitido ter duas contas com o mesmo número. Se você está tentando recuperar seus dados após trocar de e-mail, entre em contato com o suporte.`);
+        return;
+      }
+
       // Use userId as document ID
       const docRef = doc(db, 'personal_data', userId);
       await setDoc(docRef, { ...formData, userId });
@@ -280,6 +307,8 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         setQuotaExceededGlobal();
       }
       handleFirestoreError(error, OperationType.WRITE, 'personal_data');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -595,15 +624,15 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             <div className="flex justify-end pt-6 border-t border-gray-100">
               <button 
                 type="submit"
-                disabled={!hasChanges || !formData.role}
+                disabled={!hasChanges || !formData.role || isProcessing}
                 className={`px-10 py-3 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 ${
-                  hasChanges && formData.role
+                  hasChanges && formData.role && !isProcessing
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                 }`}
               >
-                <Save size={20} />
-                Salvar Alterações
+                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                {isProcessing ? 'Processando...' : 'Salvar Alterações'}
               </button>
             </div>
           </form>
