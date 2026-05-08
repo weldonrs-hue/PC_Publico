@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Landmark, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download } from 'lucide-react';
+import { Landmark, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download, CheckCircle2, Circle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
@@ -246,6 +246,8 @@ const regionalConventionProgram = [
 export default function RegionalConventionView({ userId, onBack }: RegionalConventionViewProps) {
   const [speakers, setSpeakers] = useState<Record<string, string>>({});
   const [initialSpeakers, setInitialSpeakers] = useState<Record<string, string>>({});
+  const [confirmedSpeakers, setConfirmedSpeakers] = useState<Record<string, boolean>>({});
+  const [initialConfirmedSpeakers, setInitialConfirmedSpeakers] = useState<Record<string, boolean>>({});
   const [personalData, setPersonalData] = useState<any>(null);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
   const [details, setDetails] = useState<ConventionDetails>({
@@ -271,6 +273,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
   const currentDay = regionalConventionProgram[selectedDayIndex];
   const hasChanges = JSON.stringify(speakers) !== JSON.stringify(initialSpeakers) || 
+                     JSON.stringify(confirmedSpeakers) !== JSON.stringify(initialConfirmedSpeakers) ||
                      JSON.stringify(details) !== JSON.stringify(initialDetails);
 
   // Load data from Firestore and localStorage
@@ -304,6 +307,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         const docSnap = await getDoc(docRef);
         
         let loadedSpeakers = {};
+        let loadedConfirmations = {};
         let loadedDetails = {
           eventDate: '',
           eventLocation: '',
@@ -315,6 +319,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         if (docSnap.exists()) {
           const data = docSnap.data();
           loadedSpeakers = data.speakers || {};
+          loadedConfirmations = data.confirmations || {};
           loadedDetails = {
             eventDate: data.details?.eventDate || '',
             eventLocation: data.details?.eventLocation || '',
@@ -328,6 +333,10 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           if (localData) {
             loadedSpeakers = JSON.parse(localData);
           }
+          const localConfirmations = localStorage.getItem(`confirmations_${userId}`);
+          if (localConfirmations) {
+            loadedConfirmations = JSON.parse(localConfirmations);
+          }
           const localDetails = localStorage.getItem(`convention_details_${userId}`);
           if (localDetails) {
             loadedDetails = JSON.parse(localDetails);
@@ -336,6 +345,8 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         
         setSpeakers(loadedSpeakers);
         setInitialSpeakers(loadedSpeakers);
+        setConfirmedSpeakers(loadedConfirmations);
+        setInitialConfirmedSpeakers(loadedConfirmations);
         setDetails(loadedDetails);
         setInitialDetails(loadedDetails);
       } catch (error) {
@@ -363,9 +374,10 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
   useEffect(() => {
     if (!isLoading) {
       localStorage.setItem(`speakers_${userId}`, JSON.stringify(speakers));
+      localStorage.setItem(`confirmations_${userId}`, JSON.stringify(confirmedSpeakers));
       localStorage.setItem(`convention_details_${userId}`, JSON.stringify(details));
     }
-  }, [speakers, details, userId, isLoading]);
+  }, [speakers, confirmedSpeakers, details, userId, isLoading]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -373,10 +385,12 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
       const docRef = doc(db, 'regional_convention_speakers', userId);
       await setDoc(docRef, { 
         speakers,
+        confirmations: confirmedSpeakers,
         details,
         updatedAt: new Date().toISOString()
       }, { merge: true });
       setInitialSpeakers(speakers);
+      setInitialConfirmedSpeakers(confirmedSpeakers);
       setInitialDetails(details);
       return true;
     } catch (error) {
@@ -416,6 +430,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
   const confirmDiscard = () => {
     setSpeakers(initialSpeakers);
+    setConfirmedSpeakers(initialConfirmedSpeakers);
     setDetails(initialDetails);
     setShowConfirmModal(false);
     if (pendingAction) pendingAction();
@@ -423,6 +438,10 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
   const handleSpeakerChange = (id: string, value: string) => {
     setSpeakers(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleConfirmationToggle = (id: string) => {
+    setConfirmedSpeakers(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const generateDocument = async (item: any, type: 'docx' | 'pdf') => {
@@ -1021,7 +1040,10 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                       {/* Print Item Row */}
                       <div className="hidden print:flex print-row">
                         <div className="print-cell-speaker" style={{ color: currentDay.color }}>
-                          {!item.noSpeaker && (speakers[item.id] || '')}
+                          <div className="flex items-center gap-2">
+                            {confirmedSpeakers[item.id] && <CheckCircle2 size={12} className="shrink-0" />}
+                            <span>{!item.noSpeaker && (speakers[item.id] || '')}</span>
+                          </div>
                         </div>
                         <div className="print-cell-time">{item.time || ''}</div>
                         <div className="print-cell-content">
@@ -1040,18 +1062,31 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                         <div className="w-64 shrink-0 flex flex-col gap-2">
                           {!item.noSpeaker && (
                             <>
-                              <div className="relative group">
-                                <input 
-                                  type="text"
-                                  placeholder="Orador..."
-                                  value={speakers[item.id] || ''}
-                                  onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
-                                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
-                                  style={{ 
-                                    borderColor: speakers[item.id] ? currentDay.color : undefined,
-                                    borderWidth: speakers[item.id] ? '2px' : '1px'
-                                  }}
-                                />
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleConfirmationToggle(item.id)}
+                                  className={`shrink-0 transition-all ${confirmedSpeakers[item.id] ? 'text-emerald-500 scale-110' : 'text-gray-300 hover:text-gray-400'}`}
+                                  title={confirmedSpeakers[item.id] ? "Confirmado" : "Confirmar designação"}
+                                >
+                                  {confirmedSpeakers[item.id] ? (
+                                    <CheckCircle2 size={24} className="fill-emerald-50" />
+                                  ) : (
+                                    <Circle size={24} />
+                                  )}
+                                </button>
+                                <div className="relative group flex-1">
+                                  <input 
+                                    type="text"
+                                    placeholder="Orador..."
+                                    value={speakers[item.id] || ''}
+                                    onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
+                                    style={{ 
+                                      borderColor: speakers[item.id] ? (confirmedSpeakers[item.id] ? '#10b981' : currentDay.color) : undefined,
+                                      borderWidth: speakers[item.id] ? '2px' : '1px'
+                                    }}
+                                  />
+                                </div>
                               </div>
                               <div className="flex gap-2">
                                 <button
@@ -1099,7 +1134,10 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                               {/* Print Subitem Layout */}
                               <div className="hidden print:flex print-row print-subitem-row">
                                 <div className="print-cell-speaker" style={{ color: currentDay.color }}>
-                                  {speakers[sub.id] || ''}
+                                  <div className="flex items-center gap-2">
+                                    {confirmedSpeakers[sub.id] && <CheckCircle2 size={12} className="shrink-0" />}
+                                    <span>{speakers[sub.id] || ''}</span>
+                                  </div>
                                 </div>
                                 <div className="print-cell-time"></div>
                                 <div className="print-cell-content">
@@ -1111,18 +1149,31 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
 
                               {/* Speaker Input - Left Side (Hidden in Print) */}
                               <div className="w-64 shrink-0 no-print flex flex-col gap-2">
-                                <div className="relative group">
-                                  <input 
-                                    type="text"
-                                    placeholder="Orador..."
-                                    value={speakers[sub.id] || ''}
-                                    onChange={(e) => handleSpeakerChange(sub.id, e.target.value)}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
-                                    style={{ 
-                                      borderColor: speakers[sub.id] ? currentDay.color : undefined,
-                                      borderWidth: speakers[sub.id] ? '2px' : '1px'
-                                    }}
-                                  />
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleConfirmationToggle(sub.id)}
+                                    className={`shrink-0 transition-all ${confirmedSpeakers[sub.id] ? 'text-emerald-500 scale-110' : 'text-gray-300 hover:text-gray-400'}`}
+                                    title={confirmedSpeakers[sub.id] ? "Confirmado" : "Confirmar designação"}
+                                  >
+                                    {confirmedSpeakers[sub.id] ? (
+                                      <CheckCircle2 size={24} className="fill-emerald-50" />
+                                    ) : (
+                                      <Circle size={24} />
+                                    )}
+                                  </button>
+                                  <div className="relative group flex-1">
+                                    <input 
+                                      type="text"
+                                      placeholder="Orador..."
+                                      value={speakers[sub.id] || ''}
+                                      onChange={(e) => handleSpeakerChange(sub.id, e.target.value)}
+                                      className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
+                                      style={{ 
+                                        borderColor: speakers[sub.id] ? (confirmedSpeakers[sub.id] ? '#10b981' : currentDay.color) : undefined,
+                                        borderWidth: speakers[sub.id] ? '2px' : '1px'
+                                      }}
+                                    />
+                                  </div>
                                 </div>
                                 <div className="flex gap-2">
                                   <button

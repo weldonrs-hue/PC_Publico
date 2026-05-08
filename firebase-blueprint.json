@@ -181,12 +181,20 @@
     },
     "regional_convention_speakers": {
       "title": "Regional Convention Speakers",
-      "description": "List of speakers for the regional convention program",
+      "description": "List of speakers and their confirmation status for the regional convention program",
       "type": "object",
       "properties": {
         "speakers": { 
           "type": "object", 
           "description": "Map of program item IDs to speaker names" 
+        },
+        "confirmations": {
+          "type": "object",
+          "description": "Map of program item IDs to boolean confirmation status"
+        },
+        "details": {
+          "type": "object",
+          "description": "General details about the convention"
         },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
