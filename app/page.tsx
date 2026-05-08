@@ -15,6 +15,7 @@ const ItinerariesView = dynamic(() => import('@/components/ItinerariesView'), { 
 const SettingsView = dynamic(() => import('@/components/SettingsView'), { ssr: false });
 const UsersView = dynamic(() => import('@/components/UsersView'), { ssr: false });
 const CircuitStatisticsView = dynamic(() => import('@/components/CircuitStatisticsView'), { ssr: false });
+const CongregationStatisticsView = dynamic(() => import('@/components/CongregationStatisticsView'), { ssr: false });
 const SchoolsView = dynamic(() => import('@/components/SchoolsView'), { ssr: false });
 const PioneerSchoolView = dynamic(() => import('@/components/PioneerSchoolView'), { ssr: false });
 const EventsView = dynamic(() => import('@/components/EventsView'), { ssr: false });
@@ -1110,6 +1111,13 @@ export default function Home() {
               userId={user.id}
               personalData={personalData}
               onBack={() => changeView('dashboard')} 
+            />
+          )}
+
+          {currentView === 'congregation_statistics' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+            <CongregationStatisticsView 
+              userId={user.id}
+              onBack={() => changeView('dashboard')}
             />
           )}
 
