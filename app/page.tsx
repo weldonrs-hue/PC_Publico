@@ -160,6 +160,7 @@ export default function Home() {
     schools: 'schools'
   });
   const [personalData, setPersonalData] = useState<any>(null);
+  const [loadingPersonalData, setLoadingPersonalData] = useState(true);
   const [congStats, setCongStats] = useState({ 
     congregations: 0, 
     groups: 0, 
@@ -356,6 +357,7 @@ export default function Home() {
         }
         setUser(null);
         setPersonalData(null);
+        setLoadingPersonalData(false);
         setCongStats({ 
           congregations: 0, 
           groups: 0, 
@@ -463,6 +465,7 @@ export default function Home() {
       
       // fetchData: Starting logic removed slowgetIdTokenResult call
       try {
+        setLoadingPersonalData(true);
         // Fetch Personal Data if not already loaded or if it's been a while
         if (!personalData || isDashboard) {
           const pdDocRef = doc(db, 'personal_data', activeUid);
@@ -801,11 +804,24 @@ export default function Home() {
         if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
           setQuotaExceeded(true);
         }
+      } finally {
+        setLoadingPersonalData(false);
       }
     };
 
     fetchData();
   }, [user?.id, user?.usuario, user?.migrationCompleted, user?.migrationV2Completed, currentView, quotaExceeded]); // Removed personalData to avoid potential loops
+
+  // Logic to force Role Selection for new users or missing roles
+  useEffect(() => {
+    if (user && !loadingPersonalData && !quotaExceeded) {
+      if (!personalData || !personalData.role) {
+        if (currentView !== 'personal_data') {
+          setCurrentView('personal_data');
+        }
+      }
+    }
+  }, [user, personalData, loadingPersonalData, currentView, quotaExceeded]);
 
   const handlePersonalDataSave = () => {
     // Trigger re-fetch

@@ -295,7 +295,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <h2 className="text-2xl font-bold text-gray-800">
-          Dados Pessoais do Superintendente
+          {(formData.role === 'viajante' || !formData.role) ? 'Dados Pessoais do Superintendente' : 'Meus Dados Pessoais'}
         </h2>
       </div>
 
