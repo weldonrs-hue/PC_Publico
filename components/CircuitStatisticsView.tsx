@@ -33,6 +33,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import CongregationStatisticsView from './CongregationStatisticsView';
 
 interface CircuitStatisticsViewProps {
   userId: string;
@@ -456,6 +457,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         <div className="hidden print:block text-center pt-2 pb-4">
           <h1 className="text-4xl font-bold tracking-tight text-sky-600">Estatísticas do Circuito</h1>
         </div>
+
+        {/* Section: Congregation-specific Trends */}
+        <section className="print:hidden">
+          <CongregationStatisticsView userId={userId} />
+        </section>
 
         {/* Summary Line */}
         <div className="flex items-center justify-center gap-2 text-[24px] font-normal py-4">
