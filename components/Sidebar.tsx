@@ -2,7 +2,7 @@
 // Force rebuild - updated
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList, Mail, BarChart3, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import ImageCropper from './ImageCropper';
@@ -12,8 +12,6 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Circuito', view: 'dashboard' },
-  { icon: BarChart3, label: 'Estat. Circuito', view: 'statistics' },
-  { icon: TrendingUp, label: 'Estat. Cong.', view: 'congregation_statistics' },
   { icon: GraduationCap, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
   { icon: Mail, label: 'Cartas', view: 'cartas' },
@@ -86,14 +84,8 @@ export default function Sidebar({
     if (currentView === itemView) return true;
 
     if (itemView === 'dashboard') {
-      const dashboardViews = ['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'aviso_de_visitas'];
+      const dashboardViews = ['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics', 'aviso_de_visitas'];
       return dashboardViews.includes(currentView);
-    }
-    if (itemView === 'statistics') {
-      return currentView === 'statistics';
-    }
-    if (itemView === 'congregation_statistics') {
-      return currentView === 'congregation_statistics';
     }
     if (itemView === 'schools') {
       return ['schools', 'pioneer_school'].includes(currentView);
@@ -159,7 +151,7 @@ export default function Sidebar({
     const role = personalData?.role || 'viajante';
     if (role === 'pioneiro_especial' || role === 'pioneiro_regular') {
       // Forbidden modules for pioneers
-      if (['events', 'cartas', 'statistics', 'congregation_statistics'].includes(item.view)) return false;
+      if (['events', 'cartas'].includes(item.view)) return false;
       
       // Schools only if they have guest invites
       if (item.view === 'schools') return hasGuestInvites;

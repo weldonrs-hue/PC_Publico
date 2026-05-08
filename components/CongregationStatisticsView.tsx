@@ -9,8 +9,7 @@ import {
   ArrowRight,
   TrendingDown,
   Minus,
-  Info,
-  ArrowLeft
+  Info
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
@@ -18,7 +17,6 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface CongregationStatisticsViewProps {
   userId: string;
-  onBack?: () => void;
 }
 
 interface AnalysisData {
@@ -48,7 +46,7 @@ interface AnalysisData {
   };
 }
 
-export default function CongregationStatisticsView({ userId, onBack }: CongregationStatisticsViewProps) {
+export default function CongregationStatisticsView({ userId }: CongregationStatisticsViewProps) {
   const [loading, setLoading] = useState(true);
   const [congregations, setCongregations] = useState<string[]>([]);
   const [selectedCong, setSelectedCong] = useState<string>('');
@@ -126,26 +124,16 @@ export default function CongregationStatisticsView({ userId, onBack }: Congregat
   if (loading) return null;
 
   return (
-    <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden min-h-[80vh]">
+    <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
       <div className="p-6 border-b border-gray-50 bg-gradient-to-r from-sky-50 to-white">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            {onBack && (
-              <button 
-                onClick={onBack}
-                className="p-2 hover:bg-white/50 rounded-xl transition-all text-gray-500 hover:text-sky-600"
-              >
-                <ArrowLeft size={24} />
-              </button>
-            )}
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-sky-500 text-white rounded-2xl shadow-lg shadow-sky-200">
-                <BarChart3 size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-gray-800 tracking-tight">Estatísticas por Congregação</h3>
-                <p className="text-sm text-gray-500 font-medium tracking-tight">Comparativo das últimas 4 visitas</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-500 text-white rounded-2xl shadow-lg shadow-sky-200">
+              <BarChart3 size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-gray-800 tracking-tight">Comparativo de Visitas</h3>
+              <p className="text-sm text-gray-500 font-medium">Análise das últimas 4 visitas</p>
             </div>
           </div>
           

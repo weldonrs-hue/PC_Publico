@@ -34,6 +34,12 @@ const cards = [
     gradient: 'from-sky-500 to-blue-600',
     icon: BarChart3,
   },
+  {
+    title: 'Estatísticas Cong.',
+    color: '#6366F1', // Indigo
+    gradient: 'from-indigo-500 to-blue-700',
+    icon: BarChart3,
+  },
 ];
 
 interface DashboardCardsProps {
@@ -66,7 +72,7 @@ export default function DashboardCards({
     if (isPioneer) {
       // For pioneers, within "Circuito" dashboard:
       // Only "Dados Pessoais" and "Congregações"
-      if (['Substitutos', 'Itinerários', 'Estatísticas'].includes(card.title)) return false;
+      if (['Substitutos', 'Itinerários', 'Estatísticas', 'Estatísticas Cong.'].includes(card.title)) return false;
     }
     return true;
   });
@@ -130,7 +136,8 @@ export default function DashboardCards({
                       <span className="text-gray-800 font-bold text-[10px] uppercase truncate">
                         {card.title === 'Substitutos' ? `${substituteCount} Ativos` : 
                          card.title === 'Itinerários' ? (currentEvent || 'Nenhum planejado') : 
-                         card.title === 'Estatísticas' ? `${analyzedCongregationsCount} Analisadas` : ''}
+                         card.title === 'Estatísticas' ? `${analyzedCongregationsCount} Analisadas` :
+                         card.title === 'Estatísticas Cong.' ? 'Últimas 4 Visitas' : ''}
                       </span>
                     </div>
                   )}
