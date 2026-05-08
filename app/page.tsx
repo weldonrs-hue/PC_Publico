@@ -815,13 +815,8 @@ export default function Home() {
 
   // Logic to force Role Selection for new users or missing roles
   useEffect(() => {
-    if (user && !loadingPersonalData && !quotaExceeded) {
-      if (!personalData || !personalData.role) {
-        if (currentView !== 'personal_data') {
-          setCurrentView('personal_data');
-        }
-      }
-    }
+    // We no longer force redirect to personal_data. 
+    // The RoleSelectionModal is rendered conditionally if the role is missing.
   }, [user, personalData, loadingPersonalData, currentView, quotaExceeded]);
 
   const handlePersonalDataSave = () => {

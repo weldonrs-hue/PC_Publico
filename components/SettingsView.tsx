@@ -554,9 +554,10 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
             
             const role = personalData?.role || 'viajante';
+            const hasInvites = (receivedPioneerInvites?.length || 0) > 0 || (pioneerInvites?.length || 0) > 0;
 
-            // Restringir "Instrutor B (ESP)" apenas para viajantes
-            if (btn.id === 'pioneer_access' && role !== 'viajante' && !isAdmin) {
+            // Mostrar "Instrutor B (ESP)" para viajantes, admins ou quem tem convites
+            if (btn.id === 'pioneer_access' && role !== 'viajante' && !isAdmin && !hasInvites) {
               return false;
             }
 
@@ -708,53 +709,62 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                   <UserPlus className="text-[#37616b]" size={32} />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2 text-center uppercase">Instrutor B (ESP)</h3>
-                <p className="text-[10px] text-gray-500 mb-8 text-center leading-relaxed">
-                  Conceda acesso a outro instrutor. <br/>
-                  <span className="font-bold text-[#37616b]">Importante:</span> O convidado deve primeiro cadastrar seu <span className="font-bold">Número Pessoal</span> na seção "Dados Pessoais" para ser encontrado.
-                </p>
+                
+                {(personalData?.role === 'viajante' || isAdmin) ? (
+                  <>
+                    <p className="text-[10px] text-gray-500 mb-8 text-center leading-relaxed">
+                      Conceda acesso a outro instrutor. <br/>
+                      <span className="font-bold text-[#37616b]">Importante:</span> O convidado deve primeiro cadastrar seu <span className="font-bold">Número Pessoal</span> na seção "Dados Pessoais" para ser encontrado.
+                    </p>
 
-                <form onSubmit={handleInviteInstructor} className="w-full space-y-6">
-                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Turma Escolhida</label>
-                    <div className="grid grid-cols-4 gap-2">
-                       {['1', '2', '3', 'all'].map((t) => (
-                         <button
-                           key={t}
-                           type="button"
-                           onClick={() => setInviteTurma(t as any)}
-                           className={`py-2 rounded-xl text-xs font-black transition-all ${
-                             inviteTurma === t 
-                               ? 'bg-[#37616b] text-white shadow-lg shadow-[#37616b]/20 scale-105' 
-                               : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                           }`}
-                         >
-                           {t === 'all' ? 'TODAS' : `T${t}`}
-                         </button>
-                       ))}
-                    </div>
-                  </div>
+                    <form onSubmit={handleInviteInstructor} className="w-full space-y-6">
+                       <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Turma Escolhida</label>
+                        <div className="grid grid-cols-4 gap-2">
+                           {['1', '2', '3', 'all'].map((t) => (
+                             <button
+                               key={t}
+                               type="button"
+                               onClick={() => setInviteTurma(t as any)}
+                               className={`py-2 rounded-xl text-xs font-black transition-all ${
+                                 inviteTurma === t 
+                                   ? 'bg-[#37616b] text-white shadow-lg shadow-[#37616b]/20 scale-105' 
+                                   : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                               }`}
+                             >
+                               {t === 'all' ? 'TODAS' : `T${t}`}
+                             </button>
+                           ))}
+                        </div>
+                      </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Código de Usuário (B)</label>
-                    <input 
-                      type="text"
-                      required
-                      value={inviteNumber}
-                      onChange={(e) => setInviteNumber(e.target.value)}
-                      placeholder="Ex: 2283701"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-[#37616b] focus:ring-2 focus:ring-[#37616b]/10 outline-none transition-all text-sm font-bold"
-                    />
-                  </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Código de Usuário (B)</label>
+                        <input 
+                          type="text"
+                          required
+                          value={inviteNumber}
+                          onChange={(e) => setInviteNumber(e.target.value)}
+                          placeholder="Ex: 2283701"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-[#37616b] focus:ring-2 focus:ring-[#37616b]/10 outline-none transition-all text-sm font-bold"
+                        />
+                      </div>
 
-                  <button 
-                    type="submit"
-                    disabled={inviteLoading || !inviteNumber.trim()}
-                    className="w-full py-4 bg-[#37616b] text-white font-black rounded-2xl hover:bg-[#2c4d55] transition-all shadow-xl shadow-[#37616b]/20 flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest"
-                  >
-                    {inviteLoading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-                    Enviar Convite
-                  </button>
-                </form>
+                      <button 
+                        type="submit"
+                        disabled={inviteLoading || !inviteNumber.trim()}
+                        className="w-full py-4 bg-[#37616b] text-white font-black rounded-2xl hover:bg-[#2c4d55] transition-all shadow-xl shadow-[#37616b]/20 flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest"
+                      >
+                        {inviteLoading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                        Enviar Convite
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <p className="text-[10px] text-gray-500 mb-8 text-center leading-relaxed">
+                    Você pode gerenciar os convites que recebeu para atuar como Instrutor B na Escola de Pioneiros.
+                  </p>
+                )}
 
                 <button 
                   onClick={() => setIsManagingPioneerAccess(false)}
