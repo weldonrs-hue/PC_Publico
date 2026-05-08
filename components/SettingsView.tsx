@@ -381,6 +381,12 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const handleInviteInstructor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteNumber.trim() || inviteLoading) return;
+
+    // Check if user has permission (viajante)
+    if (personalData?.role !== 'viajante' && !isAdmin) {
+      alert('Apenas viajantes podem enviar convites para Instrutor B.');
+      return;
+    }
     
     setInviteLoading(true);
     try {
@@ -548,6 +554,12 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
             
             const role = personalData?.role || 'viajante';
+
+            // Restringir "Instrutor B (ESP)" apenas para viajantes
+            if (btn.id === 'pioneer_access' && role !== 'viajante' && !isAdmin) {
+              return false;
+            }
+
             if ((role === 'pioneiro_especial' || role === 'pioneiro_regular') && btn.id === 'pastas') {
               return false;
             }
