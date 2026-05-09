@@ -88,7 +88,7 @@ export default function Sidebar({
       return dashboardViews.includes(currentView);
     }
     if (itemView === 'schools') {
-      return ['schools', 'pioneer_school'].includes(currentView);
+      return ['schools', 'pioneer_school'].includes(currentView) || currentView.startsWith('pioneer_school_guest');
     }
     if (itemView === 'events') {
       return ['events', 'regional_convention_program'].includes(currentView);
@@ -98,12 +98,12 @@ export default function Sidebar({
       return miscViews.includes(currentView);
     }
     if (itemView === 'cartas') {
-      const cartasViews = ['cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
+      const cartasViews = ['cartas', 'cartas_esp'];
       if (currentView === 'cartas_esp' && espInitialMode === 'manager') return false;
       return cartasViews.includes(currentView);
     }
     if (itemView === 'cartas_dashboard') {
-      const uploadsViews = ['cartas_dashboard', 'docx_demo'];
+      const uploadsViews = ['cartas_dashboard', 'docx_demo', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
       if (currentView === 'cartas_esp' && espInitialMode === 'manager') return true;
       return uploadsViews.includes(currentView);
     }
