@@ -1130,6 +1130,7 @@ export default function Home() {
             <CongregationStatisticsView 
               userId={user.id} 
               onBack={() => changeView('dashboard')}
+              initialCongregation={currentEvent}
             />
           )}
 

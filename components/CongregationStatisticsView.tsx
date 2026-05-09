@@ -20,6 +20,7 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 interface CongregationStatisticsViewProps {
   userId: string;
   onBack: () => void;
+  initialCongregation?: string;
 }
 
 interface AnalysisData {
@@ -56,10 +57,10 @@ interface AnalysisData {
   };
 }
 
-export default function CongregationStatisticsView({ userId, onBack }: CongregationStatisticsViewProps) {
+export default function CongregationStatisticsView({ userId, onBack, initialCongregation }: CongregationStatisticsViewProps) {
   const [loading, setLoading] = useState(true);
   const [congregations, setCongregations] = useState<string[]>([]);
-  const [selectedCong, setSelectedCong] = useState<string>('');
+  const [selectedCong, setSelectedCong] = useState<string>(initialCongregation || '');
   const [visitHistory, setVisitHistory] = useState<AnalysisData[]>([]);
 
   useEffect(() => {
@@ -69,8 +70,11 @@ export default function CongregationStatisticsView({ userId, onBack }: Congregat
         const querySnapshot = await getDocs(q);
         const names = querySnapshot.docs.map(doc => doc.data().nome).sort();
         setCongregations(names);
-        if (names.length > 0) {
+        
+        if (!selectedCong && names.length > 0) {
           setSelectedCong(names[0]);
+        } else if (initialCongregation && names.includes(initialCongregation)) {
+          setSelectedCong(initialCongregation);
         }
       } catch (error) {
         console.error('Error fetching congregations:', error);
