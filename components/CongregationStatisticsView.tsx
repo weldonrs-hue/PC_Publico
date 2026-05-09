@@ -249,30 +249,6 @@ export default function CongregationStatisticsView({ userId, onBack, initialCong
               })}
             </tr>
 
-            {/* Batizados */}
-            <tr>
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                    <TrendingUp size={16} />
-                  </div>
-                  <span className="text-sm font-bold text-gray-700">Batizados</span>
-                </div>
-              </td>
-              {visitHistory.map((visit, idx) => {
-                const current = visit.estatisticas.batizados || 0;
-                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.batizados || 0 : current;
-                return (
-                  <td key={visit.id} className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <span className="text-lg font-black text-gray-900">{current}</span>
-                      {idx > 0 && getTrend(current, prev)}
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
-
             {/* Estudos Bíblicos Totais */}
             <tr>
               <td className="px-6 py-4">
