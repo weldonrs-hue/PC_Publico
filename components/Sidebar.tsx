@@ -164,16 +164,16 @@ export default function Sidebar({
     <aside className="
       fixed z-[1001] bg-gradient-to-b from-[#2E1065] via-[#4C1D95] to-[#5B21B6] text-white transition-all duration-500 ease-in-out
       portrait:bottom-0 portrait:left-0 portrait:right-0 portrait:h-16 portrait:flex-row portrait:w-full
-      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-24 landscape:lg:w-60 landscape:flex-col
+      landscape:top-0 landscape:left-0 landscape:bottom-0 landscape:w-20 landscape:sm:w-28 landscape:lg:w-64 landscape:flex-col
       flex overflow-y-auto overflow-x-hidden landscape:custom-scrollbar shadow-2xl
     ">
       {/* Logo Section */}
-      <div className="p-4 lg:p-6 landscape:block portrait:hidden">
+      <div className="p-2 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
-          <div className="bg-white/10 backdrop-blur-md p-2 rounded-2xl shadow-xl w-full relative h-16 flex items-center lg:px-4 border border-white/20 overflow-hidden group">
+          <div className="bg-white/10 backdrop-blur-md p-1.5 lg:p-2 rounded-2xl shadow-xl w-full relative h-14 lg:h-16 flex items-center justify-center lg:justify-start lg:px-4 border border-white/20 overflow-hidden group">
             <div className="relative">
               <div className="absolute inset-0 bg-[#C084FC] blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
-              <Logo iconSize={34} textSize="text-xl" className="relative z-10" showText={true} />
+              <Logo iconSize={30} textSize="text-xl" className="relative z-10 lg:gap-3" showText={true} />
             </div>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function Sidebar({
                   flex items-center rounded-xl transition-all duration-300 group relative overflow-hidden
                   landscape:justify-start
                   landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
-                  portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[70px]
+                  portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[55px] md:portrait:min-w-[70px]
                   ${isActive(item.view) 
                     ? 'bg-gradient-to-r from-white/15 to-transparent border-l-4 border-[#C084FC] text-white shadow-lg' 
                     : 'text-white/60 hover:text-white hover:bg-white/5 active:scale-95'}

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/Sidebar';
+import Logo from '@/components/Logo';
 
 const DashboardCards = dynamic(() => import('@/components/DashboardCards'), { ssr: false });
 const SecondarySection = dynamic(() => import('@/components/SecondarySection'), { ssr: false });
@@ -961,10 +962,19 @@ export default function Home() {
       </div>
       
       <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 
-        landscape:ml-20 landscape:lg:ml-56 
-        portrait:md:ml-20 portrait:lg:ml-56 
-        portrait:mb-20 portrait:md:mb-0 
+        landscape:ml-20 landscape:sm:ml-28 landscape:lg:ml-64
+        portrait:md:ml-20 portrait:lg:ml-64 
+        portrait:mb-16 portrait:md:mb-0 
         print:ml-0 print:mb-0 print:p-0">
+        
+        {/* Mobile Header (Portrait Only) */}
+        <div className="md:hidden portrait:flex fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-[#2E1065] to-[#4C1D95] z-[1000] items-center px-4 border-b border-white/10 shadow-lg landscape:hidden">
+          <Logo iconSize={32} textSize="text-xl" />
+        </div>
+
+        {/* Adjust spacing for mobile header */}
+        <div className="portrait:pt-14 landscape:pt-0 md:pt-0" />
+
         {quotaExceeded && (
           <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-pulse">
             ⚠️ Limite de cota do Firestore excedido. Alguns dados podem não carregar corretamente. Tente novamente mais tarde.
