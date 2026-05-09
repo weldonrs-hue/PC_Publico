@@ -9,7 +9,9 @@ import {
   ArrowRight,
   TrendingDown,
   Minus,
-  Info
+  Info,
+  ArrowLeft,
+  DollarSign
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
@@ -17,6 +19,7 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface CongregationStatisticsViewProps {
   userId: string;
+  onBack: () => void;
 }
 
 interface AnalysisData {
@@ -28,6 +31,7 @@ interface AnalysisData {
     publicadores: { relatando: string; estudos: string };
     pioneirosRegulares: { relatando: string; estudos: string };
     pioneirosAuxiliares: { relatando: string; estudos: string };
+    pioneirosEspeciais: { relatando: string; estudos: string };
   };
   estatisticas: {
     mediaEstudos: number;
@@ -39,6 +43,12 @@ interface AnalysisData {
     inativos: number;
     removidos: number;
     batizados: number;
+    anciaos: number;
+    servos: number;
+  };
+  donativos: {
+    congregacao: string[];
+    obraMundial: string[];
   };
   reunioes: {
     meioSemana: string[];
@@ -46,7 +56,7 @@ interface AnalysisData {
   };
 }
 
-export default function CongregationStatisticsView({ userId }: CongregationStatisticsViewProps) {
+export default function CongregationStatisticsView({ userId, onBack }: CongregationStatisticsViewProps) {
   const [loading, setLoading] = useState(true);
   const [congregations, setCongregations] = useState<string[]>([]);
   const [selectedCong, setSelectedCong] = useState<string>('');
@@ -121,6 +131,19 @@ export default function CongregationStatisticsView({ userId }: CongregationStati
     return <Minus size={16} className="text-gray-300" />;
   };
 
+  const calculateTotalDonativosValue = (donativos: { congregacao: string[]; obraMundial: string[] }) => {
+    if (!donativos) return 0;
+    const sumList = (list: string[]) => {
+      if (!list || !Array.isArray(list)) return 0;
+      return list.reduce((acc, curr) => {
+        if (!curr) return acc;
+        const cleanValue = curr.replace(/\./g, '').replace(',', '.');
+        return acc + (parseFloat(cleanValue) || 0);
+      }, 0);
+    };
+    return sumList(donativos.congregacao) + sumList(donativos.obraMundial);
+  };
+
   if (loading) return null;
 
   return (
@@ -128,6 +151,13 @@ export default function CongregationStatisticsView({ userId }: CongregationStati
       <div className="p-6 border-b border-gray-50 bg-gradient-to-r from-sky-50 to-white">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
+            <button 
+              onClick={onBack}
+              className="p-2 hover:bg-white hover:shadow-md rounded-full transition-all text-sky-600 border border-transparent hover:border-sky-100 mr-2 md:mr-0 group"
+              title="Voltar ao Painel Circuito"
+            >
+              <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+            </button>
             <div className="p-2.5 bg-sky-500 text-white rounded-2xl shadow-lg shadow-sky-200">
               <BarChart3 size={24} />
             </div>
@@ -246,7 +276,7 @@ export default function CongregationStatisticsView({ userId }: CongregationStati
                   <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600">
                     <BarChart3 size={16} />
                   </div>
-                  <span className="text-sm font-bold text-gray-700">Estudos Bíblicos (Média)</span>
+                  <span className="text-sm font-bold text-gray-700">Média mensal de Estudos Bíblicos</span>
                 </div>
               </td>
               {visitHistory.map((visit, idx) => {
@@ -257,6 +287,236 @@ export default function CongregationStatisticsView({ userId }: CongregationStati
                     <div className="flex items-center justify-center gap-1.5">
                       <span className="text-lg font-black text-gray-900">{current}</span>
                       {idx > 0 && getTrend(current, prev)}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Dirigem Estudos */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <Users size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Quantos DIRIGEM Estudos Bíblicos</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.dirigemEstudos || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.dirigemEstudos || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && getTrend(current, prev)}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Novos Publicadores */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <TrendingUp size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Número de NOVOS PUBLICADORES*</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.novosPublicadores || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.novosPublicadores || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && getTrend(current, prev)}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Reativados */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center text-sky-600">
+                    <TrendingUp size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Quantos foram REATIVADOS*</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.reativados || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.reativados || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && getTrend(current, prev)}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Readmitidos */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                    <TrendingUp size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Quantos foram READMITIDOS*</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.readmitidos || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.readmitidos || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && getTrend(current, prev)}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Batizados */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600">
+                    <TrendingUp size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Quantos foram BATIZADOS*</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.batizados || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.batizados || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && getTrend(current, prev)}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Irregulares */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600">
+                    <TrendingDown size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Número de IRREGULARES*</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.irregulares || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.irregulares || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && (
+                         current > prev ? <TrendingUp size={16} className="text-rose-500" /> : 
+                         current < prev ? <TrendingDown size={16} className="text-emerald-500" /> : 
+                         <Minus size={16} className="text-gray-300" />
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Inativos */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600">
+                    <TrendingDown size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Quantos ficaram INATIVOS*</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.inativos || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.inativos || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && (
+                         current > prev ? <TrendingUp size={16} className="text-rose-500" /> : 
+                         current < prev ? <TrendingDown size={16} className="text-emerald-500" /> : 
+                         <Minus size={16} className="text-gray-300" />
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Removidos */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600">
+                    <TrendingDown size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Quantos ficaram REMOVIDOS*</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = visit.estatisticas.removidos || 0;
+                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.removidos || 0 : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="text-lg font-black text-gray-900">{current}</span>
+                      {idx > 0 && (
+                         current > prev ? <TrendingUp size={16} className="text-rose-500" /> : 
+                         current < prev ? <TrendingDown size={16} className="text-emerald-500" /> : 
+                         <Minus size={16} className="text-gray-300" />
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+
+            {/* Donativos */}
+            <tr>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                    <DollarSign size={16} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-700">Donativos (Total)</span>
+                </div>
+              </td>
+              {visitHistory.map((visit, idx) => {
+                const current = calculateTotalDonativosValue(visit.donativos);
+                const prev = idx > 0 ? calculateTotalDonativosValue(visitHistory[idx - 1].donativos) : current;
+                return (
+                  <td key={visit.id} className="px-6 py-4 text-center">
+                    <div className="flex flex-col items-center justify-center gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-black text-gray-900">R$ {current.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        {idx > 0 && getTrend(current, prev)}
+                      </div>
                     </div>
                   </td>
                 );
@@ -305,35 +565,6 @@ export default function CongregationStatisticsView({ userId }: CongregationStati
                     <div className="flex items-center justify-center gap-1.5">
                       <span className="text-lg font-black text-gray-900">{current}</span>
                       {idx > 0 && getTrend(current, prev)}
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
-
-            {/* Inativos */}
-            <tr className="bg-rose-50/10">
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600">
-                    <TrendingDown size={16} />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Inativos</span>
-                </div>
-              </td>
-              {visitHistory.map((visit, idx) => {
-                const current = visit.estatisticas.inativos || 0;
-                const prev = idx > 0 ? visitHistory[idx - 1].estatisticas.inativos || 0 : current;
-                // For inativos, upward trend is bad
-                return (
-                  <td key={visit.id} className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <span className="text-lg font-black text-gray-900">{current}</span>
-                      {idx > 0 && (
-                         current > prev ? <TrendingUp size={16} className="text-rose-500" /> : 
-                         current < prev ? <TrendingDown size={16} className="text-emerald-500" /> : 
-                         <Minus size={16} className="text-gray-300" />
-                      )}
                     </div>
                   </td>
                 );
