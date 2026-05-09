@@ -967,13 +967,13 @@ export default function Home() {
         portrait:mb-16 portrait:md:mb-0 
         print:ml-0 print:mb-0 print:p-0">
         
-        {/* Mobile Header (Portrait Only) */}
-        <div className="md:hidden portrait:flex fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-[#2E1065] to-[#4C1D95] z-[1000] items-center px-4 border-b border-white/10 shadow-lg landscape:hidden">
+        {/* Mobile Header (Hidden in portrait mode as requested) */}
+        {/* <div className="md:hidden portrait:flex fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-[#2E1065] to-[#4C1D95] z-[1000] items-center px-4 border-b border-white/10 shadow-lg landscape:hidden">
           <Logo iconSize={32} textSize="text-xl" />
-        </div>
+        </div> */}
 
-        {/* Adjust spacing for mobile header */}
-        <div className="portrait:pt-14 landscape:pt-0 md:pt-0" />
+        {/* Adjust spacing for mobile header - removed portrait padding */}
+        <div className="landscape:pt-0 md:pt-0" />
 
         {quotaExceeded && (
           <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-pulse">

@@ -35,7 +35,7 @@ export default function Logo({
 
       {/* Text Component with the specific Prog/Cir/Web style */}
       {showText && (
-        <div className={`${forceShowText ? 'flex' : 'hidden sm:flex'} flex-col leading-none select-none`}>
+        <div className={`${forceShowText ? 'flex' : 'hidden lg:flex'} flex-col leading-none select-none`}>
           <div className={`flex items-center font-bold tracking-tight ${textSize} font-sans`}>
             <span style={{ color: textColor }}>Prog</span>
             <span 
@@ -48,13 +48,32 @@ export default function Logo({
             >
               Cir
             </span>
-            <span className={`${forceShowText ? 'inline' : 'hidden lg:inline'} ml-1.5`} style={{ color: textColor }}>Web</span>
+            <span className={`${forceShowText ? 'inline' : 'hidden xl:inline'} ml-1.5`} style={{ color: textColor }}>Web</span>
           </div>
           <div 
-            className={`${forceShowText ? 'block' : 'hidden lg:block'} text-[#C084FC] font-black text-[10px] uppercase tracking-[0.2em] mt-0.5`}
+            className={`${forceShowText ? 'block' : 'hidden xl:block'} text-[#C084FC] font-black text-[10px] uppercase tracking-[0.2em] mt-0.5`}
             style={{ filter: 'drop-shadow(0 0 8px rgba(192, 132, 252, 0.3))' }}
           >
             Web Interface
+          </div>
+        </div>
+      )}
+
+      {/* Medium size text variant (ICO + ProgCir) - Visible on medium screens if not forced */}
+      {showText && !forceShowText && (
+        <div className="hidden sm:flex lg:hidden flex-col leading-none select-none">
+          <div className={`flex items-center font-bold tracking-tight text-lg font-sans`}>
+            <span style={{ color: textColor }}>Prog</span>
+            <span 
+              className="ml-[1px]" 
+              style={{ 
+                WebkitTextStroke: `1px ${outlineColor}`, 
+                color: 'transparent',
+                opacity: 0.95
+              }}
+            >
+              Cir
+            </span>
           </div>
         </div>
       )}
