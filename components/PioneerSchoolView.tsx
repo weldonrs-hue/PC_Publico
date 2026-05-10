@@ -1595,8 +1595,11 @@ export default function PioneerSchoolView({
           <div className="bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1122px] w-full max-w-[850px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0">
             {/* Header Mirroring the requested design */}
             <div className="grid grid-cols-[100px_1fr_300px] bg-[#4a6d7c] text-white font-bold h-10 uppercase text-sm tracking-wide shrink-0">
-              <div className="flex items-center justify-center border-r border-white/20 italic text-[#ffd700]">TURMA {selectedTurma}</div>
-              <div className="flex items-center justify-center border-r border-white/20">SESSÃO DE TREINO</div>
+              <div className="flex items-center justify-center border-r border-white/20"></div>
+              <div className="flex items-center justify-center border-r border-white/20 gap-4">
+                <span className="italic text-[#ffd700]">TURMA {selectedTurma}</span>
+                <span>SESSÃO DE TREINO</span>
+              </div>
               <div className="flex items-center justify-center">PARTICIPANTES</div>
             </div>
 
