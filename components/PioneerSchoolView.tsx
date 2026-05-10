@@ -1132,7 +1132,7 @@ export default function PioneerSchoolView({
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800"
+            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800 print:hidden"
           >
             <div className="flex items-center gap-2 shrink-0">
               <span className="bg-[#37616b] text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
@@ -1175,7 +1175,7 @@ export default function PioneerSchoolView({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 print:hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button 
@@ -1340,12 +1340,28 @@ export default function PioneerSchoolView({
             margin: 5mm 12mm 12mm 12mm; 
             size: A4 portrait; 
           }
+          html, body { 
+            height: auto !important;
+            overflow: visible !important;
+          }
           body { 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
             background: white !important; 
+            margin: 0 !important;
+            padding: 0 !important;
           }
-          .print\:hidden { display: none !important; }
+          /* Hide EVERYTHING else in the app during printing */
+          body > *, 
+          main > *, 
+          div:not(#pioneer-school-report):not(#pioneer-school-report *) {
+            display: none !important;
+          }
+          #pioneer-school-report, 
+          #pioneer-school-report * {
+            display: block !important;
+            visibility: visible !important;
+          }
           #pioneer-school-report { 
             display: table !important;
             border: none !important; 
@@ -1353,6 +1369,9 @@ export default function PioneerSchoolView({
             padding: 0 !important; 
             width: 100% !important; 
             margin: 0 !important; 
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
           }
           #pdf-header {
             display: table-header-group !important;
@@ -1885,7 +1904,7 @@ export default function PioneerSchoolView({
     {/* Modal Adicionar/Editar */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1985,7 +2004,7 @@ export default function PioneerSchoolView({
       {/* Modal Confirmar Exclusão em Massa */}
       <AnimatePresence>
         {isBulkDeleteModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2023,7 +2042,7 @@ export default function PioneerSchoolView({
       {/* Modal Confirmar Exclusão */}
       <AnimatePresence>
         {isDeleteModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2064,7 +2083,7 @@ export default function PioneerSchoolView({
       {/* Modal Alterações Não Salvas */}
       <AnimatePresence>
         {isUnsavedModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2112,7 +2131,7 @@ export default function PioneerSchoolView({
       {/* Modal Importar */}
       <AnimatePresence>
         {isImportModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
