@@ -1337,35 +1337,37 @@ export default function PioneerSchoolView({
       <style jsx global>{`
         @media print {
           @page { 
-            margin: 5mm 12mm 12mm 12mm; 
+            margin: 10mm; 
             size: A4 portrait; 
           }
           body { 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
             background: white !important; 
-            visibility: hidden !important;
           }
-          #pioneer-school-report, #pioneer-school-report * {
-            visibility: visible !important;
+          body > *:not(#pioneer-school-report) {
+            display: none !important;
           }
           #pioneer-school-report {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
+            display: block !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            display: block !important;
+            visibility: visible !important;
+          }
+          #pioneer-school-report {
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: white !important;
           }
           .print\:hidden { display: none !important; }
           #pdf-header {
             display: block !important;
             text-align: center !important;
-            margin-bottom: 30px !important;
-            border-bottom: 2px solid #37616b !important;
-            padding-bottom: 10px !important;
+            margin-bottom: 25px !important;
+            border-bottom: 3px solid #37616b !important;
+            padding-bottom: 15px !important;
           }
           #pdf-content {
             display: block !important;
@@ -1374,6 +1376,7 @@ export default function PioneerSchoolView({
           .scenario-row {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            page-break-inside: avoid !important;
           }
           .workshop-container {
             max-width: none !important;
@@ -1383,6 +1386,8 @@ export default function PioneerSchoolView({
             box-shadow: none !important;
             margin: 0 !important;
             border-radius: 0 !important;
+            min-height: auto !important;
+            overflow: visible !important;
           }
           .workshop-container * {
             -webkit-print-color-adjust: exact !important;
@@ -1394,17 +1399,15 @@ export default function PioneerSchoolView({
           th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; font-size: 8pt !important; }
           thead { display: table-header-group !important; }
           
-          /* Remove layout borders for clean print */
           .bg-white.rounded-2xl { 
             border: none !important; 
             box-shadow: none !important; 
             border-radius: 0 !important;
           }
           
-          /* Specialized Instruction border in print */
           .border-l-4.border-\[\#37616b\] {
-            border-left: none !important;
-            padding-left: 0 !important;
+            border-left: 3px solid #37616b !important;
+            padding-left: 10px !important;
           }
           
           input[type="checkbox"], .actions-column, .select-turma-ui { display: none !important; }
@@ -1415,12 +1418,6 @@ export default function PioneerSchoolView({
             border-bottom: 1px dotted #999 !important; 
             min-height: 24px !important; 
             color: #333 !important;
-          }
-          .workshop-container {
-            max-width: none !important;
-            width: 100% !important;
-            transform: scale(1) !important;
-            border: none !important;
           }
         }
         /* Specialized PDF capture overrides */
@@ -1647,7 +1644,7 @@ export default function PioneerSchoolView({
             </div>
           </div>
         ) : activeTab === 'workshops' ? (
-          <div className="workshop-container bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1122px] w-full max-w-[950px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0 transform origin-top md:scale-[1.05] lg:scale-[1.1] xl:scale-[1.15] print:scale-100">
+          <div className="workshop-container bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1100px] print:min-h-0 w-full max-w-[950px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0 transform origin-top md:scale-[1.05] lg:scale-[1.1] xl:scale-[1.15] print:scale-100 print:overflow-visible">
             {/* Header Mirroring the requested design */}
             <div className="grid grid-cols-[40px_1fr_300px] bg-[#4a6d7c] text-white font-bold h-12 uppercase text-sm tracking-wide shrink-0">
               <div className="flex items-center justify-center border-r border-white/20"></div>
@@ -1659,9 +1656,9 @@ export default function PioneerSchoolView({
             </div>
 
             {/* Workshop Body */}
-            <div className="flex flex-col flex-1 divide-y divide-[#7e99a8]">
+            <div className="flex flex-col flex-1 divide-y divide-[#7e99a8] print:block">
               {WORKSHOP_DATA.map((workshop) => (
-                <div key={workshop.id} className="flex border-b border-[#7e99a8] last:border-b-0">
+                <div key={workshop.id} className="flex border-b border-[#7e99a8] last:border-b-0 print:break-inside-avoid">
                   {/* Workshop Vertical Label */}
                   <div className="w-[40px] bg-[#4a6d7c] text-white flex items-center justify-center font-bold text-xs [writing-mode:vertical-lr] rotate-180 py-1 border-r border-white/20 shrink-0">
                     {workshop.label}
@@ -1674,15 +1671,15 @@ export default function PioneerSchoolView({
                         key={scenario.id} 
                         className={`grid grid-cols-[1fr_300px] scenario-row ${scenario.id % 2 === 1 ? 'bg-[#e6eff2]' : 'bg-white'}`}
                       >
-                        <div className="p-2 px-4 text-[13px] font-medium leading-tight flex flex-col justify-center">
+                        <div className="p-2 px-4 text-[11px] font-medium leading-tight flex flex-col justify-center">
                           <div 
                             className="cursor-pointer hover:text-[#4a6d7c] transition-colors group flex items-start py-1"
                             onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                           >
                             <span className="font-extrabold mr-2 text-[#4a6d7c]">({scenario.id})</span>
                             <span className="flex-1 text-gray-800 group-hover:text-black transition-colors">{scenario.text}</span>
-                            <div className="inline-block ml-3 px-1.5 py-0.5 rounded-full bg-[#4a6d7c]/10 group-hover:bg-[#4a6d7c]/20 transition-all print:hidden pdf-only-element:hidden">
-                              <ChevronDown size={20} fontWeight="bold" className={`text-[#4a6d7c] transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                            <div className="inline-block ml-3 px-1.5 py-1 rounded-lg bg-[#4a6d7c] text-white shadow-sm hover:bg-[#37616b] transition-all print:hidden pdf-only-element:hidden">
+                              <ChevronDown size={20} strokeWidth={3} className={`transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
                             </div>
                           </div>
 
@@ -1742,7 +1739,7 @@ export default function PioneerSchoolView({
             </div>
             
             {/* Page Footer */}
-            <footer className="mt-auto p-4 border-t border-outline-variant flex justify-between text-[10px] text-gray-400 print:flex">
+            <footer className="mt-auto p-4 border-t border-outline-variant flex justify-between text-[10px] text-gray-400 print:flex print:mt-8 print:border-t-2 print:border-[#37616b]">
               <span>© {new Date().getFullYear()} Escola do Serviço de Pioneiro</span>
               <span>Sessão de Treino - Página 1 de 1</span>
             </footer>
