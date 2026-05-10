@@ -1187,7 +1187,7 @@ export default function PioneerSchoolView({
                   onBack();
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-white shadow-md border border-gray-200 shrink-0 print:hidden pdf-hidden"
+              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-white shadow-md border border-gray-200 shrink-0"
             >
               <ChevronLeft size={24} strokeWidth={3} />
             </button>
@@ -1201,7 +1201,7 @@ export default function PioneerSchoolView({
             </h2>
           </div>
 
-          <div className="flex items-center gap-2 print:hidden pdf-hidden">
+          <div className="flex items-center gap-2">
           {activeTab === 'students' ? (
             <>
               <div className={`relative flex items-center transition-all duration-300 ${showSearch ? 'flex-1 md:w-64' : 'w-10'}`}>
@@ -1302,7 +1302,7 @@ export default function PioneerSchoolView({
       </div>
 
         {/* Improved Tabs Row */}
-        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0 print:hidden pdf-hidden">
+        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0">
           <button 
             onClick={() => handleTabChange('students')}
             className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
@@ -1344,25 +1344,53 @@ export default function PioneerSchoolView({
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
             background: white !important; 
+            visibility: hidden !important;
+          }
+          #pioneer-school-report, #pioneer-school-report * {
+            visibility: visible !important;
+          }
+          #pioneer-school-report {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            background: white !important;
           }
           .print\:hidden { display: none !important; }
-          #pioneer-school-report { 
-            display: table !important;
-            border: none !important; 
-            box-shadow: none !important; 
-            padding: 0 !important; 
-            width: 100% !important; 
-            margin: 0 !important; 
-          }
           #pdf-header {
-            display: table-header-group !important;
+            display: block !important;
+            text-align: center !important;
+            margin-bottom: 30px !important;
+            border-bottom: 2px solid #37616b !important;
+            padding-bottom: 10px !important;
           }
           #pdf-content {
-            display: table-row-group !important;
+            display: block !important;
+            width: 100% !important;
+          }
+          .scenario-row {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .workshop-container {
+            max-width: none !important;
+            width: 100% !important;
+            transform: scale(1) !important;
+            border: 1px solid #7e99a8 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+          }
+          .workshop-container * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           tr { page-break-inside: avoid !important; }
           table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 9pt !important; }
-          th, td { border-left: none !important; border-right: none !important; padding: 4pt 6pt !important; }
+          th, td { border: 1px solid #7e99a8 !important; padding: 4pt 6pt !important; }
           th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; font-size: 8pt !important; }
           thead { display: table-header-group !important; }
           
@@ -1646,17 +1674,15 @@ export default function PioneerSchoolView({
                         key={scenario.id} 
                         className={`grid grid-cols-[1fr_300px] scenario-row ${scenario.id % 2 === 1 ? 'bg-[#e6eff2]' : 'bg-white'}`}
                       >
-                        <div className="p-2 px-4 text-xs font-medium leading-tight flex flex-col justify-center">
+                        <div className="p-2 px-4 text-[13px] font-medium leading-tight flex flex-col justify-center">
                           <div 
-                            className="cursor-pointer hover:text-[#4a6d7c] transition-colors group flex items-start"
+                            className="cursor-pointer hover:text-[#4a6d7c] transition-colors group flex items-start py-1"
                             onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                           >
-                            <span className="font-bold mr-2 text-[#4a6d7c]">({scenario.id})</span>
-                            <span className="flex-1 text-gray-800">{scenario.text}</span>
-                            <div className="inline-block ml-2 transition-opacity print:hidden pdf-only-element:hidden">
-                              <div className="bg-[#4a6d7c]/10 p-0.5 rounded-full">
-                                <ChevronDown size={14} className={`text-[#4a6d7c] transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
-                              </div>
+                            <span className="font-extrabold mr-2 text-[#4a6d7c]">({scenario.id})</span>
+                            <span className="flex-1 text-gray-800 group-hover:text-black transition-colors">{scenario.text}</span>
+                            <div className="inline-block ml-3 px-1.5 py-0.5 rounded-full bg-[#4a6d7c]/10 group-hover:bg-[#4a6d7c]/20 transition-all print:hidden pdf-only-element:hidden">
+                              <ChevronDown size={20} fontWeight="bold" className={`text-[#4a6d7c] transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
                             </div>
                           </div>
 
