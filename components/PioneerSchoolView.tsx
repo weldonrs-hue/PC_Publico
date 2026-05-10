@@ -1132,7 +1132,7 @@ export default function PioneerSchoolView({
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800 print:hidden"
+            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800"
           >
             <div className="flex items-center gap-2 shrink-0">
               <span className="bg-[#37616b] text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
@@ -1175,7 +1175,7 @@ export default function PioneerSchoolView({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-6 print:hidden">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button 
@@ -1340,28 +1340,12 @@ export default function PioneerSchoolView({
             margin: 5mm 12mm 12mm 12mm; 
             size: A4 portrait; 
           }
-          html, body { 
-            height: auto !important;
-            overflow: visible !important;
-          }
           body { 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
             background: white !important; 
-            margin: 0 !important;
-            padding: 0 !important;
           }
-          /* Hide EVERYTHING else in the app during printing */
-          body > *, 
-          main > *, 
-          div:not(#pioneer-school-report):not(#pioneer-school-report *) {
-            display: none !important;
-          }
-          #pioneer-school-report, 
-          #pioneer-school-report * {
-            display: block !important;
-            visibility: visible !important;
-          }
+          .print\:hidden { display: none !important; }
           #pioneer-school-report { 
             display: table !important;
             border: none !important; 
@@ -1369,9 +1353,6 @@ export default function PioneerSchoolView({
             padding: 0 !important; 
             width: 100% !important; 
             margin: 0 !important; 
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
           }
           #pdf-header {
             display: table-header-group !important;
@@ -1665,15 +1646,15 @@ export default function PioneerSchoolView({
                         key={scenario.id} 
                         className={`grid grid-cols-[1fr_300px] scenario-row ${scenario.id % 2 === 1 ? 'bg-[#e6eff2]' : 'bg-white'}`}
                       >
-                        <div className="p-2 px-4 text-base font-medium leading-tight flex flex-col justify-center">
+                        <div className="p-2 px-4 text-sm font-medium leading-tight flex flex-col justify-center">
                           <div 
                             className="cursor-pointer hover:text-[#4a6d7c] transition-colors group flex items-start"
                             onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                           >
                             <span className="font-bold mr-2 text-[#4a6d7c]">({scenario.id})</span>
                             <span className="flex-1 text-gray-800">{scenario.text}</span>
-                            <div className="inline-block ml-2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden pdf-only-element:hidden">
-                              <ChevronDown size={14} className={`transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                            <div className="inline-block ml-2 transition-opacity print:hidden pdf-only-element:hidden">
+                              <ChevronDown size={18} className={`text-[#4a6d7c] transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
                             </div>
                           </div>
 
@@ -1904,7 +1885,7 @@ export default function PioneerSchoolView({
     {/* Modal Adicionar/Editar */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2004,7 +1985,7 @@ export default function PioneerSchoolView({
       {/* Modal Confirmar Exclusão em Massa */}
       <AnimatePresence>
         {isBulkDeleteModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2042,7 +2023,7 @@ export default function PioneerSchoolView({
       {/* Modal Confirmar Exclusão */}
       <AnimatePresence>
         {isDeleteModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2083,7 +2064,7 @@ export default function PioneerSchoolView({
       {/* Modal Alterações Não Salvas */}
       <AnimatePresence>
         {isUnsavedModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2131,7 +2112,7 @@ export default function PioneerSchoolView({
       {/* Modal Importar */}
       <AnimatePresence>
         {isImportModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
