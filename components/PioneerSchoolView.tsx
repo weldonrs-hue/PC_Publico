@@ -1347,11 +1347,18 @@ export default function PioneerSchoolView({
           }
           .print\:hidden { display: none !important; }
           #pioneer-school-report { 
+            display: table !important;
             border: none !important; 
             box-shadow: none !important; 
             padding: 0 !important; 
             width: 100% !important; 
             margin: 0 !important; 
+          }
+          #pdf-header {
+            display: table-header-group !important;
+          }
+          #pdf-content {
+            display: table-row-group !important;
           }
           tr { page-break-inside: avoid !important; }
           table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 9pt !important; }
@@ -1374,12 +1381,18 @@ export default function PioneerSchoolView({
           
           input[type="checkbox"], .actions-column, .select-turma-ui { display: none !important; }
           .turma-text { display: block !important; font-weight: bold !important; text-align: center !important; }
-          .workshop-select-ui { display: none !important; }
+          .workshop-select-ui, .pdf-hidden { display: none !important; }
           .workshop-participant-text { 
             display: block !important; 
             border-bottom: 1px dotted #999 !important; 
             min-height: 24px !important; 
             color: #333 !important;
+          }
+          .workshop-container {
+            max-width: none !important;
+            width: 100% !important;
+            transform: scale(1) !important;
+            border: none !important;
           }
         }
         /* Specialized PDF capture overrides */
@@ -1387,7 +1400,7 @@ export default function PioneerSchoolView({
           display: block !important;
           background-color: white !important;
           visibility: visible !important;
-          width: 800px !important;
+          width: 950px !important;
           margin: 0 !important;
           padding: 0 !important;
         }
@@ -1395,10 +1408,25 @@ export default function PioneerSchoolView({
           display: block !important;
           background-color: white !important;
           visibility: visible !important;
-          width: 800px !important;
+          width: 950px !important;
           margin: 0 !important;
           padding: 0 !important;
-          font-size: 11px !important;
+        }
+        .pdf-capture-content .workshop-select-ui,
+        .pdf-hidden {
+          display: none !important;
+        }
+        .pdf-capture-content .workshop-participant-text {
+          display: block !important;
+          border-bottom: 1px dotted #999 !important;
+          min-height: 24px !important;
+          color: #333 !important;
+        }
+        .pdf-capture-content .workshop-container {
+          max-width: none !important;
+          width: 100% !important;
+          transform: scale(1) !important;
+          border: 1px solid #7e99a8 !important;
         }
         .pdf-capture-content th {
           font-size: 10px !important;
@@ -1438,8 +1466,7 @@ export default function PioneerSchoolView({
         .pdf-capture .pdf-only-element\:hidden { display: none !important; }
       `}</style>
 
-      <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0">
-        {/* Document Header - Visible only in Print/PDF */}
+      <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0 print:block">
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
         <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
@@ -1592,7 +1619,7 @@ export default function PioneerSchoolView({
             </div>
           </div>
         ) : activeTab === 'workshops' ? (
-          <div className="bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1122px] w-full max-w-[950px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0 transform origin-top md:scale-[1.05] lg:scale-[1.1] xl:scale-[1.15] print:scale-100">
+          <div className="workshop-container bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1122px] w-full max-w-[950px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0 transform origin-top md:scale-[1.05] lg:scale-[1.1] xl:scale-[1.15] print:scale-100">
             {/* Header Mirroring the requested design */}
             <div className="grid grid-cols-[40px_1fr_300px] bg-[#4a6d7c] text-white font-bold h-12 uppercase text-sm tracking-wide shrink-0">
               <div className="flex items-center justify-center border-r border-white/20"></div>
