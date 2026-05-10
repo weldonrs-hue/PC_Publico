@@ -1592,9 +1592,9 @@ export default function PioneerSchoolView({
             </div>
           </div>
         ) : activeTab === 'workshops' ? (
-          <div className="bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1122px] w-full max-w-[850px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0">
+          <div className="bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1122px] w-full max-w-[950px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0 transform origin-top md:scale-[1.05] lg:scale-[1.1] xl:scale-[1.15] print:scale-100">
             {/* Header Mirroring the requested design */}
-            <div className="grid grid-cols-[40px_1fr_300px] bg-[#4a6d7c] text-white font-bold h-10 uppercase text-sm tracking-wide shrink-0">
+            <div className="grid grid-cols-[40px_1fr_300px] bg-[#4a6d7c] text-white font-bold h-12 uppercase text-sm tracking-wide shrink-0">
               <div className="flex items-center justify-center border-r border-white/20"></div>
               <div className="flex items-center justify-center border-r border-white/20 gap-4">
                 <span className="italic text-[#ffd700]">TURMA {selectedTurma}</span>
@@ -1619,7 +1619,7 @@ export default function PioneerSchoolView({
                         key={scenario.id} 
                         className={`grid grid-cols-[1fr_300px] ${scenario.id % 2 === 1 ? 'bg-[#e6eff2]' : 'bg-white'}`}
                       >
-                        <div className="p-1 px-3 text-sm font-medium leading-tight flex flex-col justify-center">
+                        <div className="p-2 px-4 text-base font-medium leading-tight flex flex-col justify-center">
                           <div 
                             className="cursor-pointer hover:text-[#4a6d7c] transition-colors group flex items-start"
                             onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
@@ -1639,8 +1639,8 @@ export default function PioneerSchoolView({
                                 exit={{ height: 0, opacity: 0 }}
                                 className="overflow-hidden"
                               >
-                                <div className="mt-1 p-1 bg-white/50 border-l-4 border-[#4a6d7c] rounded-r text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">
-                                  <p className="font-bold text-[#4a6d7c] mb-0.5">Instruções:</p>
+                                <div className="mt-2 p-2 bg-white/50 border-l-4 border-[#4a6d7c] rounded-r text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+                                  <p className="font-bold text-[#4a6d7c] mb-1">Instruções:</p>
                                   {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
                                 </div>
                               </motion.div>
@@ -1654,7 +1654,7 @@ export default function PioneerSchoolView({
                             return (
                               <div key={idx} className="relative">
                                 {/* Print View: Just dots and text */}
-                                <div className="hidden workshop-participant-text py-0.5 text-xs px-2 truncate">
+                                <div className="hidden workshop-participant-text py-0.5 text-sm px-2 truncate">
                                   {participant || '...........................................'}
                                 </div>
                                 {/* Edit View: Select dropdown */}
@@ -1662,7 +1662,7 @@ export default function PioneerSchoolView({
                                   <select
                                     value={participant}
                                     onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                    className="w-full bg-white/50 border-none rounded text-xs py-0.5 px-2 focus:ring-1 focus:ring-[#4a6d7c] appearance-none cursor-pointer"
+                                    className="w-full bg-white/50 border-none rounded text-sm py-1 px-2 focus:ring-1 focus:ring-[#4a6d7c] appearance-none cursor-pointer"
                                   >
                                     <option value="">Selecionar Participante...</option>
                                     {workshopDropdownStudents.map((student) => (
