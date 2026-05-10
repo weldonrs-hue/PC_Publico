@@ -1594,7 +1594,7 @@ export default function PioneerSchoolView({
         ) : activeTab === 'workshops' ? (
           <div className="bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.05)] border border-[#7e99a8] overflow-hidden min-h-[1122px] w-full max-w-[850px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0">
             {/* Header Mirroring the requested design */}
-            <div className="grid grid-cols-[100px_1fr_300px] bg-[#4a6d7c] text-white font-bold h-10 uppercase text-sm tracking-wide shrink-0">
+            <div className="grid grid-cols-[40px_1fr_300px] bg-[#4a6d7c] text-white font-bold h-10 uppercase text-sm tracking-wide shrink-0">
               <div className="flex items-center justify-center border-r border-white/20"></div>
               <div className="flex items-center justify-center border-r border-white/20 gap-4">
                 <span className="italic text-[#ffd700]">TURMA {selectedTurma}</span>
@@ -1608,7 +1608,7 @@ export default function PioneerSchoolView({
               {WORKSHOP_DATA.map((workshop) => (
                 <div key={workshop.id} className="flex border-b border-[#7e99a8] last:border-b-0">
                   {/* Workshop Vertical Label */}
-                  <div className="w-[100px] bg-[#4a6d7c] text-white flex items-center justify-center font-bold text-xs [writing-mode:vertical-lr] rotate-180 py-1 border-r border-white/20 shrink-0">
+                  <div className="w-[40px] bg-[#4a6d7c] text-white flex items-center justify-center font-bold text-xs [writing-mode:vertical-lr] rotate-180 py-1 border-r border-white/20 shrink-0">
                     {workshop.label}
                   </div>
                   
