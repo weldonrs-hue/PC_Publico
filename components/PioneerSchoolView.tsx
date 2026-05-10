@@ -799,7 +799,7 @@ export default function PioneerSchoolView({
       await new Promise((resolve) => { contentImg.onload = resolve; });
 
       const pdfWidth = 210;
-      const pdfPageHeight = 148; 
+      const pdfPageHeight = 297; 
       const xMargin = 12;
       const topMargin = 5;
       const bottomMargin = 12;
@@ -808,16 +808,16 @@ export default function PioneerSchoolView({
       const innerWidth = pdfWidth - (2 * xMargin);
       const headerHeight = (headerImg.height * innerWidth) / headerImg.width;
       const totalContentHeightInPdf = (contentImg.height * innerWidth) / contentImg.width;
-
+ 
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
-        format: 'a5',
+        format: 'a4',
         compress: true
       });
-
+ 
       // Calculate row boundaries for smart slicing
-      const tableRows = Array.from(contentElement.querySelectorAll('tr'));
+      const tableRows = Array.from(contentElement.querySelectorAll('tr, .scenario-row'));
       const domContentHeight = contentElement.offsetHeight;
       const scaleToPdf = totalContentHeightInPdf / domContentHeight;
 
@@ -1338,7 +1338,7 @@ export default function PioneerSchoolView({
         @media print {
           @page { 
             margin: 5mm 12mm 12mm 12mm; 
-            size: A5 landscape; 
+            size: A4 portrait; 
           }
           body { 
             -webkit-print-color-adjust: exact !important; 
@@ -1617,7 +1617,7 @@ export default function PioneerSchoolView({
                     {workshop.scenarios.map((scenario) => (
                       <div 
                         key={scenario.id} 
-                        className={`grid grid-cols-[1fr_300px] ${scenario.id % 2 === 1 ? 'bg-[#e6eff2]' : 'bg-white'}`}
+                        className={`grid grid-cols-[1fr_300px] scenario-row ${scenario.id % 2 === 1 ? 'bg-[#e6eff2]' : 'bg-white'}`}
                       >
                         <div className="p-2 px-4 text-base font-medium leading-tight flex flex-col justify-center">
                           <div 
