@@ -1187,7 +1187,7 @@ export default function PioneerSchoolView({
                   onBack();
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-white shadow-md border border-gray-200 shrink-0"
+              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-white shadow-md border border-gray-200 shrink-0 print:hidden pdf-hidden"
             >
               <ChevronLeft size={24} strokeWidth={3} />
             </button>
@@ -1201,7 +1201,7 @@ export default function PioneerSchoolView({
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 print:hidden pdf-hidden">
           {activeTab === 'students' ? (
             <>
               <div className={`relative flex items-center transition-all duration-300 ${showSearch ? 'flex-1 md:w-64' : 'w-10'}`}>
@@ -1302,7 +1302,7 @@ export default function PioneerSchoolView({
       </div>
 
         {/* Improved Tabs Row */}
-        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0 print:hidden pdf-hidden">
           <button 
             onClick={() => handleTabChange('students')}
             className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
@@ -1646,7 +1646,7 @@ export default function PioneerSchoolView({
                         key={scenario.id} 
                         className={`grid grid-cols-[1fr_300px] scenario-row ${scenario.id % 2 === 1 ? 'bg-[#e6eff2]' : 'bg-white'}`}
                       >
-                        <div className="p-2 px-4 text-sm font-medium leading-tight flex flex-col justify-center">
+                        <div className="p-2 px-4 text-xs font-medium leading-tight flex flex-col justify-center">
                           <div 
                             className="cursor-pointer hover:text-[#4a6d7c] transition-colors group flex items-start"
                             onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
@@ -1654,7 +1654,9 @@ export default function PioneerSchoolView({
                             <span className="font-bold mr-2 text-[#4a6d7c]">({scenario.id})</span>
                             <span className="flex-1 text-gray-800">{scenario.text}</span>
                             <div className="inline-block ml-2 transition-opacity print:hidden pdf-only-element:hidden">
-                              <ChevronDown size={18} className={`text-[#4a6d7c] transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                              <div className="bg-[#4a6d7c]/10 p-0.5 rounded-full">
+                                <ChevronDown size={14} className={`text-[#4a6d7c] transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                              </div>
                             </div>
                           </div>
 
