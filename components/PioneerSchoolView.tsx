@@ -1126,161 +1126,6 @@ export default function PioneerSchoolView({
 
   return (
     <div className="space-y-6 relative">
-      <style jsx global>{`
-        @media print {
-          @page { 
-            margin: 8mm 10mm 15mm 10mm; 
-            size: A4 portrait; 
-          }
-          body { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-            background: white !important; 
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          #pioneer-school-report {
-            display: block !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            visibility: visible !important;
-            background: white !important;
-          }
-          .print\:hidden { display: none !important; }
-          #pdf-header {
-            display: block !important;
-            text-align: center !important;
-            margin-bottom: 20px !important;
-            border-bottom: 3px solid #37616b !important;
-            padding-bottom: 12px !important;
-          }
-          #pdf-content {
-            display: block !important;
-            width: 100% !important;
-          }
-          .scenario-row {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            page-break-inside: avoid !important;
-          }
-          .workshop-container {
-            max-width: none !important;
-            width: 100% !important;
-            transform: scale(1) !important;
-            border: 1px solid #7e99a8 !important;
-            box-shadow: none !important;
-            margin: 0 !important;
-            border-radius: 0 !important;
-            min-height: auto !important;
-            overflow: visible !important;
-          }
-          .workshop-container * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          tr { page-break-inside: avoid !important; }
-          table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 8.5pt !important; }
-          th, td { border: 1px solid #7e99a8 !important; padding: 3pt 5pt !important; }
-          th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; font-size: 8pt !important; }
-          thead { display: table-header-group !important; }
-          
-          .bg-white.rounded-2xl { 
-            border: none !important; 
-            box-shadow: none !important; 
-            border-radius: 0 !important;
-          }
-          
-          .border-l-4.border-\[\#37616b\] {
-            border-left: 3px solid #37616b !important;
-            padding-left: 10px !important;
-          }
-          
-          input[type="checkbox"], .actions-column, .select-turma-ui { display: none !important; }
-          .turma-text { display: block !important; font-weight: bold !important; text-align: center !important; }
-          .workshop-select-ui, .pdf-hidden { display: none !important; }
-          .workshop-participant-text { 
-            display: block !important; 
-            border-bottom: 1px dotted #999 !important; 
-            min-height: 20px !important; 
-            line-height: 1.2 !important;
-            color: #333 !important;
-            font-size: 9px !important;
-            padding: 2px 4px !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-          }
-        }
-        /* Specialized PDF capture overrides */
-        .pdf-capture-header {
-          display: block !important;
-          background-color: white !important;
-          visibility: visible !important;
-          width: 950px !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-        .pdf-capture-content {
-          display: block !important;
-          background-color: white !important;
-          visibility: visible !important;
-          width: 950px !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-        .pdf-capture-content .workshop-select-ui,
-        .pdf-hidden {
-          display: none !important;
-        }
-        .pdf-capture-content .workshop-participant-text {
-          display: block !important;
-          border-bottom: 1px dotted #999 !important;
-          min-height: 24px !important;
-          color: #333 !important;
-        }
-        .pdf-capture-content .workshop-container {
-          max-width: none !important;
-          width: 100% !important;
-          transform: scale(1) !important;
-          border: 1px solid #7e99a8 !important;
-        }
-        .pdf-capture-content th {
-          font-size: 10px !important;
-          padding: 6px 4px !important;
-        }
-        .pdf-capture-content td {
-          font-size: 11px !important;
-          padding: 6px 8px !important;
-        }
-        .pdf-capture-content table, 
-        .pdf-capture-content th, 
-        .pdf-capture-content td {
-          border-left: none !important;
-          border-right: none !important;
-          border-radius: 0 !important;
-        }
-        .pdf-capture-content input[type="checkbox"],
-        .pdf-capture-content .pdf-hidden,
-        .pdf-capture-content .print\:hidden {
-          display: none !important;
-        }
-        .pdf-capture-content .bg-white.rounded-2xl { 
-          border: none !important; 
-          box-shadow: none !important; 
-          border-radius: 0 !important;
-        }
-        .pdf-capture-content .border-l-4 {
-          border-left: none !important;
-        }
-        .pdf-capture .bg-white.rounded-2xl { 
-          border: none !important; 
-          box-shadow: none !important; 
-          border-radius: 0 !important;
-        }
-        .pdf-capture .pdf-only-element { display: block !important; }
-        .pdf-capture .print\:hidden { display: none !important; }
-        .pdf-capture .pdf-only-element\:hidden { display: none !important; }
-      `}</style>
       <div className="print:hidden">
         <AnimatePresence>
           {selectedStudents.length > 0 && (
@@ -1455,7 +1300,6 @@ export default function PioneerSchoolView({
             </div>
           )}
         </div>
-      </div>
 
         {/* Improved Tabs Row */}
         <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0">
@@ -1490,8 +1334,163 @@ export default function PioneerSchoolView({
         </div>
       </div>
     </div>
+  </div>
 
-    <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0 print:block">
+      <style jsx global>{`
+        @media print {
+          @page { 
+            margin: 8mm 10mm 15mm 10mm; 
+            size: A4 portrait; 
+          }
+          body { 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            background: white !important; 
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          #pioneer-school-report {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            visibility: visible !important;
+            background: white !important;
+          }
+          .print\:hidden { display: none !important; }
+          #pdf-header {
+            display: block !important;
+            text-align: center !important;
+            margin-bottom: 20px !important;
+            border-bottom: 3px solid #37616b !important;
+            padding-bottom: 12px !important;
+          }
+          #pdf-content {
+            display: block !important;
+            width: 100% !important;
+          }
+          .scenario-row {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            page-break-inside: avoid !important;
+          }
+          .workshop-container {
+            max-width: none !important;
+            width: 100% !important;
+            transform: scale(1) !important;
+            border: 1px solid #7e99a8 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            min-height: auto !important;
+            overflow: visible !important;
+          }
+          .workshop-container * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          tr { page-break-inside: avoid !important; }
+          table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 8.5pt !important; }
+          th, td { border: 1px solid #7e99a8 !important; padding: 3pt 5pt !important; }
+          th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; font-size: 8pt !important; }
+          thead { display: table-header-group !important; }
+          
+          .bg-white.rounded-2xl { 
+            border: none !important; 
+            box-shadow: none !important; 
+            border-radius: 0 !important;
+          }
+          
+          .border-l-4.border-\[\#37616b\] {
+            border-left: 3px solid #37616b !important;
+            padding-left: 10px !important;
+          }
+          
+          input[type="checkbox"], .actions-column, .select-turma-ui { display: none !important; }
+          .turma-text { display: block !important; font-weight: bold !important; text-align: center !important; }
+          .workshop-select-ui, .pdf-hidden { display: none !important; }
+          .workshop-participant-text { 
+            display: block !important; 
+            border-bottom: 1px dotted #999 !important; 
+            min-height: 20px !important; 
+            line-height: 1.2 !important;
+            color: #333 !important;
+            font-size: 9px !important;
+            padding: 2px 4px !important;
+          }
+        }
+        /* Specialized PDF capture overrides */
+        .pdf-capture-header {
+          display: block !important;
+          background-color: white !important;
+          visibility: visible !important;
+          width: 950px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        .pdf-capture-content {
+          display: block !important;
+          background-color: white !important;
+          visibility: visible !important;
+          width: 950px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        .pdf-capture-content .workshop-select-ui,
+        .pdf-hidden {
+          display: none !important;
+        }
+        .pdf-capture-content .workshop-participant-text {
+          display: block !important;
+          border-bottom: 1px dotted #999 !important;
+          min-height: 24px !important;
+          color: #333 !important;
+        }
+        .pdf-capture-content .workshop-container {
+          max-width: none !important;
+          width: 100% !important;
+          transform: scale(1) !important;
+          border: 1px solid #7e99a8 !important;
+        }
+        .pdf-capture-content th {
+          font-size: 10px !important;
+          padding: 6px 4px !important;
+        }
+        .pdf-capture-content td {
+          font-size: 11px !important;
+          padding: 6px 8px !important;
+        }
+        .pdf-capture-content table, 
+        .pdf-capture-content th, 
+        .pdf-capture-content td {
+          border-left: none !important;
+          border-right: none !important;
+          border-radius: 0 !important;
+        }
+        .pdf-capture-content input[type="checkbox"],
+        .pdf-capture-content .pdf-hidden,
+        .pdf-capture-content .print\:hidden {
+          display: none !important;
+        }
+        .pdf-capture-content .bg-white.rounded-2xl { 
+          border: none !important; 
+          box-shadow: none !important; 
+          border-radius: 0 !important;
+        }
+        .pdf-capture-content .border-l-4 {
+          border-left: none !important;
+        }
+        .pdf-capture .bg-white.rounded-2xl { 
+          border: none !important; 
+          box-shadow: none !important; 
+          border-radius: 0 !important;
+        }
+        .pdf-capture .pdf-only-element { display: block !important; }
+        .pdf-capture .print\:hidden { display: none !important; }
+        .pdf-capture .pdf-only-element\:hidden { display: none !important; }
+      `}</style>
+
+      <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0 print:block">
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
         <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
@@ -1644,42 +1643,50 @@ export default function PioneerSchoolView({
             </div>
           </div>
         ) : activeTab === 'workshops' ? (
-          <div className="workshop-container bg-white shadow-xl border border-[#7e99a8] overflow-hidden min-h-[1100px] print:min-h-0 w-full max-w-[950px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0 transform origin-top md:scale-[1.05] lg:scale-[1.1] xl:scale-[1.15] print:scale-100 print:overflow-visible rounded-xl">
+          <div className="workshop-container bg-white shadow-2xl border border-slate-200 overflow-hidden min-h-[1100px] print:min-h-0 w-full max-w-[950px] mx-auto flex flex-col print:shadow-none print:border-none print:m-0 transform origin-top md:scale-[1.05] lg:scale-[1.1] xl:scale-[1.15] print:scale-100 print:overflow-visible rounded-2xl">
             {/* Header Mirroring the requested design */}
-            <div className="grid grid-cols-[40px_1fr_260px] bg-[#37616b] text-white font-bold h-12 uppercase text-xs sm:text-sm tracking-widest shrink-0 items-stretch">
-              <div className="flex items-center justify-center border-r border-white/10"></div>
-              <div className="flex items-center justify-center border-r border-white/10 gap-3 sm:gap-6 px-2">
-                <span className="italic text-amber-300 drop-shadow-sm">TURMA {selectedTurma}</span>
-                <span className="opacity-90">SESSÃO DE TREINO</span>
+            <div className="grid grid-cols-[45px_1fr_280px] bg-slate-800 text-white font-bold h-14 uppercase text-xs tracking-[0.1em] shrink-0">
+              <div className="flex items-center justify-center border-r border-white/10 bg-slate-900/50">
+                <LayoutList size={18} className="text-slate-400" />
               </div>
-              <div className="flex items-center justify-center bg-[#2c4d55]">PARTICIPANTES</div>
+              <div className="flex items-center justify-center border-r border-white/10 gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-400 font-medium">TURMA</span>
+                  <span className="text-amber-400 text-sm font-black drop-shadow-sm">{selectedTurma}</span>
+                </div>
+                <div className="h-4 w-px bg-white/10"></div>
+                <span className="font-extrabold">SESSÃO DE TREINO</span>
+              </div>
+              <div className="flex items-center justify-center bg-slate-900/30 font-black text-slate-300">PARTICIPANTES</div>
             </div>
 
             {/* Workshop Body */}
-            <div className="flex flex-col flex-1 divide-y divide-[#7e99a8] print:block">
+            <div className="flex flex-col flex-1 divide-y divide-slate-100 print:block">
               {WORKSHOP_DATA.map((workshop) => (
-                <div key={workshop.id} className="flex border-b border-[#7e99a8] last:border-b-0 print:break-inside-avoid">
+                <div key={workshop.id} className="flex border-b border-slate-200 last:border-b-0 print:break-inside-avoid">
                   {/* Workshop Vertical Label */}
-                  <div className="w-[40px] bg-[#37616b] text-white flex items-center justify-center font-black text-[10px] sm:text-xs [writing-mode:vertical-lr] rotate-180 py-4 border-r border-white/10 shrink-0 tracking-tighter opacity-90">
+                  <div className="w-[45px] bg-slate-700 text-white flex items-center justify-center font-black text-[10px] [writing-mode:vertical-lr] rotate-180 py-4 border-r border-white/10 shrink-0 tracking-widest">
                     {workshop.label}
                   </div>
                   
                   {/* Scenarios for this Workshop */}
-                  <div className="flex-1 flex flex-col divide-y divide-[#7e99a8]">
+                  <div className="flex-1 flex flex-col divide-y divide-slate-100">
                     {workshop.scenarios.map((scenario) => (
                       <div 
                         key={scenario.id} 
-                        className={`grid grid-cols-[1fr_260px] scenario-row transition-colors ${scenario.id % 2 === 1 ? 'bg-slate-50' : 'bg-white'}`}
+                        className={`grid grid-cols-[1fr_280px] scenario-row hover:bg-slate-50/80 transition-colors duration-200 ${scenario.id % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'}`}
                       >
-                        <div className="p-3 px-4 text-[11px] font-medium leading-relaxed flex flex-col justify-center">
+                        <div className="p-3 px-5 text-[11px] font-medium leading-relaxed flex flex-col justify-center">
                           <div 
-                            className="cursor-pointer hover:bg-[#37616b]/5 transition-colors group flex items-start py-1 rounded-lg -mx-2 px-2"
+                            className="cursor-pointer group flex items-start py-1"
                             onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                           >
-                            <span className="font-extrabold mr-3 text-[#37616b] text-xs sm:text-sm">({scenario.id})</span>
-                            <span className="flex-1 text-gray-800 group-hover:text-black transition-colors leading-snug">{scenario.text}</span>
-                            <div className="inline-block ml-3 p-1 rounded-full bg-slate-100 text-[#37616b] border border-slate-200 shadow-sm hover:bg-white transition-all print:hidden pdf-only-element:hidden group-hover:shadow-md">
-                              <ChevronDown size={18} strokeWidth={3} className={`transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                            <span className="font-black mr-3 text-slate-600 bg-slate-200/50 w-6 h-6 flex items-center justify-center rounded-lg text-[10px] shrink-0 mt-0.5">
+                              {scenario.id}
+                            </span>
+                            <span className="flex-1 text-slate-700 group-hover:text-slate-900 transition-colors leading-tight">{scenario.text}</span>
+                            <div className="inline-flex items-center justify-center ml-4 w-7 h-7 rounded-full bg-slate-100 text-slate-400 group-hover:bg-slate-800 group-hover:text-white transition-all print:hidden pdf-only-element:hidden">
+                              <ChevronDown size={16} strokeWidth={3} className={`transform transition-transform duration-500 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
                             </div>
                           </div>
 
@@ -1691,22 +1698,24 @@ export default function PioneerSchoolView({
                                 exit={{ height: 0, opacity: 0 }}
                                 className="overflow-hidden"
                               >
-                                <div className="mt-3 p-3 bg-white border-l-4 border-amber-400 rounded-r shadow-inner text-[10px] sm:text-[11px] text-gray-600 leading-relaxed whitespace-pre-wrap">
-                                  <p className="font-black text-[#37616b] mb-1.5 uppercase tracking-wider text-[9px]">Instruções detalhadas:</p>
-                                  {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                <div className="mt-4 p-4 bg-white border border-slate-200 border-l-4 border-l-slate-800 rounded-xl shadow-sm text-[12px] text-slate-600 leading-relaxed whitespace-pre-wrap relative">
+                                  <div className="absolute top-2 right-3 text-[9px] uppercase font-black text-slate-300 tracking-tighter">Instruções</div>
+                                  <div className="pr-12">
+                                    {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                  </div>
                                 </div>
                               </motion.div>
                             )}
                           </AnimatePresence>
                         </div>
                         
-                        <div className="p-1 flex flex-col gap-1 border-l border-[#7e99a8] bg-white/30 backdrop-blur-sm">
+                        <div className="p-1 flex flex-col gap-1 border-l border-slate-200 bg-slate-50/20">
                           {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                             const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
                             return (
-                              <div key={idx} className="relative group/participant">
+                              <div key={idx} className="relative group/select">
                                 {/* Print View: Just dots and text */}
-                                <div className="hidden workshop-participant-text py-0.5 text-[8.5px] px-2 truncate font-bold text-slate-700 border-b border-dashed border-slate-300 min-h-[18px]">
+                                <div className="hidden workshop-participant-text py-1 text-[9px] px-3 border-b border-slate-200 font-medium">
                                   {participant || '...........................................'}
                                 </div>
                                 {/* Edit View: Select dropdown */}
@@ -1714,17 +1723,17 @@ export default function PioneerSchoolView({
                                   <select
                                     value={participant}
                                     onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                    className="w-full bg-slate-50 group-hover/participant:bg-white border border-slate-200 group-hover/participant:border-[#37616b] rounded text-[10.5px] font-bold py-1 px-2 focus:ring-1 focus:ring-[#37616b] appearance-none cursor-pointer transition-all text-slate-700"
+                                    className="w-full h-8 bg-white border border-slate-200 rounded-lg text-[10px] py-1 px-3 focus:ring-2 focus:ring-slate-800 focus:border-slate-800 outline-none appearance-none cursor-pointer hover:border-slate-400 transition-all text-slate-700 font-semibold shadow-sm"
                                   >
-                                    <option value="">Selecionar...</option>
+                                    <option value="">Selecionar Participante...</option>
                                     {workshopDropdownStudents.map((student) => (
                                       <option key={student.id} value={student.nome}>
                                         {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
                                       </option>
                                     ))}
                                   </select>
-                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-hover/participant:opacity-100 transition-opacity">
-                                    <ChevronDown size={14} />
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover/select:text-slate-600 transition-colors">
+                                    <ChevronDown size={12} />
                                   </div>
                                 </div>
                               </div>
@@ -1742,9 +1751,15 @@ export default function PioneerSchoolView({
             </div>
             
             {/* Page Footer */}
-            <footer className="mt-auto p-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest print:flex print:mt-8 print:border-t-2 print:border-[#37616b]">
-              <span>© {new Date().getFullYear()} Escola do Serviço de Pioneiro</span>
-              <span className="bg-slate-100 px-3 py-1 rounded-full text-slate-500">Sessão de Treino • Turma {selectedTurma}</span>
+            <footer className="mt-auto p-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest print:flex print:mt-8 print:border-t-2 print:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-slate-300 rounded-full"></div>
+                <span>© {new Date().getFullYear()} Escola do Serviço de Pioneiro</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="bg-slate-200 px-2 py-0.5 rounded text-slate-500">Sessão de Treino</span>
+                <span>Página 1 de 1</span>
+              </div>
             </footer>
           </div>
         ) : activeTab === 'templates_pss' ? (
