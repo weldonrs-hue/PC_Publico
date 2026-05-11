@@ -1298,43 +1298,45 @@ export default function PioneerSchoolView({
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Imprimir</span>
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Improved Tabs Row */}
-        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0">
-          <button 
-            onClick={() => handleTabChange('students')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-          >
-            <Users size={16} />
-            Lista de Alunos
-          </button>
-          <button 
-            onClick={() => handleTabChange('info')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'info' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-          >
-            <Info size={16} />
-            Informações
-          </button>
-          <button 
-            onClick={() => handleTabChange('workshops')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-          >
-            <LayoutList size={16} />
-            Sessão de Treino
-          </button>
-          <button 
-            onClick={() => handleTabChange('templates_pss')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'templates_pss' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-          >
-            <FileText size={16} />
-            Templates PSS
-          </button>
+           )}
+         </div>
+       </div>
+ 
+         {/* Improved Tabs Row - Itinerary style */}
+        <div className="relative sticky top-0 bg-white/80 backdrop-blur-md z-20 -mx-4 px-4 md:mx-0 md:px-0 border-b border-gray-100">
+          <div className="flex items-center gap-8 overflow-x-auto pb-0 scrollbar-none">
+            <button 
+              onClick={() => handleTabChange('students')}
+              className={`text-sm font-black transition-all flex items-center gap-2 py-4 border-b-2 whitespace-nowrap shrink-0 uppercase tracking-wider ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            >
+              <Users size={18} />
+              Lista de Alunos
+            </button>
+            <button 
+              onClick={() => handleTabChange('info')}
+              className={`text-sm font-black transition-all flex items-center gap-2 py-4 border-b-2 whitespace-nowrap shrink-0 uppercase tracking-wider ${activeTab === 'info' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            >
+              <Info size={18} />
+              Informações
+            </button>
+            <button 
+              onClick={() => handleTabChange('workshops')}
+              className={`text-sm font-black transition-all flex items-center gap-2 py-4 border-b-2 whitespace-nowrap shrink-0 uppercase tracking-wider ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            >
+              <LayoutList size={18} />
+              Sessão de Treino
+            </button>
+            <button 
+              onClick={() => handleTabChange('templates_pss')}
+              className={`text-sm font-black transition-all flex items-center gap-2 py-4 border-b-2 whitespace-nowrap shrink-0 uppercase tracking-wider ${activeTab === 'templates_pss' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            >
+              <FileText size={18} />
+              Templates PSS
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
       <style jsx global>{`
         @media print {
