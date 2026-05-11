@@ -1126,8 +1126,9 @@ export default function PioneerSchoolView({
 
   return (
     <div className="space-y-6 relative">
-      <AnimatePresence>
-        {selectedStudents.length > 0 && (
+      <div className="print:hidden">
+        <AnimatePresence>
+          {selectedStudents.length > 0 && (
           <motion.div 
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -1337,16 +1338,15 @@ export default function PioneerSchoolView({
       <style jsx global>{`
         @media print {
           @page { 
-            margin: 10mm; 
+            margin: 8mm 10mm 15mm 10mm; 
             size: A4 portrait; 
           }
           body { 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
             background: white !important; 
-          }
-          body > *:not(#pioneer-school-report) {
-            display: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           #pioneer-school-report {
             display: block !important;
@@ -1354,20 +1354,15 @@ export default function PioneerSchoolView({
             margin: 0 !important;
             padding: 0 !important;
             visibility: visible !important;
-          }
-          #pioneer-school-report {
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
             background: white !important;
           }
           .print\:hidden { display: none !important; }
           #pdf-header {
             display: block !important;
             text-align: center !important;
-            margin-bottom: 25px !important;
+            margin-bottom: 20px !important;
             border-bottom: 3px solid #37616b !important;
-            padding-bottom: 15px !important;
+            padding-bottom: 12px !important;
           }
           #pdf-content {
             display: block !important;
@@ -1394,8 +1389,8 @@ export default function PioneerSchoolView({
             print-color-adjust: exact !important;
           }
           tr { page-break-inside: avoid !important; }
-          table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 9pt !important; }
-          th, td { border: 1px solid #7e99a8 !important; padding: 4pt 6pt !important; }
+          table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 8.5pt !important; }
+          th, td { border: 1px solid #7e99a8 !important; padding: 3pt 5pt !important; }
           th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; font-size: 8pt !important; }
           thead { display: table-header-group !important; }
           
@@ -1416,8 +1411,11 @@ export default function PioneerSchoolView({
           .workshop-participant-text { 
             display: block !important; 
             border-bottom: 1px dotted #999 !important; 
-            min-height: 24px !important; 
+            min-height: 20px !important; 
+            line-height: 1.2 !important;
             color: #333 !important;
+            font-size: 9px !important;
+            padding: 2px 4px !important;
           }
         }
         /* Specialized PDF capture overrides */
@@ -1491,6 +1489,7 @@ export default function PioneerSchoolView({
         .pdf-capture .pdf-only-element\:hidden { display: none !important; }
       `}</style>
 
+      </div>
       <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0 print:block">
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
         <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
@@ -1706,7 +1705,7 @@ export default function PioneerSchoolView({
                             return (
                               <div key={idx} className="relative">
                                 {/* Print View: Just dots and text */}
-                                <div className="hidden workshop-participant-text py-0.5 text-sm px-2 truncate">
+                                <div className="hidden workshop-participant-text py-0.5 text-[9px] px-2 truncate">
                                   {participant || '...........................................'}
                                 </div>
                                 {/* Edit View: Select dropdown */}
