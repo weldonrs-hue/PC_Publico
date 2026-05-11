@@ -1489,12 +1489,9 @@ export default function PioneerSchoolView({
           </button>
         </div>
       </div>
+    </div>
 
-          </div>
-        </div>
-      </div>
-
-      <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0 print:block">
+    <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0 print:block">
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
         <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
