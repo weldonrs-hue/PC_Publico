@@ -1334,6 +1334,7 @@ export default function PioneerSchoolView({
           </button>
         </div>
       </div>
+    </div>
 
       <style jsx global>{`
         @media print {
@@ -1489,7 +1490,6 @@ export default function PioneerSchoolView({
         .pdf-capture .pdf-only-element\:hidden { display: none !important; }
       `}</style>
 
-      </div>
       <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0 print:block">
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
         <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
@@ -1705,7 +1705,7 @@ export default function PioneerSchoolView({
                             return (
                               <div key={idx} className="relative">
                                 {/* Print View: Just dots and text */}
-                                <div className="hidden workshop-participant-text py-0.5 text-[9px] px-2 truncate">
+                                <div className="hidden workshop-participant-text py-0.5 text-[8px] px-2 truncate">
                                   {participant || '...........................................'}
                                 </div>
                                 {/* Edit View: Select dropdown */}
@@ -1713,7 +1713,7 @@ export default function PioneerSchoolView({
                                   <select
                                     value={participant}
                                     onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                    className="w-full bg-white/50 border-none rounded text-sm py-1 px-2 focus:ring-1 focus:ring-[#4a6d7c] appearance-none cursor-pointer"
+                                    className="w-full bg-white/50 border-none rounded text-[9px] sm:text-[10px] py-1 px-2 focus:ring-1 focus:ring-[#4a6d7c] appearance-none cursor-pointer"
                                   >
                                     <option value="">Selecionar Participante...</option>
                                     {workshopDropdownStudents.map((student) => (
