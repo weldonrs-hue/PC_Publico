@@ -9,6 +9,8 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import * as docxPreview from 'docx-preview';
+import { jsPDF } from 'jspdf';
+import { toJpeg } from 'html-to-image';
 
 interface RegionalConventionViewProps {
   userId: string;
@@ -607,7 +609,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         link.click();
         document.body.removeChild(link);
       } else {
-        // PDF conversion using html2pdf
+        // PDF conversion using jspdf + html-to-image
         const tempDiv = document.createElement('div');
         tempDiv.style.position = 'fixed';
         tempDiv.style.top = '0';
@@ -630,21 +632,24 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           // Wait for rendering and images to fully load within the preview
           await new Promise(resolve => setTimeout(resolve, 800));
 
-          const html2pdf = (await import('html2pdf.js')).default;
-          const opt = {
-            margin: 0,
-            filename: `Carta_${speakerName.replace(/\s+/g, '_')}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-              scale: 2, 
-              useCORS: true,
-              logging: false,
-              letterRendering: true
-            },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-          };
-          
-          await html2pdf().set(opt).from(tempDiv).save();
+          const dataUrl = await toJpeg(tempDiv, { 
+            quality: 0.95,
+            pixelRatio: 2,
+            backgroundColor: '#ffffff'
+          });
+
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          const imgProps = pdf.getImageProperties(dataUrl);
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+          pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+          pdf.save(`Carta_${speakerName.replace(/\s+/g, '_')}.pdf`);
         } catch (pdfError) {
           console.error('Detailed PDF error:', pdfError);
           throw pdfError;

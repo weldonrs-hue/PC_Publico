@@ -274,13 +274,6 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
     setGenerating(true);
 
     const circuitName = personalData?.circuito || 'NOVO';
-    const opt = {
-      margin: 0,
-      filename: `Circuito ${circuitName} - Estatísticas.pdf`,
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
-    };
 
     try {
       // Import libraries
@@ -368,7 +361,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           }
         }
 
-        /* Fix for html2canvas oklch color error and preserve colors */
+        /* Support for PDF capture styles */
         .pdf-capture {
           background-color: #ffffff !important;
           color: #1a1a1a !important;

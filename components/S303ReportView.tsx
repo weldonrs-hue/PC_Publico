@@ -22,7 +22,6 @@ import { doc, getDoc, setDoc, collection, query, where, getDocs, limit } from 'f
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 interface S303ReportViewProps {
   userId: string;
@@ -362,234 +361,6 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
       pdf.save(filename);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-    }
-  };
-
-  const handleFillOriginalPDF = async () => {
-    setError(null);
-    setGenerating(true);
-    try {
-      // Fetch the original PDF using a more robust path
-      const pdfUrl = `${window.location.origin}/S-303.pdf`;
-      const response = await fetch(pdfUrl);
-      if (!response.ok) {
-        throw new Error(`Erro ao baixar o PDF original (${response.status}): Verifique se /public/S-303.pdf existe.`);
-      }
-      const existingPdfBytes = await response.arrayBuffer();
-      
-      // Load the PDF
-      const pdfDoc = await PDFDocument.load(existingPdfBytes);
-      const pages = pdfDoc.getPages();
-      const firstPage = pages[0];
-      const { width, height } = firstPage.getSize();
-
-      // Use Arial (Helvetica) as requested for the original PDF
-      let selectedFont = StandardFonts.Helvetica;
-
-      let fontToUse = selectedFont;
-      const font = await pdfDoc.embedFont(fontToUse);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-      
-      // Convert reportFontSize (px) to PDF points (pt)
-      // User requested: Decrease font size by increasing offset to -7
-      const fontSize = Math.max(6, reportFontSize - 7);
-      const pdfLineHeight = fontSize * 1.4;
-
-      // Convert hex color to RGB
-      const hexToRgb = (hex: string) => {
-        const r = parseInt(hex.slice(1, 3), 16) / 255;
-        const g = parseInt(hex.slice(3, 5), 16) / 255;
-        const b = parseInt(hex.slice(5, 7), 16) / 255;
-        return rgb(r, g, b);
-      };
-      const reportColor = hexToRgb(textColor);
-      const blackColor = rgb(0, 0, 0);
-
-      // Coordinates (estimated in points from top-left)
-      const mmToPt = 2.83465;
-      const expansionPt = 4 * mmToPt;
-
-      // Helper to draw header text with auto-scaling
-      const drawHeader = (text: string, x: number, y: number, maxWidth: number = 180, overrideSize?: number) => {
-        if (!text) return;
-        // User requested: if report font is 17, header should be 9 (offset of -8)
-        // EXCEPT for specific fields where overrideSize is passed
-        let size = overrideSize || Math.max(6, reportFontSize - 8); 
-        while (font.widthOfTextAtSize(text, size) > maxWidth && size > 5) {
-          size -= 0.5;
-        }
-        firstPage.drawText(text, {
-          x,
-          y: height - y,
-          size,
-          font: font,
-          color: blackColor,
-        });
-      };
-
-      // Helper to draw report text
-      const drawReport = (text: string, x: number, y: number, isBoldText = false) => {
-        if (!text) return;
-        firstPage.drawText(text, {
-          x,
-          y: height - y,
-          size: fontSize,
-          font: isBoldText ? boldFont : font,
-          color: blackColor, // Forced to black as requested
-        });
-      };
-
-      // Elevating by 23mm (Net result after elevating 20mm and raising 3mm)
-      const yOffset = 65.2;
-      const xOffset = 5.67; // 2mm general left shift
-      
-      const yOffsetRow1 = 1.42; // +0.5mm
-      const yOffsetRow2 = 4.25; // 0.5mm (prev) + 1mm (new) = 1.5mm total
-      const yOffsetRow3 = 5.66; // 1mm (prev) + 1mm (new) = 2mm total
-      
-      const xOffsetReport = 8.5; // 3mm left shift for report
-      const yOffsetReport = 5.67; // 2mm up shift for report
-
-      // Row 1
-      // User requested: 4 point reduction for "Número da congregação" and "Datas em que visitou"
-      drawHeader(congregation.numero, 145 - xOffset, 128 - yOffset - yOffsetRow1, 100, reportFontSize - 4);
-      drawHeader(visitDate, 415 - xOffset, 128 - yOffset - yOffsetRow1, 150, reportFontSize - 4);
-
-      // Row 2
-      drawHeader(congregation.nome, 145 - xOffset, 153 - yOffset - yOffsetRow2, 180);
-      // User requested: Shift Cidade 10mm to the left (5mm + 5mm)
-      drawHeader(congregation.cidade, 335 - xOffset - (10 * mmToPt), 153 - yOffset - yOffsetRow2, 180);
-      drawHeader(congregation.estado, 525 - xOffset, 153 - yOffset - yOffsetRow2, 40);
-
-      // Row 3
-      const supName = substituteName ? `${substituteName} (SCS)` : (personalData?.nome || '');
-      drawHeader(supName, 110 - xOffset, 178 - yOffset - yOffsetRow3, 250);
-      drawHeader(personalData?.circuito || '', 385 - xOffset, 178 - yOffset - yOffsetRow3, 100);
-
-      // Report Text (Robust manual drawing to ensure it's NEVER blank)
-      const maxWidth = 500 + (2 * expansionPt);
-      const startX = 60 - xOffset - xOffsetReport - expansionPt;
-      const startY = 225 - yOffset - yOffsetReport;
-
-      // Improved HTML to Plain Text conversion for PDF
-      const stripHtmlForPdf = (html: string) => {
-        if (!html) return "";
-        let text = html;
-        // Convert line breaks and block elements to newlines
-        text = text.replace(/<br\s*\/?>/gi, '\n');
-        text = text.replace(/<\/p>/gi, '\n');
-        text = text.replace(/<\/div>/gi, '\n');
-        text = text.replace(/<(p|div|li|h[1-6])[^>]*>/gi, '');
-        
-        // Remove all other tags
-        text = text.replace(/<[^>]*>/g, '');
-        
-        // Decode common HTML entities
-        const entities: { [key: string]: string } = {
-          '&nbsp;': ' ',
-          '&amp;': '&',
-          '&lt;': '<',
-          '&gt;': '>',
-          '&quot;': '"',
-          '&#39;': "'",
-          '&atilde;': 'ã',
-          '&otilde;': 'õ',
-          '&ccedil;': 'ç',
-          '&aacute;': 'á',
-          '&eacute;': 'é',
-          '&iacute;': 'í',
-          '&oacute;': 'ó',
-          '&uacute;': 'ú',
-          '&acirc;': 'â',
-          '&ecirc;': 'ê',
-          '&icirc;': 'î',
-          '&ocirc;': 'ô',
-          '&ucirc;': 'û'
-        };
-        
-        Object.keys(entities).forEach(entity => {
-          text = text.replace(new RegExp(entity, 'g'), entities[entity]);
-        });
-        
-        return text;
-      };
-
-      const plainReportText = stripHtmlForPdf(reportText);
-      const paragraphs = plainReportText.split(/\r?\n/);
-      let currentY = startY;
-      let hasStarted = false;
-
-      // Helper for justified text (Manual drawing)
-      const drawJustifiedLine = (text: string, x: number, y: number, width: number) => {
-        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
-        if (words.length <= 1) {
-          drawReport(text, x, y);
-          return;
-        }
-
-        const totalWordsWidth = words.reduce((acc, word) => acc + font.widthOfTextAtSize(word, fontSize), 0);
-        const totalSpaceWidth = width - totalWordsWidth;
-        const spaceBetweenWords = totalSpaceWidth / (words.length - 1);
-
-        let currentX = x;
-        for (let i = 0; i < words.length; i++) {
-          drawReport(words[i], currentX, y);
-          currentX += font.widthOfTextAtSize(words[i], fontSize) + spaceBetweenWords;
-        }
-      };
-
-      for (let i = 0; i < paragraphs.length; i++) {
-        const paragraph = paragraphs[i].trim();
-        
-        // Skip initial empty lines
-        if (!hasStarted && !paragraph) continue;
-        hasStarted = true;
-
-        if (!paragraph) {
-          // Empty line (double Enter)
-          currentY += pdfLineHeight;
-          continue;
-        }
-
-        const words = paragraph.split(/\s+/).filter(w => w.length > 0);
-        let line = '';
-
-        for (let j = 0; j < words.length; j++) {
-          const word = words[j];
-          const testLine = line + (line ? ' ' : '') + word;
-          const testWidth = font.widthOfTextAtSize(testLine, fontSize);
-          
-          if (testWidth > maxWidth) {
-            drawJustifiedLine(line, startX, currentY, maxWidth);
-            line = word;
-            currentY += pdfLineHeight;
-          } else {
-            line = testLine;
-          }
-        }
-        
-        // Last line of paragraph (not justified)
-        if (line) {
-          drawReport(line, startX, currentY);
-          currentY += pdfLineHeight;
-        }
-      }
-
-      // Serialize the PDF to bytes (a Uint8Array)
-      const pdfBytes = await pdfDoc.save();
-
-      // Trigger download
-      const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = getFormattedFilename();
-      link.click();
-      URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error('Erro ao preencher PDF original:', error);
-      setError(error instanceof Error ? error.message : 'Erro desconhecido ao gerar o PDF Original');
     } finally {
       setGenerating(false);
     }
@@ -630,7 +401,6 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
               <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
               <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
             </button>
-            
             {showPdfMenu && (
               <motion.div 
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -639,23 +409,13 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
               >
                 <button
                   onClick={() => {
-                    handleFillOriginalPDF();
-                    setShowPdfMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
-                >
-                  <FileDown size={18} className="text-[#7B1FA2]" />
-                  Baixar PDF Original
-                </button>
-                <button
-                  onClick={() => {
                     handleSavePDF();
                     setShowPdfMenu(false);
                   }}
                   className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
                 >
                   <FileDown size={18} className="text-[#7B1FA2]" />
-                  Baixar PDF ProgCir
+                  Baixar PDF
                 </button>
               </motion.div>
             )}

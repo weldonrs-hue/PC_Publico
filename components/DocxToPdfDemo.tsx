@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import mammoth from 'mammoth';
+import * as docxPreview from 'docx-preview';
 import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -19,7 +19,37 @@ export default function DocxToPdfDemo() {
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>(TEMPLATE_NAMES[0]);
 
+  const [processedBuffer, setProcessedBuffer] = useState<ArrayBuffer | null>(null);
+  const [isProcessingPreview, setIsProcessingPreview] = useState(false);
+
+  const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (processedBuffer && previewRef.current) {
+      renderDocxPreview(processedBuffer);
+    }
+  }, [processedBuffer]);
+
+  const renderDocxPreview = async (buffer: ArrayBuffer) => {
+    if (!previewRef.current) return;
+    setIsProcessingPreview(true);
+    try {
+      previewRef.current.innerHTML = '';
+      await docxPreview.renderAsync(buffer, previewRef.current, undefined, {
+        className: "docx-preview",
+        inWrapper: false,
+        ignoreWidth: true,
+        ignoreHeight: true,
+        breakPages: false,
+        useBase64URL: true,
+      });
+    } catch (err) {
+      console.error('Error rendering docx preview:', err);
+    } finally {
+      setIsProcessingPreview(false);
+    }
+  };
 
   useEffect(() => {
     fetchTemplates();
@@ -44,11 +74,10 @@ export default function DocxToPdfDemo() {
       if (selectedFile.name.endsWith('.docx')) {
         setFile(selectedFile);
         
-        // Initial preview using mammoth
+        // Initial preview
         try {
           const arrayBuffer = await selectedFile.arrayBuffer();
-          const result = await mammoth.convertToHtml({ arrayBuffer });
-          setPreviewHtml(result.value);
+          setProcessedBuffer(arrayBuffer);
         } catch (err) {
           console.error('Error generating preview:', err);
         }
@@ -101,13 +130,13 @@ export default function DocxToPdfDemo() {
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
-        const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer });
-        setPreviewHtml(result.value);
+        setProcessedBuffer(bytes.buffer);
         setFile(null);
       } catch (err) {
         console.error('Error loading template preview:', err);
       }
     } else {
+      setProcessedBuffer(null);
       setPreviewHtml('');
       setFile(null);
     }
@@ -220,9 +249,20 @@ export default function DocxToPdfDemo() {
               style={{ overflowY: 'auto' }}
             >
               <div 
-                className="prose prose-sm max-w-none docx-preview-container"
-                dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">Selecione um template para visualizar</div>' }}
-              />
+                ref={previewRef}
+                className="docx-preview-container mx-auto"
+              >
+                {!processedBuffer && (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">
+                    Selecione um template para visualizar
+                  </div>
+                )}
+              </div>
+              {isProcessingPreview && (
+                <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center">
+                  <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -249,6 +289,19 @@ export default function DocxToPdfDemo() {
         .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
         .docx-preview-container ul, .docx-preview-container ol { margin-bottom: 0.5rem; padding-left: 1.5rem; }
         .docx-preview-container li { margin-bottom: 0.25rem; color: #374151 !important; }
+        
+        .docx-preview-container .docx-preview {
+          padding: 0 !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          width: 100% !important;
+        }
+        .docx-preview-container section.docx {
+          padding: 0 !important;
+          margin: 0 !important;
+          background: white !important;
+          box-shadow: none !important;
+        }
         
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;

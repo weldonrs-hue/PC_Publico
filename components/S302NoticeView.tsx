@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'motion/react';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
