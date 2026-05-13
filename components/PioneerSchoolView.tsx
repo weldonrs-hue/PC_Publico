@@ -1611,30 +1611,30 @@ export default function PioneerSchoolView({
                     {WORKSHOP_DATA.map((workshop) => (
                       <Fragment key={workshop.id}>
                         {workshop.scenarios.map((scenario, sIndex) => (
-                          <tr key={scenario.id} className="group">
+                          <tr key={scenario.id} className="group min-h-0 h-1">
                             {sIndex === 0 && (
                               <td 
-                                className="w-[30px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0" 
+                                className="w-[30px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
                                 rowSpan={workshop.scenarios.length}
                               >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[0.85rem] uppercase tracking-wider whitespace-nowrap h-full w-full mx-auto py-2">
+                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[11px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
                                   {workshop.label}
                                 </div>
                               </td>
                             )}
-                            <td className={`border border-[#aebfc5] p-3 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent w-1/2 min-h-[68px] ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col gap-1 min-h-[44px] justify-center">
+                            <td className={`border border-[#aebfc5] p-2.5 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                              <div className="flex flex-col gap-0.5">
                                 <div 
-                                  className="cursor-pointer group/scenario flex items-start gap-2"
+                                  className="cursor-pointer group/scenario flex items-start gap-1.5"
                                   onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                                 >
-                                  <span className="font-bold text-base shrink-0 leading-none">({scenario.id})</span>
-                                  <span className="flex-1 text-[13px] font-bold leading-snug">
+                                  <span className="font-bold text-sm shrink-0 leading-tight">({scenario.id})</span>
+                                  <span className="flex-1 text-[12px] font-bold leading-tight">
                                     {scenario.text}
                                   </span>
-                                  <div className="shrink-0 p-1 print:hidden pdf-hidden">
+                                  <div className="shrink-0 p-0.5 print:hidden pdf-hidden">
                                     <ChevronDown 
-                                      size={14} 
+                                      size={12} 
                                       className={`transform transition-transform text-slate-400 group-hover/scenario:text-slate-600 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
                                     />
                                   </div>
@@ -1656,20 +1656,20 @@ export default function PioneerSchoolView({
                                 </AnimatePresence>
                               </div>
                             </td>
-                            <td className={`border border-[#aebfc5] p-0 w-1/2 align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                            <td className={`border border-[#aebfc5] p-0 w-[45%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
                               <div className="flex flex-col divide-y divide-[#d1dce0]">
-                                {Array.from({ length: workshop.id === 'workshop-2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
+                                {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                                   const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
                                   return (
-                                    <div key={idx} className="relative px-3 py-1 min-h-[34px] flex items-center">
-                                      <div className="hidden workshop-participant-text text-sm font-medium text-slate-800">
+                                    <div key={idx} className="relative px-3 py-1 min-h-[26px] flex items-center">
+                                      <div className="hidden workshop-participant-text text-[13px] font-medium text-slate-800">
                                         {participant || (idx < 2 ? '...........................................' : '')}
                                       </div>
                                       <div className="workshop-select-ui w-full">
                                         <select
                                           value={participant}
                                           onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                          className="w-full bg-transparent border-none rounded-sm text-xs py-1 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer font-bold"
+                                          className="w-full bg-transparent border-none rounded-sm text-[11px] py-0.5 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer font-bold"
                                         >
                                           <option value="">- Selecionar -</option>
                                           {workshopDropdownStudents.map((student) => (
