@@ -1622,19 +1622,19 @@ export default function PioneerSchoolView({
                                 </div>
                               </td>
                             )}
-                            <td className={`border border-[#aebfc5] p-4 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col gap-1.5">
+                            <td className={`border border-[#aebfc5] p-3 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent w-1/2 min-h-[68px] ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                              <div className="flex flex-col gap-1 min-h-[44px] justify-center">
                                 <div 
-                                  className="cursor-pointer group/scenario flex items-start gap-3"
+                                  className="cursor-pointer group/scenario flex items-start gap-2"
                                   onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                                 >
-                                  <span className="font-bold text-lg shrink-0 leading-none">({scenario.id})</span>
-                                  <span className="flex-1 text-[14px] font-bold leading-tight">
+                                  <span className="font-bold text-base shrink-0 leading-none">({scenario.id})</span>
+                                  <span className="flex-1 text-[13px] font-bold leading-snug">
                                     {scenario.text}
                                   </span>
                                   <div className="shrink-0 p-1 print:hidden pdf-hidden">
                                     <ChevronDown 
-                                      size={16} 
+                                      size={14} 
                                       className={`transform transition-transform text-slate-400 group-hover/scenario:text-slate-600 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
                                     />
                                   </div>
@@ -1648,7 +1648,7 @@ export default function PioneerSchoolView({
                                       exit={{ height: 0, opacity: 0 }}
                                       className="overflow-hidden"
                                     >
-                                      <div className="mt-3 p-4 bg-white/60 border-l-[4px] border-[#3e5e66] rounded-sm text-[12px] text-slate-700 italic leading-relaxed shadow-sm">
+                                      <div className="mt-3 p-3 bg-white/50 border-l-[3px] border-[#3e5e66] rounded-sm text-[11px] text-slate-600 italic leading-relaxed">
                                         {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
                                       </div>
                                     </motion.div>
@@ -1656,22 +1656,22 @@ export default function PioneerSchoolView({
                                 </AnimatePresence>
                               </div>
                             </td>
-                            <td className={`border border-[#aebfc5] p-0 w-[42%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col divide-y divide-[#d1dce0] h-full">
+                            <td className={`border border-[#aebfc5] p-0 w-1/2 align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                              <div className="flex flex-col divide-y divide-[#d1dce0]">
                                 {Array.from({ length: workshop.id === 'workshop-2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                                   const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
                                   return (
-                                    <div key={idx} className="relative px-4 py-2 min-h-[44px] flex items-center bg-transparent">
-                                      <div className="hidden workshop-participant-text text-sm font-semibold text-slate-900">
-                                        {participant || (idx < 2 ? '..........................................................' : '')}
+                                    <div key={idx} className="relative px-3 py-1 min-h-[34px] flex items-center">
+                                      <div className="hidden workshop-participant-text text-sm font-medium text-slate-800">
+                                        {participant || (idx < 2 ? '...........................................' : '')}
                                       </div>
                                       <div className="workshop-select-ui w-full">
                                         <select
                                           value={participant}
                                           onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                          className="w-full bg-transparent border-none rounded-none text-[13px] py-1.5 focus:ring-0 focus:outline-none appearance-none cursor-pointer font-bold text-slate-800"
+                                          className="w-full bg-transparent border-none rounded-sm text-xs py-1 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer font-bold"
                                         >
-                                          <option value="">- Selecionar Participante -</option>
+                                          <option value="">- Selecionar -</option>
                                           {workshopDropdownStudents.map((student) => (
                                             <option key={student.id} value={student.nome}>
                                               {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
