@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { 
   ChevronLeft, 
   ChevronDown,
@@ -1592,53 +1592,51 @@ export default function PioneerSchoolView({
             </div>
           </div>
         ) : activeTab === 'workshops' ? (
-          <div className="bg-white shadow-[0px_10px_40px_rgba(0,0,0,0.1)] border border-slate-200 overflow-hidden rounded-2xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[950px]">
-                <thead>
-                  <tr className="bg-slate-900 text-white font-bold h-16 uppercase text-xs tracking-widest">
-                    <th className="w-[60px] text-center border-r border-white/10 text-slate-400 bg-slate-950/20">
-                      #
-                    </th>
-                    <th className="flex-1 px-8 border-r border-white/10 h-16">
-                      <div className="flex items-center justify-center gap-4">
-                        <span className="text-slate-100 font-black">SESSÃO DE TREINO</span>
-                        <div className="h-4 w-px bg-white/20" />
-                        <span className="text-amber-400 font-black">TURMA {selectedTurma}</span>
-                      </div>
-                    </th>
-                    <th className="w-[340px] text-center h-16 bg-slate-950/10">
-                      PARTICIPANTES
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {WORKSHOP_DATA.map((workshop) => (
-                    <tr key={workshop.id} className="group hover:bg-slate-50/80 transition-colors">
-                      <td className="w-[60px] bg-slate-900/[0.03] text-slate-400 p-0 border-r border-slate-100">
-                        <div className="flex items-center justify-center font-black text-[11px] [writing-mode:vertical-lr] rotate-180 py-8 h-full w-full opacity-40 group-hover:opacity-100 transition-all uppercase tracking-widest">
-                          {workshop.label}
-                        </div>
-                      </td>
-                      <td colSpan={2} className="p-0">
-                        <div className="flex flex-col divide-y divide-slate-100">
-                          {workshop.scenarios.map((scenario, sIndex) => (
-                            <div key={scenario.id} className={`grid grid-cols-[1fr_340px] min-h-[80px] ${sIndex % 2 === 0 ? 'bg-slate-50/10' : 'bg-white'}`}>
-                              <div className="p-6 text-sm font-medium leading-relaxed flex flex-col justify-center">
+          <div className="bg-[#f3f4f6]">
+            <div className="max-w-[1000px] mx-auto bg-white shadow-lg overflow-hidden border border-[#aebfc5]">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
+                      <th className="p-4 text-left font-bold text-xl" colSpan={2}>
+                        SESSÃO DE TREINO 
+                        <span className="text-yellow-400 italic ml-4">TURMA {selectedTurma}</span>
+                      </th>
+                      <th className="p-4 text-right align-bottom font-bold text-sm tracking-widest">
+                        PARTICIPANTES
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-800">
+                    {WORKSHOP_DATA.map((workshop) => (
+                      <Fragment key={workshop.id}>
+                        {workshop.scenarios.map((scenario, sIndex) => (
+                          <tr key={scenario.id} className="group">
+                            {sIndex === 0 && (
+                              <td 
+                                className="w-[30px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0" 
+                                rowSpan={workshop.scenarios.length}
+                              >
+                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[0.85rem] uppercase tracking-wider whitespace-nowrap h-full w-full mx-auto py-2">
+                                  {workshop.label}
+                                </div>
+                              </td>
+                            )}
+                            <td className={`border border-[#aebfc5] p-3 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                              <div className="flex flex-col gap-1">
                                 <div 
-                                  className="cursor-pointer hover:text-indigo-600 transition-all group/scenario flex items-start gap-4"
+                                  className="cursor-pointer group/scenario flex items-start gap-2"
                                   onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                                 >
-                                  <div className="shrink-0 mt-0.5">
-                                    <span className="font-black text-indigo-600 text-[10px] bg-indigo-50 px-2 py-1 rounded-md ring-1 ring-indigo-200">
-                                      {scenario.id}
-                                    </span>
-                                  </div>
-                                  <span className="flex-1 text-slate-800 text-[15px] font-semibold leading-snug">
+                                  <span className="font-bold text-base shrink-0 leading-none">({scenario.id})</span>
+                                  <span className="flex-1 text-[13px] font-bold leading-snug">
                                     {scenario.text}
                                   </span>
-                                  <div className={`shrink-0 p-1.5 rounded-full transition-all ${expandedScenario === scenario.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover/scenario:bg-indigo-100 group-hover/scenario:text-indigo-600'}`}>
-                                    <ChevronDown size={16} className={`transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} />
+                                  <div className="shrink-0 p-1 print:hidden pdf-hidden">
+                                    <ChevronDown 
+                                      size={14} 
+                                      className={`transform transition-transform text-slate-400 group-hover/scenario:text-slate-600 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                    />
                                   </div>
                                 </div>
 
@@ -1650,58 +1648,49 @@ export default function PioneerSchoolView({
                                       exit={{ height: 0, opacity: 0 }}
                                       className="overflow-hidden"
                                     >
-                                      <div className="mt-5 p-5 bg-slate-50/50 border-l-[4px] border-amber-400 rounded-r-xl shadow-[inset_0px_2px_4px_rgba(0,0,0,0.02)] text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">
-                                        <div className="font-black text-slate-900 text-[11px] uppercase tracking-widest mb-3 flex items-center gap-2.5">
-                                          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                                          Instruções para a Parte
-                                        </div>
-                                        <div className="opacity-90 font-medium">
-                                          {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
-                                        </div>
+                                      <div className="mt-3 p-3 bg-white/50 border-l-[3px] border-[#3e5e66] rounded-sm text-[11px] text-slate-600 italic leading-relaxed">
+                                        {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
                                       </div>
                                     </motion.div>
                                   )}
                                 </AnimatePresence>
                               </div>
-                              <div className="p-4 flex flex-col gap-3 border-l border-slate-100 bg-slate-50/40">
-                                {Array.from({ length: scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
+                            </td>
+                            <td className={`border border-[#aebfc5] p-0 w-[45%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                              <div className="flex flex-col divide-y divide-[#d1dce0]">
+                                {Array.from({ length: workshop.id === 'workshop-2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                                   const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
                                   return (
-                                    <div key={idx} className="relative group/input">
-                                      <div className="hidden workshop-participant-text py-2 text-sm font-semibold text-slate-800 border-b border-slate-300">
-                                        {participant || '...........................................'}
+                                    <div key={idx} className="relative px-3 py-1.5 min-h-[32px] flex items-center">
+                                      <div className="hidden workshop-participant-text text-sm font-medium text-slate-800">
+                                        {participant || (idx < 2 ? '...........................................' : '')}
                                       </div>
-                                      <div className="workshop-select-ui">
-                                        <div className="relative group/select">
-                                          <select
-                                            value={participant}
-                                            onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                            className="w-full bg-white border border-slate-200 group-hover/select:border-indigo-400 rounded-xl text-xs py-2.5 pl-4 pr-10 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none appearance-none cursor-pointer text-slate-700 shadow-sm transition-all font-bold tracking-tight"
-                                          >
-                                            <option value="">Selecionar Participante...</option>
-                                            {workshopDropdownStudents.map((student) => (
-                                              <option key={student.id} value={student.nome}>
-                                                {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover/select:text-indigo-500 transition-colors">
-                                            <ChevronDown size={14} />
-                                          </div>
-                                        </div>
+                                      <div className="workshop-select-ui w-full">
+                                        <select
+                                          value={participant}
+                                          onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
+                                          className="w-full bg-transparent border-none rounded-sm text-xs py-1 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer font-bold"
+                                        >
+                                          <option value="">- Selecionar -</option>
+                                          {workshopDropdownStudents.map((student) => (
+                                            <option key={student.id} value={student.nome}>
+                                              {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
+                                            </option>
+                                          ))}
+                                        </select>
                                       </div>
                                     </div>
                                   );
                                 })}
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
