@@ -484,6 +484,44 @@ export default function PioneerSchoolView({
     }
   };
 
+  const [focusedSlot, setFocusedSlot] = useState<{scenarioId: number, slotIndex: number} | null>(null);
+
+  // Flattened list of all possible slots for navigation
+  const allWorkshopSlots = WORKSHOP_DATA.flatMap(w => 
+    w.scenarios.flatMap(s => {
+      const count = w.id === 'workshop2' && s.id === 5 ? 4 : 2;
+      return Array.from({ length: count }).map((_, idx) => ({
+        scenarioId: s.id,
+        slotIndex: idx
+      }));
+    })
+  );
+
+  const handleWorkshopKeyDown = (e: React.KeyboardEvent, scenarioId: number, slotIndex: number) => {
+    const currentIndex = allWorkshopSlots.findIndex(s => s.scenarioId === scenarioId && s.slotIndex === slotIndex);
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextSlot = allWorkshopSlots[currentIndex + 1];
+      if (nextSlot) {
+        setFocusedSlot(nextSlot);
+        const nextEl = document.querySelector(`[data-slot="${nextSlot.scenarioId}-${nextSlot.slotIndex}"]`) as HTMLElement;
+        nextEl?.focus();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevSlot = allWorkshopSlots[currentIndex - 1];
+      if (prevSlot) {
+        setFocusedSlot(prevSlot);
+        const prevEl = document.querySelector(`[data-slot="${prevSlot.scenarioId}-${prevSlot.slotIndex}"]`) as HTMLElement;
+        prevEl?.focus();
+      }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      handleParticipantChange(scenarioId, slotIndex, '');
+    }
+  };
+
   const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
     try {
       const existing = workshopAssignments[scenarioId];
@@ -1614,15 +1652,15 @@ export default function PioneerSchoolView({
                           <tr key={scenario.id} className="group min-h-0 h-1">
                             {sIndex === 0 && (
                               <td 
-                                className="w-[20px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
+                                className="w-[30px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
                                 rowSpan={workshop.scenarios.length}
                               >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
+                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[11px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
                                   {workshop.label}
                                 </div>
                               </td>
                             )}
-                            <td className={`border border-[#aebfc5] p-2.5 w-[60%] relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                            <td className={`border border-[#aebfc5] p-2.5 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
                               <div className="flex flex-col gap-0.5">
                                 <div 
                                   className="cursor-pointer group/scenario flex items-start gap-1.5"
@@ -1656,29 +1694,33 @@ export default function PioneerSchoolView({
                                 </AnimatePresence>
                               </div>
                             </td>
-                            <td className={`border border-[#aebfc5] p-0 w-[40%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col divide-y divide-[#d1dce0]">
+                            <td className={`border border-[#aebfc5] p-0 w-[45%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                              <div className="flex flex-col divide-y divide-[#aebfc5]">
                                 {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                                   const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                                  const isFocused = focusedSlot?.scenarioId === scenario.id && focusedSlot?.slotIndex === idx;
+                                  
                                   return (
-                                    <div key={idx} className="relative px-3 py-1 min-h-[30px] flex items-center">
-                                      <div className="hidden workshop-participant-text text-[14px] font-medium text-slate-800">
+                                    <div 
+                                      key={idx} 
+                                      className={`relative px-2 py-0.5 min-h-[32px] flex items-center transition-all ${isFocused ? 'ring-2 ring-inset ring-[#3e5e66] bg-white z-10' : ''}`}
+                                    >
+                                      <div className="hidden workshop-participant-text text-[15px] font-medium text-slate-800">
                                         {participant || (idx < 2 ? '...........................................' : '')}
                                       </div>
-                                      <div className="workshop-select-ui w-full">
+                                      <div className="workshop-select-ui w-full h-full">
                                         <select
+                                          data-slot={`${scenario.id}-${idx}`}
                                           value={participant}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Delete' || e.key === 'Backspace') {
-                                              handleParticipantChange(scenario.id, idx, '');
-                                            }
-                                          }}
                                           onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                          className={`w-full bg-transparent border-none rounded-sm text-[13px] py-1 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer ${!participant ? 'text-slate-400 font-normal outline-none' : 'text-slate-800 font-bold'}`}
+                                          onFocus={() => setFocusedSlot({ scenarioId: scenario.id, slotIndex: idx })}
+                                          onBlur={() => setFocusedSlot(null)}
+                                          onKeyDown={(e) => handleWorkshopKeyDown(e, scenario.id, idx)}
+                                          className={`w-full bg-transparent border-none rounded-none text-[15px] py-1 cursor-pointer transition-colors focus:ring-0 outline-none appearance-none block leading-tight ${!participant ? 'text-slate-400 font-normal italic' : 'text-slate-800 font-bold'}`}
                                         >
-                                          <option value="">- Selecionar -</option>
+                                          <option value="" className="text-slate-400 font-normal italic">- Selecionar -</option>
                                           {workshopDropdownStudents.map((student) => (
-                                            <option key={student.id} value={student.nome}>
+                                            <option key={student.id} value={student.nome} className="text-slate-800 font-bold">
                                               {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
                                             </option>
                                           ))}
