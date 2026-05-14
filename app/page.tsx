@@ -182,10 +182,31 @@ export default function Home() {
     reportEnabledForAll: boolean;
     textEditorEnabledForAll: boolean;
     congregationImportEnabledForAll: boolean;
-  }>({ reportEnabledForAll: false, textEditorEnabledForAll: false, congregationImportEnabledForAll: false });
+    allowESPUploadForAll: boolean;
+    allowEMRUploadForAll: boolean;
+    allowCongressoUploadForAll: boolean;
+    allowAssembleiasUploadForAll: boolean;
+    allowProgramacoesUploadForAll: boolean;
+    allowPSSUploadForAll: boolean;
+  }>({ 
+    reportEnabledForAll: false, 
+    textEditorEnabledForAll: false, 
+    congregationImportEnabledForAll: false,
+    allowESPUploadForAll: false,
+    allowEMRUploadForAll: false,
+    allowCongressoUploadForAll: false,
+    allowAssembleiasUploadForAll: false,
+    allowProgramacoesUploadForAll: false,
+    allowPSSUploadForAll: false
+  });
   const [hasGuestInvites, setHasGuestInvites] = useState(false);
 
   const [espInitialMode, setEspInitialMode] = useState<'geracao' | 'manager'>('geracao');
+  const [congressoInitialMode, setCongressoInitialMode] = useState<'geracao' | 'manager'>('geracao');
+  const [emrInitialMode, setEmrInitialMode] = useState<'geracao' | 'manager'>('geracao');
+  const [assembleiasInitialMode, setAssembleiasInitialMode] = useState<'geracao' | 'manager'>('geracao');
+  const [programacoesInitialMode, setProgramacoesInitialMode] = useState<'geracao' | 'manager'>('geracao');
+  const [pssInitialMode, setPssInitialMode] = useState<'geracao' | 'manager'>('geracao');
 
   // Monitorar convites de instrutor convidado
   useEffect(() => {
@@ -395,7 +416,13 @@ export default function Home() {
         setAppConfig({ 
           reportEnabledForAll: !!data.reportEnabledForAll,
           textEditorEnabledForAll: !!data.textEditorEnabledForAll,
-          congregationImportEnabledForAll: !!data.congregationImportEnabledForAll
+          congregationImportEnabledForAll: !!data.congregationImportEnabledForAll,
+          allowESPUploadForAll: !!data.allowESPUploadForAll,
+          allowEMRUploadForAll: !!data.allowEMRUploadForAll,
+          allowCongressoUploadForAll: !!data.allowCongressoUploadForAll,
+          allowAssembleiasUploadForAll: !!data.allowAssembleiasUploadForAll,
+          allowProgramacoesUploadForAll: !!data.allowProgramacoesUploadForAll,
+          allowPSSUploadForAll: !!data.allowPSSUploadForAll
         });
       } else {
         console.log('Home: App settings doc not found.');
@@ -404,7 +431,13 @@ export default function Home() {
           setDoc(configRef, { 
             reportEnabledForAll: false,
             textEditorEnabledForAll: false,
-            congregationImportEnabledForAll: false
+            congregationImportEnabledForAll: false,
+            allowESPUploadForAll: false,
+            allowEMRUploadForAll: false,
+            allowCongressoUploadForAll: false,
+            allowAssembleiasUploadForAll: false,
+            allowProgramacoesUploadForAll: false,
+            allowPSSUploadForAll: false
           }).catch(err => {
             console.error('Home: Failed to init app settings:', err);
           });
@@ -412,7 +445,13 @@ export default function Home() {
         setAppConfig({ 
           reportEnabledForAll: false, 
           textEditorEnabledForAll: false, 
-          congregationImportEnabledForAll: false 
+          congregationImportEnabledForAll: false,
+          allowESPUploadForAll: false,
+          allowEMRUploadForAll: false,
+          allowCongressoUploadForAll: false,
+          allowAssembleiasUploadForAll: false,
+          allowProgramacoesUploadForAll: false,
+          allowPSSUploadForAll: false
         });
       }
     }, (err) => {
@@ -1214,16 +1253,35 @@ export default function Home() {
             <CartasESPView 
               userId={user.id}
               isAdmin={user.role === 'admin'}
+              canManage={user?.role === 'admin' || appConfig.allowESPUploadForAll}
               initialMode={espInitialMode}
-              onBack={() => changeView(espInitialMode === 'manager' ? 'cartas_dashboard' : 'cartas')}
+              onBack={() => changeView('cartas')}
             />
           )}
 
           {currentView === 'cartas' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <CartasSeletorView 
+              isAdmin={user?.role === 'admin'}
+              appConfig={appConfig}
               onViewChange={(view) => {
-                if (view === 'cartas_esp') setEspInitialMode('geracao');
-                changeView(view as any);
+                if (view.endsWith(':manager')) {
+                  const baseView = view.split(':')[0];
+                  if (baseView === 'cartas_esp') setEspInitialMode('manager');
+                  if (baseView === 'cartas_congresso') setCongressoInitialMode('manager');
+                  if (baseView === 'cartas_emr') setEmrInitialMode('manager');
+                  if (baseView === 'cartas_assembleias') setAssembleiasInitialMode('manager');
+                  if (baseView === 'cartas_programacoes') setProgramacoesInitialMode('manager');
+                  if (baseView === 'docx_demo') setPssInitialMode('manager');
+                  changeView(baseView as any);
+                } else {
+                  if (view === 'cartas_esp') setEspInitialMode('geracao');
+                  if (view === 'cartas_congresso') setCongressoInitialMode('geracao');
+                  if (view === 'cartas_emr') setEmrInitialMode('geracao');
+                  if (view === 'cartas_assembleias') setAssembleiasInitialMode('geracao');
+                  if (view === 'cartas_programacoes') setProgramacoesInitialMode('geracao');
+                  if (view === 'docx_demo') setPssInitialMode('geracao');
+                  changeView(view as any);
+                }
               }}
             />
           )}
@@ -1250,7 +1308,9 @@ export default function Home() {
             <CartasCongressoView 
               userId={user.id}
               isAdmin={user.role === 'admin'}
-              onBack={() => changeView('cartas_dashboard')}
+              canManage={user?.role === 'admin' || appConfig.allowCongressoUploadForAll}
+              initialMode={congressoInitialMode}
+              onBack={() => changeView('cartas')}
             />
           )}
 
@@ -1291,21 +1351,12 @@ export default function Home() {
           )}
 
           {currentView === 'docx_demo' && (
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[80vh]">
-              <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => changeView('cartas_dashboard')}
-                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
-                    title="Voltar ao Painel de Cartas"
-                  >
-                    <ArrowLeft size={20} />
-                  </button>
-                  <h2 className="font-bold text-gray-800">Gerador de Documentos</h2>
-                </div>
-              </div>
-              <DocxToPdfDemo />
-            </div>
+            <DocxToPdfDemo 
+              isAdmin={user.role === 'admin'}
+              canManage={user?.role === 'admin' || appConfig.allowPSSUploadForAll}
+              initialMode={pssInitialMode}
+              onBack={() => changeView('cartas')}
+            />
           )}
 
           {showRoleSelection && (

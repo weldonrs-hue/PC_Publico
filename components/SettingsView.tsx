@@ -60,6 +60,12 @@ interface SettingsViewProps {
     reportEnabledForAll: boolean;
     textEditorEnabledForAll: boolean;
     congregationImportEnabledForAll: boolean;
+    allowESPUploadForAll: boolean;
+    allowEMRUploadForAll: boolean;
+    allowCongressoUploadForAll: boolean;
+    allowAssembleiasUploadForAll: boolean;
+    allowProgramacoesUploadForAll: boolean;
+    allowPSSUploadForAll: boolean;
   };
 }
 
@@ -342,6 +348,19 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
     }
   };
 
+  const handleToggleUploadPermission = async (field: string, currentValue: boolean) => {
+    if (!isAdmin) return;
+    try {
+      const configRef = doc(db, 'config', 'app_settings');
+      await setDoc(configRef, { 
+        [field]: !currentValue 
+      }, { merge: true });
+    } catch (err) {
+      console.error('Erro ao atualizar configuração global:', err);
+      alert('Erro ao atualizar configuração. Verifique suas permissões.');
+    }
+  };
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.new !== passwordForm.confirm) {
@@ -503,14 +522,6 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
           });
           await batch.commit();
         }
-
-        // Special case for activity_analysis and s303_reports which might use custom IDs starting with userId
-        if (collName === 'activity_analysis' || collName === 's303_reports') {
-          // We can't query by ID prefix easily in Firestore without a range query, 
-          // but usually they have userId field too. 
-          // If they don't, we'd need to fetch and filter or use a range query.
-          // Based on rules, they should have userId or start with userId.
-        }
       }
 
       // Also clear personal_data
@@ -544,151 +555,122 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         exit={{ opacity: 0, y: -20 }}
         className="space-y-8 relative"
       >
-      <div className="flex items-center gap-4 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Ajustes do Sistema</h2>
-      </div>
+        <div className="flex items-center gap-4 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Ajustes do Sistema</h2>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {settingsButtons
-          .filter(btn => {
-            if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
-            
-            const role = personalData?.role || 'viajante';
-            const hasInvites = (receivedPioneerInvites?.length || 0) > 0 || (pioneerInvites?.length || 0) > 0;
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {settingsButtons
+            .filter(btn => {
+              if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
+              
+              const role = personalData?.role || 'viajante';
+              const hasInvites = (receivedPioneerInvites?.length || 0) > 0 || (pioneerInvites?.length || 0) > 0;
 
-            // Mostrar "Instrutor B (ESP)" para viajantes, admins ou quem tem convites
-            if (btn.id === 'pioneer_access' && role !== 'viajante' && !isAdmin && !hasInvites) {
-              return false;
-            }
+              // Mostrar "Instrutor B (ESP)" para viajantes, admins ou quem tem convites
+              if (btn.id === 'pioneer_access' && role !== 'viajante' && !isAdmin && !hasInvites) {
+                return false;
+              }
 
-            if ((role === 'pioneiro_especial' || role === 'pioneiro_regular') && btn.id === 'pastas') {
-              return false;
-            }
-            
-            return true;
-          })
-          .map((btn, index) => {
-            const isDisabled = isCreatingFolders;
-            return (
-              <motion.div
-                key={btn.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => !isDisabled && handleButtonClick(btn.id)}
-                className={`relative group h-28 ${
-                  isDisabled 
-                    ? 'cursor-not-allowed grayscale-[0.8] opacity-60' 
-                    : 'cursor-pointer'
-                }`}
-              >
-                {/* Background Glow */}
-                {!isDisabled && (
-                  <div 
-                    className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-[2rem]"
-                    style={{ backgroundColor: btn.color }}
-                  />
-                )}
-                
-                <div className="relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:border-transparent transition-all duration-300 h-full group">
-                  <div className={`w-2 h-full bg-gradient-to-b ${btn.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
-                  <div className="flex-1 flex items-center px-6 gap-6">
+              if ((role === 'pioneiro_especial' || role === 'pioneiro_regular') && btn.id === 'pastas') {
+                return false;
+              }
+              
+              return true;
+            })
+            .map((btn, index) => {
+              const isDisabled = isCreatingFolders;
+              return (
+                <motion.div
+                  key={btn.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => !isDisabled && handleButtonClick(btn.id)}
+                  className={`relative group h-28 ${
+                    isDisabled 
+                      ? 'cursor-not-allowed grayscale-[0.8] opacity-60' 
+                      : 'cursor-pointer'
+                  }`}
+                >
+                  {/* Background Glow */}
+                  {!isDisabled && (
                     <div 
-                      className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
-                        isDisabled 
-                          ? 'bg-gray-100 text-gray-400' 
-                          : `bg-gradient-to-br ${btn.gradient} group-hover:scale-110 group-hover:rotate-3`
-                      }`}
-                    >
-                      <btn.icon size={30} strokeWidth={2.5} className={`${isDisabled ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
-                    </div>
-                    <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
-                      <div className={`font-black text-xs md:text-sm leading-tight uppercase mb-1 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
-                        {btn.title}
+                      className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-[2rem]"
+                      style={{ backgroundColor: btn.color }}
+                    />
+                  )}
+                  
+                  <div className="relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:border-transparent transition-all duration-300 h-full group">
+                    <div className={`w-2 h-full bg-gradient-to-b ${btn.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
+                    <div className="flex-1 flex items-center px-6 gap-6">
+                      <div 
+                        className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
+                          isDisabled 
+                            ? 'bg-gray-100 text-gray-400' 
+                            : `bg-gradient-to-br ${btn.gradient} group-hover:scale-110 group-hover:rotate-3`
+                        }`}
+                      >
+                        <btn.icon size={30} strokeWidth={2.5} className={`${isDisabled ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
                       </div>
-                      <div className={`text-[9px] font-bold uppercase tracking-widest transition-opacity ${isDisabled ? 'text-gray-300' : 'text-gray-400 opacity-80 group-hover:opacity-100'}`}>
-                        {btn.subtitle}
+                      <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
+                        <div className={`font-black text-xs md:text-sm leading-tight uppercase mb-1 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
+                          {btn.title}
+                        </div>
+                        <div className={`text-[9px] font-bold uppercase tracking-widest transition-opacity ${isDisabled ? 'text-gray-300' : 'text-gray-400 opacity-80 group-hover:opacity-100'}`}>
+                          {btn.subtitle}
+                        </div>
                       </div>
                     </div>
                   </div>
+                </motion.div>
+              );
+            })}
+        </div>
+
+        {isAdmin && (
+          <section className="space-y-6 pt-10 border-t border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
+                <ShieldCheck size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight">Configurações Globais (Admin)</h3>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { id: 'reportEnabledForAll', label: 'Relatório de Pregação', desc: 'Ao ativar esta opção, o Relatório de Pregação ficará visível e utilizável por todos os usuários do circuito. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleReportVisibility, value: appConfig?.reportEnabledForAll },
+                { id: 'textEditorEnabledForAll', label: 'Editor de Texto', desc: 'Ao ativar esta opção, o Editor de Texto ficará visível e utilizável por todos os usuários do circuito. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleTextEditorVisibility, value: appConfig?.textEditorEnabledForAll },
+                { id: 'congregationImportEnabledForAll', label: 'Importação em Massa', desc: 'Ao ativar esta opção, o botão de Importação em Massa na Gestão de Congregações ficará visível e utilizável por todos os usuários. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleImportVisibility, value: appConfig?.congregationImportEnabledForAll },
+                { id: 'allowESPUploadForAll', label: 'Upload Cartas ESP', desc: 'Permite que usuários enviem novos templates para Cartas ESP. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowESPUploadForAll },
+                { id: 'allowEMRUploadForAll', label: 'Upload Cartas EMR', desc: 'Permite que usuários enviem novos templates para Cartas EMR. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowEMRUploadForAll },
+                { id: 'allowCongressoUploadForAll', label: 'Upload Cartas Congresso', desc: 'Permite que usuários enviem novos templates para Cartas Congresso. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowCongressoUploadForAll },
+                { id: 'allowAssembleiasUploadForAll', label: 'Upload Cartas Assembleias', desc: 'Permite que usuários enviem novos templates para Cartas Assembleias. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowAssembleiasUploadForAll },
+                { id: 'allowProgramacoesUploadForAll', label: 'Upload Programações', desc: 'Permite que usuários enviem novos templates para Programações. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowProgramacoesUploadForAll },
+                { id: 'allowPSSUploadForAll', label: 'Upload Workshops PSS', desc: 'Permite que usuários enviem novos templates para Workshops PSS. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowPSSUploadForAll },
+              ].map((toggle) => (
+                <div key={toggle.id} className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-gray-900">{toggle.label}</h4>
+                      <p className="text-xs text-gray-500 max-w-md">{toggle.desc}</p>
+                    </div>
+                    
+                    <button 
+                      onClick={() => toggle.toggleFn ? toggle.toggleFn() : handleToggleUploadPermission(toggle.id, toggle.value)}
+                      className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200 ${toggle.value ? 'bg-amber-500' : 'bg-gray-200'}`}
+                    >
+                      <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${toggle.value ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
+                    </button>
+                  </div>
                 </div>
-              </motion.div>
-            );
-          })}
-      </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </motion.div>
 
-     {isAdmin && (
-        <section className="space-y-6 pt-10 border-t border-gray-100">
-           <div className="flex items-center gap-3">
-             <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
-               <ShieldCheck size={20} />
-             </div>
-             <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight">Configurações Globais (Admin)</h3>
-           </div>
-
-           <div className="space-y-4">
-             <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-               <div className="flex items-center justify-between gap-4">
-                 <div className="space-y-1">
-                   <h4 className="font-bold text-gray-900">Relatório de Pregação</h4>
-                   <p className="text-xs text-gray-500 max-w-md">
-                     Ao ativar esta opção, o Relatório de Pregação ficará visível e utilizável por todos os usuários do circuito. 
-                     Enquanto desativado, apenas administradores têm acesso.
-                   </p>
-                 </div>
-                 
-                 <button 
-                   onClick={handleToggleReportVisibility}
-                   className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200 ${appConfig?.reportEnabledForAll ? 'bg-amber-500' : 'bg-gray-200'}`}
-                 >
-                   <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${appConfig?.reportEnabledForAll ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
-                 </button>
-               </div>
-             </div>
-
-             <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-               <div className="flex items-center justify-between gap-4">
-                 <div className="space-y-1">
-                   <h4 className="font-bold text-gray-900">Editor de Texto</h4>
-                   <p className="text-xs text-gray-500 max-w-md">
-                     Ao ativar esta opção, o Editor de Texto ficará visível e utilizável por todos os usuários do circuito. 
-                     Enquanto desativado, apenas administradores têm acesso.
-                   </p>
-                 </div>
-                 
-                 <button 
-                   onClick={handleToggleTextEditorVisibility}
-                   className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200 ${appConfig?.textEditorEnabledForAll ? 'bg-amber-500' : 'bg-gray-200'}`}
-                 >
-                   <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${appConfig?.textEditorEnabledForAll ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
-                 </button>
-               </div>
-             </div>
-
-             <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-               <div className="flex items-center justify-between gap-4">
-                 <div className="space-y-1">
-                   <h4 className="font-bold text-gray-900">Importação em Massa</h4>
-                   <p className="text-xs text-gray-500 max-w-md">
-                     Ao ativar esta opção, o botão de Importação em Massa na Gestão de Congregações ficará visível e utilizável por todos os usuários. 
-                     Enquanto desativado, apenas administradores têm acesso.
-                   </p>
-                 </div>
-                 
-                 <button 
-                   onClick={handleToggleImportVisibility}
-                   className={`relative w-14 h-7 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-amber-200 ${appConfig?.congregationImportEnabledForAll ? 'bg-amber-500' : 'bg-gray-200'}`}
-                 >
-                   <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${appConfig?.congregationImportEnabledForAll ? 'translate-x-7' : 'translate-x-0'} shadow-md`} />
-                 </button>
-               </div>
-             </div>
-           </div>
-        </section>
-      )}
-    </motion.div>
-
-    {/* Pioneer Access Management Modal */}
+      {/* Pioneer Access Management Modal */}
       <AnimatePresence>
         {isManagingPioneerAccess && (
           <motion.div 
@@ -909,7 +891,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         )}
       </AnimatePresence>
 
-    {/* Format Account Modal */}
+      {/* Format Account Modal */}
       <AnimatePresence>
         {isFormattingAccount && (
           <motion.div 
@@ -1008,7 +990,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         )}
       </AnimatePresence>
 
-    {/* Password Change Modal */}
+      {/* Password Change Modal */}
       <AnimatePresence>
         {isChangingPassword && (
           <motion.div 
@@ -1094,7 +1076,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         )}
       </AnimatePresence>
 
-    {/* Creation Overlay */}
+      {/* Creation Overlay */}
       <AnimatePresence>
         {isCreatingFolders && (
           <motion.div 
@@ -1103,7 +1085,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
           >
-            <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6">
+            <div className="bg-white rounded-3xl p-8 max-sm w-full shadow-2xl text-center space-y-6">
               <div className="w-20 h-20 bg-[#f3e5f5] rounded-full flex items-center justify-center mx-auto">
                 <Loader2 size={40} className="text-[#6c40bd] animate-spin" />
               </div>

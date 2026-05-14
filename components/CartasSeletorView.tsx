@@ -1,15 +1,35 @@
 'use client';
 
 import React from 'react';
-import { Mail, ArrowLeft, Send, Sparkles, Layout, FileText } from 'lucide-react';
+import { Mail, ArrowLeft, Send, Sparkles, Layout, FileText, Wrench, Settings2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CartasSeletorViewProps {
   onViewChange: (view: string) => void;
+  isAdmin?: boolean;
+  appConfig?: {
+    allowESPUploadForAll: boolean;
+    allowEMRUploadForAll: boolean;
+    allowCongressoUploadForAll: boolean;
+    allowAssembleiasUploadForAll: boolean;
+    allowProgramacoesUploadForAll: boolean;
+    allowPSSUploadForAll: boolean;
+  };
 }
 
-export default function CartasSeletorView({ onViewChange }: CartasSeletorViewProps) {
+export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: CartasSeletorViewProps) {
   const options = [
+    {
+      id: 'workshops',
+      title: 'Workshops PSS',
+      subtitle: 'ESCOLA DE PIONEIROS',
+      icon: Wrench,
+      color: '#3B82F6',
+      gradient: 'from-blue-500 to-indigo-600',
+      view: 'docx_demo',
+      active: true,
+      uploadKey: 'allowPSSUploadForAll'
+    },
     {
       id: 'esp',
       title: 'Cartas ESP',
@@ -19,6 +39,7 @@ export default function CartasSeletorView({ onViewChange }: CartasSeletorViewPro
       gradient: 'from-emerald-500 to-teal-600',
       view: 'cartas_esp',
       active: true,
+      uploadKey: 'allowESPUploadForAll'
     },
     {
       id: 'emr',
@@ -29,16 +50,18 @@ export default function CartasSeletorView({ onViewChange }: CartasSeletorViewPro
       gradient: 'from-blue-200 to-indigo-300',
       view: 'cartas_emr',
       active: false,
+      uploadKey: 'allowEMRUploadForAll'
     },
     {
       id: 'congresso',
       title: 'Cartas Congresso',
-      subtitle: 'EM BREVE',
+      subtitle: 'ORATÓRIA E TREINAMENTO',
       icon: Mail,
       color: '#8B5CF6', // Violet
-      gradient: 'from-violet-200 to-purple-300',
+      gradient: 'from-violet-500 to-purple-600',
       view: 'cartas_congresso',
-      active: false,
+      active: true,
+      uploadKey: 'allowCongressoUploadForAll'
     },
     {
       id: 'assembleias',
@@ -49,6 +72,7 @@ export default function CartasSeletorView({ onViewChange }: CartasSeletorViewPro
       gradient: 'from-amber-200 to-orange-300',
       view: 'cartas_assembleias',
       active: false,
+      uploadKey: 'allowAssembleiasUploadForAll'
     },
     {
       id: 'programacoes',
@@ -59,68 +83,94 @@ export default function CartasSeletorView({ onViewChange }: CartasSeletorViewPro
       gradient: 'from-pink-200 to-rose-300',
       view: 'cartas_programacoes',
       active: false,
+      uploadKey: 'allowProgramacoesUploadForAll'
     },
   ];
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <div className="bg-emerald-100 p-3 rounded-2xl text-emerald-600 shadow-inner">
-          <Mail size={24} strokeWidth={2.5} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
-            Cartas
-          </h2>
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mt-0.5 opacity-70">
-            Módulo de Cartas Personalizadas
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="bg-emerald-100 p-3 rounded-2xl text-emerald-600 shadow-inner">
+            <Mail size={24} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+              Cartas e Documentos
+            </h2>
+            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mt-0.5 opacity-70">
+              Módulo Unificado de Geração e Templates
+            </p>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {options.map((option, index) => (
-          <motion.button
-            key={option.id}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            onClick={() => option.active && onViewChange(option.view)}
-            disabled={!option.active}
-            className={`group relative flex flex-col items-center justify-center p-8 bg-white rounded-[2.5rem] transition-all duration-500 overflow-hidden border ${
-              option.active 
-                ? 'shadow-xl border-gray-100 hover:shadow-2xl hover:-translate-y-2 cursor-pointer' 
-                : 'opacity-60 grayscale cursor-not-allowed border-gray-200'
-            }`}
-          >
-            {/* Background Accent */}
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${option.gradient} opacity-5 rounded-bl-[5rem] ${option.active ? 'group-hover:scale-150 transition-transform duration-700' : ''}`} />
-            
-            <div className={`w-20 h-20 rounded-3xl flex items-center justify-center bg-gradient-to-br ${option.gradient} text-white shadow-lg shadow-black/10 transition-all duration-500 mb-6 ${option.active ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`}>
-              <option.icon size={40} strokeWidth={2.5} />
-            </div>
+        {options.map((option, index) => {
+          const canManage = isAdmin || (option.uploadKey && (appConfig as any)?.[option.uploadKey]);
+          
+          return (
+            <motion.div
+              key={option.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className={`group relative flex flex-col bg-white rounded-[2.5rem] transition-all duration-500 overflow-hidden border ${
+                option.active 
+                  ? 'shadow-xl border-gray-100 hover:shadow-2xl' 
+                  : 'opacity-60 grayscale border-gray-200'
+              }`}
+            >
+              {/* Main Button Area */}
+              <button
+                onClick={() => option.active && onViewChange(option.view)}
+                disabled={!option.active}
+                className={`flex-1 p-8 flex flex-col items-center justify-center text-center w-full relative h-full ${!option.active ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                {/* Background Accent */}
+                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${option.gradient} opacity-5 rounded-bl-[5rem] ${option.active ? 'group-hover:scale-150 transition-transform duration-700' : ''}`} />
+                
+                <div className={`w-20 h-20 rounded-3xl flex items-center justify-center bg-gradient-to-br ${option.gradient} text-white shadow-lg shadow-black/10 transition-all duration-500 mb-6 ${option.active ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`}>
+                  <option.icon size={40} strokeWidth={2.5} />
+                </div>
 
-            <div className="text-center relative z-10">
-              <h3 className={`text-xl font-black uppercase tracking-tight transition-colors ${option.active ? 'text-gray-900 group-hover:text-emerald-600' : 'text-gray-400'}`}>
-                {option.title}
-              </h3>
-              <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-2 opacity-70 ${option.active ? 'text-gray-400' : 'text-gray-300'}`}>
-                {option.subtitle}
-              </p>
-            </div>
+                <div className="relative z-10">
+                  <h3 className={`text-xl font-black uppercase tracking-tight transition-colors ${option.active ? 'text-gray-900 group-hover:text-emerald-600' : 'text-gray-400'}`}>
+                    {option.title}
+                  </h3>
+                  <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-2 opacity-70 ${option.active ? 'text-gray-400' : 'text-gray-300'}`}>
+                    {option.subtitle}
+                  </p>
+                </div>
+              </button>
 
-            {option.active ? (
-              <div className="mt-8 flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0">
-                Acessar Módulo
-                <ArrowLeft size={14} className="rotate-180" />
-              </div>
-            ) : (
-              <div className="mt-8 text-gray-300 font-bold text-[9px] uppercase tracking-widest">
-                Indisponível
-              </div>
-            )}
-          </motion.button>
-        ))}
+              {/* Conditional Footer for Management */}
+              {option.active && (
+                <div className="border-t border-gray-50 p-4 bg-gray-50/30 flex items-center justify-between">
+                  <div className={`flex items-center gap-1.5 transition-opacity ${option.active ? 'opacity-100' : 'opacity-0'}`}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Ativo</span>
+                  </div>
+
+                  {canManage && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // This would trigger the manager mode logic in the parent or handle it here
+                        // For ESP, we can explicitly set a mode if we pass more through onViewChange
+                        onViewChange(`${option.view}:manager`);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-white text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all transform active:scale-95"
+                    >
+                      <Settings2 size={14} />
+                      Gerenciar Templates
+                    </button>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import * as docxPreview from 'docx-preview';
-import { FileUp, FileText, RefreshCw, CheckCircle2, Save, List, ArrowLeft, Mail, Layout } from 'lucide-react';
+import { FileUp, FileText, RefreshCw, CheckCircle2, Save, List, ArrowLeft, Mail, Layout, Settings2, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { 
@@ -23,10 +23,13 @@ const CONGRESSO_TEMPLATES = [
 interface CartasCongressoViewProps {
   userId: string;
   isAdmin?: boolean;
+  canManage?: boolean;
+  initialMode?: 'geracao' | 'manager';
   onBack: () => void;
 }
 
-export default function CartasCongressoView({ userId, isAdmin, onBack }: CartasCongressoViewProps) {
+export default function CartasCongressoView({ userId, isAdmin, canManage, initialMode = 'manager', onBack }: CartasCongressoViewProps) {
+  const [showManager, setShowManager] = useState(initialMode === 'manager');
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
   const [file, setFile] = useState<File | null>(null);
@@ -177,149 +180,193 @@ export default function CartasCongressoView({ userId, isAdmin, onBack }: CartasC
           </button>
           <div>
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
-              Gerenciador de Uploads Congresso
+              {showManager ? 'Gerenciador de Uploads Congresso' : 'Cartas Congresso'}
             </h1>
             <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] bg-violet-50 text-violet-600 px-3 py-1 rounded-full border border-violet-100 w-fit mt-1">
-              Gestão de Modelos para Congresso
+              {showManager ? 'Gestão de Modelos para Congresso' : 'Geração de Cartas'}
             </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {canManage && (
+            <button
+              onClick={() => setShowManager(!showManager)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                showManager 
+                  ? 'bg-violet-600 text-white shadow-lg' 
+                  : 'bg-white text-violet-600 border border-violet-100 hover:bg-violet-50'
+              }`}
+            >
+              {showManager ? <Layout size={16} /> : <Settings2 size={16} />}
+              {showManager ? 'Ir para Geração' : 'Gerenciar Templates'}
+            </button>
+          )}
         </div>
       </div>
 
       <AnimatePresence mode="wait">
-        <motion.div
-          key="manager"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="flex flex-col gap-6"
-        >
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-            {/* Left Side: Template Selection */}
-            <div className="xl:col-span-8 bg-gray-50 p-6 rounded-2xl border border-gray-200 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500 opacity-5 rounded-bl-[5rem]" />
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-tight">
-                  <List size={18} className="text-violet-600" />
-                  Selecione o Modelo
-                </h3>
-                <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
-                  {CONGRESSO_TEMPLATES.length} Disponíveis
-                </span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 relative z-10">
-                {CONGRESSO_TEMPLATES.map(template => (
-                  <button
-                    key={template.id}
-                    onClick={() => loadTemplate(template.id)}
-                    className={`text-left px-4 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
-                      selectedTemplate === template.id 
-                        ? 'bg-violet-600 text-white border-violet-600 shadow-sm' 
-                        : 'bg-white text-gray-600 border-gray-50 hover:border-violet-200 hover:bg-violet-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate">{template.name}</span>
-                      {templates[template.id] && <CheckCircle2 size={12} className={selectedTemplate === template.id ? 'text-white' : 'text-violet-500'} />}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Side: Actions & Upload */}
-            <div className="xl:col-span-4 bg-violet-50 p-6 rounded-2xl border border-violet-100 relative">
-              <h4 className="text-xs font-black text-violet-600 uppercase mb-4 tracking-widest flex items-center gap-2">
-                <FileUp size={16} />
-                Ações do Template
-              </h4>
-              
-              <div className="space-y-4">
-                <div className="relative">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept=".docx"
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`w-full flex flex-col items-center justify-center p-4 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
-                      file 
-                        ? 'bg-amber-50 text-amber-700 border-amber-300' 
-                        : 'bg-white text-violet-700 border-violet-200 hover:bg-violet-50'
-                    }`}
-                  >
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      <FileUp size={20} className={file ? 'text-amber-500' : 'text-violet-500'} />
-                      <span className="truncate max-w-full">{file ? file.name : 'Carregar novo arquivo DOCX'}</span>
-                    </div>
-                  </button>
+        {showManager ? (
+          <motion.div
+            key="manager"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex flex-col gap-6"
+          >
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              {/* Left Side: Template Selection */}
+              <div className="xl:col-span-8 bg-gray-50 p-6 rounded-2xl border border-gray-200 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500 opacity-5 rounded-bl-[5rem]" />
+                <div className="flex items-center justify-between mb-4 relative z-10">
+                  <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-tight">
+                    <List size={18} className="text-violet-600" />
+                    Selecione o Modelo
+                  </h3>
+                  <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+                    {CONGRESSO_TEMPLATES.length} Disponíveis
+                  </span>
                 </div>
-
-                {file ? (
-                  <div className="space-y-2">
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 relative z-10">
+                  {CONGRESSO_TEMPLATES.map(template => (
                     <button
-                      onClick={saveTemplate}
-                      disabled={isSaving}
-                      className="w-full py-3 bg-violet-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-700 disabled:opacity-50 transition-all shadow-lg shadow-violet-100"
+                      key={template.id}
+                      onClick={() => loadTemplate(template.id)}
+                      className={`text-left px-4 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
+                        selectedTemplate === template.id 
+                          ? 'bg-violet-600 text-white border-violet-600 shadow-sm' 
+                          : 'bg-white text-gray-600 border-gray-50 hover:border-violet-200 hover:bg-violet-50'
+                      }`}
                     >
-                      {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Salvar Alterações
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{template.name}</span>
+                        {templates[template.id] && <CheckCircle2 size={12} className={selectedTemplate === template.id ? 'text-white' : 'text-violet-500'} />}
+                      </div>
                     </button>
-
-                    <button
-                      onClick={() => { setFile(null); setPreviewHtml(''); loadTemplate(selectedTemplate); }}
-                      className="w-full py-2 text-gray-500 font-bold text-[9px] uppercase tracking-widest hover:text-red-500 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-[9px] font-bold text-violet-600/60 uppercase tracking-widest text-center px-2">
-                    Selecione um arquivo DOCX para atualizar o modelo <span className="text-violet-700 font-black">{getTemplateName(selectedTemplate)}</span>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            <div className="flex justify-between items-center px-2">
-              <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest flex items-center gap-2">
-                <FileText size={16} className="text-gray-400" />
-                Visualização do Documento
-              </h3>
-              <span className="text-[9px] bg-violet-100 text-violet-700 px-3 py-1 rounded-full font-black uppercase tracking-tighter border border-violet-200">
-                {file ? 'Arquivo Carregado' : 'Versão no Servidor'}
-              </span>
-            </div>
-            <div className="relative">
-              <div 
-                className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-hidden p-8 md:p-16"
-                style={{ overflowY: 'auto' }}
-              >
-                <div 
-                  ref={previewRef}
-                  className="docx-preview-container mx-auto"
-                >
-                  {!processedBuffer && (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">
-                      Selecione um template para visualizar
+              {/* Right Side: Actions & Upload */}
+              <div className="xl:col-span-4 bg-violet-50 p-6 rounded-2xl border border-violet-100 relative">
+                <h4 className="text-xs font-black text-violet-600 uppercase mb-4 tracking-widest flex items-center gap-2">
+                  <FileUp size={16} />
+                  Ações do Template
+                </h4>
+                
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept=".docx"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`w-full flex flex-col items-center justify-center p-4 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
+                        file 
+                          ? 'bg-amber-50 text-amber-700 border-amber-300' 
+                          : 'bg-white text-violet-700 border-violet-200 hover:bg-violet-50'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2 text-center">
+                        <FileUp size={20} className={file ? 'text-amber-500' : 'text-violet-500'} />
+                        <span className="truncate max-w-full">{file ? file.name : 'Carregar novo arquivo DOCX'}</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {file ? (
+                    <div className="space-y-2">
+                      <button
+                        onClick={saveTemplate}
+                        disabled={isSaving}
+                        className="w-full py-3 bg-violet-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-700 disabled:opacity-50 transition-all shadow-lg shadow-violet-100"
+                      >
+                        {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Salvar Alterações
+                      </button>
+
+                      <button
+                        onClick={() => { setFile(null); setPreviewHtml(''); loadTemplate(selectedTemplate); }}
+                        className="w-full py-2 text-gray-500 font-bold text-[9px] uppercase tracking-widest hover:text-red-500 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[9px] font-bold text-violet-600/60 uppercase tracking-widest text-center px-2">
+                      Selecione um arquivo DOCX para atualizar o modelo <span className="text-violet-700 font-black">{getTemplateName(selectedTemplate)}</span>
                     </div>
                   )}
                 </div>
-                {isProcessingPreview && (
-                  <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center">
-                    <RefreshCw className="w-8 h-8 text-violet-500 animate-spin" />
-                  </div>
-                )}
               </div>
             </div>
-          </div>
-        </motion.div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-2">
+                <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest flex items-center gap-2">
+                  <FileText size={16} className="text-gray-400" />
+                  Visualização do Documento
+                </h3>
+                <span className="text-[9px] bg-violet-100 text-violet-700 px-3 py-1 rounded-full font-black uppercase tracking-tighter border border-violet-200">
+                  {file ? 'Arquivo Carregado' : 'Versão no Servidor'}
+                </span>
+              </div>
+              <div className="relative">
+                <div 
+                  className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-hidden p-8 md:p-16"
+                  style={{ overflowY: 'auto' }}
+                >
+                  <div 
+                    ref={previewRef}
+                    className="docx-preview-container mx-auto"
+                  >
+                    {!processedBuffer && (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">
+                        Selecione um template para visualizar
+                      </div>
+                    )}
+                  </div>
+                  {isProcessingPreview && (
+                    <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center">
+                      <RefreshCw className="w-8 h-8 text-violet-500 animate-spin" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="generation"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-white rounded-[3rem] shadow-xl border border-gray-100 p-12 text-center"
+          >
+            <div className="max-w-md mx-auto space-y-6">
+              <div className="w-24 h-24 bg-violet-100 rounded-full flex items-center justify-center mx-auto text-violet-600 shadow-inner">
+                <Send size={48} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Em Breve</h3>
+                <p className="text-gray-500 font-medium">
+                  O módulo de geração de cartas para congresso será disponibilizado em breve.
+                </p>
+              </div>
+              <button 
+                onClick={onBack}
+                className="mt-4 px-8 py-3 bg-violet-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg shadow-violet-100"
+              >
+                Voltar
+              </button>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <style jsx global>{`

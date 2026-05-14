@@ -15,7 +15,6 @@ const navItems = [
   { icon: GraduationCap, label: 'Escolas', view: 'schools' },
   { icon: Calendar, label: 'Eventos', view: 'events' },
   { icon: Mail, label: 'Cartas', view: 'cartas' },
-  { icon: ClipboardList, label: 'Uploads', view: 'cartas_dashboard' },
   { icon: Shapes, label: 'Diversos', view: 'misc' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
@@ -98,14 +97,8 @@ export default function Sidebar({
       return miscViews.includes(currentView);
     }
     if (itemView === 'cartas') {
-      const cartasViews = ['cartas', 'cartas_esp'];
-      if (currentView === 'cartas_esp' && espInitialMode === 'manager') return false;
+      const cartasViews = ['cartas', 'cartas_esp', 'cartas_dashboard', 'docx_demo', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
       return cartasViews.includes(currentView);
-    }
-    if (itemView === 'cartas_dashboard') {
-      const uploadsViews = ['cartas_dashboard', 'docx_demo', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
-      if (currentView === 'cartas_esp' && espInitialMode === 'manager') return true;
-      return uploadsViews.includes(currentView);
     }
     return false;
   };
@@ -146,8 +139,6 @@ export default function Sidebar({
   const isAdminUser = user?.role === 'admin' || user?.usuario === '2283701' || user?.email === 'weldonrs@gmail.com';
   
   const menuItems = navItems.filter(item => {
-    if (item.view === 'cartas_dashboard') return isAdminUser;
-    
     const role = personalData?.role || 'viajante';
     if (role === 'pioneiro_especial' || role === 'pioneiro_regular') {
       // Forbidden modules for pioneers

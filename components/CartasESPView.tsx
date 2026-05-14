@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import * as docxPreview from 'docx-preview';
-import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft, Mail } from 'lucide-react';
+import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft, Mail, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import PioneerSchoolLetters from './PioneerSchoolLetters';
@@ -29,11 +29,12 @@ const ESP_TEMPLATES = [
 interface CartasESPViewProps {
   userId: string;
   isAdmin?: boolean;
+  canManage?: boolean;
   initialMode?: 'geracao' | 'manager';
   onBack: () => void;
 }
 
-export default function CartasESPView({ userId, isAdmin, initialMode = 'geracao', onBack }: CartasESPViewProps) {
+export default function CartasESPView({ userId, isAdmin, canManage, initialMode = 'geracao', onBack }: CartasESPViewProps) {
   const [showManager, setShowManager] = useState(initialMode === 'manager');
   const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
@@ -220,6 +221,20 @@ export default function CartasESPView({ userId, isAdmin, initialMode = 'geracao'
         </div>
 
         <div className="flex items-center gap-3">
+          {canManage && (
+            <button
+              onClick={() => setShowManager(!showManager)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                showManager 
+                  ? 'bg-emerald-600 text-white shadow-lg' 
+                  : 'bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50'
+              }`}
+            >
+              {showManager ? <Mail size={16} /> : <Settings2 size={16} />}
+              {showManager ? 'Ir para Geração' : 'Gerenciar Templates'}
+            </button>
+          )}
+
           {!showManager && (
             <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
               <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
