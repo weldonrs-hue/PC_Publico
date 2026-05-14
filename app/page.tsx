@@ -1352,6 +1352,7 @@ export default function Home() {
 
           {currentView === 'docx_demo' && (
             <DocxToPdfDemo 
+              userId={user.id}
               isAdmin={user.role === 'admin'}
               canManage={user?.role === 'admin' || appConfig.allowPSSUploadForAll}
               initialMode={pssInitialMode}

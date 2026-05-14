@@ -14,11 +14,13 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 const TEMPLATE_NAMES = Array.from({ length: 18 }, (_, i) => `PSS assignment letter_T_${(i + 1).toString().padStart(2, '0')}`);
 
 export default function DocxToPdfDemo({ 
+  userId,
   isAdmin, 
   canManage, 
   initialMode = 'geracao',
   onBack 
 }: { 
+  userId: string,
   isAdmin?: boolean, 
   canManage?: boolean, 
   initialMode?: 'geracao' | 'manager',
@@ -26,12 +28,13 @@ export default function DocxToPdfDemo({
 }) {
   const [showManager, setShowManager] = useState(initialMode === 'manager');
   const [isSaving, setIsSaving] = useState(false);
-  const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
+  const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isGlobal?: boolean, isPrivate?: boolean }>>({});
   const [file, setFile] = useState<File | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>(TEMPLATE_NAMES[0]);
   const [missingTags, setMissingTags] = useState<string[]>([]);
   const [extractedTags, setExtractedTags] = useState<string[]>([]);
+  const [saveAsGlobal, setSaveAsGlobal] = useState(false);
 
   const [processedBuffer, setProcessedBuffer] = useState<ArrayBuffer | null>(null);
   const [isProcessingPreview, setIsProcessingPreview] = useState(false);
@@ -67,16 +70,31 @@ export default function DocxToPdfDemo({
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+  }, [userId]);
 
   const fetchTemplates = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'document_templates'));
       const fetchedTemplates: Record<string, any> = {};
+      
       querySnapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
       });
-      setTemplates(fetchedTemplates);
+
+      const consolidated: Record<string, any> = {};
+      
+      TEMPLATE_NAMES.forEach(name => {
+        const privateId = `${userId}_${name}`;
+        const globalId = name;
+        
+        if (fetchedTemplates[privateId]) {
+          consolidated[name] = { ...fetchedTemplates[privateId], isPrivate: true };
+        } else if (fetchedTemplates[globalId]) {
+          consolidated[name] = { ...fetchedTemplates[globalId], isPrivate: false };
+        }
+      });
+
+      setTemplates(consolidated);
     } catch (error) {
       console.error('Error fetching templates:', error);
     }
@@ -135,21 +153,32 @@ export default function DocxToPdfDemo({
       }
       const base64 = window.btoa(binary);
       
-      await setDoc(doc(db, 'document_templates', selectedTemplate), {
+      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      
+      await setDoc(doc(db, 'document_templates', docId), {
         name: selectedTemplate,
         content: base64,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        category: 'pss',
+        isGlobal: isAdmin && saveAsGlobal,
+        ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
       });
       
       setTemplates(prev => ({
         ...prev,
-        [selectedTemplate]: { content: base64, updatedAt: new Date().toISOString() }
+        [selectedTemplate]: { 
+          content: base64, 
+          updatedAt: new Date().toISOString(),
+          isGlobal: isAdmin && saveAsGlobal,
+          isPrivate: !(isAdmin && saveAsGlobal)
+        }
       }));
       
-      alert('Template salvo com sucesso!');
+      alert(isAdmin && saveAsGlobal ? 'Template Global salvo com sucesso!' : 'Seu Template Privado foi salvo com sucesso!');
     } catch (error) {
       console.error('Error saving template:', error);
-      handleFirestoreError(error, OperationType.WRITE, `document_templates/${selectedTemplate}`);
+      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      handleFirestoreError(error, OperationType.WRITE, `document_templates/${docId}`);
     } finally {
       setIsSaving(false);
     }
@@ -242,16 +271,25 @@ export default function DocxToPdfDemo({
                   <button
                     key={name}
                     onClick={() => loadTemplate(name)}
-                    className={`text-left px-3 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
+                    className={`text-left px-3 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
                       selectedTemplate === name 
                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                         : 'bg-white text-gray-600 border-gray-50 hover:border-blue-200 hover:bg-blue-50'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center justify-between gap-1 w-full">
                       <span className="truncate">{name.replace('PSS assignment letter_', '')}</span>
                       {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-blue-500'} />}
                     </div>
+                    {templates[name] && (
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded-md w-fit ${
+                          templates[name].isPrivate 
+                            ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
+                            : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
+                        }`}>
+                          {templates[name].isPrivate ? 'Privado' : 'Global'}
+                        </span>
+                      )}
                   </button>
                 ))}
               </div>
@@ -268,6 +306,17 @@ export default function DocxToPdfDemo({
                   </h4>
                   
                   <div className="space-y-4">
+                    {isAdmin && (
+                      <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-blue-100 mb-2">
+                         <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
+                         <button
+                           onClick={() => setSaveAsGlobal(!saveAsGlobal)}
+                           className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-blue-500' : 'bg-gray-300'}`}
+                         >
+                           <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
+                         </button>
+                      </div>
+                    )}
                     <div className="bg-white p-4 rounded-xl border border-blue-100">
                       <p className="text-[9px] font-bold text-blue-400 uppercase tracking-[0.2em] mb-1">Template Atual:</p>
                       <p className="text-xs font-black text-gray-800 break-all">{selectedTemplate}</p>

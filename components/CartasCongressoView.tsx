@@ -39,6 +39,7 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
   const [isSaving, setIsSaving] = useState(false);
   const [missingTags, setMissingTags] = useState<string[]>([]);
   const [extractedTags, setExtractedTags] = useState<string[]>([]);
+  const [saveAsGlobal, setSaveAsGlobal] = useState(false);
 
   const [processedBuffer, setProcessedBuffer] = useState<ArrayBuffer | null>(null);
   const [isProcessingPreview, setIsProcessingPreview] = useState(false);
@@ -74,17 +75,35 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+  }, [userId]);
 
   const fetchTemplates = async () => {
     setLoading(true);
     try {
+      // Fetch all templates (Global and Private)
       const querySnapshot = await getDocs(collection(db, 'document_templates'));
       const fetchedTemplates: Record<string, any> = {};
+      
+      // First pass: load everything
       querySnapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
       });
-      setTemplates(fetchedTemplates);
+
+      // Consolidação: For each base template ID, decide which one to show to the user
+      const consolidated: Record<string, any> = {};
+      
+      CONGRESSO_TEMPLATES.forEach(t => {
+        const privateId = `${userId}_${t.id}`;
+        const globalId = t.id;
+        
+        if (fetchedTemplates[privateId]) {
+          consolidated[t.id] = { ...fetchedTemplates[privateId], isPrivate: true };
+        } else if (fetchedTemplates[globalId]) {
+          consolidated[t.id] = { ...fetchedTemplates[globalId], isPrivate: false };
+        }
+      });
+
+      setTemplates(consolidated);
     } catch (error) {
       console.error('Error fetching templates:', error);
     } finally {
@@ -151,23 +170,33 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
       }
       const base64 = window.btoa(binary);
       
-      await setDoc(doc(db, 'document_templates', selectedTemplate), {
+      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      
+      await setDoc(doc(db, 'document_templates', docId), {
         name: selectedTemplate,
         content: base64,
         updatedAt: new Date().toISOString(),
-        category: 'congresso'
+        category: 'congresso',
+        isGlobal: isAdmin && saveAsGlobal,
+        ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
       });
       
       setTemplates(prev => ({
         ...prev,
-        [selectedTemplate]: { content: base64, updatedAt: new Date().toISOString() }
+        [selectedTemplate]: { 
+          content: base64, 
+          updatedAt: new Date().toISOString(),
+          isGlobal: isAdmin && saveAsGlobal,
+          isPrivate: !(isAdmin && saveAsGlobal)
+        }
       }));
       
-      alert('Template salvo com sucesso!');
+      alert(isAdmin && saveAsGlobal ? 'Template Global salvo com sucesso!' : 'Seu Template Privado foi salvo com sucesso!');
       setFile(null);
     } catch (error) {
       console.error('Error saving template:', error);
-      handleFirestoreError(error, OperationType.WRITE, `document_templates/${selectedTemplate}`);
+      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      handleFirestoreError(error, OperationType.WRITE, `document_templates/${docId}`);
     } finally {
       setIsSaving(false);
     }
@@ -266,16 +295,25 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template.id)}
-                      className={`text-left px-4 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
+                      className={`text-left px-4 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
                         selectedTemplate === template.id 
                           ? 'bg-violet-600 text-white border-violet-600 shadow-sm' 
                           : 'bg-white text-gray-600 border-gray-50 hover:border-violet-200 hover:bg-violet-50'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 w-full">
                         <span className="truncate">{template.name}</span>
                         {templates[template.id] && <CheckCircle2 size={12} className={selectedTemplate === template.id ? 'text-white' : 'text-violet-500'} />}
                       </div>
+                      {templates[template.id] && (
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded-md w-fit ${
+                          templates[template.id].isPrivate 
+                            ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
+                            : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700')
+                        }`}>
+                          {templates[template.id].isPrivate ? 'Seu Modelo' : 'Modelo Global'}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -289,6 +327,18 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
                 </h4>
                 
                 <div className="space-y-4">
+                  {isAdmin && (
+                    <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-violet-100 mb-2">
+                       <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
+                       <button
+                         onClick={() => setSaveAsGlobal(!saveAsGlobal)}
+                         className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-violet-500' : 'bg-gray-300'}`}
+                       >
+                         <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
+                       </button>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <input
                       type="file"

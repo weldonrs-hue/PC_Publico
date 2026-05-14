@@ -230,7 +230,10 @@
       "properties": {
         "name": { "type": "string", "description": "The name of the template" },
         "content": { "type": "string", "description": "The base64 encoded docx content" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "isGlobal": { "type": "boolean", "description": "Whether the template is available to all users" },
+        "ownerId": { "type": "string", "description": "The ID of the user who owns this template, or 'admin' for global" },
+        "category": { "type": "string" }
       },
       "required": ["name", "content"]
     },
