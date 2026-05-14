@@ -8,6 +8,7 @@ import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save,
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import PioneerSchoolLetters from './PioneerSchoolLetters';
+import { extractTagsFromDocx, getMissingTags } from '@/lib/docxUtils';
 import { 
   doc, 
   getDoc, 
@@ -44,6 +45,8 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>(ESP_TEMPLATES[0].id);
   const [isSaving, setIsSaving] = useState(false);
+  const [missingTags, setMissingTags] = useState<string[]>([]);
+  const [extractedTags, setExtractedTags] = useState<string[]>([]);
 
   const [processedBuffer, setProcessedBuffer] = useState<ArrayBuffer | null>(null);
   const [isProcessingPreview, setIsProcessingPreview] = useState(false);
@@ -131,6 +134,25 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
         try {
           const arrayBuffer = await selectedFile.arrayBuffer();
           setProcessedBuffer(arrayBuffer);
+          
+          // Validate tags
+          const tags = await extractTagsFromDocx(arrayBuffer);
+          setExtractedTags(tags);
+          
+          const required = [
+            ['DATA', 'TURMA_DATA', 'DATATURMA'],
+            ['ASSINATURA', '%ASSINATURA', 'ASSINATURA_GLOBAL'],
+            ['VIAJANTE', 'NOME_VIAJANTE'],
+            ['CIRCUITO', 'NOME_CIRCUITO'],
+            ['TURMA'],
+            ['INSTRUTORES', 'INSTRUTOR1', 'INSTRUTOR2', 'INSTRUTORA', 'INSTRUTORB'],
+            ['LOCAL', 'LOCALESCOLA', 'LOCAL_ESCOLA'],
+            ['ENDERECO', 'ENDEREÇO', 'ENDERECOESCOLA', 'ENDEREÇO_ESCOLA'],
+            ['TELEFONE', 'FONE', 'TELEFONE_CIRCUITO', 'TELEFONECIRCUITO']
+          ];
+          
+          const missing = getMissingTags(tags, required);
+          setMissingTags(missing);
         } catch (err) {
           console.error('Error generating preview:', err);
         }
@@ -142,6 +164,12 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
 
   const saveTemplate = async () => {
     if (!file) return;
+    
+    if (missingTags.length > 0) {
+      const confirmSave = confirm(`Atenção: Os seguintes campos recomendados não foram encontrados no documento: \n\n${missingTags.join(', ')}\n\nDeseja salvar assim mesmo?`);
+      if (!confirmSave) return;
+    }
+
     setIsSaving(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -176,6 +204,8 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
 
   const loadTemplate = async (templateId: string) => {
     setSelectedTemplate(templateId);
+    setMissingTags([]);
+    setExtractedTags([]);
     const template = templates[templateId];
     if (template) {
       try {
@@ -356,6 +386,29 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
 
                   {file ? (
                     <div className="space-y-2">
+                      {missingTags.length > 0 && (
+                        <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1">
+                          <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
+                            <AlertCircle size={12} />
+                            Campos Faltantes
+                          </p>
+                          <p className="text-[8px] font-bold text-red-500 leading-tight">
+                            Este documento não contém os seguintes marcadores recomendados: {missingTags.join(', ')}. Certifique-se de usar [CAMPO] ou @CAMPO no Word.
+                          </p>
+                        </div>
+                      )}
+                      {missingTags.length === 0 && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1">
+                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
+                            <CheckCircle2 size={12} />
+                            Status: OK
+                          </p>
+                          <p className="text-[8px] font-bold text-emerald-500 leading-tight">
+                            Todos os marcadores principais foram detectados no documento.
+                          </p>
+                        </div>
+                      )}
+                      
                       <button
                         onClick={saveTemplate}
                         disabled={isSaving}

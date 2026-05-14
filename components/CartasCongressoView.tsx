@@ -2,9 +2,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import * as docxPreview from 'docx-preview';
-import { FileUp, FileText, RefreshCw, CheckCircle2, Save, List, ArrowLeft, Mail, Layout, Settings2, Send } from 'lucide-react';
+import { FileUp, FileText, RefreshCw, CheckCircle2, Save, List, ArrowLeft, Mail, Layout, Settings2, Send, AlertCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
+import { extractTagsFromDocx, getMissingTags } from '@/lib/docxUtils';
 import { 
   doc, 
   getDoc, 
@@ -36,6 +37,8 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>(CONGRESSO_TEMPLATES[0].id);
   const [isSaving, setIsSaving] = useState(false);
+  const [missingTags, setMissingTags] = useState<string[]>([]);
+  const [extractedTags, setExtractedTags] = useState<string[]>([]);
 
   const [processedBuffer, setProcessedBuffer] = useState<ArrayBuffer | null>(null);
   const [isProcessingPreview, setIsProcessingPreview] = useState(false);
@@ -98,6 +101,28 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
         try {
           const arrayBuffer = await selectedFile.arrayBuffer();
           setProcessedBuffer(arrayBuffer);
+          
+          // Validate tags
+          const tags = await extractTagsFromDocx(arrayBuffer);
+          setExtractedTags(tags);
+          
+          const required = [
+            ['TEMA'],
+            ['DATA'],
+            ['LOCAL'],
+            ['DIA'],
+            ['ORADOR'],
+            ['VIAJANTE'],
+            ['CIRCUITO'],
+            ['DESIGNAÇÃO', 'DESIGNACAO'],
+            ['ASSINATURA', '%ASSINATURA'],
+            ['FONE', 'TELEFONE'],
+            ['DATAHORA'],
+            ['LOCALTREINO']
+          ];
+          
+          const missing = getMissingTags(tags, required);
+          setMissingTags(missing);
         } catch (err) {
           console.error('Error generating preview:', err);
         }
@@ -109,6 +134,12 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
 
   const saveTemplate = async () => {
     if (!file) return;
+    
+    if (missingTags.length > 0) {
+      const confirmSave = confirm(`Atenção: Os seguintes campos recomendados não foram encontrados no documento: \n\n${missingTags.join(', ')}\n\nDeseja salvar assim mesmo?`);
+      if (!confirmSave) return;
+    }
+
     setIsSaving(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -144,6 +175,8 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
 
   const loadTemplate = async (templateId: string) => {
     setSelectedTemplate(templateId);
+    setMissingTags([]);
+    setExtractedTags([]);
     const template = templates[templateId];
     if (template) {
       try {
@@ -281,6 +314,29 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
 
                   {file ? (
                     <div className="space-y-2">
+                      {missingTags.length > 0 && (
+                        <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1">
+                          <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
+                            <AlertCircle size={12} className="shrink-0" />
+                            Campos Faltantes
+                          </p>
+                          <p className="text-[8px] font-bold text-red-500 leading-tight">
+                            Este documento não contém os seguintes marcadores recomendados: {missingTags.join(', ')}. Certifique-se de usar [CAMPO] ou @CAMPO no Word.
+                          </p>
+                        </div>
+                      )}
+                      {missingTags.length === 0 && (
+                        <div className="p-3 bg-violet-50 border border-violet-100 rounded-xl space-y-1">
+                          <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest flex items-center gap-1">
+                            <CheckCircle2 size={12} className="shrink-0" />
+                            Status: OK
+                          </p>
+                          <p className="text-[8px] font-bold text-violet-500 leading-tight">
+                            Todos os marcadores principais foram detectados no documento.
+                          </p>
+                        </div>
+                      )}
+
                       <button
                         onClick={saveTemplate}
                         disabled={isSaving}
