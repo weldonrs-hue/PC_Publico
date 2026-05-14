@@ -1376,7 +1376,7 @@ export default function PioneerSchoolView({
         @media print {
           @page { 
             margin: 5mm 12mm 12mm 12mm; 
-            size: A5 landscape; 
+            size: portrait; 
           }
           body { 
             -webkit-print-color-adjust: exact !important; 
@@ -1652,10 +1652,10 @@ export default function PioneerSchoolView({
                           <tr key={scenario.id} className="group min-h-0 h-1">
                             {sIndex === 0 && (
                               <td 
-                                className="w-[30px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
+                                className="w-[24px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
                                 rowSpan={workshop.scenarios.length}
                               >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[11px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
+                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
                                   {workshop.label}
                                 </div>
                               </td>
@@ -1670,10 +1670,10 @@ export default function PioneerSchoolView({
                                   <span className="flex-1 text-[12px] font-bold leading-tight">
                                     {scenario.text}
                                   </span>
-                                  <div className="shrink-0 p-0.5 print:hidden pdf-hidden">
+                                  <div className="shrink-0 p-1.5 bg-slate-100 rounded-md border border-slate-200 shadow-sm print:hidden pdf-hidden group-hover/scenario:bg-white transition-colors">
                                     <ChevronDown 
-                                      size={12} 
-                                      className={`transform transition-transform text-slate-400 group-hover/scenario:text-slate-600 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      size={14} 
+                                      className={`transform transition-transform text-[#3e5e66] ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
                                     />
                                   </div>
                                 </div>
