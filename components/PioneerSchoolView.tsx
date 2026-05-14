@@ -1170,7 +1170,7 @@ export default function PioneerSchoolView({
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800"
+            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800 print:hidden"
           >
             <div className="flex items-center gap-2 shrink-0">
               <span className="bg-[#37616b] text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
@@ -1213,7 +1213,7 @@ export default function PioneerSchoolView({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 print:hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button 
@@ -1340,7 +1340,7 @@ export default function PioneerSchoolView({
       </div>
 
         {/* Improved Tabs Row */}
-        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0 print:hidden">
           <button 
             onClick={() => handleTabChange('students')}
             className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
@@ -1376,7 +1376,7 @@ export default function PioneerSchoolView({
         @media print {
           @page { 
             margin: 5mm 12mm 12mm 12mm; 
-            size: portrait; 
+            size: A5 landscape; 
           }
           body { 
             -webkit-print-color-adjust: exact !important; 
@@ -1479,7 +1479,7 @@ export default function PioneerSchoolView({
       <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0">
         {/* Document Header - Visible only in Print/PDF */}
         {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
-        <div id="pdf-header" className="hidden print:block pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
+        <div id="pdf-header" className="hidden pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
             Escola do Serviço de Pioneiro
           </h1>
@@ -1636,11 +1636,11 @@ export default function PioneerSchoolView({
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
-                      <th className="p-4 text-left font-bold text-xl" colSpan={2}>
+                      <th className="p-4 text-left font-bold text-xl h-[60px]" colSpan={2}>
                         SESSÃO DE TREINO 
                         <span className="text-yellow-400 italic ml-4">TURMA {selectedTurma}</span>
                       </th>
-                      <th className="p-4 text-right align-bottom font-bold text-sm tracking-widest">
+                      <th className="p-4 text-right align-bottom font-bold text-sm tracking-widest h-[60px] w-[449.8px]">
                         PARTICIPANTES
                       </th>
                     </tr>
@@ -1650,12 +1650,12 @@ export default function PioneerSchoolView({
                       <Fragment key={workshop.id}>
                         {workshop.scenarios.map((scenario, sIndex) => (
                           <tr key={scenario.id} className="group min-h-0 h-1">
-                            {sIndex === 0 && (
+                             {sIndex === 0 && (
                               <td 
-                                className="w-[24px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
+                                className="w-[20px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
                                 rowSpan={workshop.scenarios.length}
                               >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
+                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[15px] uppercase tracking-wider whitespace-nowrap w-[19.5px] mx-auto py-4">
                                   {workshop.label}
                                 </div>
                               </td>
@@ -1670,10 +1670,10 @@ export default function PioneerSchoolView({
                                   <span className="flex-1 text-[12px] font-bold leading-tight">
                                     {scenario.text}
                                   </span>
-                                  <div className="shrink-0 p-1.5 bg-slate-100 rounded-md border border-slate-200 shadow-sm print:hidden pdf-hidden group-hover/scenario:bg-white transition-colors">
+                                  <div className="shrink-0 p-0.5 print:hidden pdf-hidden">
                                     <ChevronDown 
-                                      size={14} 
-                                      className={`transform transition-transform text-[#3e5e66] ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      size={12} 
+                                      className={`transform transition-transform text-slate-400 group-hover/scenario:text-slate-600 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
                                     />
                                   </div>
                                 </div>
