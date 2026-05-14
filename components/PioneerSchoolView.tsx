@@ -1614,15 +1614,15 @@ export default function PioneerSchoolView({
                           <tr key={scenario.id} className="group min-h-0 h-1">
                             {sIndex === 0 && (
                               <td 
-                                className="w-[30px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
+                                className="w-[20px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
                                 rowSpan={workshop.scenarios.length}
                               >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[11px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
+                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider whitespace-nowrap w-full mx-auto py-4">
                                   {workshop.label}
                                 </div>
                               </td>
                             )}
-                            <td className={`border border-[#aebfc5] p-2.5 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                            <td className={`border border-[#aebfc5] p-2.5 w-[60%] relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
                               <div className="flex flex-col gap-0.5">
                                 <div 
                                   className="cursor-pointer group/scenario flex items-start gap-1.5"
@@ -1656,30 +1656,29 @@ export default function PioneerSchoolView({
                                 </AnimatePresence>
                               </div>
                             </td>
-                            <td className={`border border-[#aebfc5] p-0 w-[45%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                            <td className={`border border-[#aebfc5] p-0 w-[40%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
                               <div className="flex flex-col divide-y divide-[#d1dce0]">
                                 {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                                   const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
                                   return (
                                     <div key={idx} className="relative px-3 py-1 min-h-[30px] flex items-center">
-                                      <div className="hidden workshop-participant-text text-[15px] font-medium text-slate-800">
+                                      <div className="hidden workshop-participant-text text-[14px] font-medium text-slate-800">
                                         {participant || (idx < 2 ? '...........................................' : '')}
                                       </div>
                                       <div className="workshop-select-ui w-full">
                                         <select
                                           value={participant}
-                                          onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
                                           onKeyDown={(e) => {
                                             if (e.key === 'Delete' || e.key === 'Backspace') {
-                                              e.preventDefault();
                                               handleParticipantChange(scenario.id, idx, '');
                                             }
                                           }}
-                                          className={`w-full bg-transparent border-none rounded-sm text-[14px] py-0.5 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer transition-colors ${!participant ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'}`}
+                                          onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
+                                          className={`w-full bg-transparent border-none rounded-sm text-[13px] py-1 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer ${!participant ? 'text-slate-400 font-normal outline-none' : 'text-slate-800 font-bold'}`}
                                         >
-                                          <option value="" className="text-slate-400">- Selecionar -</option>
+                                          <option value="">- Selecionar -</option>
                                           {workshopDropdownStudents.map((student) => (
-                                            <option key={student.id} value={student.nome} className="text-slate-800 font-bold">
+                                            <option key={student.id} value={student.nome}>
                                               {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
                                             </option>
                                           ))}
