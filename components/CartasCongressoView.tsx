@@ -311,7 +311,7 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
                             ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                             : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700')
                         }`}>
-                          {templates[template.id].isPrivate ? 'Seu Modelo' : 'Modelo Global'}
+                          {templates[template.id].isPrivate ? 'Seu Modelo' : 'Modelo ProgCir'}
                         </span>
                       )}
                     </button>

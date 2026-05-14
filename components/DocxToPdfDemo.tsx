@@ -287,7 +287,7 @@ export default function DocxToPdfDemo({
                             ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                             : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
                         }`}>
-                          {templates[name].isPrivate ? 'Privado' : 'Global'}
+                          {templates[name].isPrivate ? 'Privado' : 'ProgCir'}
                         </span>
                       )}
                   </button>
