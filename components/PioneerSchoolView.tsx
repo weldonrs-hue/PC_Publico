@@ -1661,19 +1661,25 @@ export default function PioneerSchoolView({
                                 {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                                   const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
                                   return (
-                                    <div key={idx} className="relative px-3 py-1 min-h-[26px] flex items-center">
-                                      <div className="hidden workshop-participant-text text-[13px] font-medium text-slate-800">
+                                    <div key={idx} className="relative px-3 py-1 min-h-[30px] flex items-center">
+                                      <div className="hidden workshop-participant-text text-[15px] font-medium text-slate-800">
                                         {participant || (idx < 2 ? '...........................................' : '')}
                                       </div>
                                       <div className="workshop-select-ui w-full">
                                         <select
                                           value={participant}
                                           onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                          className="w-full bg-transparent border-none rounded-sm text-[11px] py-0.5 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer font-bold"
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Delete' || e.key === 'Backspace') {
+                                              e.preventDefault();
+                                              handleParticipantChange(scenario.id, idx, '');
+                                            }
+                                          }}
+                                          className={`w-full bg-transparent border-none rounded-sm text-[14px] py-0.5 focus:ring-1 focus:ring-[#3e5e66] appearance-none cursor-pointer transition-colors ${!participant ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'}`}
                                         >
-                                          <option value="">- Selecionar -</option>
+                                          <option value="" className="text-slate-400">- Selecionar -</option>
                                           {workshopDropdownStudents.map((student) => (
-                                            <option key={student.id} value={student.nome}>
+                                            <option key={student.id} value={student.nome} className="text-slate-800 font-bold">
                                               {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
                                             </option>
                                           ))}
