@@ -1374,23 +1374,20 @@ export default function PioneerSchoolView({
 
       <style jsx global>{`
         @media print {
-          @page { 
-            margin: 5mm 12mm 12mm 12mm; 
-            size: A5 landscape; 
-          }
-          body { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-            background: white !important; 
-          }
-          .print\:hidden { display: none !important; }
+          body { visibility: hidden; }
+          #pioneer-school-report, #pioneer-school-report * { visibility: visible; }
           #pioneer-school-report { 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            visibility: visible !important;
             border: none !important; 
             box-shadow: none !important; 
             padding: 0 !important; 
-            width: 100% !important; 
             margin: 0 !important; 
           }
+          .print\:hidden { display: none !important; }
           tr { page-break-inside: avoid !important; }
           table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 9pt !important; }
           th, td { border-left: none !important; border-right: none !important; padding: 4pt 6pt !important; }
@@ -1632,8 +1629,8 @@ export default function PioneerSchoolView({
         ) : activeTab === 'workshops' ? (
           <div className="bg-[#f3f4f6]">
             <div className="max-w-[1000px] mx-auto bg-white shadow-lg overflow-hidden border border-[#aebfc5]">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+                <table className="w-full border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
                       <th className="p-4 text-left font-bold text-xl h-[60px]" colSpan={2}>
@@ -1660,7 +1657,7 @@ export default function PioneerSchoolView({
                                 </div>
                               </td>
                             )}
-                            <td className={`border border-[#aebfc5] p-2.5 relative align-top before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
+                            <td className={`border border-[#aebfc5] p-2.5 relative align-top transition-colors group-hover:bg-[#f8fafb] before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
                               <div className="flex flex-col gap-0.5">
                                 <div 
                                   className="cursor-pointer group/scenario flex items-start gap-1.5"
