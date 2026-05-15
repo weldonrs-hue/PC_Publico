@@ -300,7 +300,7 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
               {showManager ? 'Gerenciador de Uploads ESP' : 'Cartas ESP'}
             </h1>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100 w-fit mt-1">
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-[11px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100 w-fit mt-1">
               {showManager ? 'Gestão de Modelos' : 'Geração de Documentos'}
             </p>
           </div>
@@ -310,7 +310,7 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
           {canManage && (
             <button
               onClick={() => setShowManager(!showManager)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
                 showManager 
                   ? 'bg-emerald-600 text-white shadow-lg' 
                   : 'bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50'
@@ -384,7 +384,7 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
                     <List size={18} className="text-emerald-600" />
                     Selecione o Modelo
                   </h3>
-                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+                  <span className="text-[11px] font-black text-emerald-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
                     {ESP_TEMPLATES.length} Disponíveis
                   </span>
                 </div>
@@ -394,7 +394,7 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template.id)}
-                      className={`text-left px-4 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
+                      className={`text-left px-4 py-3 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
                         selectedTemplate === template.id 
                           ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' 
                           : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'

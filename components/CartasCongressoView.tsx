@@ -269,7 +269,7 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
               {showManager ? 'Gerenciador de Uploads Congresso' : 'Cartas Congresso'}
             </h1>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] bg-violet-50 text-violet-600 px-3 py-1 rounded-full border border-violet-100 w-fit mt-1">
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-[11px] bg-violet-50 text-violet-600 px-3 py-1 rounded-full border border-violet-100 w-fit mt-1">
               {showManager ? 'Gestão de Modelos para Congresso' : 'Geração de Cartas'}
             </p>
           </div>
@@ -279,7 +279,7 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
           {canManage && (
             <button
               onClick={() => setShowManager(!showManager)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
                 showManager 
                   ? 'bg-violet-600 text-white shadow-lg' 
                   : 'bg-white text-violet-600 border border-violet-100 hover:bg-violet-50'
@@ -310,7 +310,7 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
                     <List size={18} className="text-violet-600" />
                     Selecione o Modelo
                   </h3>
-                  <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+                  <span className="text-[11px] font-black text-violet-600 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
                     {CONGRESSO_TEMPLATES.length} Disponíveis
                   </span>
                 </div>
@@ -320,7 +320,7 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template.id)}
-                      className={`text-left px-4 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
+                      className={`text-left px-4 py-3 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
                         selectedTemplate === template.id 
                           ? 'bg-violet-600 text-white border-violet-600 shadow-sm' 
                           : 'bg-white text-gray-600 border-gray-50 hover:border-violet-200 hover:bg-violet-50'

@@ -248,7 +248,7 @@ export default function DocxToPdfDemo({
             <h1 className="text-3xl font-bold text-gray-900 uppercase tracking-tight">
               {showManager ? 'Gerenciador PSS' : 'Workshops PSS'}
             </h1>
-            <p className="text-gray-500 font-medium uppercase tracking-widest text-[10px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100 w-fit mt-1">
+            <p className="text-gray-500 font-medium uppercase tracking-widest text-[11px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100 w-fit mt-1">
               {showManager ? 'Gestão de Templates' : 'Geração de Documentos'}
             </p>
           </div>
@@ -258,7 +258,7 @@ export default function DocxToPdfDemo({
           {canManage && (
             <button
               onClick={() => setShowManager(!showManager)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
                 showManager 
                   ? 'bg-blue-600 text-white shadow-lg' 
                   : 'bg-white text-blue-600 border border-blue-100 hover:bg-blue-50'
@@ -297,7 +297,7 @@ export default function DocxToPdfDemo({
                   <button
                     key={name}
                     onClick={() => loadTemplate(name)}
-                    className={`text-left px-3 py-3 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
+                    className={`text-left px-3 py-3 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
                       selectedTemplate === name 
                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                         : 'bg-white text-gray-600 border-gray-50 hover:border-blue-200 hover:bg-blue-50'

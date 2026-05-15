@@ -384,7 +384,7 @@ export default function PSSAssignmentLetters({
               <List size={18} />
               Selecione o Template
             </h3>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
               {TEMPLATE_NAMES.length} Modelos Disponíveis
             </span>
           </div>
@@ -394,7 +394,7 @@ export default function PSSAssignmentLetters({
               <button
                 key={name}
                 onClick={() => setSelectedTemplate(name)}
-                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
+                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 ${
                   selectedTemplate === name 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
@@ -418,7 +418,7 @@ export default function PSSAssignmentLetters({
               </div>
               <div>
                 <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest">Visualização</h3>
-                <p className="text-[10px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
+                <p className="text-[11px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
                   {selectedTemplate.replace('PSS assignment letter_', '')}
                 </p>
               </div>
@@ -432,7 +432,7 @@ export default function PSSAssignmentLetters({
                 title="Baixar Word"
               >
                 <FileDown size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Baixar Word</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[11px] uppercase tracking-widest">Baixar Word</span>
               </button>
 
               <button
@@ -442,7 +442,7 @@ export default function PSSAssignmentLetters({
                 title="Baixar PDF"
               >
                 <Download size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Baixar PDF</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[11px] uppercase tracking-widest">Baixar PDF</span>
               </button>
             </div>
           </div>
