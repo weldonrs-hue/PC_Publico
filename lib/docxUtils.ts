@@ -82,19 +82,21 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
     // 0. Build a list of regex patterns for surgical removal
     const termsToRemoveRegex = [
       /Page\s*#\s*/gi,
-      /English\s*Title:\s*/gi,
+      /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi,
       /Publication:\s*Student\s*Assignments/gi,
       /Document:\s*PSS\s*assignment\s*letter[\w\d\_]*/gi,
       /PSS\s*assignment\s*letter/gi,
       /Student\s*Assignments/gi,
-      /Publication:\s*/gi,
-      /English\s*Title:\s*/gi
+      /Publication:[\s\S]*?(?=<\/w:p>|$)/gi,
+      /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi
     ];
 
     // 1. First, search for paragraphs that contain these terms and clear them if they don't have other valuable text
+    // Fixed regex to avoid matching across multiple paragraphs if something goes wrong
     const paragraphRegex = /<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g;
     content = content.replace(paragraphRegex, (match, pContent) => {
       // Get plain text from paragraph content
+      // We also remove other common tags that might be inside a paragraph
       const plainText = pContent.replace(/<[^>]+>/g, '')
                                 .replace(/[\s\u2000-\u200F\uFEFF]+/g, ' ')
                                 .trim();
@@ -102,10 +104,8 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       if (!plainText) return match; // Already empty or just tags
 
       let matchesAnyTerm = false;
-      let onlyContainsTerms = true;
-      
-      // Check if it matches any term and if it contains ONLY those terms
       let remainingText = plainText;
+      
       termsToRemoveRegex.forEach(regex => {
         if (regex.test(plainText)) {
           matchesAnyTerm = true;
@@ -114,8 +114,11 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       });
 
       // If it contains any of the terms and the remaining text is empty or just punctuation/junk/whitespace
-      // This is now more aggressive to catch cases like "   Page #" or "Document: PSS..."
-      if (matchesAnyTerm && (remainingText.length === 0 || /^[:\-\s\.\(\)\#\u2000-\u200F\uFEFF]*$/.test(remainingText))) {
+      // We check for length <= 2 to be safe against accidental removal of small lines like "Oi" or "OK"
+      // but "Page #" is definitely metadata.
+      const isJustJunk = remainingText.length === 0 || /^[:\-\s\.\(\)\#\u2000-\u200F\uFEFF]*$/.test(remainingText);
+      
+      if (matchesAnyTerm && isJustJunk) {
         fileModified = true;
         anyModified = true;
         return ''; // Remove the whole paragraph
@@ -125,8 +128,12 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
     });
 
     // 2. Surgical cleaning of individual text nodes (in case they are mixed with real content)
-    const textNodeRegex = /<w:(t|instrText)(?: [^>]+)?>([^<]*)<\/w:\1>/g;
-    content = content.replace(textNodeRegex, (fullMatch, tagName, textContent) => {
+    // Improved regex to be more specific and avoid mismatching tags
+    const textNodeRegex = /<w:(t|instrText)([^>]*)>([^<]*)<\/w:(t|instrText)>/g;
+    content = content.replace(textNodeRegex, (fullMatch, tagName, attrs, textContent, endTagName) => {
+      // Ensure opening and closing tags match
+      if (tagName !== endTagName) return fullMatch;
+      
       let newText = textContent;
       let nodeModified = false;
       
@@ -140,8 +147,11 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       if (nodeModified) {
         fileModified = true;
         anyModified = true;
-        const spaceAttr = fullMatch.includes('xml:space="preserve"') ? ' xml:space="preserve"' : '';
-        return `<w:${tagName}${spaceAttr}>${newText}</w:${tagName}>`;
+        // If the new text is empty and there's no space preservation, we can just return empty
+        if (newText.trim() === '' && !attrs.includes('xml:space="preserve"')) {
+           return '';
+        }
+        return `<w:${tagName}${attrs}>${newText}</w:${tagName}>`;
       }
       return fullMatch;
     });

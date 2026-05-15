@@ -239,7 +239,8 @@ export default function PioneerSchoolLetters({
         }
         
         // 3. Detect long underscore lines (signature lines) and convert them to signature tag
-        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{15,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
+        // Look for at least 5 underscores
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{5,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
         
         // 4. Surgical replacement of @TAG to [TAG]
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
@@ -391,7 +392,7 @@ export default function PioneerSchoolLetters({
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const margin = 10; // 10mm margin for safety
+      const margin = 5; // Reduced margin
       const contentWidth = pdfWidth - (margin * 2);
       const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
 

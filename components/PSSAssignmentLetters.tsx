@@ -16,6 +16,7 @@ import {
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
+import { db } from '@/lib/firebase';
 import { 
   collection, 
   getDocs, 
@@ -239,9 +240,9 @@ export default function PSSAssignmentLetters({
           xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
         }
         
-        // Detect long underscore lines (signature lines) and convert them to signature tag
-        // Look for at least 15 underscores
-        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{15,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
+        // 3. Detect long underscore lines (signature lines) and convert them to signature tag
+        // Look for at least 5 underscores
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{5,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
         
         // Convert @TAG to [TAG] or [%TAG]
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
@@ -341,7 +342,7 @@ export default function PSSAssignmentLetters({
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const margin = 10; // 10mm margin for safety
+      const margin = 5; // Reduced margin from 10 to 5
       const contentWidth = pdfWidth - (margin * 2);
       const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
 
