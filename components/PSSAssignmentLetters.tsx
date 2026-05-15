@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
-import { db } from '@/lib/firebase';
+import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { 
   collection, 
   getDocs, 
@@ -221,11 +221,12 @@ export default function PSSAssignmentLetters({
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      const content = bytes.buffer;
-
-      const zip = new PizZip(content);
       
-      // Pre-process all XML files in the zip (document, headers, footers) to handle Word-specific tag splitting and @TAG to [TAG] conversion
+      // Clean metadata first
+      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const zip = new PizZip(cleanedBuffer);
+      
+      // Pre-process all XML files in the zip (document, headers, footers)
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       
       xmlFiles.forEach(file => {
@@ -234,15 +235,18 @@ export default function PSSAssignmentLetters({
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         // Join split tags
-        // We include spaces in the join to handle tags like "@Assinatura Global" that Word often splits
         for (let i = 0; i < 6; i++) {
           xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
         }
         
+        // Detect long underscore lines (signature lines) and convert them to signature tag
+        // Look for at least 15 underscores
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{15,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
+        
         // Convert @TAG to [TAG] or [%TAG]
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
-          // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
+          // Handle Signature specifically
           newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
             return `${p1}[${p2.toUpperCase()}]`;
@@ -314,13 +318,17 @@ export default function PSSAssignmentLetters({
     try {
       const element = previewRef.current;
       
-      // Use html-to-image which is more reliable than html2canvas for PDF rendering
-      const dataUrl = await toJpeg(element, { 
-        quality: 0.95,
+      // Select the actual docx container to avoid capturing padding of the outer div
+      const docxElement = element.querySelector('.docx') as HTMLElement || element;
+      
+      // Use html-to-image with carefully controlled dimensions
+      const dataUrl = await toJpeg(docxElement, { 
+        quality: 0.98,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
         style: {
-          padding: '40px',
+          margin: '0',
+          padding: '0',
           backgroundColor: '#ffffff'
         }
       });
@@ -333,9 +341,11 @@ export default function PSSAssignmentLetters({
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const margin = 10; // 10mm margin for safety
+      const contentWidth = pdfWidth - (margin * 2);
+      const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
 
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'JPEG', margin, margin, contentWidth, contentHeight);
       pdf.save(`${selectedTemplate}_Turma${selectedTurma}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);

@@ -86,7 +86,9 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       /Publication:\s*Student\s*Assignments/gi,
       /Document:\s*PSS\s*assignment\s*letter[\w\d\_]*/gi,
       /PSS\s*assignment\s*letter/gi,
-      /Student\s*Assignments/gi
+      /Student\s*Assignments/gi,
+      /Publication:\s*/gi,
+      /English\s*Title:\s*/gi
     ];
 
     // 1. First, search for paragraphs that contain these terms and clear them if they don't have other valuable text

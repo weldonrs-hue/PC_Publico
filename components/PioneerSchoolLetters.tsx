@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
+import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, where, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -217,33 +218,34 @@ export default function PioneerSchoolLetters({
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      const content = bytes.buffer;
-
-      const zip = new PizZip(content);
       
-      // Pre-process all XML files in the zip (document, headers, footers) to handle Word-specific tag splitting and @TAG to [TAG] conversion
+      // Clean metadata
+      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const zip = new PizZip(cleanedBuffer);
+      
+      // Pre-process all XML files in the zip (document, headers, footers)
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       
       xmlFiles.forEach(file => {
         let xmlContent = file.asText();
         
-        // 1. Clean up common Word junk that splits tags
+        // 1. Clean up common Word junk
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // 2. Join split tag characters together into the first text node of the tag. 
-        // We include spaces in the join to handle tags like "@Assinatura Global" that Word often splits
+        // 2. Join split tags
         for (let i = 0; i < 6; i++) {
           xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
         }
         
-        // 3. Surgical replacement of @TAG to [TAG] ONLY inside text nodes to avoid breaking XML structure
+        // 3. Detect long underscore lines (signature lines) and convert them to signature tag
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{15,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
+        
+        // 4. Surgical replacement of @TAG to [TAG]
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
-          // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
+          // Handle Signature
           newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          // Handle other tags - convert to uppercase, and handle common variations like @NOME_ALUNO
-          // We avoid matching emails (e.g. test@email.com) by checking that @ is preceded by start of line or non-word char
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
@@ -366,13 +368,17 @@ export default function PioneerSchoolLetters({
       const element = previewRef.current;
       const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
       
-      // Use html-to-image which is more reliable than html2canvas for PDF rendering
-      const dataUrl = await toJpeg(element, { 
-        quality: 0.95,
+      // Select the actual docx container to avoid capturing padding of the outer div
+      const docxElement = element.querySelector('.docx') as HTMLElement || element;
+      
+      // Use html-to-image with carefully controlled dimensions
+      const dataUrl = await toJpeg(docxElement, { 
+        quality: 0.98,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
         style: {
-          padding: '40px',
+          margin: '0',
+          padding: '0',
           backgroundColor: '#ffffff'
         }
       });
@@ -385,9 +391,11 @@ export default function PioneerSchoolLetters({
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const margin = 10; // 10mm margin for safety
+      const contentWidth = pdfWidth - (margin * 2);
+      const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
 
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'JPEG', margin, margin, contentWidth, contentHeight);
       pdf.save(`${templateName}_Turma${selectedTurma}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
