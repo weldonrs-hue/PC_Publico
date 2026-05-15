@@ -56,20 +56,17 @@ export function getMissingTags(extractedTags: string[], requiredTags: string[][]
 
 /**
  * Strips PSS specific metadata headers that shouldn't appear in the final document.
- * This version uses a safer approach by removing entire XML elements (paragraphs or runs)
- * that contain the target text, avoiding breaking the XML structure.
  */
 export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
   const zip = new PizZip(buffer);
   
-  const termsToRemove = [
-    'Page #',
-    'English Title:',
-    'Publication: Student Assignments',
-    'Document: PSS assignment letter'
+  // PSS/ESP specific markers
+  const titleMarkers = [
+    "ESCOLA DO SERVIÇO DE PIONEIRO",
+    "PIONEER SERVICE SCHOOL"
   ];
 
-  let anyModified = false;
+  let anyTitleFound = false;
 
   Object.keys(zip.files).forEach(fileName => {
     if (fileName.endsWith('.xml')) {
@@ -77,90 +74,83 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       if (!file) return;
       
       let content = file.asText();
-      let fileModified = false;
-
-    // 0. Build a list of regex patterns for surgical removal
-    const termsToRemoveRegex = [
-      /Page\s*#\s*/gi,
-      /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi,
-      /Publication:\s*Student\s*Assignments/gi,
-      /Document:\s*PSS\s*assignment\s*letter[\w\d\_]*/gi,
-      /PSS\s*assignment\s*letter/gi,
-      /Student\s*Assignments/gi,
-      /Publication:[\s\S]*?(?=<\/w:p>|$)/gi,
-      /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi
-    ];
-
-    // 1. First, search for paragraphs that contain these terms and clear them if they don't have other valuable text
-    // Fixed regex to avoid matching across multiple paragraphs if something goes wrong
-    const paragraphRegex = /<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g;
-    content = content.replace(paragraphRegex, (match, pContent) => {
-      // Get plain text from paragraph content
-      // We also remove other common tags that might be inside a paragraph
-      const plainText = pContent.replace(/<[^>]+>/g, '')
-                                .replace(/[\s\u2000-\u200F\uFEFF]+/g, ' ')
-                                .trim();
       
-      if (!plainText) return match; // Already empty or just tags
-
-      let matchesAnyTerm = false;
-      let remainingText = plainText;
-      
-      termsToRemoveRegex.forEach(regex => {
-        if (regex.test(plainText)) {
-          matchesAnyTerm = true;
-          remainingText = remainingText.replace(regex, '').trim();
+      // Clear headers/footers as they often contain metadata that shouldn't be there
+      if (fileName.includes('header') || fileName.includes('footer')) {
+        const containsTitle = titleMarkers.some(m => content.toUpperCase().includes(m));
+        if (!containsTitle) {
+          content = content.replace(/<w:t[^>]*>.*?<\/w:t>/g, '<w:t></w:t>');
+          zip.file(fileName, content);
+          return;
         }
-      });
-
-      // If it contains any of the terms and the remaining text is empty or just punctuation/junk/whitespace
-      // We check for length <= 2 to be safe against accidental removal of small lines like "Oi" or "OK"
-      // but "Page #" is definitely metadata.
-      const isJustJunk = remainingText.length === 0 || /^[:\-\s\.\(\)\#\u2000-\u200F\uFEFF]*$/.test(remainingText);
-      
-      if (matchesAnyTerm && isJustJunk) {
-        fileModified = true;
-        anyModified = true;
-        return ''; // Remove the whole paragraph
       }
 
-      return match;
-    });
-
-    // 2. Surgical cleaning of individual text nodes (in case they are mixed with real content)
-    // Improved regex to be more specific and avoid mismatching tags
-    const textNodeRegex = /<w:(t|instrText)([^>]*)>([^<]*)<\/w:(t|instrText)>/g;
-    content = content.replace(textNodeRegex, (fullMatch, tagName, attrs, textContent, endTagName) => {
-      // Ensure opening and closing tags match
-      if (tagName !== endTagName) return fullMatch;
-      
-      let newText = textContent;
-      let nodeModified = false;
-      
-      termsToRemoveRegex.forEach(regex => {
-        if (regex.test(newText)) {
-          newText = newText.replace(regex, '');
-          nodeModified = true;
+      if (fileName === 'word/document.xml') {
+        const paragraphRegex = /<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g;
+        let match;
+        let titleParagraphPos = -1;
+        
+        // Find the first paragraph that contains any of the title markers
+        while ((match = paragraphRegex.exec(content)) !== null) {
+          const pContent = match[1];
+          const plainText = pContent.replace(/<[^>]+>/g, '').trim().toUpperCase();
+          
+          if (titleMarkers.some(marker => plainText.includes(marker))) {
+            titleParagraphPos = match.index;
+            anyTitleFound = true;
+            break;
+          }
         }
-      });
 
-      if (nodeModified) {
-        fileModified = true;
-        anyModified = true;
-        // If the new text is empty and there's no space preservation, we can just return empty
-        if (newText.trim() === '' && !attrs.includes('xml:space="preserve"')) {
-           return '';
+        if (titleParagraphPos !== -1) {
+          const bodyStart = content.indexOf('<w:body>');
+          if (bodyStart !== -1 && titleParagraphPos > bodyStart + 8) {
+            const head = content.substring(0, bodyStart + 8);
+            const tail = content.substring(titleParagraphPos);
+            content = head + tail;
+            zip.file(fileName, content);
+          }
         }
-        return `<w:${tagName}${attrs}>${newText}</w:${tagName}>`;
-      }
-      return fullMatch;
-    });
+      } 
+      
+      // If no aggressive cleaning was done (or for other xml files), apply surgical cleaning
+      if (!anyTitleFound || (fileName !== 'word/document.xml' && !fileName.includes('header') && !fileName.includes('footer'))) {
+        const termsToRemoveRegex = [
+          /Page\s*#\s*/gi,
+          /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi,
+          /Publication:\s*Student\s*Assignments/gi,
+          /Document:\s*PSS\s*assignment\s*letter[\w\d\_]*/gi,
+          /PSS\s*assignment\s*letter/gi,
+          /Student\s*Assignments/gi,
+          /Publication:[\s\S]*?(?=<\/w:p>|$)/gi,
+          /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi
+        ];
 
-      // 3. Clean headers/footers explicitly by stripping specific patterns
-      // (This part is already handled by the general .xml loop above)
+        let fileModified = false;
+        content = content.replace(/<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g, (match, pContent) => {
+          const plainText = pContent.replace(/<[^>]+>/g, '').replace(/[\s\u2000-\u200F\uFEFF]+/g, ' ').trim();
+          if (!plainText) return match;
 
-      if (fileModified) {
-        zip.file(fileName, content);
+          let matchesAnyTerm = false;
+          let remainingText = plainText;
+          termsToRemoveRegex.forEach(regex => {
+            if (regex.test(plainText)) {
+              matchesAnyTerm = true;
+              remainingText = remainingText.replace(regex, '').trim();
+            }
+          });
+
+          const isJustJunk = remainingText.length === 0 || /^[:\-\s\.\(\)\#\u2000-\u200F\uFEFF]*$/.test(remainingText);
+          if (matchesAnyTerm && isJustJunk) {
+            fileModified = true;
+            return '';
+          }
+          return match;
+        });
+
+        if (fileModified) {
+          zip.file(fileName, content);
+        }
       }
     }
   });
