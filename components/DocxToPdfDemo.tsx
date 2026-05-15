@@ -28,6 +28,8 @@ export default function DocxToPdfDemo({
 }) {
   const [showManager, setShowManager] = useState(initialMode === 'manager');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isGlobal?: boolean, isPrivate?: boolean }>>({});
   const [file, setFile] = useState<File | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string>('');
@@ -131,7 +133,9 @@ export default function DocxToPdfDemo({
           console.error('Error generating preview:', err);
         }
       } else {
-        alert('Por favor, selecione um arquivo .docx');
+        setErrorMessage('Por favor, selecione um arquivo .docx');
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus('idle'), 5000);
       }
     }
   };
@@ -139,12 +143,10 @@ export default function DocxToPdfDemo({
   const saveTemplate = async () => {
     if (!file) return;
 
-    if (missingTags.length > 0) {
-      const confirmSave = confirm(`Atenção: Os seguintes campos recomendados não foram encontrados no documento: \n\n${missingTags.join(', ')}\n\nDeseja salvar assim mesmo?`);
-      if (!confirmSave) return;
-    }
-
     setIsSaving(true);
+    setSaveStatus('idle');
+    setErrorMessage('');
+    
     try {
       // Use processedBuffer as it already filtered out the metadata
       const arrayBuffer = processedBuffer || await file.arrayBuffer();
@@ -182,13 +184,16 @@ export default function DocxToPdfDemo({
         }
       }));
       
-      alert(isAdmin && saveAsGlobal ? 'Template Global salvo com sucesso!' : 'Seu Template Privado foi salvo com sucesso!');
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 3000);
       setFile(null); // Reset file after successful save
     } catch (error) {
       console.error('Error saving template:', error);
       const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       handleFirestoreError(error, OperationType.WRITE, `document_templates/${docId}`);
-      alert(`Erro ao salvar template: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      setErrorMessage(error instanceof Error ? error.message : 'Erro desconhecido');
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -383,11 +388,28 @@ export default function DocxToPdfDemo({
                         <button
                           onClick={saveTemplate}
                           disabled={isSaving}
-                          className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-100"
+                          className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
+                            saveStatus === 'success' 
+                              ? 'bg-green-600 shadow-green-100 text-white' 
+                              : saveStatus === 'error'
+                                ? 'bg-red-600 shadow-red-100 text-white'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
+                          } disabled:opacity-50`}
                         >
-                          {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                          Salvar Alterações
+                          {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : 
+                           saveStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
+                           saveStatus === 'error' ? <AlertCircle className="w-4 h-4" /> :
+                           <Save className="w-4 h-4" />}
+                          {isSaving ? 'Salvando...' : 
+                           saveStatus === 'success' ? 'Salvo com Sucesso!' : 
+                           saveStatus === 'error' ? 'Erro ao Salvar' :
+                           'Salvar Alterações'}
                         </button>
+                        {saveStatus === 'error' && errorMessage && (
+                          <p className="text-[9px] text-red-500 font-bold text-center uppercase tracking-tight leading-tight">
+                            {errorMessage}
+                          </p>
+                        )}
                         <button
                           onClick={() => { setFile(null); loadTemplate(selectedTemplate); }}
                           className="w-full py-2 text-gray-500 font-bold text-[9px] uppercase tracking-widest hover:text-red-500 transition-colors"

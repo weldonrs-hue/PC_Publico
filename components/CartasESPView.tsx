@@ -45,6 +45,8 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>(ESP_TEMPLATES[0].id);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const [missingTags, setMissingTags] = useState<string[]>([]);
   const [extractedTags, setExtractedTags] = useState<string[]>([]);
   const [saveAsGlobal, setSaveAsGlobal] = useState(false);
@@ -179,7 +181,9 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
           console.error('Error generating preview:', err);
         }
       } else {
-        alert('Por favor, selecione um arquivo .docx');
+        setErrorMessage('Por favor, selecione um arquivo .docx');
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus('idle'), 5000);
       }
     }
   };
@@ -187,12 +191,10 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
   const saveTemplate = async () => {
     if (!file) return;
     
-    if (missingTags.length > 0) {
-      const confirmSave = confirm(`Atenção: Os seguintes campos recomendados não foram encontrados no documento: \n\n${missingTags.join(', ')}\n\nDeseja salvar assim mesmo?`);
-      if (!confirmSave) return;
-    }
-
     setIsSaving(true);
+    setSaveStatus('idle');
+    setErrorMessage('');
+    
     try {
       const arrayBuffer = processedBuffer || await file.arrayBuffer();
       
@@ -229,13 +231,16 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
         }
       }));
       
-      alert(isAdmin && saveAsGlobal ? 'Template Global salvo com sucesso!' : 'Seu Template Privado foi salvo com sucesso!');
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 3000);
       setFile(null); // Reset file after successful save
     } catch (error) {
       console.error('Error saving template:', error);
       const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       handleFirestoreError(error, OperationType.WRITE, `document_templates/${docId}`);
-      alert(`Erro ao salvar template: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      setErrorMessage(error instanceof Error ? error.message : 'Erro desconhecido');
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -472,11 +477,28 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
                       <button
                         onClick={saveTemplate}
                         disabled={isSaving}
-                        className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-100"
+                        className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
+                          saveStatus === 'success' 
+                            ? 'bg-green-600 shadow-green-100 text-white' 
+                            : saveStatus === 'error'
+                              ? 'bg-red-600 shadow-red-100 text-white'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100'
+                        } disabled:opacity-50`}
                       >
-                        {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        Salvar Alterações
+                        {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : 
+                         saveStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
+                         saveStatus === 'error' ? <AlertCircle className="w-4 h-4" /> :
+                         <Save className="w-4 h-4" />}
+                        {isSaving ? 'Salvando...' : 
+                         saveStatus === 'success' ? 'Salvo com Sucesso!' : 
+                         saveStatus === 'error' ? 'Erro ao Salvar' :
+                         'Salvar Alterações'}
                       </button>
+                      {saveStatus === 'error' && errorMessage && (
+                        <p className="text-[9px] text-red-500 font-bold text-center uppercase tracking-tight leading-tight">
+                          {errorMessage}
+                        </p>
+                      )}
 
                       <button
                         onClick={() => { setFile(null); setPreviewHtml(''); loadTemplate(selectedTemplate); }}
