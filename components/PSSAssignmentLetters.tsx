@@ -116,7 +116,7 @@ export default function PSSAssignmentLetters({
     }
   }, [selectedTemplate, templates, schoolInfo, workshopAssignments]);
 
-  const getReplacements = (templateName: string) => {
+  const getReplacements = (templateName: string, signatureImage: string) => {
     // Extract number from "PSS assignment letter_T_XX"
     const match = templateName.match(/_T_(\d+)/);
     const scenarioId = match ? parseInt(match[1]) : 0;
@@ -132,10 +132,8 @@ export default function PSSAssignmentLetters({
     const emailValue = schoolInfo.confirmacaoEmail || '________________';
     const telefoneValue = schoolInfo.confirmacaoWhatsapp || '________________';
     const instrutorValue = schoolInfo.instrutorA || '________________';
-    const signatureBlock = `__________________________\n${instrutorValue}`;
+    const signatureBlock = signatureImage ? instrutorValue : `__________________________\n${instrutorValue}`;
     
-    const signatureImage = personalData?.signatureImage || '';
-
     return {
       'data': dataValue,
       'DATA': dataValue,
@@ -240,10 +238,6 @@ export default function PSSAssignmentLetters({
           xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
         }
         
-        // 3. Detect long underscore lines (signature lines) and convert them to signature tag
-        // Look for at least 5 underscores
-        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{5,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
-        
         // Convert @TAG to [TAG] or [%TAG]
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
@@ -254,6 +248,10 @@ export default function PSSAssignmentLetters({
           });
           return `${opening}${newText}${closing}`;
         });
+
+        // Specific fix: if we see [NOME DO INSTRUTOR] or [INSTRUTOR], prepend [%ASSINATURA]
+        // This puts the signature image right where the instructor marker is
+        xmlContent = xmlContent.replace(/\[(NOME[_ ]DO[_ ]INSTRUTOR|INSTRUTOR)\]/gi, '[%ASSINATURA][$1]');
         
         zip.file(file.name, xmlContent);
       });
@@ -265,7 +263,7 @@ export default function PSSAssignmentLetters({
         modules: ImageModule ? [new ImageModule(imgOpts)] : []
       });
 
-      const replacements = getReplacements(selectedTemplate);
+      const replacements = getReplacements(selectedTemplate, signatureImage);
       doc.render(replacements);
 
       const out = doc.getZip().generate({
@@ -342,7 +340,7 @@ export default function PSSAssignmentLetters({
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const margin = 5; // Reduced margin from 10 to 5
+      const margin = 15; // Increased margin for better printing
       const contentWidth = pdfWidth - (margin * 2);
       const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
 

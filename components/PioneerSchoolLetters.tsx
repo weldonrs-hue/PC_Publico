@@ -238,11 +238,7 @@ export default function PioneerSchoolLetters({
           xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
         }
         
-        // 3. Detect long underscore lines (signature lines) and convert them to signature tag
-        // Look for at least 5 underscores
-        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(_{5,})(<\/w:t>)/g, '$1[%ASSINATURA]$3');
-        
-        // 4. Surgical replacement of @TAG to [TAG]
+        // 3. Surgical replacement of @TAG to [TAG]
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
           // Handle Signature
@@ -252,6 +248,9 @@ export default function PioneerSchoolLetters({
           });
           return `${opening}${newText}${closing}`;
         });
+
+        // Prepend signature image to instructor tags if they exist
+        xmlContent = xmlContent.replace(/\[(INSTRUTOR[A-Z0-9]?|NOME[_ ]DO[_ ]INSTRUTOR)\]/gi, '[%ASSINATURA][$1]');
         
         zip.file(file.name, xmlContent);
       });
@@ -392,7 +391,7 @@ export default function PioneerSchoolLetters({
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const margin = 5; // Reduced margin
+      const margin = 15; // Increased margin
       const contentWidth = pdfWidth - (margin * 2);
       const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
 
