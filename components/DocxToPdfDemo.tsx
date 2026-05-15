@@ -7,7 +7,7 @@ import * as docxPreview from 'docx-preview';
 import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft, Settings2, Layout, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
-import { extractTagsFromDocx, getMissingTags } from '@/lib/docxUtils';
+import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
@@ -105,14 +105,16 @@ export default function DocxToPdfDemo({
     if (selectedFile) {
       if (selectedFile.name.endsWith('.docx')) {
         setFile(selectedFile);
+        setProcessedBuffer(null); // Clear buffer to prevent using old data during processing
         
         // Initial preview
         try {
-          const arrayBuffer = await selectedFile.arrayBuffer();
-          setProcessedBuffer(arrayBuffer);
+          const rawBuffer = await selectedFile.arrayBuffer();
+          const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+          setProcessedBuffer(cleanedBuffer);
 
           // Validate tags
-          const tags = await extractTagsFromDocx(arrayBuffer);
+          const tags = await extractTagsFromDocx(cleanedBuffer);
           setExtractedTags(tags);
           
           const required = [
@@ -144,11 +146,13 @@ export default function DocxToPdfDemo({
 
     setIsSaving(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
+      // Use processedBuffer as it already filtered out the metadata
+      const arrayBuffer = processedBuffer || await file.arrayBuffer();
+      
+      // Faster base64 conversion
       const uint8Array = new Uint8Array(arrayBuffer);
       let binary = '';
-      const len = uint8Array.byteLength;
-      for (let i = 0; i < len; i++) {
+      for (let i = 0; i < uint8Array.length; i++) {
         binary += String.fromCharCode(uint8Array[i]);
       }
       const base64 = window.btoa(binary);
@@ -175,10 +179,12 @@ export default function DocxToPdfDemo({
       }));
       
       alert(isAdmin && saveAsGlobal ? 'Template Global salvo com sucesso!' : 'Seu Template Privado foi salvo com sucesso!');
+      setFile(null); // Reset file after successful save
     } catch (error) {
       console.error('Error saving template:', error);
       const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       handleFirestoreError(error, OperationType.WRITE, `document_templates/${docId}`);
+      alert(`Erro ao salvar template: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setIsSaving(false);
     }

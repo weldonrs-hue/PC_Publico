@@ -8,7 +8,7 @@ import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save,
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import PioneerSchoolLetters from './PioneerSchoolLetters';
-import { extractTagsFromDocx, getMissingTags } from '@/lib/docxUtils';
+import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { 
   doc, 
   getDoc, 
@@ -150,13 +150,15 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
     if (selectedFile) {
       if (selectedFile.name.endsWith('.docx')) {
         setFile(selectedFile);
+        setProcessedBuffer(null); // Limpa o buffer para evitar usar dados antigos durante o processamento
         
         try {
-          const arrayBuffer = await selectedFile.arrayBuffer();
-          setProcessedBuffer(arrayBuffer);
+          const rawBuffer = await selectedFile.arrayBuffer();
+          const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+          setProcessedBuffer(cleanedBuffer);
           
           // Validate tags
-          const tags = await extractTagsFromDocx(arrayBuffer);
+          const tags = await extractTagsFromDocx(cleanedBuffer);
           setExtractedTags(tags);
           
           const required = [
@@ -192,11 +194,10 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
 
     setIsSaving(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
+      const arrayBuffer = processedBuffer || await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       let binary = '';
-      const len = uint8Array.byteLength;
-      for (let i = 0; i < len; i++) {
+      for (let i = 0; i < uint8Array.length; i++) {
         binary += String.fromCharCode(uint8Array[i]);
       }
       const base64 = window.btoa(binary);
@@ -223,10 +224,12 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
       }));
       
       alert(isAdmin && saveAsGlobal ? 'Template Global salvo com sucesso!' : 'Seu Template Privado foi salvo com sucesso!');
+      setFile(null); // Reset file after successful save
     } catch (error) {
       console.error('Error saving template:', error);
       const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       handleFirestoreError(error, OperationType.WRITE, `document_templates/${docId}`);
+      alert(`Erro ao salvar template: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setIsSaving(false);
     }
