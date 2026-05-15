@@ -233,9 +233,18 @@ export default function PSSAssignmentLetters({
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // Join split tags
-        for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        // Join split tags - MUCH safer version
+        // Only join if they are separated by NOTHING or just proofErr tags
+        for (let i = 0; i < 4; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\_]+)/g, "$1$3$2");
+        }
+        
+        // Ensure namespaces are present for images (required for docxtemplater-image-module)
+        if (!xmlContent.includes('xmlns:wp=')) {
+          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+            if (match.includes('xmlns:wp=')) return match;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`;
+          });
         }
         
         // Convert @TAG to [TAG] or [%TAG]
