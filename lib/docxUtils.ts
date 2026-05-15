@@ -86,36 +86,25 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       }
 
       if (fileName === 'word/document.xml') {
-        const paragraphRegex = /<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g;
-        let match;
-        let titleParagraphPos = -1;
-        
-        // Find the first paragraph that contains any of the title markers
-        while ((match = paragraphRegex.exec(content)) !== null) {
-          const pContent = match[1];
-          const plainText = pContent.replace(/<[^>]+>/g, '').trim().toUpperCase();
+        let titleFoundInDoc = false;
+        content = content.replace(/<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g, (match, pContent) => {
+          if (titleFoundInDoc) return match;
           
+          const plainText = pContent.replace(/<[^>]+>/g, '').trim().toUpperCase();
           if (titleMarkers.some(marker => plainText.includes(marker))) {
-            titleParagraphPos = match.index;
+            titleFoundInDoc = true;
             anyTitleFound = true;
-            break;
+            return match;
           }
-        }
-
-        if (titleParagraphPos !== -1) {
-          const bodyStart = content.indexOf('<w:body>');
-          if (bodyStart !== -1 && titleParagraphPos > bodyStart + 8) {
-            const head = content.substring(0, bodyStart + 8);
-            const tail = content.substring(titleParagraphPos);
-            content = head + tail;
-            zip.file(fileName, content);
-          }
-        }
+          
+          // Remove paragraphs before the title
+          return '';
+        });
+        zip.file(fileName, content);
       } 
       
-      // If no aggressive cleaning was done (or for other xml files), apply surgical cleaning
-      if (!anyTitleFound || (fileName !== 'word/document.xml' && !fileName.includes('header') && !fileName.includes('footer'))) {
-        const termsToRemoveRegex = [
+      // Secondary cleanup for known metadata terms if still needed
+      const termsToRemoveRegex = [
           /Page\s*#\s*/gi,
           /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi,
           /Publication:\s*Student\s*Assignments/gi,
@@ -152,8 +141,7 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
           zip.file(fileName, content);
         }
       }
-    }
-  });
+    });
   
   return zip.generate({ type: 'arraybuffer' });
 }
