@@ -195,12 +195,18 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
     setIsSaving(true);
     try {
       const arrayBuffer = processedBuffer || await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-      }
-      const base64 = window.btoa(binary);
+      
+      // Use FileReader for safe and fast base64 conversion of large files
+      const blob = new Blob([arrayBuffer]);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
       
       const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       

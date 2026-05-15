@@ -85,11 +85,44 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       /English\s*Title:\s*/gi,
       /Publication:\s*Student\s*Assignments/gi,
       /Document:\s*PSS\s*assignment\s*letter[\w\d\_]*/gi,
-      /PSS\s*assignment\s*letter/gi
+      /PSS\s*assignment\s*letter/gi,
+      /Student\s*Assignments/gi
     ];
 
-    // 1. Clean individual text nodes (w:t and w:instrText) surgically
-    // This removes the terms even if they are mixed with other text in the same node
+    // 1. First, search for paragraphs that contain these terms and clear them if they don't have other valuable text
+    const paragraphRegex = /<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g;
+    content = content.replace(paragraphRegex, (match, pContent) => {
+      // Get plain text from paragraph content
+      const plainText = pContent.replace(/<[^>]+>/g, '')
+                                .replace(/[\s\u2000-\u200F\uFEFF]+/g, ' ')
+                                .trim();
+      
+      if (!plainText) return match; // Already empty or just tags
+
+      let matchesAnyTerm = false;
+      let onlyContainsTerms = true;
+      
+      // Check if it matches any term and if it contains ONLY those terms
+      let remainingText = plainText;
+      termsToRemoveRegex.forEach(regex => {
+        if (regex.test(plainText)) {
+          matchesAnyTerm = true;
+          remainingText = remainingText.replace(regex, '').trim();
+        }
+      });
+
+      // If it contains any of the terms and the remaining text is empty or just punctuation/junk/whitespace
+      // This is now more aggressive to catch cases like "   Page #" or "Document: PSS..."
+      if (matchesAnyTerm && (remainingText.length === 0 || /^[:\-\s\.\(\)\#\u2000-\u200F\uFEFF]*$/.test(remainingText))) {
+        fileModified = true;
+        anyModified = true;
+        return ''; // Remove the whole paragraph
+      }
+
+      return match;
+    });
+
+    // 2. Surgical cleaning of individual text nodes (in case they are mixed with real content)
     const textNodeRegex = /<w:(t|instrText)(?: [^>]+)?>([^<]*)<\/w:\1>/g;
     content = content.replace(textNodeRegex, (fullMatch, tagName, textContent) => {
       let newText = textContent;
@@ -105,28 +138,10 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
       if (nodeModified) {
         fileModified = true;
         anyModified = true;
-        // Keep xml:space="preserve" if it was there
         const spaceAttr = fullMatch.includes('xml:space="preserve"') ? ' xml:space="preserve"' : '';
         return `<w:${tagName}${spaceAttr}>${newText}</w:${tagName}>`;
       }
       return fullMatch;
-    });
-
-    // 2. Clean entire paragraphs only if they become empty or near-empty after text cleaning
-    // This is safer than the previous aggressive paragraph removal
-    const paragraphRegex = /<w:p(?: [^>]+)?>[\s\S]*?<\/w:p>/g;
-    content = content.replace(paragraphRegex, (match) => {
-      const textFromMatch = match.replace(/<[^>]+>/g, '').replace(/[\s\u2000-\u200F\uFEFF]+/g, ' ').trim();
-      
-      // If the paragraph text is ONLY one of these terms (now cleaned or partially cleaned)
-      // or if it's completely empty, we can remove the whole paragraph block
-      if (textFromMatch.length === 0) {
-        fileModified = true;
-        anyModified = true;
-        return ''; 
-      }
-      
-      return match;
     });
 
       // 3. Clean headers/footers explicitly by stripping specific patterns

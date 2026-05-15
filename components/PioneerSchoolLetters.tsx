@@ -74,7 +74,21 @@ export default function PioneerSchoolLetters({
       querySnapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
       });
-      setTemplates(fetchedTemplates);
+
+      // Consolidate templates prioritizing private ones
+      const consolidated: Record<string, any> = {};
+      ESP_TEMPLATES.forEach(t => {
+        const privateId = `${userId}_${t.id}`;
+        const globalId = t.id;
+        
+        if (fetchedTemplates[privateId]) {
+          consolidated[t.id] = fetchedTemplates[privateId];
+        } else if (fetchedTemplates[globalId]) {
+          consolidated[t.id] = fetchedTemplates[globalId];
+        }
+      });
+
+      setTemplates(consolidated);
     } catch (error) {
       console.error('Error fetching templates:', error);
     } finally {

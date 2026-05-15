@@ -82,7 +82,21 @@ export default function PSSAssignmentLetters({
       querySnapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
       });
-      setTemplates(fetchedTemplates);
+
+      // Consolidate templates prioritizing private ones
+      const consolidated: Record<string, any> = {};
+      TEMPLATE_NAMES.forEach(name => {
+        const privateId = `${userId}_${name}`;
+        const globalId = name;
+        
+        if (fetchedTemplates[privateId]) {
+          consolidated[name] = fetchedTemplates[privateId];
+        } else if (fetchedTemplates[globalId]) {
+          consolidated[name] = fetchedTemplates[globalId];
+        }
+      });
+
+      setTemplates(consolidated);
     } catch (error) {
       console.error('Error fetching templates:', error);
     } finally {
