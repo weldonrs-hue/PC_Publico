@@ -325,10 +325,12 @@ export default function PSSAssignmentLetters({
         quality: 0.98,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
+        width: 800, // Matching the fixed width for consistent export
         style: {
           margin: '0',
           padding: '0',
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          width: '800px' // Match the preview width exactly
         }
       });
 
@@ -378,12 +380,12 @@ export default function PSSAssignmentLetters({
             </span>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+          <div className="flex overflow-x-auto md:grid md:grid-cols-4 lg:grid-cols-6 gap-2 pb-2 md:pb-0 custom-scrollbar">
             {TEMPLATE_NAMES.map(name => (
               <button
                 key={name}
                 onClick={() => setSelectedTemplate(name)}
-                className={`text-left px-3 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
+                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-tighter border-2 ${
                   selectedTemplate === name 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
@@ -438,13 +440,12 @@ export default function PSSAssignmentLetters({
 
           <div className="relative group">
             <div 
-              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-hidden p-12"
-              style={{ overflowY: 'auto' }}
+              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-auto p-4 md:p-12 custom-scrollbar"
             >
               <div 
                 ref={previewRef}
-                className="docx-preview-container mx-auto"
-                style={{ width: '100%', maxWidth: '800px' }}
+                className="docx-preview-container mx-auto bg-white"
+                style={{ width: '800px', minWidth: '800px' }}
               >
                 {!processedDocBuffer && !isProcessing && (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
@@ -500,6 +501,7 @@ export default function PSSAssignmentLetters({
         
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
+          height: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: #f1f1f1;

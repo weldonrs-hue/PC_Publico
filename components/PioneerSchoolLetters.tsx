@@ -376,10 +376,12 @@ export default function PioneerSchoolLetters({
         quality: 0.98,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
+        width: 800, // Fixed width for consistent output
         style: {
           margin: '0',
           padding: '0',
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          width: '800px'
         }
       });
 
@@ -425,12 +427,12 @@ export default function PioneerSchoolLetters({
             </h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-3 pb-2 md:pb-0 custom-scrollbar">
             {ESP_TEMPLATES.map(template => (
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`text-left px-4 py-3 rounded-xl text-[11px] font-black transition-all uppercase tracking-tight border-2 ${
+                className={`flex-shrink-0 w-40 md:w-auto text-left px-4 py-3 rounded-xl text-[11px] font-black transition-all uppercase tracking-tight border-2 ${
                   selectedTemplate === template.id 
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'
@@ -500,13 +502,12 @@ export default function PioneerSchoolLetters({
 
           <div className="relative group">
             <div 
-              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-3xl shadow-inner-lg overflow-hidden p-4 md:p-12"
-              style={{ overflowY: 'auto' }}
+              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-3xl shadow-inner-lg overflow-auto p-4 md:p-12 custom-scrollbar"
             >
               <div 
                 ref={previewRef}
-                className="docx-preview-container mx-auto"
-                style={{ width: '100%' }}
+                className="docx-preview-container mx-auto bg-white"
+                style={{ width: '800px', minWidth: '800px' }}
               >
                 {!processedDocBuffer && !isProcessing && (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
@@ -552,6 +553,18 @@ export default function PioneerSchoolLetters({
           margin: 0 !important;
           background: white !important;
           box-shadow: none !important;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #d1d5db;
+          border-radius: 10px;
         }
       `}</style>
     </div>
