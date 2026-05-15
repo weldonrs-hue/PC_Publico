@@ -11,7 +11,8 @@ import {
   getDoc, 
   setDoc, 
   collection, 
-  getDocs 
+  getDocs,
+  deleteDoc 
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
@@ -189,6 +190,17 @@ export default function CartasCongressoView({ userId, isAdmin, canManage, initia
         isGlobal: isAdmin && saveAsGlobal,
         ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
       });
+
+      // If admin is saving as global, ensure their private version (if any) is deleted 
+      // so it doesn't shadow the new global template in UI logic
+      if (isAdmin && saveAsGlobal) {
+        try {
+          const privateId = `${userId}_${selectedTemplate}`;
+          await deleteDoc(doc(db, 'document_templates', privateId));
+        } catch (e) {
+          console.log('No private template to delete or error deleting it:', e);
+        }
+      }
       
       setTemplates(prev => ({
         ...prev,

@@ -8,7 +8,7 @@ import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save,
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 const TEMPLATE_NAMES = Array.from({ length: 18 }, (_, i) => `PSS assignment letter_T_${(i + 1).toString().padStart(2, '0')}`);
@@ -173,6 +173,17 @@ export default function DocxToPdfDemo({
         isGlobal: isAdmin && saveAsGlobal,
         ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
       });
+
+      // If admin is saving as global, ensure their private version (if any) is deleted 
+      // so it doesn't shadow the new global template in UI logic
+      if (isAdmin && saveAsGlobal) {
+        try {
+          const privateId = `${userId}_${selectedTemplate}`;
+          await deleteDoc(doc(db, 'document_templates', privateId));
+        } catch (e) {
+          console.log('No private template to delete or error deleting it:', e);
+        }
+      }
       
       setTemplates(prev => ({
         ...prev,
