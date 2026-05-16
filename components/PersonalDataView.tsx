@@ -77,7 +77,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const [isProcessing, setIsProcessing] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
-  const removeImageBackground = () => {
+  const refineSignatureIA = () => {
     if (!formData.signatureImage) return;
     
     setIsProcessing(true);
@@ -101,28 +101,58 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
       
-      // Higher threshold for "near white" to be safe but effective
-      const threshold = 230; 
+      // Threshold for "near white" to be safe but effective
+      const whiteThreshold = 220; 
+      
+      // Target blue color (professional ink blue: #0047AB)
+      const targetR = 0;
+      const targetG = 71;
+      const targetB = 171;
       
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
+        const a = data[i + 3];
         
-        // If the pixel is very bright (near white), make it transparent
-        if (r > threshold && g > threshold && b > threshold) {
-          data[i + 3] = 0; // Alpha channel
+        // 1. Transparency Step: If the pixel is very bright (near white), make it transparent
+        if (r > whiteThreshold && g > whiteThreshold && b > whiteThreshold) {
+          data[i + 3] = 0; 
+          continue;
+        }
+
+        // 2. IA Improvement Step: Make existing lines sharper and blue
+        // Calculate luminosity (perceived brightness)
+        const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+        
+        if (a > 50) { // If it's not already transparent
+           // If it's a dark pixel (likely a pen stroke), make it fully opaque and blue
+           if (brightness < 180) {
+             data[i] = targetR;
+             data[i + 1] = targetG;
+             data[i + 2] = targetB;
+             data[i + 3] = 255; // Max opacity for stroke
+           } else {
+             // For anti-aliased edges, just apply the blue color but keep some transparency
+             data[i] = targetR;
+             data[i + 1] = targetG;
+             data[i + 2] = targetB;
+           }
         }
       }
       
       ctx.putImageData(imageData, 0, 0);
+      
+      // Additional Step: Sharpening effect using a simple convolution filter if needed
+      // But thresholding and blueing is usually enough for a "digital cleanup" feel
+      
       const processedImage = canvas.toDataURL('image/png');
       setFormData({ ...formData, signatureImage: processedImage });
       setIsProcessing(false);
     };
     
     img.onerror = () => {
-      console.error("Error loading image for background removal");
+      console.error("Error loading image for refinement");
       setIsProcessing(false);
     };
   };
@@ -608,10 +638,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
                     <button 
                       type="button"
-                      onClick={removeImageBackground}
+                      onClick={refineSignatureIA}
                       disabled={isProcessing}
-                      className="absolute -top-4 right-8 p-2 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10 disabled:opacity-50"
-                      title="Remover Fundo Branco"
+                      className="absolute -top-4 right-8 p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10 disabled:opacity-50"
+                      title="Refinar com IA (Melhorar e Azul)"
                     >
                       {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                     </button>

@@ -74,7 +74,7 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
         // Re-apply font after resize
         ctx.font = `60px ${selectedFont.name}`;
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = '#0047AB'; // Blue pen color
         ctx.fillText(typedName, 20, height / 2);
         
         onSave(canvas.toDataURL('image/png'));
@@ -152,8 +152,8 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                   value={typedName}
                   onChange={(e) => setTypedName(e.target.value)}
                   placeholder="Seu nome aqui..."
-                  className="w-full text-center text-4xl p-4 bg-transparent border-b-2 border-gray-100 focus:border-emerald-500 outline-none transition-colors"
-                  style={{ fontFamily: selectedFont.variable }}
+                  className="w-full text-center text-4xl p-4 bg-transparent border-b-2 border-gray-100 focus:border-blue-500 outline-none transition-colors"
+                  style={{ fontFamily: selectedFont.variable, color: '#0047AB' }}
                 />
                 
                 <div className="flex flex-wrap justify-center gap-3">
@@ -186,7 +186,7 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                 <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 overflow-hidden">
                   <SignatureCanvas 
                     ref={sigCanvas}
-                    penColor="black"
+                    penColor="#0047AB"
                     canvasProps={{
                       className: "w-full h-[250px] cursor-crosshair"
                     }}
