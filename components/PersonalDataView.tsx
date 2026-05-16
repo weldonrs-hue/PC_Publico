@@ -27,8 +27,8 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'motion/react';
-import SignatureCanvas from 'react-signature-canvas';
 import ImageCropper from './ImageCropper';
+import SignaturePad from './SignaturePad';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -73,8 +73,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const [initialData, setInitialData] = useState(defaultData);
   const [formData, setFormData] = useState(defaultData);
   const [loading, setLoading] = useState(true);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const sigPad = useRef<SignatureCanvas>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
@@ -215,23 +214,13 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     setImageToCrop(null);
   };
 
+  const handleSignatureSave = (signatureDataUrl: string) => {
+    setFormData({ ...formData, signatureImage: signatureDataUrl });
+    setShowSignaturePad(false);
+  };
+
   const removeSignature = () => {
     setFormData({ ...formData, signatureImage: null });
-  };
-
-  const clearSignatureCanvas = () => {
-    sigPad.current?.clear();
-  };
-
-  const saveDrawnSignature = () => {
-    if (sigPad.current?.isEmpty()) return;
-    
-    // Get the base64 image from canvas
-    const dataUrl = sigPad.current?.getTrimmedCanvas().toDataURL('image/png');
-    if (dataUrl) {
-      setFormData({ ...formData, signatureImage: dataUrl });
-      setIsDrawing(false);
-    }
   };
 
   const handleBack = () => {
@@ -610,25 +599,15 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                       <Upload className="text-emerald-600" size={24} />
                     </div>
                     <p className="text-sm font-medium text-gray-700">Nenhuma assinatura cadastrada</p>
-                    <p className="text-xs text-gray-400 mt-1 mb-6">Escolha uma imagem ou desenhe na tela</p>
+                    <p className="text-xs text-gray-400 mt-1 mb-6">Escolha uma imagem, digite ou desenhe na tela</p>
                     <div className="flex flex-wrap justify-center gap-3">
-                      <label className="cursor-pointer bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-md inline-flex items-center gap-2">
-                        <Upload size={14} />
-                        Fazer Upload
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={handleImageUpload}
-                        />
-                      </label>
-                      <button
+                      <button 
                         type="button"
-                        onClick={() => setIsDrawing(true)}
-                        className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-md flex items-center gap-2"
+                        onClick={() => setShowSignaturePad(true)}
+                        className="bg-emerald-600 text-white px-10 py-3 rounded-2xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2"
                       >
-                        <PenTool size={14} />
-                        Desenhar na Tela
+                        <PenTool size={18} />
+                        Criar Assinatura Digital
                       </button>
                     </div>
                   </div>
@@ -691,70 +670,12 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         </div>
       )}
       <AnimatePresence>
-        {isDrawing && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">Assinatura Digital</h3>
-                  <p className="text-sm text-gray-500">Desenhe sua assinatura no espaço abaixo</p>
-                </div>
-                <button 
-                  onClick={() => setIsDrawing(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl overflow-hidden relative min-h-[300px]">
-                <SignatureCanvas 
-                  ref={sigPad}
-                  penColor="#004aad"
-                  canvasProps={{
-                    className: "w-full h-full min-h-[300px] cursor-crosshair"
-                  }}
-                />
-                
-                {/* Visual guideline line */}
-                <div className="absolute left-10 right-10 bottom-24 border-t border-gray-300 pointer-events-none" />
-                <p className="absolute left-0 right-0 bottom-16 text-center text-[10px] text-gray-400 uppercase tracking-widest pointer-events-none">
-                  Assine sobre a linha
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between mt-6">
-                <button 
-                  onClick={clearSignatureCanvas}
-                  className="flex items-center gap-2 text-red-600 font-bold hover:bg-red-50 px-4 py-2 rounded-xl transition-all"
-                >
-                  <Eraser size={18} />
-                  Limpar
-                </button>
-
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => setIsDrawing(false)}
-                    className="px-6 py-2.5 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={saveDrawnSignature}
-                    className="flex items-center gap-2 bg-emerald-600 text-white px-8 py-2.5 font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg"
-                  >
-                    <Check size={18} />
-                    Confirmar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+        {showSignaturePad && (
+          <SignaturePad 
+            initialName={formData.nome || ''}
+            onSave={handleSignatureSave}
+            onCancel={() => setShowSignaturePad(false)}
+          />
         )}
       </AnimatePresence>
 

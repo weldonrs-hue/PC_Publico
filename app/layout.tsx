@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display } from 'next/font/google';
+import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display, Pacifico, Caveat, Satisfy, Marck_Script } from 'next/font/google';
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LGPDConsent from '@/components/LGPDConsent';
@@ -30,6 +30,29 @@ const dancingScript = Dancing_Script({
   variable: '--font-signature',
 });
 
+const pacifico = Pacifico({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-signature-pacifico',
+});
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  variable: '--font-signature-caveat',
+});
+
+const satisfy = Satisfy({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-signature-satisfy',
+});
+
+const marckScript = Marck_Script({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-signature-marck',
+});
+
 export const viewport: Viewport = {
   themeColor: '#673ab7',
   width: 'device-width',
@@ -52,7 +75,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-br" suppressHydrationWarning className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${playfairDisplay.variable} ${dancingScript.variable}`}>
+    <html lang="pt-br" suppressHydrationWarning className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${playfairDisplay.variable} ${dancingScript.variable} ${pacifico.variable} ${caveat.variable} ${satisfy.variable} ${marckScript.variable}`}>
       <body suppressHydrationWarning className="bg-gray-50 font-sans">
         <ErrorBoundary>
           {children}
