@@ -12,7 +12,10 @@ import {
   List,
   AlertCircle,
   FileDown,
-  Mail
+  Mail,
+  PenTool,
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
@@ -21,6 +24,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, where, limit, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import DraggableSignature from './DraggableSignature';
+import SignaturePad from './SignaturePad';
 
 interface PioneerSchoolLettersProps {
   userId: string;
@@ -59,6 +63,7 @@ export default function PioneerSchoolLetters({
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
 
   const [needsProcessing, setNeedsProcessing] = useState(true);
 
@@ -145,6 +150,31 @@ export default function PioneerSchoolLetters({
       }
     } catch (error) {
       console.error('Error fetching personal data:', error);
+    }
+  };
+
+  const handleSignatureSave = async (signatureDataUrl: string) => {
+    try {
+      await setDoc(doc(db, 'personal_data', userId), {
+        signatureImage: signatureDataUrl
+      }, { merge: true });
+      
+      setPersonalData((prev: any) => ({ ...prev, signatureImage: signatureDataUrl }));
+      setShowSignaturePad(false);
+    } catch (error) {
+      console.error('Erro ao salvar assinatura:', error);
+    }
+  };
+
+  const removeSignature = async () => {
+    try {
+      await setDoc(doc(db, 'personal_data', userId), {
+        signatureImage: null
+      }, { merge: true });
+      
+      setPersonalData((prev: any) => ({ ...prev, signatureImage: null }));
+    } catch (error) {
+      console.error('Erro ao remover assinatura:', error);
     }
   };
 
@@ -600,17 +630,56 @@ export default function PioneerSchoolLetters({
           <p className="text-[9px] text-gray-400 text-center italic">
             * As substituições são baseadas nas Informações da Escola e Dados Pessoais. Use marcadores @DATA, @LOCAL, @INSTRUTORES, @HOJE, etc. no Word.
           </p>
+
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
+              <PenTool size={18} className="text-emerald-600" />
+              Assinatura Global
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setShowSignaturePad(true)}
+                className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-emerald-700 transition-all flex items-center gap-2"
+              >
+                <Sparkles size={16} />
+                Nova Assinatura Digital
+              </button>
+              {personalData?.signatureImage && (
+                <button
+                  onClick={removeSignature}
+                  className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2"
+                >
+                  <Trash2 size={16} />
+                  Remover
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {showSignaturePad && (
+        <SignaturePad 
+          initialName={personalData?.nome || ''}
+          onSave={handleSignatureSave}
+          onCancel={() => setShowSignaturePad(false)}
+        />
+      )}
 
       <style jsx global>{`
         .docx-preview-container {
           background-color: #ffffff !important;
         }
         .docx-preview-container p {
-          font-size: 1.5rem !important;
+          font-size: 1.8rem !important;
           line-height: 1.6 !important;
           color: #1a1a1a !important;
+        }
+        .docx-preview-container * {
+          border-color: #e5e7eb !important;
+          outline-color: transparent !important;
+          text-decoration-color: transparent !important;
+          box-shadow: none !important;
         }
         .docx-preview-container .docx-preview {
           padding: 0 !important;

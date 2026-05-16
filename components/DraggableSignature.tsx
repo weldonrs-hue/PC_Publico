@@ -24,19 +24,27 @@ export default function DraggableSignature({
 }: DraggableSignatureProps) {
   const [position, setPosition] = useState({ x: initialX, y: initialY });
   const [scale, setScale] = useState(initialScale);
-  const [isEditing, setIsEditing] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(2.5); // Default
 
   useEffect(() => {
     setPosition({ x: initialX, y: initialY });
     setScale(initialScale);
   }, [initialX, initialY, initialScale]);
 
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => {
+      setAspectRatio(img.width / img.height);
+    };
+    img.src = image;
+  }, [image]);
+
   const handleDragEnd = (_: any, info: any) => {
-    // Info contains point: { x, y } but we want the delta relative to container
-    // However framer-motion drag uses translation.
-    // If we want to store absolute position relative to container, we need to be careful.
     setPosition({ x: position.x + info.delta.x, y: position.y + info.delta.y });
   };
+
+  const baseHeight = 60;
+  const width = baseHeight * aspectRatio;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
@@ -46,7 +54,7 @@ export default function DraggableSignature({
         onDragEnd={handleDragEnd}
         animate={{ x: position.x, y: position.y, scale: scale }}
         className="absolute pointer-events-auto cursor-move group"
-        style={{ width: '200px', height: '80px' }}
+        style={{ width: `${width}px`, height: `${baseHeight}px` }}
       >
         <div className="relative w-full h-full">
           {/* Signature Image */}

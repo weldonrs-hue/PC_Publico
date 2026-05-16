@@ -11,7 +11,10 @@ import {
   CheckCircle2, 
   List,
   AlertCircle,
-  FileDown
+  FileDown,
+  PenTool,
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
@@ -25,6 +28,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import DraggableSignature from './DraggableSignature';
+import SignaturePad from './SignaturePad';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface PSSAssignmentLettersProps {
@@ -58,6 +62,7 @@ export default function PSSAssignmentLetters({
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
   const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -107,6 +112,31 @@ export default function PSSAssignmentLetters({
       }
     } catch (error) {
       console.error('Error fetching personal data:', error);
+    }
+  };
+
+  const handleSignatureSave = async (signatureDataUrl: string) => {
+    try {
+      await setDoc(doc(db, 'personal_data', userId), {
+        signatureImage: signatureDataUrl
+      }, { merge: true });
+      
+      setPersonalData((prev: any) => ({ ...prev, signatureImage: signatureDataUrl }));
+      setShowSignaturePad(false);
+    } catch (error) {
+      console.error('Erro ao salvar assinatura:', error);
+    }
+  };
+
+  const removeSignature = async () => {
+    try {
+      await setDoc(doc(db, 'personal_data', userId), {
+        signatureImage: null
+      }, { merge: true });
+      
+      setPersonalData((prev: any) => ({ ...prev, signatureImage: null }));
+    } catch (error) {
+      console.error('Erro ao remover assinatura:', error);
     }
   };
 
@@ -163,7 +193,14 @@ export default function PSSAssignmentLetters({
       nomes = participantsList.join('\n');
     }
 
-    const dataValue = schoolInfo.dataTurma || '____/____/____';
+    const now = new Date();
+    const hoje = new Intl.DateTimeFormat('pt-BR', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    }).format(now);
+
+    const dataValue = schoolInfo.dataTurma || hoje;
     const emailValue = schoolInfo.confirmacaoEmail || '________________';
     const telefoneValue = schoolInfo.confirmacaoWhatsapp || '________________';
     const instrutorValue = schoolInfo.instrutorA || '________________';
@@ -544,8 +581,41 @@ export default function PSSAssignmentLetters({
           <p className="text-[9px] text-gray-400 text-center italic">
             * As substituições são automáticas. Use marcadores no formato [TAG] nos arquivos Word. Por exemplo: [NOME], [DATA], [ASSINATURA]. Para negrito, formate o marcador como negrito no Word.
           </p>
+
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
+              <PenTool size={18} className="text-blue-600" />
+              Assinatura Global
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setShowSignaturePad(true)}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-blue-700 transition-all flex items-center gap-2"
+              >
+                <Sparkles size={16} />
+                Nova Assinatura Digital
+              </button>
+              {personalData?.signatureImage && (
+                <button
+                  onClick={removeSignature}
+                  className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2"
+                >
+                  <Trash2 size={16} />
+                  Remover
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {showSignaturePad && (
+        <SignaturePad 
+          initialName={personalData?.nome || ''}
+          onSave={handleSignatureSave}
+          onCancel={() => setShowSignaturePad(false)}
+        />
+      )}
 
       <style jsx global>{`
         .docx-preview-container {
@@ -558,8 +628,8 @@ export default function PSSAssignmentLetters({
           text-decoration-color: transparent !important;
           box-shadow: none !important;
         }
-        .docx-preview-container h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.5rem; }
+        .docx-preview-container h1 { font-size: 3rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
+        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.8rem; }
         .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
         
         .docx-preview-container .docx-preview {

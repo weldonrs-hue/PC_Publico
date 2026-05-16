@@ -41,7 +41,22 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
   const handleSave = async () => {
     if (mode === 'draw' && sigCanvas.current) {
       if (sigCanvas.current.isEmpty()) return;
-      onSave(sigCanvas.current.getTrimmedCanvas().toDataURL('image/png'));
+      
+      const trimmedCanvas = sigCanvas.current.getTrimmedCanvas();
+      
+      // Add padding to prevent cutting edges
+      const padding = 20;
+      const paddedCanvas = document.createElement('canvas');
+      paddedCanvas.width = trimmedCanvas.width + (padding * 2);
+      paddedCanvas.height = trimmedCanvas.height + (padding * 2);
+      
+      const pCtx = paddedCanvas.getContext('2d');
+      if (pCtx) {
+        pCtx.drawImage(trimmedCanvas, padding, padding);
+        onSave(paddedCanvas.toDataURL('image/png'));
+      } else {
+        onSave(trimmedCanvas.toDataURL('image/png'));
+      }
     } else if (mode === 'type' && typedName.trim()) {
       // Create a canvas to render the text as an image
       const canvas = document.createElement('canvas');

@@ -941,6 +941,11 @@ export default function PioneerSchoolView({
         return;
       }
       
+      // Fetch signature placement
+      const placementId = `${userId}_esp_pioneiros`;
+      const placementSnap = await getDoc(doc(db, 'signature_placements', placementId));
+      const placement = placementSnap.exists() ? placementSnap.data() : null;
+
       const templateData = templateDoc.data();
       const binaryString = window.atob(templateData.content);
       const bytes = new Uint8Array(binaryString.length);
@@ -964,7 +969,10 @@ export default function PioneerSchoolView({
       const signatureImage = personalData?.signatureImage || '';
       
       // Calculate signature dimensions
-      const signatureScale = personalData?.signatureSize || 60;
+      const baseScale = personalData?.signatureSize || 60;
+      const placementScale = placement?.scale || 1;
+      const signatureScale = baseScale * placementScale;
+      
       let sigHeight = signatureScale;
       let sigWidth = sigHeight * 2.5; // Default aspect ratio if image fails
       

@@ -278,7 +278,13 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       const querySnapshot = await getDocs(q);
       
       // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
-      const conflictDocs = querySnapshot.docs.filter(doc => doc.id !== userId);
+      const conflictDocs = querySnapshot.docs.filter(doc => {
+        const data = doc.data();
+        // Não é conflito se for o próprio documento (pelo ID ou pelo userId)
+        if (doc.id === userId || data.userId === userId) return false;
+        // Se encontramos o mesmo número pessoal e não é do usuário atual, é conflito
+        return true;
+      });
       
       if (conflictDocs.length > 0) {
         const conflictData = conflictDocs[0].data();
@@ -291,6 +297,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       const docRef = doc(db, 'personal_data', userId);
       await setDoc(docRef, { ...formData, userId });
       setInitialData(formData);
+      alert('Dados salvos com sucesso!');
       onSave();
     } catch (error: any) {
       if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
@@ -501,6 +508,36 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     maxLength={15}
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Role Selection */}
+            <div className="space-y-2 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+              <label className="text-xs font-bold text-emerald-700 uppercase">
+                Seu Estágio de Serviço
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, role: 'viajante'})}
+                  className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.role === 'viajante' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200'}`}
+                >
+                  Superintendente de Circuito
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, role: 'pioneiro_especial'})}
+                  className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.role === 'pioneiro_especial' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200'}`}
+                >
+                  Pioneiro Especial
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, role: 'pioneiro_regular'})}
+                  className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.role === 'pioneiro_regular' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200'}`}
+                >
+                  Pioneiro Regular
+                </button>
               </div>
             </div>
 

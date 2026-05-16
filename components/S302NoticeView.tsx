@@ -21,7 +21,8 @@ import {
   Maximize2,
   Move,
   Type,
-  Sparkles
+  Sparkles,
+  PenTool
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'motion/react';
@@ -31,6 +32,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
+import SignaturePad from './SignaturePad';
+import DraggableSignature from './DraggableSignature';
 
 interface ElementLayout {
   top: number;
@@ -116,6 +119,9 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const [layout, setLayout] = useState<S302Layout>(DEFAULT_LAYOUT);
   const [selectedElement, setSelectedElement] = useState<keyof S302Layout | null>(null);
   const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   
   // Signature States (Similar to AppointmentLetterView)
   const [signatureName, setSignatureName] = useState('');
@@ -178,10 +184,12 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       try {
         const personalRef = doc(db, 'personal_data', userId);
         const layoutRef = doc(db, 's302_layouts', 'shared_layout');
+        const placementRef = doc(db, 'signature_placements', 's302');
         
-        const [personalSnap, layoutSnap] = await Promise.all([
+        const [personalSnap, layoutSnap, placementSnap] = await Promise.all([
           getDoc(personalRef),
-          getDoc(layoutRef)
+          getDoc(layoutRef),
+          getDoc(placementRef)
         ]);
 
         if (personalSnap.exists()) {
@@ -189,6 +197,13 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
           setPersonalData(pData);
           if (!signatureName) setSignatureName(pData.nome || '');
           setSignatureImage(pData.signatureImage || null);
+        }
+
+        if (placementSnap.exists()) {
+          setSignaturePlacement(placementSnap.data() as any);
+        } else {
+          // Default placement for S302
+          setSignaturePlacement({ x: 500, y: 400, scale: 1 });
         }
 
         if (layoutSnap.exists()) {
@@ -274,6 +289,21 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const handleRemoveSignature = () => {
     setSignatureImage(null);
     saveSignature(null);
+  };
+
+  const handleSignaturePlacementSave = async (settings: { x: number, y: number, scale: number }) => {
+    setSignaturePlacement(settings);
+    try {
+      await setDoc(doc(db, 'signature_placements', 's302'), settings);
+    } catch (error) {
+      console.error('Error saving signature placement:', error);
+    }
+  };
+
+  const handleSignaturePadSave = (signatureDataUrl: string) => {
+    setSignatureImage(signatureDataUrl);
+    saveSignature(signatureDataUrl);
+    setShowSignaturePad(false);
   };
 
   const handleDownloadPDF = async () => {
@@ -640,6 +670,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
               {/* Visual Form Representation */}
               <div 
                 id="s302-print-container"
+                ref={previewRef}
                 className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[138mm] relative font-serif-document text-black border border-gray-400 shrink-0 overflow-hidden print:overflow-visible"
                 style={{ backgroundColor: 'white' }}
               >
@@ -746,7 +777,6 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                       {signatureImage ? (
                         <div className="h-full w-full relative">
                           <Image src={signatureImage} alt="Assinatura" fill className="object-contain object-bottom" referrerPolicy="no-referrer" />
-                          {/* Background removal button removed as requested */}
                         </div>
                       ) : (
                         <span className="font-signature text-[#004aad] text-2xl leading-none">{signatureName}</span>
@@ -755,6 +785,18 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                     <div className="w-full border-b border-black"></div>
                   </div>
                 </div>
+
+                {/* Draggable Signature Layer */}
+                {signatureImage && signaturePlacement && (
+                  <DraggableSignature 
+                    image={signatureImage}
+                    initialX={signaturePlacement.x}
+                    initialY={signaturePlacement.y}
+                    initialScale={signaturePlacement.scale}
+                    onSave={handleSignaturePlacementSave}
+                    containerRef={previewRef}
+                  />
+                )}
 
                 <div className="absolute bottom-[0.8cm] left-[1.5cm] flex gap-[20pt] text-[11pt] font-sans">
                   <span>S-302-T</span>
@@ -787,8 +829,42 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
               pode ser necessário ajustar as coordenadas de impressão no modo Design.
             </p>
           </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 no-print">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <PenTool size={20} className="text-[#512da8]" />
+              Assinatura Global
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setShowSignaturePad(true)}
+                className="px-6 py-2.5 bg-[#512da8] text-white rounded-xl font-bold text-sm shadow-md hover:bg-[#4527a0] transition-all flex items-center gap-2"
+              >
+                <Sparkles size={16} />
+                Nova Assinatura Digital
+              </button>
+              {signatureImage && (
+                <button
+                  onClick={handleRemoveSignature}
+                  className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2"
+                >
+                  <Trash2 size={16} />
+                  Remover
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Signature Pad Modal */}
+      {showSignaturePad && (
+        <SignaturePad 
+          initialName={personalData?.nome || signatureName}
+          onSave={handleSignaturePadSave}
+          onCancel={() => setShowSignaturePad(false)}
+        />
+      )}
 
       {/* Image Cropper for Signature */}
       {imageToCrop && (
