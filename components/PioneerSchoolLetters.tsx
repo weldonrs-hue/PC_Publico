@@ -440,7 +440,7 @@ export default function PioneerSchoolLetters({
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`flex-shrink-0 w-40 md:w-auto text-left px-4 py-3 rounded-xl text-[13px] font-black transition-all uppercase tracking-tight border-2 ${
+                className={`flex-shrink-0 w-40 md:w-auto text-left px-4 py-3 rounded-xl text-[16px] font-black transition-all uppercase tracking-tight border-2 ${
                   selectedTemplate === template.id 
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'
@@ -546,8 +546,8 @@ export default function PioneerSchoolLetters({
           background-color: #ffffff !important;
         }
         .docx-preview-container p {
-          font-size: 1rem !important;
-          line-height: 1.5 !important;
+          font-size: 1.5rem !important;
+          line-height: 1.6 !important;
           color: #1a1a1a !important;
         }
         .docx-preview-container .docx-preview {

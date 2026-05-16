@@ -1194,7 +1194,7 @@ export default function PioneerSchoolView({
               >
                 {downloadingDesignacao ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
                 <span className="text-[10px] sm:text-sm">
-                  <span className="hidden sm:inline">Baixar Designação</span>
+                  <span className="hidden sm:inline">Baixar Convite</span>
                   <span className="sm:hidden">Baixar</span>
                 </span>
               </button>
@@ -1500,7 +1500,7 @@ export default function PioneerSchoolView({
                         onChange={toggleSelectAll}
                       />
                     </th>
-                    <th className="px-4 py-2 font-bold text-sm uppercase tracking-wider w-14">
+                    <th className="px-4 py-2 font-bold text-sm uppercase tracking-wider w-10 text-center">
                       Nº
                     </th>
                     <th 
@@ -1570,7 +1570,7 @@ export default function PioneerSchoolView({
                             onChange={() => toggleSelectStudent(student.id)}
                           />
                         </td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-600">{index + 1}</td>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-600 text-center">{index + 1}</td>
                         <td className="px-6 py-2 text-sm font-bold text-gray-900">{student.nome}</td>
                         <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
                         <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>

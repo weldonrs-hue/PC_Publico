@@ -384,7 +384,7 @@ export default function PSSAssignmentLetters({
               <List size={18} />
               Selecione o Template
             </h3>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+            <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
               {TEMPLATE_NAMES.length} Modelos Disponíveis
             </span>
           </div>
@@ -394,7 +394,7 @@ export default function PSSAssignmentLetters({
               <button
                 key={name}
                 onClick={() => setSelectedTemplate(name)}
-                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 ${
+                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[14px] font-black transition-all uppercase tracking-tighter border-2 ${
                   selectedTemplate === name 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
@@ -417,8 +417,8 @@ export default function PSSAssignmentLetters({
                 <FileText className="text-blue-600" size={20} />
               </div>
               <div>
-                <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest">Visualização</h3>
-                <p className="text-[11px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
+                <h3 className="font-black text-gray-800 text-sm uppercase tracking-widest">Visualização</h3>
+                <p className="text-[14px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
                   {selectedTemplate.replace('PSS assignment letter_', '')}
                 </p>
               </div>
@@ -432,7 +432,7 @@ export default function PSSAssignmentLetters({
                 title="Baixar Word"
               >
                 <FileDown size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[11px] uppercase tracking-widest">Baixar Word</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">Baixar Word</span>
               </button>
 
               <button
@@ -442,7 +442,7 @@ export default function PSSAssignmentLetters({
                 title="Baixar PDF"
               >
                 <Download size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[11px] uppercase tracking-widest">Baixar PDF</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">Baixar PDF</span>
               </button>
             </div>
           </div>
@@ -491,8 +491,8 @@ export default function PSSAssignmentLetters({
           text-decoration-color: transparent !important;
           box-shadow: none !important;
         }
-        .docx-preview-container h1 { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.75rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.5rem; line-height: 1.4; color: #374151 !important; font-size: 1rem; }
+        .docx-preview-container h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
+        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.5rem; }
         .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
         
         .docx-preview-container .docx-preview {
