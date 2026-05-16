@@ -280,9 +280,19 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
       const conflictDocs = querySnapshot.docs.filter(doc => {
         const data = doc.data();
-        // Não é conflito se for o próprio documento (pelo ID ou pelo userId)
-        if (doc.id === userId || data.userId === userId) return false;
-        // Se encontramos o mesmo número pessoal e não é do usuário atual, é conflito
+        const currentEmail = auth.currentUser?.email;
+        const currentUid = auth.currentUser?.uid;
+
+        // 1. Não é conflito se for o próprio documento (pelo ID)
+        if (doc.id === userId || (currentUid && doc.id === currentUid)) return false;
+        
+        // 2. Não é conflito se tiver o mesmo userId no campo
+        if (data.userId === userId || (currentUid && data.userId === currentUid)) return false;
+
+        // 3. Não é conflito se tiver o mesmo e-mail (ajuda em migrações de conta)
+        if (currentEmail && data.emailPessoal === currentEmail) return false;
+        
+        // 4. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
         return true;
       });
       
