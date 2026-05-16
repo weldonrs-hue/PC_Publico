@@ -25,7 +25,6 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
   const [mode, setMode] = useState<SignatureMode>('type');
   const [typedName, setTypedName] = useState(initialName);
   const [selectedFont, setSelectedFont] = useState(HANDWRITING_FONTS[0]);
-  const [trimmed, setTrimmed] = useState(true);
   
   const sigCanvas = useRef<SignatureCanvas | null>(null);
   const typeRef = useRef<HTMLDivElement>(null);
@@ -43,52 +42,40 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
     if (mode === 'draw' && sigCanvas.current) {
       if (sigCanvas.current.isEmpty()) return;
       
-      let finalCanvas;
+      const trimmedCanvas = sigCanvas.current.getTrimmedCanvas();
       
-      if (trimmed) {
-        const trimmedCanvas = sigCanvas.current.getTrimmedCanvas();
-        // Add extra generous padding as requested to avoid "cutting parts"
-        const padding = 40; 
-        const paddedCanvas = document.createElement('canvas');
-        paddedCanvas.width = trimmedCanvas.width + (padding * 2);
-        paddedCanvas.height = trimmedCanvas.height + (padding * 2);
-        
-        const pCtx = paddedCanvas.getContext('2d');
-        if (pCtx) {
-          pCtx.drawImage(trimmedCanvas, padding, padding);
-          finalCanvas = paddedCanvas;
-        } else {
-          finalCanvas = trimmedCanvas;
-        }
+      // Add padding to prevent cutting edges
+      const padding = 20;
+      const paddedCanvas = document.createElement('canvas');
+      paddedCanvas.width = trimmedCanvas.width + (padding * 2);
+      paddedCanvas.height = trimmedCanvas.height + (padding * 2);
+      
+      const pCtx = paddedCanvas.getContext('2d');
+      if (pCtx) {
+        pCtx.drawImage(trimmedCanvas, padding, padding);
+        onSave(paddedCanvas.toDataURL('image/png'));
       } else {
-        // use whole canvas
-        finalCanvas = sigCanvas.current.getCanvas();
+        onSave(trimmedCanvas.toDataURL('image/png'));
       }
-      
-      onSave(finalCanvas.toDataURL('image/png'));
     } else if (mode === 'type' && typedName.trim()) {
       // Create a canvas to render the text as an image
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.font = `italic 70px ${selectedFont.name}`;
+        // Measure text
+        ctx.font = `60px ${selectedFont.name}`;
         const metrics = ctx.measureText(typedName);
-        const width = metrics.width + 100;
-        const height = 150;
+        const width = metrics.width + 40;
+        const height = 100;
         
         canvas.width = width;
         canvas.height = height;
         
-        // Background white/transparent
-        ctx.clearRect(0, 0, width, height);
-        
         // Re-apply font after resize
-        ctx.font = `italic 70px ${selectedFont.name}`;
+        ctx.font = `60px ${selectedFont.name}`;
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'black';
-        ctx.shadowColor = 'rgba(0,0,0,0.1)';
-        ctx.shadowBlur = 2;
-        ctx.fillText(typedName, 50, height / 2);
+        ctx.fillText(typedName, 20, height / 2);
         
         onSave(canvas.toDataURL('image/png'));
       }
@@ -101,15 +88,11 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          // Instead of immediate save, let the parent handle cropping if needed
-          // or just save it here.
           onSave(event.target.result as string);
         }
       };
       reader.readAsDataURL(file);
     }
-    // Reset
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -198,22 +181,8 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="relative group space-y-4"
+                className="relative group"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Use o mouse ou tela touch para assinar:</p>
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div 
-                      onClick={() => setTrimmed(!trimmed)}
-                      className={`w-10 h-5 rounded-full transition-all relative ${trimmed ? 'bg-emerald-500' : 'bg-gray-300'}`}
-                    >
-                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${trimmed ? 'left-6' : 'left-1'}`} />
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight group-hover:text-emerald-600 transition-colors">
-                      {trimmed ? 'Recorte Inteligente' : 'Área Total (Rubricas)'}
-                    </span>
-                  </label>
-                </div>
                 <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 overflow-hidden">
                   <SignatureCanvas 
                     ref={sigCanvas}

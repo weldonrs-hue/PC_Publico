@@ -72,7 +72,6 @@ const defaultData = {
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
   const [initialData, setInitialData] = useState(defaultData);
   const [formData, setFormData] = useState(defaultData);
-  const [initialDocId, setInitialDocId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -142,7 +141,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         
         if (docSnap && docSnap.exists()) {
           const docData = docSnap.data() as any;
-          setInitialDocId(docSnap.id);
           const mergedData = { ...defaultData, ...docData };
           setInitialData(mergedData);
           setFormData(mergedData);
@@ -167,9 +165,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           
           if (!querySnapshot.empty) {
             sessionStorage.setItem(`pdMigrationAttempted_${userId}`, 'true');
-            const foundDoc = querySnapshot.docs[0];
-            setInitialDocId(foundDoc.id);
-            const docData = foundDoc.data() as any;
+            const docData = querySnapshot.docs[0].data() as any;
             const mergedData = { ...defaultData, ...docData };
             setInitialData(mergedData);
             setFormData(mergedData);
@@ -219,7 +215,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   };
 
   const handleSignatureSave = (signatureDataUrl: string) => {
-    setImageToCrop(signatureDataUrl);
+    setFormData({ ...formData, signatureImage: signatureDataUrl });
     setShowSignaturePad(false);
   };
 
@@ -274,43 +270,37 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       }
 
       // 1. Verificar se o número pessoal já existe em outro perfil
-      // Somente se o número foi alterado ou se é uma nova conta
-      const numTrim = formData.numeroPessoal.trim();
-      const initialNumTrim = initialData.numeroPessoal.trim();
+      const q = query(
+        collection(db, 'personal_data'), 
+        where('numeroPessoal', '==', formData.numeroPessoal.trim())
+      );
       
-      if (numTrim !== initialNumTrim || !initialNumTrim) {
-        const q = query(
-          collection(db, 'personal_data'), 
-          where('numeroPessoal', '==', numTrim)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        
-        // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
-        const conflictDocs = querySnapshot.docs.filter(doc => {
-          const data = doc.data();
-          const currentEmail = auth.currentUser?.email;
-          const currentUid = auth.currentUser?.uid;
+      const querySnapshot = await getDocs(q);
+      
+      // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
+      const conflictDocs = querySnapshot.docs.filter(doc => {
+        const data = doc.data();
+        const currentEmail = auth.currentUser?.email;
+        const currentUid = auth.currentUser?.uid;
 
-          // 1. Não é conflito se for o próprio documento (pelo ID ou initialDocId)
-          if (doc.id === userId || (initialDocId && doc.id === initialDocId) || (currentUid && doc.id === currentUid)) return false;
-          
-          // 2. Não é conflito se tiver o mesmo userId no campo
-          if (data.userId === userId || (currentUid && data.userId === currentUid)) return false;
-
-          // 3. Não é conflito se tiver o mesmo e-mail (ajuda em migrações de conta)
-          if (currentEmail && data.emailPessoal === currentEmail) return false;
-          
-          // 4. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
-          return true;
-        });
+        // 1. Não é conflito se for o próprio documento (pelo ID)
+        if (doc.id === userId || (currentUid && doc.id === currentUid)) return false;
         
-        if (conflictDocs.length > 0) {
-          const conflictData = conflictDocs[0].data();
-          setIsProcessing(false);
-          alert(`ERRO: Este Número Pessoal (${formData.numeroPessoal}) já está sendo usado pela conta de: ${conflictData.nome || conflictData.emailPessoal || conflictDocs[0].id}.\n\nNão é permitido ter duas contas com o mesmo número. Se você está tentando recuperar seus dados após trocar de e-mail, entre em contato com o suporte.`);
-          return;
-        }
+        // 2. Não é conflito se tiver o mesmo userId no campo
+        if (data.userId === userId || (currentUid && data.userId === currentUid)) return false;
+
+        // 3. Não é conflito se tiver o mesmo e-mail (ajuda em migrações de conta)
+        if (currentEmail && data.emailPessoal === currentEmail) return false;
+        
+        // 4. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
+        return true;
+      });
+      
+      if (conflictDocs.length > 0) {
+        const conflictData = conflictDocs[0].data();
+        setIsProcessing(false);
+        alert(`ERRO: Este Número Pessoal (${formData.numeroPessoal}) já está sendo usado pela conta de: ${conflictData.nome || conflictData.emailPessoal || conflictDocs[0].id}.\n\nNão é permitido ter duas contas com o mesmo número. Se você está tentando recuperar seus dados após trocar de e-mail, entre em contato com o suporte.`);
+        return;
       }
 
       // Use userId as document ID

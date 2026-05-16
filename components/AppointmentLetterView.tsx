@@ -21,7 +21,6 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import ImageCropper from './ImageCropper';
-import DraggableSignature from './DraggableSignature';
 
 interface AppointmentLetterViewProps {
   userId: string;
@@ -74,11 +73,12 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     return null;
   };
 
-  const [letterDate, setLetterDate] = useState<Date>(new Date());
+  const [letterDate, setLetterDate] = useState<Date>(() => {
+    return parseVisitDate(visitDate) || new Date();
+  });
   const [isDateFocused, setIsDateFocused] = useState(false);
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
-  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const letterRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -149,6 +149,15 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       }
       
       try {
+        // Wait for auth.currentUser to be ready with a slightly longer timeout
+        if (!auth.currentUser) {
+          let attempts = 0;
+          while (!auth.currentUser && attempts < 15) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
+          }
+        }
+
         // Fetch personal data
         const pdRef = doc(db, 'personal_data', userId);
         const pdSnap = await getDoc(pdRef);
@@ -157,38 +166,39 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           setPersonalData(data);
           setSignatureName(data.nome || '');
           setSignatureImage(data.signatureImage || null);
-        }
-
-        // Fetch signature placement for this specific letter
-        const placementId = `appointment_letter_${userId}_${congregation.nome}_${visitDate.replace(/[\/\-\.]/g, '_')}`;
-        const placementRef = doc(db, 'signature_placements', placementId);
-        const placementSnap = await getDoc(placementRef);
-        
-        if (placementSnap.exists()) {
-          setSignaturePlacement(placementSnap.data() as any);
         } else {
-          // Default placement
-          setSignaturePlacement({ x: 420, y: 780, scale: 1.1 });
+          // Fallback search
+          const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const data = snap.docs[0].data();
+            setPersonalData(data);
+            setSignatureName(data.nome || '');
+            setSignatureImage(data.signatureImage || null);
+          }
         }
       } catch (error) {
         console.error('Error in AppointmentLetter fetchData:', error);
+        handleFirestoreError(error, OperationType.GET, 'personal_data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [userId, congregation.nome, visitDate]);
+    // Safety timeout to ensure loading state is cleared
+    const safetyTimeout = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn('AppointmentLetterView: Loading safety timeout triggered');
+          return false;
+        }
+        return prev;
+      });
+    }, 5000);
 
-  const handleSignaturePlacementSave = async (settings: { x: number, y: number, scale: number }) => {
-    setSignaturePlacement(settings);
-    try {
-      const placementId = `appointment_letter_${userId}_${congregation.nome}_${visitDate.replace(/[\/\-\.]/g, '_')}`;
-      await setDoc(doc(db, 'signature_placements', placementId), settings);
-    } catch (error) {
-      console.error('Error saving signature placement:', error);
-    }
-  };
+    fetchData();
+    return () => clearTimeout(safetyTimeout);
+  }, [userId]);
 
   useEffect(() => {
     const date = parseVisitDate(visitDate);
@@ -628,35 +638,35 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
               <div className="flex flex-col items-end mb-[58px] pr-[5mm]">
                 <div className="w-full max-w-[450px] px-4 text-center relative">
                   <p className="text-[17px] mt-0 mb-[18px] text-left pl-4">Seu irmão,</p>
-                  
-                  {/* Signature Block - Draggable or Fallback */}
+                  {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center overflow-visible">
-                    {signatureImage && signaturePlacement ? (
-                      <div className="h-[80px] w-full relative">
-                        <DraggableSignature 
-                          image={signatureImage}
-                          initialX={signaturePlacement.x}
-                          initialY={signaturePlacement.y}
-                          initialScale={signaturePlacement.scale}
-                          containerRef={containerRef}
-                          onSave={handleSignaturePlacementSave}
+                    {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
+                      <div 
+                        className="h-[45px] flex items-center justify-center mb-[-10px] relative w-full overflow-visible transition-transform"
+                        style={{ 
+                          transform: `translateY(${personalData?.signatureOffset || 0}px)`
+                        }}
+                      >
+                        <img 
+                          src={signatureImage} 
+                          alt="Assinatura" 
+                          className="h-[45px] w-[407px] object-contain max-w-full"
+                          crossOrigin="anonymous"
                         />
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center w-full">
-                        <input 
-                          type="text"
-                          value={signatureName}
-                          onChange={(e) => setSignatureName(e.target.value)}
-                          className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
-                          style={{ 
-                            fontFamily: 'var(--font-signature), "Dancing Script", cursive',
-                            fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
-                          }}
-                        />
-                      </div>
+                      <input 
+                        type="text"
+                        value={signatureName}
+                        onChange={(e) => setSignatureName(e.target.value)}
+                        className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
+                        style={{ 
+                          fontFamily: 'var(--font-signature), "Dancing Script", cursive',
+                          fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
+                        }}
+                      />
                     )}
-                    <div className="border-t border-black w-full mx-auto mb-0 mt-4"></div>
+                    <div className="border-t border-black w-full mx-auto mb-0"></div>
                     <p className="font-bold text-[11px] mt-[5px] uppercase tracking-wider mb-0 text-center bg-transparent border-none outline-none w-full">
                       {personalData?.nome || 'Nome do Viajante'}
                     </p>

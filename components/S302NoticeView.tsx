@@ -182,13 +182,9 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true);
         const personalRef = doc(db, 'personal_data', userId);
         const layoutRef = doc(db, 's302_layouts', 'shared_layout');
-        
-        // Use event ID for document-specific placement
-        const placementId = currentEvent.id ? `s302_${currentEvent.id}` : 's302_default';
-        const placementRef = doc(db, 'signature_placements', placementId);
+        const placementRef = doc(db, 'signature_placements', 's302');
         
         const [personalSnap, layoutSnap, placementSnap] = await Promise.all([
           getDoc(personalRef),
@@ -206,15 +202,8 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         if (placementSnap.exists()) {
           setSignaturePlacement(placementSnap.data() as any);
         } else {
-          // Default placement for S302 if no document-specific one exists
-          // Check if there's a global default
-          const globalPlacementRef = doc(db, 'signature_placements', 's302_global_default');
-          const globalPlacementSnap = await getDoc(globalPlacementRef);
-          if (globalPlacementSnap.exists()) {
-            setSignaturePlacement(globalPlacementSnap.data() as any);
-          } else {
-            setSignaturePlacement({ x: 500, y: 400, scale: 1.2 });
-          }
+          // Default placement for S302
+          setSignaturePlacement({ x: 500, y: 400, scale: 1 });
         }
 
         if (layoutSnap.exists()) {
@@ -305,18 +294,15 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const handleSignaturePlacementSave = async (settings: { x: number, y: number, scale: number }) => {
     setSignaturePlacement(settings);
     try {
-      const placementId = currentEvent.id ? `s302_${currentEvent.id}` : 's302_default';
-      await setDoc(doc(db, 'signature_placements', placementId), settings);
-      // Also save as global default for future S302 documents
-      await setDoc(doc(db, 'signature_placements', 's302_global_default'), settings);
+      await setDoc(doc(db, 'signature_placements', 's302'), settings);
     } catch (error) {
       console.error('Error saving signature placement:', error);
     }
   };
 
   const handleSignaturePadSave = (signatureDataUrl: string) => {
-    // Open cropper for the new signature to allow "choosing the container" correctly
-    setImageToCrop(signatureDataUrl);
+    setSignatureImage(signatureDataUrl);
+    saveSignature(signatureDataUrl);
     setShowSignaturePad(false);
   };
 
