@@ -23,7 +23,7 @@ export default function ImageCropper({
 }: ImageCropperProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [currentAspect, setCurrentAspect] = useState(aspect);
+  const [currentAspect, setCurrentAspect] = useState<number | undefined>(aspect);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -121,6 +121,7 @@ export default function ImageCropper({
   };
 
   const aspectPresets = [
+    { label: 'Livre', value: undefined },
     { label: 'Quadrado', value: 1 },
     { label: '4:3', value: 4 / 3 },
     { label: '16:9', value: 16 / 9 },
@@ -152,7 +153,7 @@ export default function ImageCropper({
         <div className="flex flex-wrap justify-center gap-2">
           {aspectPresets.map((preset) => (
             <button
-              key={preset.value}
+              key={preset.label}
               onClick={() => setCurrentAspect(preset.value)}
               className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
                 currentAspect === preset.value 
@@ -163,18 +164,20 @@ export default function ImageCropper({
               {preset.label}
             </button>
           ))}
-          <div className="flex items-center gap-2 ml-4">
-            <span className="text-[10px] font-bold text-gray-400">AJUSTE:</span>
-            <input 
-              type="range"
-              min="0.5"
-              max="15"
-              step="0.1"
-              value={currentAspect}
-              onChange={(e) => setCurrentAspect(parseFloat(e.target.value))}
-              className="w-24 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-            />
-          </div>
+          {currentAspect !== undefined && (
+            <div className="flex items-center gap-2 ml-4">
+              <span className="text-[10px] font-bold text-gray-400">AJUSTE:</span>
+              <input 
+                type="range"
+                min="0.5"
+                max="15"
+                step="0.1"
+                value={currentAspect}
+                onChange={(e) => setCurrentAspect(parseFloat(e.target.value))}
+                className="w-24 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+              />
+            </div>
+          )}
         </div>
       </div>
 

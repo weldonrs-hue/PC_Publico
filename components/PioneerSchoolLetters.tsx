@@ -18,8 +18,9 @@ import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, query, where, limit } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, limit, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import DraggableSignature from './DraggableSignature';
 
 interface PioneerSchoolLettersProps {
   userId: string;
@@ -57,6 +58,7 @@ export default function PioneerSchoolLetters({
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
 
   const [needsProcessing, setNeedsProcessing] = useState(true);
 
@@ -66,6 +68,37 @@ export default function PioneerSchoolLetters({
     fetchTemplates();
     fetchPersonalData();
   }, [userId]);
+
+  useEffect(() => {
+    fetchSignaturePlacement();
+  }, [userId, selectedTemplate]);
+
+  const fetchSignaturePlacement = async () => {
+    try {
+      const placementId = `${userId}_${selectedTemplate}`;
+      const docRef = doc(db, 'signature_placements', placementId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setSignaturePlacement(docSnap.data() as any);
+      } else {
+        setSignaturePlacement({ x: 450, y: 700, scale: 1 }); // Default position
+      }
+    } catch (error) {
+      console.error('Error fetching signature placement:', error);
+      setSignaturePlacement({ x: 450, y: 700, scale: 1 });
+    }
+  };
+
+  const saveSignaturePlacement = async (settings: { x: number, y: number, scale: number }) => {
+    try {
+      const placementId = `${userId}_${selectedTemplate}`;
+      await setDoc(doc(db, 'signature_placements', placementId), settings);
+      setSignaturePlacement(settings);
+    } catch (error) {
+      console.error('Error saving signature placement:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'signature_placements');
+    }
+  };
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -133,15 +166,12 @@ export default function PioneerSchoolLetters({
 
   const getReplacements = () => {
     const now = new Date();
-    let hoje = now.toLocaleDateString('pt-BR', {
-      weekday: 'long',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+    const formatter = new Intl.DateTimeFormat('pt-BR', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
     });
-
-    // Capitalize the first letter of the weekday
-    hoje = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+    const hoje = formatter.format(now);
 
     const turma = `Turma ${selectedTurma}`;
     const dataValue = schoolInfo.dataTurma || '________________';
@@ -161,9 +191,10 @@ export default function PioneerSchoolLetters({
 
     return {
       'TURMA': turma,
-      'DATA': dataValue,
-      'TURMA_DATA': dataValue,
-      'DATATURMA': dataValue,
+      'DATA': schoolInfo.dataTurma || hoje,
+      'TURMA_DATA': schoolInfo.dataTurma || hoje,
+      'DATA_TURMA': schoolInfo.dataTurma || hoje,
+      'DATATURMA': schoolInfo.dataTurma || hoje,
       'INSTRUTORES': instrutores,
       'INSTRUTOR1': schoolInfo.instrutorA || '________________',
       'INSTRUTOR2': schoolInfo.instrutorB || '________________',
@@ -264,14 +295,20 @@ export default function PioneerSchoolLetters({
       });
       
       const replacements = getReplacements();
+      
+      // For preview, we might want to hide the "fixed" signature to use the draggable one
+      const previewReplacements = { ...replacements };
+      previewReplacements['ASSINATURA'] = ''; // Hide in preview
+      previewReplacements['%ASSINATURA'] = ''; 
+      previewReplacements['ASSINATURA_GLOBAL'] = '';
 
       // Setup Image Module
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       
       // Calculate signature dimensions to avoid "squeezing"
-      // Default standard size
-      let sigWidth = 150;
-      let sigHeight = 60;
+      const signatureScale = personalData?.signatureSize || 60;
+      let sigHeight = signatureScale;
+      let sigWidth = sigHeight * 2.5; // Default aspect ratio
       
       if (replacements.ASSINATURA && replacements.ASSINATURA.startsWith('data:image')) {
         try {
@@ -283,12 +320,12 @@ export default function PioneerSchoolLetters({
           });
           
           const aspectRatio = img.width / img.height;
-          // Maintain a max height of 60 and calculate width, or max width of 200
-          sigHeight = 60;
+          sigHeight = signatureScale;
           sigWidth = sigHeight * aspectRatio;
           
-          if (sigWidth > 220) {
-            sigWidth = 220;
+          // Maximum width constraint
+          if (sigWidth > 350) {
+            sigWidth = 350;
             sigHeight = sigWidth / aspectRatio;
           }
         } catch (e) {
@@ -312,21 +349,21 @@ export default function PioneerSchoolLetters({
         getSize: () => [sigWidth, sigHeight],
       };
 
-      const doc = new Docxtemplater(zip, {
+      const docPreview = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
         modules: ImageModule ? [new ImageModule(opts)] : []
       });
 
-      doc.render(replacements);
+      docPreview.render(previewReplacements);
 
-      const out = doc.getZip().generate({
+      const outPreview = docPreview.getZip().generate({
         type: 'blob',
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
-      const processedArrayBuffer = await out.arrayBuffer();
+      const processedArrayBuffer = await outPreview.arrayBuffer();
       setProcessedDocBuffer(processedArrayBuffer);
       
       if (previewRef.current) {
@@ -341,6 +378,19 @@ export default function PioneerSchoolLetters({
         });
       }
       
+      // Also generate the "real" buffer with signed content for download
+      const docReal = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: { start: '[', end: ']' },
+        modules: ImageModule ? [new ImageModule(opts)] : []
+      });
+      docReal.render(replacements);
+      const outReal = docReal.getZip().generate({
+        type: 'arraybuffer'
+      });
+      setProcessedDocBuffer(outReal);
+
       setStatus('success');
       setNeedsProcessing(false);
     } catch (err: any) {
@@ -440,7 +490,7 @@ export default function PioneerSchoolLetters({
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`flex-shrink-0 w-40 md:w-auto text-left px-4 py-3 rounded-xl text-[14px] font-black transition-all uppercase tracking-tight border-2 ${
+                className={`flex-shrink-0 w-40 md:w-auto text-left px-4 py-3 rounded-xl text-[16px] font-black transition-all uppercase tracking-tight border-2 ${
                   selectedTemplate === template.id 
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'
@@ -513,10 +563,22 @@ export default function PioneerSchoolLetters({
               className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-3xl shadow-inner-lg overflow-auto p-4 md:p-12 custom-scrollbar"
             >
               <div 
-                ref={previewRef}
-                className="docx-preview-container mx-auto bg-white"
+                className="docx-preview-container mx-auto bg-white relative"
                 style={{ width: '800px', minWidth: '800px' }}
               >
+                <div ref={previewRef} />
+                
+                {status === 'success' && personalData?.signatureImage && signaturePlacement && (
+                  <DraggableSignature 
+                    image={personalData.signatureImage}
+                    initialX={signaturePlacement.x}
+                    initialY={signaturePlacement.y}
+                    initialScale={signaturePlacement.scale}
+                    containerRef={previewRef}
+                    onSave={saveSignaturePlacement}
+                  />
+                )}
+
                 {!processedDocBuffer && !isProcessing && (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                 )}
@@ -546,11 +608,10 @@ export default function PioneerSchoolLetters({
           background-color: #ffffff !important;
         }
         .docx-preview-container p {
-          font-size: 1.25rem !important;
+          font-size: 1.5rem !important;
           line-height: 1.6 !important;
           color: #1a1a1a !important;
         }
-        .docx-preview-container span { font-size: 1.25rem !important; }
         .docx-preview-container .docx-preview {
           padding: 0 !important;
           margin: 0 !important;

@@ -275,6 +275,17 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "turma"]
+    },
+    "signature_placement": {
+      "title": "Signature Placement",
+      "description": "Custom position and scale for signature image per template",
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "scale": { "type": "number" }
+      },
+      "required": ["x", "y", "scale"]
     }
   },
   "firestore": {
@@ -341,6 +352,10 @@
     "/document_templates/{templateId}": {
       "schema": "document_template",
       "description": "Collection of document templates managed by admin"
+    },
+    "/signature_placements/{placementId}": {
+      "schema": "signature_placement",
+      "description": "Collection of custom signature positions and scales"
     }
   }
 }

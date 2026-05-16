@@ -65,6 +65,7 @@ const defaultData = {
   telefonePessoal: '',
   signatureImage: null as string | null,
   signatureOffset: 0,
+  signatureSize: 60,
   role: '' as 'viajante' | 'pioneiro_especial' | 'pioneiro_regular' | ''
 };
 
@@ -529,9 +530,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 {formData.signatureImage ? (
                   <div className="relative w-full max-w-[300px] mx-auto">
                     <div 
-                      className="h-20 flex items-end justify-center relative w-full overflow-visible transition-transform duration-200"
+                      className="flex items-end justify-center relative w-full overflow-visible transition-all duration-200"
                       style={{ 
-                        transform: `translateY(${formData.signatureOffset}px)`
+                        transform: `translateY(${formData.signatureOffset}px)`,
+                        height: `${(formData.signatureSize || 60) * 1.5}px` // Scale preview height
                       }}
                     >
                       <Image 
@@ -556,6 +558,19 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                         max="40"
                         value={formData.signatureOffset}
                         onChange={(e) => setFormData({ ...formData, signatureOffset: parseInt(e.target.value) })}
+                        className="h-32 appearance-none bg-gray-200 rounded-full w-1.5 cursor-pointer accent-emerald-600"
+                        style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' } as any}
+                      />
+                    </div>
+
+                    <div className="absolute -right-12 top-0 bottom-0 flex flex-col items-center justify-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all pointer-events-auto lg:pointer-events-none lg:group-hover:pointer-events-auto">
+                      <span className="text-[10px] font-black text-emerald-600 vertical-text">TAMANHO</span>
+                      <input 
+                        type="range"
+                        min="30"
+                        max="120"
+                        value={formData.signatureSize || 60}
+                        onChange={(e) => setFormData({ ...formData, signatureSize: parseInt(e.target.value) })}
                         className="h-32 appearance-none bg-gray-200 rounded-full w-1.5 cursor-pointer accent-emerald-600"
                         style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' } as any}
                       />
@@ -749,7 +764,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           image={imageToCrop}
           onCropComplete={handleCropComplete}
           onCancel={() => setImageToCrop(null)}
-          aspect={6}
+          aspect={undefined}
           cropShape="rect"
           lockAspect={false}
         />

@@ -297,7 +297,7 @@ export default function DocxToPdfDemo({
                   <button
                     key={name}
                     onClick={() => loadTemplate(name)}
-                    className={`text-left px-3 py-3 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
+                    className={`text-left px-3 py-3 rounded-xl text-[14px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
                       selectedTemplate === name 
                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                         : 'bg-white text-gray-600 border-gray-50 hover:border-blue-200 hover:bg-blue-50'
@@ -522,10 +522,9 @@ export default function DocxToPdfDemo({
           text-decoration-color: transparent !important;
           box-shadow: none !important;
         }
-        .docx-preview-container h1 { font-size: 2rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
-        .docx-preview-container h2 { font-size: 1.75rem; font-weight: bold; margin-bottom: 1rem; color: #1f2937 !important; }
-        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.25rem; }
-        .docx-preview-container span { font-size: 1.25rem !important; }
+        .docx-preview-container h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
+        .docx-preview-container h2 { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; color: #1f2937 !important; }
+        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.5rem; }
         .docx-preview-container table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; border: 1px solid #e5e7eb; background: #ffffff; }
         .docx-preview-container td, .docx-preview-container th { border: 1px solid #e5e7eb; padding: 0.5rem; color: #374151 !important; }
         .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }

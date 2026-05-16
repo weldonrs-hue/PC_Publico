@@ -951,13 +951,12 @@ export default function PioneerSchoolView({
 
       // Prepare HOJE replacement
       const now = new Date();
-      let hoje = now.toLocaleDateString('pt-BR', {
-        weekday: 'long',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
+      const formatter = new Intl.DateTimeFormat('pt-BR', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
       });
-      hoje = hoje.charAt(0).toUpperCase() + hoje.slice(1);
+      const hoje = formatter.format(now);
 
       // Load Image Module
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
@@ -965,8 +964,9 @@ export default function PioneerSchoolView({
       const signatureImage = personalData?.signatureImage || '';
       
       // Calculate signature dimensions
-      let sigWidth = 150;
-      let sigHeight = 60;
+      const signatureScale = personalData?.signatureSize || 60;
+      let sigHeight = signatureScale;
+      let sigWidth = sigHeight * 2.5; // Default aspect ratio if image fails
       
       if (signatureImage && signatureImage.startsWith('data:image')) {
         try {
@@ -977,10 +977,11 @@ export default function PioneerSchoolView({
             img.src = signatureImage;
           });
           const aspectRatio = img.width / img.height;
-          sigHeight = 60;
+          sigHeight = signatureScale;
           sigWidth = sigHeight * aspectRatio;
-          if (sigWidth > 220) {
-            sigWidth = 220;
+          // Maximum width constraint to avoid overflowing the page
+          if (sigWidth > 350) { 
+            sigWidth = 350;
             sigHeight = sigWidth / aspectRatio;
           }
         } catch (e) {
@@ -1058,8 +1059,10 @@ export default function PioneerSchoolView({
           'CONGREGAÇÃO': student.congregacao,
           'CONGREGACAO': student.congregacao,
           'TURMA': `Turma ${selectedTurma}`,
-          'DATA': schoolInfo.dataTurma || '________________',
-          'DATATURMA': schoolInfo.dataTurma || '________________',
+          'DATA': schoolInfo.dataTurma || hoje,
+          'DATATURMA': schoolInfo.dataTurma || hoje,
+          'TURMA_DATA': schoolInfo.dataTurma || hoje,
+          'DATA_TURMA': schoolInfo.dataTurma || hoje,
           'INSTRUTORES': `${schoolInfo.instrutorA || '________________'} e ${schoolInfo.instrutorB || '________________'}`,
           'INSTRUTOR1': schoolInfo.instrutorA || '________________',
           'INSTRUTOR2': schoolInfo.instrutorB || '________________',

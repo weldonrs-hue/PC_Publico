@@ -21,8 +21,11 @@ import {
   collection, 
   getDocs, 
   doc, 
-  getDoc 
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
+import DraggableSignature from './DraggableSignature';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface PSSAssignmentLettersProps {
   userId: string;
@@ -54,6 +57,7 @@ export default function PSSAssignmentLetters({
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
+  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +65,37 @@ export default function PSSAssignmentLetters({
     fetchTemplates();
     fetchPersonalData();
   }, []);
+
+  useEffect(() => {
+    fetchSignaturePlacement();
+  }, [userId, selectedTemplate]);
+
+  const fetchSignaturePlacement = async () => {
+    try {
+      const placementId = `${userId}_${selectedTemplate}`;
+      const docRef = doc(db, 'signature_placements', placementId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setSignaturePlacement(docSnap.data() as any);
+      } else {
+        setSignaturePlacement({ x: 450, y: 700, scale: 1 }); // Default position
+      }
+    } catch (error) {
+      console.error('Error fetching signature placement:', error);
+      setSignaturePlacement({ x: 450, y: 700, scale: 1 });
+    }
+  };
+
+  const saveSignaturePlacement = async (settings: { x: number, y: number, scale: number }) => {
+    try {
+      const placementId = `${userId}_${selectedTemplate}`;
+      await setDoc(doc(db, 'signature_placements', placementId), settings);
+      setSignaturePlacement(settings);
+    } catch (error) {
+      console.error('Error saving signature placement:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'signature_placements');
+    }
+  };
 
   const fetchPersonalData = async () => {
     if (!userId) return;
@@ -225,6 +260,15 @@ export default function PSSAssignmentLetters({
       const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
       const zip = new PizZip(cleanedBuffer);
       
+      const replacements = getReplacements(selectedTemplate, signatureImage);
+      
+      // For preview, we might want to hide the "fixed" signature to use the draggable one
+      const previewReplacements = { ...replacements };
+      previewReplacements['ASSINATURA'] = ''; // Hide in preview
+      previewReplacements['%ASSINATURA'] = ''; 
+      previewReplacements['ASSINATURA_GLOBAL'] = '';
+      previewReplacements['assinatura'] = '';
+
       // Pre-process all XML files in the zip (document, headers, footers)
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       
@@ -265,27 +309,25 @@ export default function PSSAssignmentLetters({
         zip.file(file.name, xmlContent);
       });
 
-      const doc = new Docxtemplater(zip, {
+      const docPreview = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
         modules: ImageModule ? [new ImageModule(imgOpts)] : []
       });
 
-      const replacements = getReplacements(selectedTemplate, signatureImage);
-      doc.render(replacements);
+      docPreview.render(previewReplacements);
 
-      const out = doc.getZip().generate({
+      const outPreview = docPreview.getZip().generate({
         type: 'blob',
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
-      const processedArrayBuffer = await out.arrayBuffer();
-      setProcessedDocBuffer(processedArrayBuffer);
+      const previewArrayBuffer = await outPreview.arrayBuffer();
       
       if (previewRef.current) {
         previewRef.current.innerHTML = '';
-        await docxPreview.renderAsync(processedArrayBuffer, previewRef.current, undefined, {
+        await docxPreview.renderAsync(previewArrayBuffer, previewRef.current, undefined, {
           className: "docx-preview",
           inWrapper: false,
           ignoreWidth: true,
@@ -294,6 +336,19 @@ export default function PSSAssignmentLetters({
           useBase64URL: true,
         });
       }
+
+      // Also generate the "real" buffer with signed content for download
+      const docReal = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: { start: '[', end: ']' },
+        modules: ImageModule ? [new ImageModule(imgOpts)] : []
+      });
+      docReal.render(replacements);
+      const outReal = docReal.getZip().generate({
+        type: 'arraybuffer'
+      });
+      setProcessedDocBuffer(outReal);
       
       setStatus('success');
     } catch (err: any) {
@@ -394,7 +449,7 @@ export default function PSSAssignmentLetters({
               <button
                 key={name}
                 onClick={() => setSelectedTemplate(name)}
-                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 ${
+                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[14px] font-black transition-all uppercase tracking-tighter border-2 ${
                   selectedTemplate === name 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
@@ -418,7 +473,7 @@ export default function PSSAssignmentLetters({
               </div>
               <div>
                 <h3 className="font-black text-gray-800 text-sm uppercase tracking-widest">Visualização</h3>
-                <p className="text-[12px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
+                <p className="text-[14px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
                   {selectedTemplate.replace('PSS assignment letter_', '')}
                 </p>
               </div>
@@ -452,10 +507,22 @@ export default function PSSAssignmentLetters({
               className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-auto p-4 md:p-12 custom-scrollbar"
             >
               <div 
-                ref={previewRef}
-                className="docx-preview-container mx-auto bg-white"
+                className="docx-preview-container mx-auto bg-white relative"
                 style={{ width: '800px', minWidth: '800px' }}
               >
+                <div ref={previewRef} />
+
+                {status === 'success' && personalData?.signatureImage && signaturePlacement && (
+                  <DraggableSignature 
+                    image={personalData.signatureImage}
+                    initialX={signaturePlacement.x}
+                    initialY={signaturePlacement.y}
+                    initialScale={signaturePlacement.scale}
+                    containerRef={previewRef}
+                    onSave={saveSignaturePlacement}
+                  />
+                )}
+
                 {!processedDocBuffer && !isProcessing && (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                 )}
@@ -491,9 +558,8 @@ export default function PSSAssignmentLetters({
           text-decoration-color: transparent !important;
           box-shadow: none !important;
         }
-        .docx-preview-container h1 { font-size: 2rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.25rem; }
-        .docx-preview-container span { font-size: 1.25rem !important; }
+        .docx-preview-container h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
+        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.5rem; }
         .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
         
         .docx-preview-container .docx-preview {
