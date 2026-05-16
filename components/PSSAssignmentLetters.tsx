@@ -394,7 +394,7 @@ export default function PSSAssignmentLetters({
               <button
                 key={name}
                 onClick={() => setSelectedTemplate(name)}
-                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[14px] font-black transition-all uppercase tracking-tighter border-2 ${
+                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[12px] font-black transition-all uppercase tracking-tighter border-2 ${
                   selectedTemplate === name 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                     : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
@@ -418,7 +418,7 @@ export default function PSSAssignmentLetters({
               </div>
               <div>
                 <h3 className="font-black text-gray-800 text-sm uppercase tracking-widest">Visualização</h3>
-                <p className="text-[14px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
+                <p className="text-[12px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
                   {selectedTemplate.replace('PSS assignment letter_', '')}
                 </p>
               </div>
@@ -491,8 +491,9 @@ export default function PSSAssignmentLetters({
           text-decoration-color: transparent !important;
           box-shadow: none !important;
         }
-        .docx-preview-container h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.5rem; }
+        .docx-preview-container h1 { font-size: 2rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
+        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.25rem; }
+        .docx-preview-container span { font-size: 1.25rem !important; }
         .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
         
         .docx-preview-container .docx-preview {
