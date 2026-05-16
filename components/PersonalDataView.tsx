@@ -72,6 +72,7 @@ const defaultData = {
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
   const [initialData, setInitialData] = useState(defaultData);
   const [formData, setFormData] = useState(defaultData);
+  const [initialDocId, setInitialDocId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -141,6 +142,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         
         if (docSnap && docSnap.exists()) {
           const docData = docSnap.data() as any;
+          setInitialDocId(docSnap.id);
           const mergedData = { ...defaultData, ...docData };
           setInitialData(mergedData);
           setFormData(mergedData);
@@ -165,7 +167,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           
           if (!querySnapshot.empty) {
             sessionStorage.setItem(`pdMigrationAttempted_${userId}`, 'true');
-            const docData = querySnapshot.docs[0].data() as any;
+            const foundDoc = querySnapshot.docs[0];
+            setInitialDocId(foundDoc.id);
+            const docData = foundDoc.data() as any;
             const mergedData = { ...defaultData, ...docData };
             setInitialData(mergedData);
             setFormData(mergedData);
@@ -215,7 +219,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   };
 
   const handleSignatureSave = (signatureDataUrl: string) => {
-    setFormData({ ...formData, signatureImage: signatureDataUrl });
+    setImageToCrop(signatureDataUrl);
     setShowSignaturePad(false);
   };
 
@@ -270,37 +274,43 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       }
 
       // 1. Verificar se o número pessoal já existe em outro perfil
-      const q = query(
-        collection(db, 'personal_data'), 
-        where('numeroPessoal', '==', formData.numeroPessoal.trim())
-      );
+      // Somente se o número foi alterado ou se é uma nova conta
+      const numTrim = formData.numeroPessoal.trim();
+      const initialNumTrim = initialData.numeroPessoal.trim();
       
-      const querySnapshot = await getDocs(q);
-      
-      // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
-      const conflictDocs = querySnapshot.docs.filter(doc => {
-        const data = doc.data();
-        const currentEmail = auth.currentUser?.email;
-        const currentUid = auth.currentUser?.uid;
-
-        // 1. Não é conflito se for o próprio documento (pelo ID)
-        if (doc.id === userId || (currentUid && doc.id === currentUid)) return false;
+      if (numTrim !== initialNumTrim || !initialNumTrim) {
+        const q = query(
+          collection(db, 'personal_data'), 
+          where('numeroPessoal', '==', numTrim)
+        );
         
-        // 2. Não é conflito se tiver o mesmo userId no campo
-        if (data.userId === userId || (currentUid && data.userId === currentUid)) return false;
-
-        // 3. Não é conflito se tiver o mesmo e-mail (ajuda em migrações de conta)
-        if (currentEmail && data.emailPessoal === currentEmail) return false;
+        const querySnapshot = await getDocs(q);
         
-        // 4. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
-        return true;
-      });
-      
-      if (conflictDocs.length > 0) {
-        const conflictData = conflictDocs[0].data();
-        setIsProcessing(false);
-        alert(`ERRO: Este Número Pessoal (${formData.numeroPessoal}) já está sendo usado pela conta de: ${conflictData.nome || conflictData.emailPessoal || conflictDocs[0].id}.\n\nNão é permitido ter duas contas com o mesmo número. Se você está tentando recuperar seus dados após trocar de e-mail, entre em contato com o suporte.`);
-        return;
+        // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
+        const conflictDocs = querySnapshot.docs.filter(doc => {
+          const data = doc.data();
+          const currentEmail = auth.currentUser?.email;
+          const currentUid = auth.currentUser?.uid;
+
+          // 1. Não é conflito se for o próprio documento (pelo ID ou initialDocId)
+          if (doc.id === userId || (initialDocId && doc.id === initialDocId) || (currentUid && doc.id === currentUid)) return false;
+          
+          // 2. Não é conflito se tiver o mesmo userId no campo
+          if (data.userId === userId || (currentUid && data.userId === currentUid)) return false;
+
+          // 3. Não é conflito se tiver o mesmo e-mail (ajuda em migrações de conta)
+          if (currentEmail && data.emailPessoal === currentEmail) return false;
+          
+          // 4. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
+          return true;
+        });
+        
+        if (conflictDocs.length > 0) {
+          const conflictData = conflictDocs[0].data();
+          setIsProcessing(false);
+          alert(`ERRO: Este Número Pessoal (${formData.numeroPessoal}) já está sendo usado pela conta de: ${conflictData.nome || conflictData.emailPessoal || conflictDocs[0].id}.\n\nNão é permitido ter duas contas com o mesmo número. Se você está tentando recuperar seus dados após trocar de e-mail, entre em contato com o suporte.`);
+          return;
+        }
       }
 
       // Use userId as document ID
@@ -331,7 +341,13 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <h2 className="text-2xl font-bold text-gray-800">
-          {(formData.role === 'viajante' || !formData.role) ? 'Dados Pessoais do Superintendente' : 'Meus Dados Pessoais'}
+          {formData.role === 'viajante' 
+            ? 'Dados Pessoais do Viajante' 
+            : formData.role === 'pioneiro_especial'
+            ? 'Dados Pessoais do Pioneiro Especial'
+            : formData.role === 'pioneiro_regular'
+            ? 'Dados Pessoais do Pioneiro Regular'
+            : 'Meus Dados Pessoais'}
         </h2>
       </div>
 
@@ -521,36 +537,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
               </div>
             </div>
 
-            {/* Role Selection */}
-            <div className="space-y-2 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-              <label className="text-xs font-bold text-emerald-700 uppercase">
-                Seu Estágio de Serviço
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({...formData, role: 'viajante'})}
-                  className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.role === 'viajante' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200'}`}
-                >
-                  Superintendente de Circuito
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({...formData, role: 'pioneiro_especial'})}
-                  className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.role === 'pioneiro_especial' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200'}`}
-                >
-                  Pioneiro Especial
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({...formData, role: 'pioneiro_regular'})}
-                  className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${formData.role === 'pioneiro_regular' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-200'}`}
-                >
-                  Pioneiro Regular
-                </button>
-              </div>
-            </div>
-
             {/* Signature Section */}
             <div className="bg-gray-50/50 p-6 rounded-2xl border border-dashed border-gray-200">
               <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -665,9 +651,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             <div className="flex justify-end pt-6 border-t border-gray-100">
               <button 
                 type="submit"
-                disabled={!hasChanges || !formData.role || isProcessing}
+                disabled={!hasChanges || isProcessing}
                 className={`px-10 py-3 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 ${
-                  hasChanges && formData.role && !isProcessing
+                  hasChanges && !isProcessing
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                 }`}

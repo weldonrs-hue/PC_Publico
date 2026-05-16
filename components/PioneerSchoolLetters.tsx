@@ -25,6 +25,7 @@ import { collection, getDocs, doc, getDoc, query, where, limit, setDoc } from 'f
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import DraggableSignature from './DraggableSignature';
 import SignaturePad from './SignaturePad';
+import ImageCropper from './ImageCropper';
 
 interface PioneerSchoolLettersProps {
   userId: string;
@@ -80,13 +81,20 @@ export default function PioneerSchoolLetters({
 
   const fetchSignaturePlacement = async () => {
     try {
-      const placementId = `${userId}_${selectedTemplate}`;
+      const placementId = `${userId}_turma${selectedTurma}_${selectedTemplate}`;
       const docRef = doc(db, 'signature_placements', placementId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         setSignaturePlacement(docSnap.data() as any);
       } else {
-        setSignaturePlacement({ x: 450, y: 700, scale: 1 }); // Default position
+        // Fallback to template-specific (not turma-specific)
+        const oldPlacementId = `${userId}_${selectedTemplate}`;
+        const oldDocSnap = await getDoc(doc(db, 'signature_placements', oldPlacementId));
+        if (oldDocSnap.exists()) {
+          setSignaturePlacement(oldDocSnap.data() as any);
+        } else {
+          setSignaturePlacement({ x: 450, y: 700, scale: 1 }); // Default position
+        }
       }
     } catch (error) {
       console.error('Error fetching signature placement:', error);
@@ -96,7 +104,7 @@ export default function PioneerSchoolLetters({
 
   const saveSignaturePlacement = async (settings: { x: number, y: number, scale: number }) => {
     try {
-      const placementId = `${userId}_${selectedTemplate}`;
+      const placementId = `${userId}_turma${selectedTurma}_${selectedTemplate}`;
       await setDoc(doc(db, 'signature_placements', placementId), settings);
       setSignaturePlacement(settings);
     } catch (error) {
@@ -154,15 +162,23 @@ export default function PioneerSchoolLetters({
   };
 
   const handleSignatureSave = async (signatureDataUrl: string) => {
+    // Open cropper to ensure user can choose the container
+    setImageToCrop(signatureDataUrl);
+    setShowSignaturePad(false);
+  };
+
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+
+  const handleCropComplete = async (croppedImage: string) => {
     try {
       await setDoc(doc(db, 'personal_data', userId), {
-        signatureImage: signatureDataUrl
+        signatureImage: croppedImage
       }, { merge: true });
       
-      setPersonalData((prev: any) => ({ ...prev, signatureImage: signatureDataUrl }));
-      setShowSignaturePad(false);
+      setPersonalData((prev: any) => ({ ...prev, signatureImage: croppedImage }));
+      setImageToCrop(null);
     } catch (error) {
-      console.error('Erro ao salvar assinatura:', error);
+      console.error('Erro ao salvar assinatura recortada:', error);
     }
   };
 
@@ -664,6 +680,32 @@ export default function PioneerSchoolLetters({
           onSave={handleSignatureSave}
           onCancel={() => setShowSignaturePad(false)}
         />
+      )}
+
+      {imageToCrop && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-emerald-50">
+              <h3 className="font-black text-emerald-800 uppercase tracking-widest text-xs">Ajuste os limites da assinatura</h3>
+              <button 
+                onClick={() => setImageToCrop(null)}
+                className="p-2 hover:bg-white/50 rounded-full text-emerald-800"
+              >
+                Cancelar
+              </button>
+            </div>
+            <div className="p-6">
+              <ImageCropper 
+                image={imageToCrop}
+                onCropComplete={handleCropComplete}
+                onCancel={() => setImageToCrop(null)}
+                aspect={undefined}
+                cropShape="rect"
+                lockAspect={false}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       <style jsx global>{`
