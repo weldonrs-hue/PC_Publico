@@ -23,8 +23,6 @@ import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/doc
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, where, limit, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import DraggableSignature from './DraggableSignature';
-import SignaturePad from './SignaturePad';
 
 interface PioneerSchoolLettersProps {
   userId: string;
@@ -62,8 +60,6 @@ export default function PioneerSchoolLetters({
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
-  const [showSignaturePad, setShowSignaturePad] = useState(false);
 
   const [needsProcessing, setNeedsProcessing] = useState(true);
 
@@ -73,37 +69,6 @@ export default function PioneerSchoolLetters({
     fetchTemplates();
     fetchPersonalData();
   }, [userId]);
-
-  useEffect(() => {
-    fetchSignaturePlacement();
-  }, [userId, selectedTemplate]);
-
-  const fetchSignaturePlacement = async () => {
-    try {
-      const placementId = `${userId}_${selectedTemplate}`;
-      const docRef = doc(db, 'signature_placements', placementId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setSignaturePlacement(docSnap.data() as any);
-      } else {
-        setSignaturePlacement({ x: 450, y: 700, scale: 1 }); // Default position
-      }
-    } catch (error) {
-      console.error('Error fetching signature placement:', error);
-      setSignaturePlacement({ x: 450, y: 700, scale: 1 });
-    }
-  };
-
-  const saveSignaturePlacement = async (settings: { x: number, y: number, scale: number }) => {
-    try {
-      const placementId = `${userId}_${selectedTemplate}`;
-      await setDoc(doc(db, 'signature_placements', placementId), settings);
-      setSignaturePlacement(settings);
-    } catch (error) {
-      console.error('Error saving signature placement:', error);
-      handleFirestoreError(error, OperationType.WRITE, 'signature_placements');
-    }
-  };
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -153,31 +118,6 @@ export default function PioneerSchoolLetters({
     }
   };
 
-  const handleSignatureSave = async (signatureDataUrl: string) => {
-    try {
-      await setDoc(doc(db, 'personal_data', userId), {
-        signatureImage: signatureDataUrl
-      }, { merge: true });
-      
-      setPersonalData((prev: any) => ({ ...prev, signatureImage: signatureDataUrl }));
-      setShowSignaturePad(false);
-    } catch (error) {
-      console.error('Erro ao salvar assinatura:', error);
-    }
-  };
-
-  const removeSignature = async () => {
-    try {
-      await setDoc(doc(db, 'personal_data', userId), {
-        signatureImage: null
-      }, { merge: true });
-      
-      setPersonalData((prev: any) => ({ ...prev, signatureImage: null }));
-    } catch (error) {
-      console.error('Erro ao remover assinatura:', error);
-    }
-  };
-
   // Prevent infinite loops by stringifying objects for dependency array
   const schoolInfoKey = JSON.stringify(schoolInfo);
   const personalDataKey = JSON.stringify(personalData);
@@ -214,9 +154,9 @@ export default function PioneerSchoolLetters({
     const email = schoolInfo.confirmacaoEmail || '________________';
     const contato = schoolInfo.confirmacaoWhatsapp || '________________';
     
-    const signatureImage = personalData?.signatureImage || '';
     const signatureName = personalData?.nome || '________________';
     const circuito = personalData?.circuito || '________________';
+    const signatureText = `${signatureName} (${circuito})`;
     const telefoneCircuito = personalData?.telefoneCircuito || '________________';
 
     return {
@@ -250,11 +190,19 @@ export default function PioneerSchoolLetters({
       'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
       'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
       'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
-      'ASSINATURA': signatureImage,
-      '%ASSINATURA': signatureImage,
-      'ASSINATURA_GLOBAL': signatureImage,
+      'nome do instrutor': signatureText,
+      'NOME DO INSTRUTOR': signatureText,
+      'instrutor': signatureText,
+      'INSTRUTOR': signatureText,
+      'ASSINATURA': signatureText,
+      'assinatura': signatureText,
+      '%ASSINATURA': '',
+      'ASSINATURA_GLOBAL': '',
       'VIAJANTE': signatureName,
+      'viajante': signatureName,
       'NOME_VIAJANTE': signatureName,
+      'NOME': signatureName,
+      'nome': signatureName,
       'CIRCUITO': circuito,
       'NOME_CIRCUITO': circuito,
       'TELEFONE': telefoneCircuito,
@@ -295,8 +243,9 @@ export default function PioneerSchoolLetters({
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         // 2. Join split tags - MUCH safer version
-        for (let i = 0; i < 4; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\_]+)/g, "$1$3$2");
+        // Supports [TAG] and @TAG with spaces and special characters
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
         }
         
         // Ensure namespaces present for images
@@ -318,19 +267,13 @@ export default function PioneerSchoolLetters({
           return `${opening}${newText}${closing}`;
         });
 
-        // Prepend signature image to instructor tags if they exist
-        xmlContent = xmlContent.replace(/\[(INSTRUTOR[A-Z0-9]?|NOME[_ ]DO[_ ]INSTRUTOR)\]/gi, '[%ASSINATURA][$1]');
-        
         zip.file(file.name, xmlContent);
       });
       
       const replacements = getReplacements();
       
-      // For preview, we might want to hide the "fixed" signature to use the draggable one
+      // For preview, we want to show the signature text as well
       const previewReplacements = { ...replacements };
-      previewReplacements['ASSINATURA'] = ''; // Hide in preview
-      previewReplacements['%ASSINATURA'] = ''; 
-      previewReplacements['ASSINATURA_GLOBAL'] = '';
 
       // Setup Image Module
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
@@ -598,17 +541,6 @@ export default function PioneerSchoolLetters({
               >
                 <div ref={previewRef} />
                 
-                {status === 'success' && personalData?.signatureImage && signaturePlacement && (
-                  <DraggableSignature 
-                    image={personalData.signatureImage}
-                    initialX={signaturePlacement.x}
-                    initialY={signaturePlacement.y}
-                    initialScale={signaturePlacement.scale}
-                    containerRef={previewRef}
-                    onSave={saveSignaturePlacement}
-                  />
-                )}
-
                 {!processedDocBuffer && !isProcessing && (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                 )}
@@ -630,41 +562,8 @@ export default function PioneerSchoolLetters({
           <p className="text-[9px] text-gray-400 text-center italic">
             * As substituições são baseadas nas Informações da Escola e Dados Pessoais. Use marcadores @DATA, @LOCAL, @INSTRUTORES, @HOJE, etc. no Word.
           </p>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
-              <PenTool size={18} className="text-emerald-600" />
-              Assinatura Global
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowSignaturePad(true)}
-                className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-emerald-700 transition-all flex items-center gap-2"
-              >
-                <Sparkles size={16} />
-                Nova Assinatura Digital
-              </button>
-              {personalData?.signatureImage && (
-                <button
-                  onClick={removeSignature}
-                  className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2"
-                >
-                  <Trash2 size={16} />
-                  Remover
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       </div>
-
-      {showSignaturePad && (
-        <SignaturePad 
-          initialName={personalData?.nome || ''}
-          onSave={handleSignatureSave}
-          onCancel={() => setShowSignaturePad(false)}
-        />
-      )}
 
       <style jsx global>{`
         .docx-preview-container {

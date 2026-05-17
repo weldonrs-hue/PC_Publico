@@ -212,7 +212,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
       if (docSnap.exists()) {
         setSignaturePlacement(docSnap.data() as any);
       } else {
-        setSignaturePlacement({ x: 450, y: 700, scale: 1 });
+        setSignaturePlacement({ x: 420, y: 920, scale: 1.2 });
       }
     } catch (error) {
       console.error('Error fetching signature placement:', error);
@@ -543,7 +543,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
           >
             <div 
               id="appointment-letter-container"
-              className="bg-white print:min-h-0 text-black print:m-0 flex flex-col print:w-[210mm] print:h-[297mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0"
+              className="bg-white print:min-h-0 text-black print:m-0 flex flex-col print:w-[210mm] print:h-[297mm] print:fixed print:top-0 print:left-0 print:z-[100] flex-shrink-0 relative"
               style={{ 
                 fontFamily: "'Times New Roman', Times, serif",
                 padding: '12.7mm',
@@ -560,7 +560,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             >
           <article 
             ref={letterRef}
-            className="w-full h-full flex flex-col"
+            className="w-full h-full flex flex-col relative"
           >
             {/* Letter Header */}
             <header className="text-center mb-4">
@@ -693,19 +693,19 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                   </div>
                 </div>
               </div>
-
-              {/* Draggable Signature Layer */}
-              {signatureImage && signaturePlacement && (
-                <DraggableSignature 
-                  image={signatureImage}
-                  initialX={signaturePlacement.x}
-                  initialY={signaturePlacement.y}
-                  initialScale={signaturePlacement.scale}
-                  onSave={handleSignaturePlacementSave}
-                  containerRef={letterRef}
-                />
-              )}
             </div>
+
+            {/* Draggable Signature Layer */}
+            {signatureImage && signaturePlacement && (
+              <DraggableSignature 
+                image={signatureImage}
+                initialX={signaturePlacement.x}
+                initialY={signaturePlacement.y}
+                initialScale={signaturePlacement.scale}
+                onSave={handleSignaturePlacementSave}
+                containerRef={letterRef}
+              />
+            )}
           </article>
         </div>
       </div>

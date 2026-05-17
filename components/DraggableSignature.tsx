@@ -29,7 +29,12 @@ export default function DraggableSignature({
   const [isResizing, setIsResizing] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
 
+  const x = useMotionValue(initialX);
+  const y = useMotionValue(initialY);
+
   useEffect(() => {
+    x.set(initialX);
+    y.set(initialY);
     setPosition({ x: initialX, y: initialY });
     setScale(initialScale);
   }, [initialX, initialY, initialScale]);
@@ -42,67 +47,97 @@ export default function DraggableSignature({
     img.src = image;
   }, [image]);
 
-  const handleDragEnd = (_: any, info: any) => {
+  const handleDragEnd = () => {
     setIsDragging(false);
-    setPosition({ x: position.x + info.delta.x, y: position.y + info.delta.y });
+    const newX = x.get();
+    const newY = y.get();
+    setPosition({ x: newX, y: newY });
   };
 
-  const handleResize = (e: React.MouseEvent | React.TouchEvent, direction: string) => {
+  const handleResize = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent, direction: string) => {
     e.stopPropagation();
     setIsResizing(true);
 
-    const startX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const startX = 'touches' in e ? (e as any).touches[0].clientX : (e as any).clientX;
+    const startY = 'touches' in e ? (e as any).touches[0].clientY : (e as any).clientY;
     const startScale = scale;
+    const startXValue = x.get();
+    const startYValue = y.get();
 
     const onMove = (moveEvent: MouseEvent | TouchEvent) => {
+      moveEvent.preventDefault();
       const currentX = 'touches' in moveEvent ? moveEvent.touches[0].clientX : moveEvent.clientX;
-      const deltaX = currentX - startX;
+      const currentY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
       
-      // Calculate new scale based on drag distance
-      // If we drag right, scale increases. 100px = ~0.5 scale increase
-      const newScale = Math.max(0.2, Math.min(5, startScale + (deltaX / 200)));
+      const deltaX = currentX - startX;
+      const deltaY = currentY - startY;
+
+      // Calculate scale change
+      let calcScale = startScale;
+      // Use the axis that provides most movement
+      if (direction.includes('e')) {
+        calcScale = startScale + (deltaX / 200);
+      } else if (direction.includes('w')) {
+        calcScale = startScale - (deltaX / 200);
+      } else if (direction.includes('s')) {
+        calcScale = startScale + (deltaY / 100);
+      } else if (direction.includes('n')) {
+        calcScale = startScale - (deltaY / 100);
+      }
+
+      const newScale = Math.max(0.2, Math.min(5, calcScale));
       setScale(newScale);
+
+      // Maintain opposite corner position
+      const scaleDiff = newScale - startScale;
+      const widthDiff = baseHeight * aspectRatio * scaleDiff;
+      const heightDiff = baseHeight * scaleDiff;
+
+      if (direction.includes('w')) {
+        x.set(startXValue - widthDiff);
+      }
+      if (direction.includes('n')) {
+        y.set(startYValue - heightDiff);
+      }
     };
 
     const onUp = () => {
       setIsResizing(false);
+      setPosition({ x: x.get(), y: y.get() });
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onUp);
     };
 
-    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mousemove', onMove, { passive: false });
     window.addEventListener('mouseup', onUp);
-    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onUp);
   };
 
   const handleSave = () => {
-    onSave({ ...position, scale });
+    onSave({ x: x.get(), y: y.get(), scale });
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 2000);
   };
 
   const baseHeight = 60;
-  const width = baseHeight * aspectRatio;
+  const currentHeight = baseHeight * scale;
+  const currentWidth = baseHeight * aspectRatio * scale;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden print:hidden">
       <motion.div
-        drag
+        drag={!isResizing}
+        dragListener={!isResizing}
         dragMomentum={false}
         onDragStart={() => setIsDragging(true)}
         onDragEnd={handleDragEnd}
-        animate={{ 
-          x: position.x, 
-          y: position.y, 
-          scale: scale,
-        }}
+        style={{ x, y, width: `${currentWidth}px`, height: `${currentHeight}px` }}
         className={`absolute pointer-events-auto cursor-move group select-none ${isDragging ? 'z-50' : 'z-40'}`}
-        style={{ width: `${width}px`, height: `${baseHeight}px` }}
       >
-        <div className={`relative w-full h-full transition-shadow ${isDragging || isResizing ? 'shadow-2xl' : ''}`}>
+        <div className={`relative w-full h-full`}>
           {/* Signature Image */}
           <div className="w-full h-full relative">
             <Image 
@@ -115,76 +150,57 @@ export default function DraggableSignature({
             />
           </div>
 
-          {/* Selection Border (Adobe-style) */}
-          <div className={`absolute -inset-2 border-2 border-blue-500/50 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${isDragging || isResizing ? 'opacity-100 border-blue-600' : ''}`} />
+          {/* Selection Border - Very thin and only group-hovered or active */}
+          <div className={`absolute -inset-0.5 border border-blue-400/30 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${isDragging || isResizing ? 'opacity-100 border-blue-500/50' : ''}`} />
 
-          {/* Resize Handles (Corners) */}
+          {/* Resize Handles - Smaller: 6px */}
           <div 
-            className="absolute -top-3 -left-3 w-6 h-6 bg-white border-2 border-blue-600 rounded-full cursor-nwse-resize opacity-0 group-hover:opacity-100 flex items-center justify-center shadow-lg hover:scale-110 transition-all pointer-events-auto"
-            onMouseDown={(e) => handleResize(e, 'nw')}
-            onTouchStart={(e) => handleResize(e as any, 'nw')}
-          >
-            <div className="w-1.5 h-1.5 bg-blue-600 rounded-sm" />
-          </div>
+            className="absolute -top-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            onPointerDown={(e) => handleResize(e as any, 'nw')}
+          />
 
           <div 
-            className="absolute -top-3 -right-3 w-6 h-6 bg-white border-2 border-blue-600 rounded-full cursor-nesw-resize opacity-0 group-hover:opacity-100 flex items-center justify-center shadow-lg hover:scale-110 transition-all pointer-events-auto"
-            onMouseDown={(e) => handleResize(e, 'ne')}
-            onTouchStart={(e) => handleResize(e as any, 'ne')}
-          >
-            <div className="w-1.5 h-1.5 bg-blue-600 rounded-sm" />
-          </div>
+            className="absolute -top-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            onPointerDown={(e) => handleResize(e as any, 'ne')}
+          />
 
           <div 
-            className="absolute -bottom-3 -left-3 w-6 h-6 bg-white border-2 border-blue-600 rounded-full cursor-nesw-resize opacity-0 group-hover:opacity-100 flex items-center justify-center shadow-lg hover:scale-110 transition-all pointer-events-auto"
-            onMouseDown={(e) => handleResize(e, 'sw')}
-            onTouchStart={(e) => handleResize(e as any, 'sw')}
-          >
-            <div className="w-1.5 h-1.5 bg-blue-600 rounded-sm" />
-          </div>
+            className="absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            onPointerDown={(e) => handleResize(e as any, 'sw')}
+          />
 
           <div 
-            className="absolute -bottom-3 -right-3 w-6 h-6 bg-white border-2 border-blue-600 rounded-full cursor-nwse-resize opacity-0 group-hover:opacity-100 flex items-center justify-center shadow-lg hover:scale-110 transition-all pointer-events-auto"
-            onMouseDown={(e) => handleResize(e, 'se')}
-            onTouchStart={(e) => handleResize(e as any, 'se')}
-          >
-            <div className="w-1.5 h-1.5 bg-blue-600 rounded-sm" />
-          </div>
+            className="absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            onPointerDown={(e) => handleResize(e as any, 'se')}
+          />
 
-          {/* Top Controls Overlay */}
-          <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/95 backdrop-blur shadow-2xl border border-blue-100 rounded-xl p-1.5 opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap scale-90 group-hover:scale-100">
+          {/* Top Controls Overlay - Even more discrete */}
+          <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm shadow-md border border-gray-100 rounded p-0.5 opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap">
             <button 
               onClick={() => {
                 setPosition({ x: initialX, y: initialY });
                 setScale(initialScale);
               }}
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+              className="p-1 hover:bg-gray-100 rounded text-gray-500 transition-colors"
               title="Resetar"
             >
-              <RotateCcw size={16} />
+              <RotateCcw size={12} />
             </button>
             
-            <div className="h-6 w-px bg-gray-200 mx-1" />
+            <div className="h-3 w-px bg-gray-200 mx-0.5" />
 
             <button 
               onClick={handleSave}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all ${
+              className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider transition-all ${
                 showSaved 
                 ? 'bg-green-500 text-white' 
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              {showSaved ? <Check size={16} /> : <Save size={16} />}
-              {showSaved ? 'Salvo' : 'Fixar Local'}
+              {showSaved ? <Check size={10} /> : <Save size={10} />}
+              {showSaved ? 'Salvo' : 'Fixar'}
             </button>
           </div>
-
-          {/* Scale info bubble */}
-          {(isResizing || isDragging) && (
-            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-gray-800/80 text-white px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap">
-              Pos: {Math.round(position.x)},{Math.round(position.y)} | Escala: {scale.toFixed(2)}x
-            </div>
-          )}
         </div>
       </motion.div>
     </div>

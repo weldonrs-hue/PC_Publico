@@ -184,7 +184,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       try {
         const personalRef = doc(db, 'personal_data', userId);
         const layoutRef = doc(db, 's302_layouts', 'shared_layout');
-        const placementRef = doc(db, 'signature_placements', 's302');
+        const placementRef = doc(db, 'signature_placements', `s302_${userId}`);
         
         const [personalSnap, layoutSnap, placementSnap] = await Promise.all([
           getDoc(personalRef),
@@ -202,8 +202,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         if (placementSnap.exists()) {
           setSignaturePlacement(placementSnap.data() as any);
         } else {
-          // Default placement for S302
-          setSignaturePlacement({ x: 500, y: 400, scale: 1 });
+          setSignaturePlacement({ x: 500, y: 440, scale: 1 });
         }
 
         if (layoutSnap.exists()) {
@@ -294,7 +293,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const handleSignaturePlacementSave = async (settings: { x: number, y: number, scale: number }) => {
     setSignaturePlacement(settings);
     try {
-      await setDoc(doc(db, 'signature_placements', 's302'), settings);
+      await setDoc(doc(db, 'signature_placements', `s302_${userId}`), settings);
     } catch (error) {
       console.error('Error saving signature placement:', error);
     }

@@ -27,8 +27,6 @@ import {
   getDoc,
   setDoc
 } from 'firebase/firestore';
-import DraggableSignature from './DraggableSignature';
-import SignaturePad from './SignaturePad';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface PSSAssignmentLettersProps {
@@ -37,6 +35,7 @@ interface PSSAssignmentLettersProps {
   schoolInfo: {
     dataTurma: string;
     instrutorA: string;
+    instrutorB: string;
     confirmacaoEmail: string;
     confirmacaoWhatsapp: string;
     entregaLivroEndereco?: string;
@@ -61,8 +60,6 @@ export default function PSSAssignmentLetters({
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
-  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
-  const [showSignaturePad, setShowSignaturePad] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -71,37 +68,6 @@ export default function PSSAssignmentLetters({
     fetchPersonalData();
   }, []);
 
-  useEffect(() => {
-    fetchSignaturePlacement();
-  }, [userId, selectedTemplate]);
-
-  const fetchSignaturePlacement = async () => {
-    try {
-      const placementId = `${userId}_${selectedTemplate}`;
-      const docRef = doc(db, 'signature_placements', placementId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setSignaturePlacement(docSnap.data() as any);
-      } else {
-        setSignaturePlacement({ x: 450, y: 700, scale: 1 }); // Default position
-      }
-    } catch (error) {
-      console.error('Error fetching signature placement:', error);
-      setSignaturePlacement({ x: 450, y: 700, scale: 1 });
-    }
-  };
-
-  const saveSignaturePlacement = async (settings: { x: number, y: number, scale: number }) => {
-    try {
-      const placementId = `${userId}_${selectedTemplate}`;
-      await setDoc(doc(db, 'signature_placements', placementId), settings);
-      setSignaturePlacement(settings);
-    } catch (error) {
-      console.error('Error saving signature placement:', error);
-      handleFirestoreError(error, OperationType.WRITE, 'signature_placements');
-    }
-  };
-
   const fetchPersonalData = async () => {
     if (!userId) return;
     try {
@@ -109,34 +75,19 @@ export default function PSSAssignmentLetters({
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         setPersonalData(docSnap.data());
+      } else {
+        // Fallback: search by userId field
+        const querySnapshot = await getDocs(query(
+          collection(db, 'personal_data'), 
+          where('userId', '==', userId), 
+          limit(1)
+        ));
+        if (!querySnapshot.empty) {
+          setPersonalData(querySnapshot.docs[0].data());
+        }
       }
     } catch (error) {
       console.error('Error fetching personal data:', error);
-    }
-  };
-
-  const handleSignatureSave = async (signatureDataUrl: string) => {
-    try {
-      await setDoc(doc(db, 'personal_data', userId), {
-        signatureImage: signatureDataUrl
-      }, { merge: true });
-      
-      setPersonalData((prev: any) => ({ ...prev, signatureImage: signatureDataUrl }));
-      setShowSignaturePad(false);
-    } catch (error) {
-      console.error('Erro ao salvar assinatura:', error);
-    }
-  };
-
-  const removeSignature = async () => {
-    try {
-      await setDoc(doc(db, 'personal_data', userId), {
-        signatureImage: null
-      }, { merge: true });
-      
-      setPersonalData((prev: any) => ({ ...prev, signatureImage: null }));
-    } catch (error) {
-      console.error('Erro ao remover assinatura:', error);
     }
   };
 
@@ -179,7 +130,7 @@ export default function PSSAssignmentLetters({
       setProcessedDocBuffer(null);
       setStatus('idle');
     }
-  }, [selectedTemplate, templates, schoolInfo, workshopAssignments]);
+  }, [selectedTemplate, templates, schoolInfo, workshopAssignments, personalData]);
 
   const getReplacements = (templateName: string, signatureImage: string) => {
     // Extract number from "PSS assignment letter_T_XX"
@@ -203,8 +154,16 @@ export default function PSSAssignmentLetters({
     const dataValue = schoolInfo.dataTurma || hoje;
     const emailValue = schoolInfo.confirmacaoEmail || '________________';
     const telefoneValue = schoolInfo.confirmacaoWhatsapp || '________________';
-    const instrutorValue = schoolInfo.instrutorA || '________________';
-    const signatureBlock = signatureImage ? instrutorValue : `__________________________\n${instrutorValue}`;
+    const travelerName = personalData?.nome || '________________';
+    const circuit = personalData?.circuito || '________________';
+    const signatureText = `${travelerName} (${circuit})`;
+
+    let instructorName = '________________';
+    if ((scenarioId >= 1 && scenarioId <= 3) || (scenarioId >= 15 && scenarioId <= 18)) {
+      instructorName = schoolInfo.instrutorB || '________________';
+    } else if (scenarioId >= 4 && scenarioId <= 14) {
+      instructorName = schoolInfo.instrutorA || '________________';
+    }
     
     return {
       'data': dataValue,
@@ -226,14 +185,18 @@ export default function PSSAssignmentLetters({
       'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
       'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
       'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
-      'nome do instrutor': signatureBlock,
-      'NOME DO INSTRUTOR': signatureBlock,
-      'instrutor': signatureBlock,
-      'INSTRUTOR': signatureBlock,
-      'assinatura': signatureImage || signatureBlock,
-      'ASSINATURA': signatureImage || signatureBlock,
-      '%ASSINATURA': signatureImage || '',
-      'ASSINATURA_GLOBAL': signatureImage || '',
+      'nome do instrutor': instructorName,
+      'NOME DO INSTRUTOR': instructorName,
+      'instrutor': instructorName,
+      'INSTRUTOR': instructorName,
+      'assinatura': signatureText,
+      'ASSINATURA': signatureText,
+      'VIAJANTE': travelerName,
+      'viajante': travelerName,
+      'NOME': travelerName,
+      'nome': travelerName,
+      '%ASSINATURA': '',
+      'ASSINATURA_GLOBAL': '',
     };
   };
 
@@ -299,12 +262,9 @@ export default function PSSAssignmentLetters({
       
       const replacements = getReplacements(selectedTemplate, signatureImage);
       
-      // For preview, we might want to hide the "fixed" signature to use the draggable one
+      // For preview, we want to show the text since we're not using the draggable image anymore
       const previewReplacements = { ...replacements };
-      previewReplacements['ASSINATURA'] = ''; // Hide in preview
-      previewReplacements['%ASSINATURA'] = ''; 
-      previewReplacements['ASSINATURA_GLOBAL'] = '';
-      previewReplacements['assinatura'] = '';
+      // Keep signatures as the text defined in replacements
 
       // Pre-process all XML files in the zip (document, headers, footers)
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
@@ -315,9 +275,9 @@ export default function PSSAssignmentLetters({
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         // Join split tags - MUCH safer version
-        // Only join if they are separated by NOTHING or just proofErr tags
-        for (let i = 0; i < 4; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\_]+)/g, "$1$3$2");
+        // Supports [TAG] and @TAG with spaces and special characters
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
         }
         
         // Ensure namespaces are present for images (required for docxtemplater-image-module)
@@ -339,10 +299,6 @@ export default function PSSAssignmentLetters({
           return `${opening}${newText}${closing}`;
         });
 
-        // Specific fix: if we see [NOME DO INSTRUTOR] or [INSTRUTOR], prepend [%ASSINATURA]
-        // This puts the signature image right where the instructor marker is
-        xmlContent = xmlContent.replace(/\[(NOME[_ ]DO[_ ]INSTRUTOR|INSTRUTOR)\]/gi, '[%ASSINATURA][$1]');
-        
         zip.file(file.name, xmlContent);
       });
 
@@ -549,17 +505,6 @@ export default function PSSAssignmentLetters({
               >
                 <div ref={previewRef} />
 
-                {status === 'success' && personalData?.signatureImage && signaturePlacement && (
-                  <DraggableSignature 
-                    image={personalData.signatureImage}
-                    initialX={signaturePlacement.x}
-                    initialY={signaturePlacement.y}
-                    initialScale={signaturePlacement.scale}
-                    containerRef={previewRef}
-                    onSave={saveSignaturePlacement}
-                  />
-                )}
-
                 {!processedDocBuffer && !isProcessing && (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                 )}
@@ -581,41 +526,8 @@ export default function PSSAssignmentLetters({
           <p className="text-[9px] text-gray-400 text-center italic">
             * As substituições são automáticas. Use marcadores no formato [TAG] nos arquivos Word. Por exemplo: [NOME], [DATA], [ASSINATURA]. Para negrito, formate o marcador como negrito no Word.
           </p>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
-              <PenTool size={18} className="text-blue-600" />
-              Assinatura Global
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowSignaturePad(true)}
-                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-blue-700 transition-all flex items-center gap-2"
-              >
-                <Sparkles size={16} />
-                Nova Assinatura Digital
-              </button>
-              {personalData?.signatureImage && (
-                <button
-                  onClick={removeSignature}
-                  className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2"
-                >
-                  <Trash2 size={16} />
-                  Remover
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       </div>
-
-      {showSignaturePad && (
-        <SignaturePad 
-          initialName={personalData?.nome || ''}
-          onSave={handleSignatureSave}
-          onCancel={() => setShowSignaturePad(false)}
-        />
-      )}
 
       <style jsx global>{`
         .docx-preview-container {
