@@ -23,7 +23,8 @@ import {
   Check,
   X,
   Sparkles,
-  Crop
+  Crop,
+  Shield
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -160,6 +161,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   useEffect(() => {
     const fetchPersonalData = async () => {
       try {
+        const currentUser = auth.currentUser;
+        const accountNumeroPessoal = currentUser?.displayName || '';
+
         // Try to get by userId as doc ID first
         const docRef = doc(db, 'personal_data', userId);
         let docSnap = null;
@@ -172,12 +176,21 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         if (docSnap && docSnap.exists()) {
           const docData = docSnap.data() as any;
           const mergedData = { ...defaultData, ...docData };
+          
+          // Enforce account's numeroPessoal if available
+          if (accountNumeroPessoal) {
+            mergedData.numeroPessoal = accountNumeroPessoal;
+          }
+
           setInitialData(mergedData);
           setFormData(mergedData);
         } else {
           // Fallback: search by userId field
           const hasMigrated = sessionStorage.getItem(`pdMigrationAttempted_${userId}`);
           if (hasMigrated) {
+            if (accountNumeroPessoal) {
+              setFormData(prev => ({ ...prev, numeroPessoal: accountNumeroPessoal }));
+            }
             setLoading(false);
             return;
           }
@@ -197,6 +210,12 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             sessionStorage.setItem(`pdMigrationAttempted_${userId}`, 'true');
             const docData = querySnapshot.docs[0].data() as any;
             const mergedData = { ...defaultData, ...docData };
+            
+            // Enforce account's numeroPessoal
+            if (accountNumeroPessoal) {
+              mergedData.numeroPessoal = accountNumeroPessoal;
+            }
+
             setInitialData(mergedData);
             setFormData(mergedData);
             // Migrate to use userId as doc ID for future efficiency
@@ -206,6 +225,11 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
               } catch (error) {
                 console.warn('Failed to migrate personal_data doc:', error);
               }
+            }
+          } else {
+            // New user, initialize with account id
+            if (accountNumeroPessoal) {
+              setFormData(prev => ({ ...prev, numeroPessoal: accountNumeroPessoal }));
             }
           }
         }
@@ -287,7 +311,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     if (e) e.preventDefault();
     
     // Validar Número Pessoal
-    if (!formData.numeroPessoal || formData.numeroPessoal.trim().length === 0) {
+    const accountNumeroPessoal = auth.currentUser?.displayName;
+    const finalNumeroPessoal = accountNumeroPessoal || formData.numeroPessoal.trim();
+    
+    if (!finalNumeroPessoal || finalNumeroPessoal.length === 0) {
       alert('O Número Pessoal é obrigatório.');
       return;
     }
@@ -299,10 +326,17 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         throw new Error('quota/limit-exceeded');
       }
 
+      // Enforce the account number during save
+      const dataToSave = { 
+        ...formData, 
+        numeroPessoal: finalNumeroPessoal,
+        userId 
+      };
+
       // 1. Verificar se o número pessoal já existe em outro perfil
       const q = query(
         collection(db, 'personal_data'), 
-        where('numeroPessoal', '==', formData.numeroPessoal.trim())
+        where('numeroPessoal', '==', finalNumeroPessoal)
       );
       
       const querySnapshot = await getDocs(q);
@@ -342,8 +376,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
       // Use userId as document ID
       const docRef = doc(db, 'personal_data', userId);
-      await setDoc(docRef, { ...formData, userId });
-      setInitialData(formData);
+      await setDoc(docRef, dataToSave);
+      setInitialData(dataToSave);
+      setFormData(dataToSave);
       alert('Dados salvos com sucesso!');
       onSave();
     } catch (error: any) {
@@ -404,14 +439,15 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             {/* Row 1: Names and ID */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-1 space-y-2">
-                <label className="text-xs font-bold text-gray-500 uppercase">
+                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
                   Número Pessoal (ID)
+                  <Shield size={10} className="text-emerald-600" title="Identificador da Conta (Protegido)" />
                 </label>
                 <input 
                   value={formData.numeroPessoal}
-                  onChange={(e) => setFormData({...formData, numeroPessoal: e.target.value})}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-all font-mono"
-                  placeholder="Ex: 2283701"
+                  readOnly
+                  className="w-full p-3 bg-gray-100 border border-gray-200 rounded-xl outline-none font-mono text-gray-500 cursor-not-allowed"
+                  title="Este número é extraído automaticamente da sua conta e não pode ser alterado."
                 />
               </div>
               <div className="md:col-span-2 space-y-2">
