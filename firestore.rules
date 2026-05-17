@@ -1,5 +1,4 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
     
@@ -8,84 +7,67 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Regras para todas as coleções do sistema
-    match /users/{userId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /personal_data/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /congregations/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /substitutes/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /itineraries/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /activity_analysis/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /s303_reports/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /service_reports/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /pioneer_school_students/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /pioneer_school_workshops/{id} {
-      allow read, write: if isSignedIn();
-    }
-    
-    match /regional_convention_speakers/{id} {
-      allow read, write: if isSignedIn();
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    match /pioneer_school_invitations/{id} {
-      allow read, write: if isSignedIn();
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email in [
+          'weldonrs@gmail.com',
+          '2283701@progcir.app',
+          '2283701@progcir.com',
+          '2283701@gmail.com'
+        ]
+      );
+    }
+
+    // Regras Específicas
+    
+    match /personal_data/{id} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || isOwner(id) || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /congregations/{id} {
+      allow read, write: if isSignedIn() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /substitutes/{id} {
+      allow read, write: if isSignedIn() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /itineraries/{id} {
+      allow read, write: if isSignedIn() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
     }
 
     match /pioneer_school_info/{id} {
       allow read, write: if isSignedIn();
     }
 
-    match /signature_placements/{id} {
-      allow read, write: if isSignedIn();
+    match /document_templates/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
     }
 
     match /role_change_requests/{id} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        request.auth.token.email == 'weldonrs@gmail.com' || 
-        request.auth.token.email == '2283701@progcir.app' ||
-        request.auth.token.email == '2283701@progcir.com'
-      );
-      allow delete: if false;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /pioneer_school_invitations/{id} {
+      allow read: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.collaboratorId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
     match /config/app_settings {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (
-        request.auth.token.email == 'weldonrs@gmail.com' || 
-        request.auth.token.email == '2283701@progcir.app' ||
-        request.auth.token.email == '2283701@progcir.com'
-      );
+      allow write: if isAdmin();
     }
 
-    // Regra global de segurança para o teste
+    // Fallback para outras coleções menores
     match /{document=**} {
       allow read, write: if isSignedIn();
     }

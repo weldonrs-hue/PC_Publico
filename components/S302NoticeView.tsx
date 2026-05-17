@@ -767,18 +767,11 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
                       className="w-full relative flex items-end justify-center transition-transform"
                       style={{ 
                         height: `${layout.signature.imageHeight || 12}mm`,
-                        // marginBottom: `${layout.signature.imageOffset || 0}mm`, // Original
-                        // We combine the local mm offset with the global pixel offset (approx 4px = 1mm at 96dpi)
-                        // Note: marginBottom moves up, so we NEGATE the translateY logic if needed
-                        marginBottom: `${(layout.signature.imageOffset || 0) - (personalData?.signatureOffset || 0) / 3.78}mm`,
+                        marginBottom: `${layout.signature.imageOffset || 0}mm`,
                         transform: `translateX(${layout.signature.imageShiftX || 0}mm)`
                       }}
                     >
-                      {signatureImage ? (
-                        <div className="h-full w-full relative">
-                          <Image src={signatureImage} alt="Assinatura" fill className="object-contain object-bottom" referrerPolicy="no-referrer" />
-                        </div>
-                      ) : (
+                      {!signatureImage && (
                         <span className="font-signature text-[#004aad] text-2xl leading-none">{signatureName}</span>
                       )}
                     </div>

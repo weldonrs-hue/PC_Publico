@@ -19,8 +19,10 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { toJpeg } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
+import DraggableSignature from './DraggableSignature';
 
 interface AppointmentLetterViewProps {
   userId: string;
@@ -79,6 +81,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   const [isDateFocused, setIsDateFocused] = useState(false);
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const letterRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -197,8 +200,35 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     }, 5000);
 
     fetchData();
+    fetchSignaturePlacement();
     return () => clearTimeout(safetyTimeout);
   }, [userId]);
+
+  const fetchSignaturePlacement = async () => {
+    try {
+      const placementId = `appointment_${userId}`;
+      const docRef = doc(db, 'signature_placements', placementId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setSignaturePlacement(docSnap.data() as any);
+      } else {
+        setSignaturePlacement({ x: 450, y: 700, scale: 1 });
+      }
+    } catch (error) {
+      console.error('Error fetching signature placement:', error);
+      setSignaturePlacement({ x: 450, y: 700, scale: 1 });
+    }
+  };
+
+  const handleSignaturePlacementSave = async (settings: { x: number, y: number, scale: number }) => {
+    setSignaturePlacement(settings);
+    try {
+      const placementId = `appointment_${userId}`;
+      await setDoc(doc(db, 'signature_placements', placementId), settings);
+    } catch (error) {
+      console.error('Error saving signature placement:', error);
+    }
+  };
 
   useEffect(() => {
     const date = parseVisitDate(visitDate);
@@ -637,35 +667,25 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             <div className="mt-8 relative group">
               <div className="flex flex-col items-end mb-[58px] pr-[5mm]">
                 <div className="w-full max-w-[450px] px-4 text-center relative">
-                  <p className="text-[17px] mt-0 mb-[18px] text-left pl-4">Seu irmão,</p>
+                  <p className="text-[17px] mt-0 mb-[18px] text-left">Seu irmão,</p>
                   {/* Signature Block */}
                   <div className="inline-block relative w-full flex flex-col items-center overflow-visible">
-                    {signatureImage && signatureImage.length > 5 && (signatureImage.startsWith('http') || signatureImage.startsWith('data:')) ? (
-                      <div 
-                        className="h-[45px] flex items-center justify-center mb-[-10px] relative w-full overflow-visible transition-transform"
-                        style={{ 
-                          transform: `translateY(${personalData?.signatureOffset || 0}px)`
-                        }}
-                      >
-                        <img 
-                          src={signatureImage} 
-                          alt="Assinatura" 
-                          className="h-[45px] w-[407px] object-contain max-w-full"
-                          crossOrigin="anonymous"
+                    <div 
+                      className="h-[45px] flex items-center justify-center mb-[-10px] relative w-full overflow-visible"
+                    >
+                      {!signatureImage && (
+                        <input 
+                          type="text"
+                          value={signatureName}
+                          onChange={(e) => setSignatureName(e.target.value)}
+                          className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
+                          style={{ 
+                            fontFamily: 'var(--font-signature), "Dancing Script", cursive',
+                            fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
+                          }}
                         />
-                      </div>
-                    ) : (
-                      <input 
-                        type="text"
-                        value={signatureName}
-                        onChange={(e) => setSignatureName(e.target.value)}
-                        className="font-signature text-[#004aad] leading-none mb-[-4px] text-center bg-transparent border-none outline-none w-full px-2"
-                        style={{ 
-                          fontFamily: 'var(--font-signature), "Dancing Script", cursive',
-                          fontSize: signatureName.length > 25 ? '24px' : (signatureName.length > 18 ? '28px' : '32px')
-                        }}
-                      />
-                    )}
+                      )}
+                    </div>
                     <div className="border-t border-black w-full mx-auto mb-0"></div>
                     <p className="font-bold text-[11px] mt-[5px] uppercase tracking-wider mb-0 text-center bg-transparent border-none outline-none w-full">
                       {personalData?.nome || 'Nome do Viajante'}
@@ -673,6 +693,18 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                   </div>
                 </div>
               </div>
+
+              {/* Draggable Signature Layer */}
+              {signatureImage && signaturePlacement && (
+                <DraggableSignature 
+                  image={signatureImage}
+                  initialX={signaturePlacement.x}
+                  initialY={signaturePlacement.y}
+                  initialScale={signaturePlacement.scale}
+                  onSave={handleSignaturePlacementSave}
+                  containerRef={letterRef}
+                />
+              )}
             </div>
           </article>
         </div>

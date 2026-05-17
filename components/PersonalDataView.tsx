@@ -310,7 +310,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
       const conflictDocs = querySnapshot.docs.filter(doc => {
         const data = doc.data();
-        const currentEmail = auth.currentUser?.email;
+        const currentEmail = auth.currentUser?.email?.toLowerCase();
         const currentUid = auth.currentUser?.uid;
 
         // 1. Não é conflito se for o próprio documento (pelo ID)
@@ -320,9 +320,16 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         if (data.userId === userId || (currentUid && data.userId === currentUid)) return false;
 
         // 3. Não é conflito se tiver o mesmo e-mail (ajuda em migrações de conta)
-        if (currentEmail && data.emailPessoal === currentEmail) return false;
+        if (currentEmail) {
+          if (data.emailPessoal?.toLowerCase() === currentEmail) return false;
+          if (data.emailJwpub?.toLowerCase() === currentEmail) return false;
+        }
+
+        // 4. Heurística extra: se o nome for idêntico e o e-mail não estiver configurado no outro, 
+        // pode ser o mesmo usuário que perdeu acesso ao e-mail antigo/UID antigo.
+        // Mas por segurança, vamos apenas relaxar o e-mail por enquanto.
         
-        // 4. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
+        // 5. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
         return true;
       });
       
@@ -366,6 +373,12 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             : formData.role === 'pioneiro_especial'
             ? 'Dados Pessoais do Pioneiro Especial'
             : formData.role === 'pioneiro_regular'
+            ? 'Dados Pessoais do Pioneiro Regular'
+            : initialData.role === 'viajante'
+            ? 'Dados Pessoais do Viajante'
+            : initialData.role === 'pioneiro_especial'
+            ? 'Dados Pessoais do Pioneiro Especial'
+            : initialData.role === 'pioneiro_regular'
             ? 'Dados Pessoais do Pioneiro Regular'
             : 'Meus Dados Pessoais'}
         </h2>
@@ -572,11 +585,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 {formData.signatureImage ? (
                   <div className="relative w-full max-w-[300px] mx-auto">
                     <div 
-                      className="flex items-end justify-center relative w-full overflow-visible transition-all duration-200"
-                      style={{ 
-                        transform: `translateY(${formData.signatureOffset}px)`,
-                        height: `${(formData.signatureSize || 60) * 1.5}px` // Scale preview height
-                      }}
+                      className="flex items-end justify-center relative w-full h-[120px] overflow-visible transition-all duration-200"
                     >
                       <Image 
                         src={formData.signatureImage} 
@@ -591,60 +600,35 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                       {formData.nome || 'SEU NOME'}
                     </p>
                     
-                    {/* Offset Control Slider overlay */}
-                    <div className="absolute -left-12 top-0 bottom-0 flex flex-col items-center justify-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all pointer-events-auto lg:pointer-events-none lg:group-hover:pointer-events-auto">
-                      <span className="text-[10px] font-black text-emerald-600 vertical-text">POSIÇÃO</span>
-                      <input 
-                        type="range"
-                        min="-40"
-                        max="40"
-                        value={formData.signatureOffset}
-                        onChange={(e) => setFormData({ ...formData, signatureOffset: parseInt(e.target.value) })}
-                        className="h-32 appearance-none bg-gray-200 rounded-full w-1.5 cursor-pointer accent-emerald-600"
-                        style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' } as any}
-                      />
+                    <div className="absolute -top-4 -right-4 flex gap-2 z-10">
+                      <button 
+                        type="button"
+                        onClick={refineSignatureIA}
+                        disabled={isProcessing}
+                        className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-all shadow-sm disabled:opacity-50"
+                        title="Refinar com IA (Melhorar e Azul)"
+                      >
+                        {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                      </button>
+
+                      <button 
+                        type="button"
+                        onClick={() => setImageToCrop(formData.signatureImage)}
+                        className="p-2 bg-emerald-100 text-emerald-600 rounded-full hover:bg-emerald-200 transition-all shadow-sm"
+                        title="Recortar Assinatura"
+                      >
+                        <Crop size={16} />
+                      </button>
+
+                      <button 
+                        type="button"
+                        onClick={removeSignature}
+                        className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all shadow-sm"
+                        title="Remover Assinatura"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-
-                    <div className="absolute -right-12 top-0 bottom-0 flex flex-col items-center justify-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all pointer-events-auto lg:pointer-events-none lg:group-hover:pointer-events-auto">
-                      <span className="text-[10px] font-black text-emerald-600 vertical-text">TAMANHO</span>
-                      <input 
-                        type="range"
-                        min="30"
-                        max="120"
-                        value={formData.signatureSize || 60}
-                        onChange={(e) => setFormData({ ...formData, signatureSize: parseInt(e.target.value) })}
-                        className="h-32 appearance-none bg-gray-200 rounded-full w-1.5 cursor-pointer accent-emerald-600"
-                        style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' } as any}
-                      />
-                    </div>
-
-                    <button 
-                      type="button"
-                      onClick={removeSignature}
-                      className="absolute -top-4 -right-4 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10"
-                      title="Remover Assinatura"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-
-                    <button 
-                      type="button"
-                      onClick={() => setImageToCrop(formData.signatureImage)}
-                      className="absolute -top-4 right-20 p-2 bg-emerald-100 text-emerald-600 rounded-full hover:bg-emerald-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10"
-                      title="Recortar Assinatura"
-                    >
-                      <Crop size={16} />
-                    </button>
-
-                    <button 
-                      type="button"
-                      onClick={refineSignatureIA}
-                      disabled={isProcessing}
-                      className="absolute -top-4 right-8 p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100 z-10 disabled:opacity-50"
-                      title="Refinar com IA (Melhorar e Azul)"
-                    >
-                      {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                    </button>
                   </div>
                 ) : (
                   <div className="text-center py-4">

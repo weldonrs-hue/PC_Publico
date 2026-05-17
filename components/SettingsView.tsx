@@ -217,12 +217,16 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
     const qSent = query(collection(db, 'pioneer_school_invitations'), where('ownerId', '==', userId));
     const unsubscribeSent = onSnapshot(qSent, (snap) => {
       setPioneerInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to sent invites:', error);
     });
 
     // Listen for invitations received by this user
     const qReceived = query(collection(db, 'pioneer_school_invitations'), where('collaboratorId', '==', userId));
     const unsubscribeReceived = onSnapshot(qReceived, (snap) => {
       setReceivedPioneerInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to received invites:', error);
     });
 
     return () => {

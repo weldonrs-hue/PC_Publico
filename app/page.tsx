@@ -231,10 +231,14 @@ export default function Home() {
     
     const unsubByNumber = onSnapshot(qByNumber, (snap) => {
       if (!snap.empty) setHasGuestInvites(true);
+    }, (error) => {
+      console.warn('Home: Error listening to pioneer invites by number:', error);
     });
 
     const unsubById = onSnapshot(qById, (snap) => {
       if (!snap.empty) setHasGuestInvites(true);
+    }, (error) => {
+      console.warn('Home: Error listening to pioneer invites by ID:', error);
     });
 
     return () => {
