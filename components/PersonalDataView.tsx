@@ -23,12 +23,10 @@ import {
   Check,
   X,
   Sparkles,
-  Crop,
   Shield
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'motion/react';
-import ImageCropper from './ImageCropper';
 import SignaturePad from './SignaturePad';
 
 import { auth, db } from '@/lib/firebase';
@@ -76,86 +74,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const [loading, setLoading] = useState(true);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
-  const refineSignatureIA = () => {
-    if (!formData.signatureImage) return;
-    
-    setIsProcessing(true);
-    
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.src = formData.signatureImage;
-    
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        setIsProcessing(false);
-        return;
-      }
-      
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
-      // Threshold for "near white" to be safe but effective
-      const whiteThreshold = 220; 
-      
-      // Target blue color (professional ink blue: #0047AB)
-      const targetR = 0;
-      const targetG = 71;
-      const targetB = 171;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-        
-        // 1. Transparency Step: If the pixel is very bright (near white), make it transparent
-        if (r > whiteThreshold && g > whiteThreshold && b > whiteThreshold) {
-          data[i + 3] = 0; 
-          continue;
-        }
-
-        // 2. IA Improvement Step: Make existing lines sharper and blue
-        // Calculate luminosity (perceived brightness)
-        const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
-        
-        if (a > 50) { // If it's not already transparent
-           // If it's a dark pixel (likely a pen stroke), make it fully opaque and blue
-           if (brightness < 180) {
-             data[i] = targetR;
-             data[i + 1] = targetG;
-             data[i + 2] = targetB;
-             data[i + 3] = 255; // Max opacity for stroke
-           } else {
-             // For anti-aliased edges, just apply the blue color but keep some transparency
-             data[i] = targetR;
-             data[i + 1] = targetG;
-             data[i + 2] = targetB;
-           }
-        }
-      }
-      
-      ctx.putImageData(imageData, 0, 0);
-      
-      // Additional Step: Sharpening effect using a simple convolution filter if needed
-      // But thresholding and blueing is usually enough for a "digital cleanup" feel
-      
-      const processedImage = canvas.toDataURL('image/png');
-      setFormData({ ...formData, signatureImage: processedImage });
-      setIsProcessing(false);
-    };
-    
-    img.onerror = () => {
-      console.error("Error loading image for refinement");
-      setIsProcessing(false);
-    };
+  const handleSignatureSave = (signatureDataUrl: string) => {
+    setFormData({ ...formData, signatureImage: signatureDataUrl });
+    setShowSignaturePad(false);
   };
 
   useEffect(() => {
@@ -198,7 +120,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           // Use auth.currentUser.uid directly to be absolutely sure we are using the authenticated UID
           const currentUid = auth.currentUser?.uid;
           if (!currentUid) {
-            console.warn('fetchPersonalData: auth.currentUser disappeared during query setup');
             setLoading(false);
             return;
           }
@@ -219,12 +140,10 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             setInitialData(mergedData);
             setFormData(mergedData);
             // Migrate to use userId as doc ID for future efficiency
-            if (!isQuotaExceeded()) {
-              try {
-                await setDoc(doc(db, 'personal_data', userId), { ...mergedData, userId });
-              } catch (error) {
-                console.warn('Failed to migrate personal_data doc:', error);
-              }
+            try {
+              await setDoc(doc(db, 'personal_data', userId), { ...mergedData, userId });
+            } catch (error) {
+              console.warn('Failed to migrate personal_data doc:', error);
             }
           } else {
             // New user, initialize with account id
@@ -247,31 +166,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   }, [userId]);
 
   const [showConfirmBack, setShowConfirmBack] = useState(false);
-
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageToCrop(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-    // Reset input so the same file can be selected again
-    e.target.value = '';
-  };
-
-  const handleCropComplete = (croppedImage: string) => {
-    setFormData({ ...formData, signatureImage: croppedImage });
-    setImageToCrop(null);
-  };
-
-  const handleSignatureSave = (signatureDataUrl: string) => {
-    setFormData({ ...formData, signatureImage: signatureDataUrl });
-    setShowSignaturePad(false);
-  };
 
   const removeSignature = () => {
     setFormData({ ...formData, signatureImage: null });
@@ -333,48 +228,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
         userId 
       };
 
-      // 1. Verificar se o número pessoal já existe em outro perfil
-      const q = query(
-        collection(db, 'personal_data'), 
-        where('numeroPessoal', '==', finalNumeroPessoal)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      // Filtrar para ver se existe algum documento que NÃO seja o do próprio usuário
-      const conflictDocs = querySnapshot.docs.filter(doc => {
-        const data = doc.data();
-        const currentEmail = auth.currentUser?.email?.toLowerCase();
-        const currentUid = auth.currentUser?.uid;
-
-        // 1. Não é conflito se for o próprio documento (pelo ID)
-        if (doc.id === userId || (currentUid && doc.id === currentUid)) return false;
-        
-        // 2. Não é conflito se tiver o mesmo userId no campo
-        if (data.userId === userId || (currentUid && data.userId === currentUid)) return false;
-
-        // 3. Não é conflito se tiver o mesmo e-mail (ajuda em migrações de conta)
-        if (currentEmail) {
-          if (data.emailPessoal?.toLowerCase() === currentEmail) return false;
-          if (data.emailJwpub?.toLowerCase() === currentEmail) return false;
-        }
-
-        // 4. Heurística extra: se o nome for idêntico e o e-mail não estiver configurado no outro, 
-        // pode ser o mesmo usuário que perdeu acesso ao e-mail antigo/UID antigo.
-        // Mas por segurança, vamos apenas relaxar o e-mail por enquanto.
-        
-        // 5. Se chegamos aqui e o número pessoal é igual, mas não reconhecemos como o mesmo usuário, é conflito
-        return true;
-      });
-      
-      if (conflictDocs.length > 0) {
-        const conflictData = conflictDocs[0].data();
-        setIsProcessing(false);
-        alert(`ERRO: Este Número Pessoal (${formData.numeroPessoal}) já está sendo usado pela conta de: ${conflictData.nome || conflictData.emailPessoal || conflictDocs[0].id}.\n\nNão é permitido ter duas contas com o mesmo número. Se você está tentando recuperar seus dados após trocar de e-mail, entre em contato com o suporte.`);
-        return;
-      }
-
-      // Use userId as document ID
+      // 1. Save data using userId as document ID
       const docRef = doc(db, 'personal_data', userId);
       await setDoc(docRef, dataToSave);
       setInitialData(dataToSave);
@@ -639,25 +493,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                     <div className="absolute -top-4 -right-4 flex gap-2 z-10">
                       <button 
                         type="button"
-                        onClick={refineSignatureIA}
-                        disabled={isProcessing}
-                        className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-all shadow-sm disabled:opacity-50"
-                        title="Refinar com IA (Melhorar e Azul)"
-                      >
-                        {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                      </button>
-
-                      <button 
-                        type="button"
-                        onClick={() => setImageToCrop(formData.signatureImage)}
-                        className="p-2 bg-emerald-100 text-emerald-600 rounded-full hover:bg-emerald-200 transition-all shadow-sm"
-                        title="Recortar Assinatura"
-                      >
-                        <Crop size={16} />
-                      </button>
-
-                      <button 
-                        type="button"
                         onClick={removeSignature}
                         className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all shadow-sm"
                         title="Remover Assinatura"
@@ -751,18 +586,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           />
         )}
       </AnimatePresence>
-
-      {/* Image Cropper for Signature */}
-      {imageToCrop && (
-        <ImageCropper 
-          image={imageToCrop}
-          onCropComplete={handleCropComplete}
-          onCancel={() => setImageToCrop(null)}
-          aspect={undefined}
-          cropShape="rect"
-          lockAspect={false}
-        />
-      )}
     </div>
   );
 }

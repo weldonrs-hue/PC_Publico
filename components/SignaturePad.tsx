@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
-import { Type, PenTool, Image as ImageIcon, Trash2, Check, X, RefreshCcw } from 'lucide-react';
+import { Type, PenTool, Image as ImageIcon, Trash2, Check, X, RefreshCcw, Sparkles, Loader2, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SignaturePadProps {
@@ -25,6 +25,8 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
   const [mode, setMode] = useState<SignatureMode>('type');
   const [typedName, setTypedName] = useState(initialName);
   const [selectedFont, setSelectedFont] = useState(HANDWRITING_FONTS[0]);
+  const [loadedImage, setLoadedImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const sigCanvas = useRef<SignatureCanvas | null>(null);
   const typeRef = useRef<HTMLDivElement>(null);
@@ -35,50 +37,246 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
       sigCanvas.current.clear();
     } else if (mode === 'type') {
       setTypedName('');
+    } else if (mode === 'image') {
+      setLoadedImage(null);
     }
   };
 
-  const handleSave = async () => {
-    if (mode === 'draw' && sigCanvas.current) {
-      if (sigCanvas.current.isEmpty()) return;
-      
-      const trimmedCanvas = sigCanvas.current.getTrimmedCanvas();
-      
-      // Add padding to prevent cutting edges
-      const padding = 20;
-      const paddedCanvas = document.createElement('canvas');
-      paddedCanvas.width = trimmedCanvas.width + (padding * 2);
-      paddedCanvas.height = trimmedCanvas.height + (padding * 2);
-      
-      const pCtx = paddedCanvas.getContext('2d');
-      if (pCtx) {
-        pCtx.drawImage(trimmedCanvas, padding, padding);
-        onSave(paddedCanvas.toDataURL('image/png'));
-      } else {
-        onSave(trimmedCanvas.toDataURL('image/png'));
+  const handleRefineIA = () => {
+    const currentModeImage = mode === 'draw' ? sigCanvas.current?.toDataURL('image/png') : loadedImage;
+    if (!currentModeImage) return;
+
+    setIsProcessing(true);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = currentModeImage;
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setIsProcessing(false);
+        return;
       }
+
+      const { width, height } = img;
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Step 1: Draw on white background for better edge calculation
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0);
+
+      // Step 2: Smoothing and Sharpening Filter
+      // We apply a smart smoothing that removes digital pixelation while preserving character
+      ctx.globalCompositeOperation = 'source-over';
+      
+      // Apply subtle blur to blend jagged edges
+      ctx.filter = 'blur(0.6px) contrast(1.1)';
+      ctx.drawImage(canvas, 0, 0);
+      
+      // Reinforce core lines with contrast
+      ctx.filter = 'contrast(1.6) brightness(1.02)';
+      ctx.drawImage(canvas, 0, 0);
+      ctx.filter = 'none';
+
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+
+      // Premium Ballpoint Pen Blue (Royal Blue Base: #003366 to vibrant #0047AB)
+      const baseR = 10;
+      const baseG = 40;
+      const baseB = 165;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+        
+        // Luma calculation (perceived brightness)
+        const luma = (r * 0.299 + g * 0.587 + b * 0.114);
+        
+        // 1. Precise Background Removal
+        // We target anything that looks like white or very light paper noise
+        if (luma > 238) {
+          data[i+3] = 0;
+          continue;
+        }
+
+        // 2. Ink Density Calculation
+        // Use luma to determine how much "ink" is there
+        let intensity = 255 - luma;
+        
+        // Sharpness curve: make the center of strokes opaque and edges smooth
+        if (intensity < 30) {
+          data[i+3] = 0; // Filter micro-noise
+          continue;
+        }
+        
+        // Boost intensity to overcome low-res captures but keep anti-aliasing
+        intensity = Math.min(255, Math.pow(intensity / 255, 0.8) * 255 * 1.4);
+
+        // 3. Realistic Ink Texturing
+        // Authentic ballpoint pigment has subtle variations based on pressure
+        const noise = (Math.random() - 0.5) * 15;
+        const pressure = 0.85 + (intensity / 255) * 0.15; // Deeper color for thicker lines
+        
+        data[i] = Math.max(0, (baseR + noise) * pressure);
+        data[i+1] = Math.max(0, (baseG + noise) * pressure);
+        data[i+2] = Math.max(0, (baseB + noise) * pressure);
+        data[i+3] = intensity; 
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      const result = canvas.toDataURL('image/png');
+      
+      if (mode === 'draw' && sigCanvas.current) {
+        sigCanvas.current.fromDataURL(result);
+      } else {
+        setLoadedImage(result);
+      }
+      setIsProcessing(false);
+    };
+    img.onerror = () => setIsProcessing(false);
+  };
+
+  const handleSave = async () => {
+    setIsProcessing(true);
+
+    const finishSave = (dataUrl: string) => {
+      // Final Auto-Crop for the finished dataUrl regardless of mode
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = dataUrl;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          onSave(dataUrl);
+          setIsProcessing(false);
+          return;
+        }
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+        let found = false;
+
+        for (let y = 0; y < canvas.height; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            const alpha = data[(y * canvas.width + x) * 4 + 3];
+            // Only count if it's significantly visible ink
+            if (alpha > 10) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+              found = true;
+            }
+          }
+        }
+
+        if (!found) {
+          onSave(dataUrl);
+          setIsProcessing(false);
+          return;
+        }
+
+        // Add balanced padding
+        const padding = 15;
+        const cropX = Math.max(0, minX - padding);
+        const cropY = Math.max(0, minY - padding);
+        const cropW = Math.min(canvas.width - cropX, (maxX - minX) + padding * 2);
+        const cropH = Math.min(canvas.height - cropY, (maxY - minY) + padding * 2);
+
+        const croppedCanvas = document.createElement('canvas');
+        croppedCanvas.width = cropW;
+        croppedCanvas.height = cropH;
+        const cCtx = croppedCanvas.getContext('2d');
+        if (cCtx) {
+          cCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          onSave(croppedCanvas.toDataURL('image/png'));
+        } else {
+          onSave(dataUrl);
+        }
+        setIsProcessing(false);
+      };
+      img.onerror = () => {
+        onSave(dataUrl);
+        setIsProcessing(false);
+      };
+    };
+
+    if (mode === 'draw' && sigCanvas.current) {
+      if (sigCanvas.current.isEmpty()) {
+        setIsProcessing(false);
+        return;
+      }
+      finishSave(sigCanvas.current.toDataURL('image/png'));
     } else if (mode === 'type' && typedName.trim()) {
-      // Create a canvas to render the text as an image
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Measure text
         ctx.font = `60px ${selectedFont.name}`;
         const metrics = ctx.measureText(typedName);
-        const width = metrics.width + 40;
-        const height = 100;
-        
+        const width = metrics.width + 80;
+        const height = 150;
         canvas.width = width;
         canvas.height = height;
-        
-        // Re-apply font after resize
         ctx.font = `60px ${selectedFont.name}`;
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#0047AB'; // Blue pen color
-        ctx.fillText(typedName, 20, height / 2);
-        
-        onSave(canvas.toDataURL('image/png'));
+        ctx.fillStyle = '#0f35a9';
+        ctx.fillText(typedName, 40, height / 2);
+        finishSave(canvas.toDataURL('image/png'));
+      } else {
+        setIsProcessing(false);
       }
+    } else if (mode === 'image' && loadedImage) {
+      // If it's an image, we enforce background removal automatically if it looks like it has one
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = loadedImage;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          finishSave(loadedImage);
+          return;
+        }
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Quick background check and refinement
+        for (let i = 0; i < data.length; i += 4) {
+          const brightness = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+          if (brightness > 230) {
+            data[i + 3] = 0;
+          } else if (data[i + 3] > 10) {
+            // Apply signature blue theme if color is neutral
+            const isNeutral = Math.max(data[i], data[i+1], data[i+2]) - Math.min(data[i], data[i+1], data[i+2]) < 30;
+            if (isNeutral) {
+              data[i] = 15;
+              data[i+1] = 53;
+              data[i+2] = 169;
+            }
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        finishSave(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => finishSave(loadedImage);
+    } else {
+      setIsProcessing(false);
     }
   };
 
@@ -88,7 +286,8 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          onSave(event.target.result as string);
+          setLoadedImage(event.target.result as string);
+          setMode('image');
         }
       };
       reader.readAsDataURL(file);
@@ -153,7 +352,7 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                   onChange={(e) => setTypedName(e.target.value)}
                   placeholder="Seu nome aqui..."
                   className="w-full text-center text-4xl p-4 bg-transparent border-b-2 border-gray-100 focus:border-blue-500 outline-none transition-colors"
-                  style={{ fontFamily: selectedFont.variable, color: '#0047AB' }}
+                  style={{ fontFamily: selectedFont.variable, color: '#0f35a9' }}
                 />
                 
                 <div className="flex flex-wrap justify-center gap-3">
@@ -186,13 +385,21 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                 <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 overflow-hidden">
                   <SignatureCanvas 
                     ref={sigCanvas}
-                    penColor="#0047AB"
+                    penColor="#0f35a9"
                     canvasProps={{
                       className: "w-full h-[250px] cursor-crosshair"
                     }}
                   />
                 </div>
                 <div className="absolute top-4 right-4 flex gap-2">
+                  <button 
+                    onClick={handleRefineIA}
+                    disabled={isProcessing}
+                    className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-all shadow-sm disabled:opacity-50"
+                    title="Refinar com IA"
+                  >
+                    {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                  </button>
                   <button 
                     onClick={handleClear}
                     className="p-2 bg-white shadow-md border border-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors"
@@ -204,6 +411,70 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                 <div className="mt-4 text-center">
                   <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Use seu mouse ou touch-pad para assinar</p>
                 </div>
+              </motion.div>
+            )}
+
+            {mode === 'image' && (
+              <motion.div 
+                key="image"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                className="relative flex flex-col items-center"
+              >
+                {loadedImage ? (
+                  <div className="space-y-6 w-full max-w-md mx-auto">
+                    <div className="relative p-6 bg-white border border-gray-200 rounded-2xl shadow-inner min-h-[200px] flex items-center justify-center overflow-hidden">
+                      <img 
+                        src={loadedImage} 
+                        alt="Preview" 
+                        className="max-h-[180px] object-contain"
+                      />
+                      
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        <button 
+                          onClick={handleRefineIA}
+                          disabled={isProcessing}
+                          className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2 pr-4 pl-3"
+                        >
+                          {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                          <span className="text-xs font-bold">REFINAR COM IA</span>
+                        </button>
+                        <button 
+                          onClick={() => setLoadedImage(null)}
+                          className="p-2 bg-white border border-gray-200 text-red-500 rounded-full hover:bg-red-50 shadow-md"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-center flex-col items-center gap-2">
+                      <p className="text-xs text-gray-400 font-bold uppercase tracking-tight">Dica: Use o botão Refinar para suavizar os traços e aplicar cor azul realista</p>
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-emerald-600 font-bold text-xs hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCcw size={12} />
+                        Trocar Imagem
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl w-full bg-gray-50/50">
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex flex-col items-center gap-4 mx-auto group"
+                    >
+                      <div className="w-16 h-16 bg-white rounded-full shadow-md flex items-center justify-center transition-all group-hover:scale-110 group-hover:shadow-lg">
+                        <Upload className="text-emerald-600" size={24} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-gray-700">Carregar Imagem de Assinatura</p>
+                        <p className="text-xs text-gray-400 font-medium">PNG, JPG ou WEBP (melhor com fundo claro)</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -229,10 +500,14 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
           <div className="flex gap-3">
             <button 
               onClick={handleSave}
-              disabled={mode === 'type' ? !typedName.trim() : false}
+              disabled={
+                mode === 'type' ? !typedName.trim() : 
+                mode === 'draw' ? (sigCanvas.current?.isEmpty() ?? true) :
+                mode === 'image' ? !loadedImage : false
+              }
               className="px-8 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center gap-2"
             >
-              Criar Assinatura
+              Confirmar Assinatura
               <Check size={18} />
             </button>
           </div>
