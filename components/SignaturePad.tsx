@@ -63,72 +63,89 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
       canvas.width = width;
       canvas.height = height;
       
-      // Step 1: Draw on white background for better edge calculation
+      // Step 1: Draw high-contrast base
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, width, height);
+      // Pre-sharpen the input
+      ctx.filter = 'contrast(1.5) brightness(1.05)';
       ctx.drawImage(img, 0, 0);
-
-      // Step 2: Smoothing and Sharpening Filter
-      // We apply a smart smoothing that removes digital pixelation while preserving character
-      ctx.globalCompositeOperation = 'source-over';
-      
-      // Apply subtle blur to blend jagged edges
-      ctx.filter = 'blur(0.6px) contrast(1.1)';
-      ctx.drawImage(canvas, 0, 0);
-      
-      // Reinforce core lines with contrast
-      ctx.filter = 'contrast(1.6) brightness(1.02)';
-      ctx.drawImage(canvas, 0, 0);
       ctx.filter = 'none';
 
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
+      const source = new Uint8ClampedArray(data);
 
-      // Premium Ballpoint Pen Blue (Royal Blue Base: #003366 to vibrant #0047AB)
-      const baseR = 10;
-      const baseG = 40;
-      const baseB = 165;
+      // Professional Vibrant Ballpoint Blue (#003BB1)
+      const targetR = 0;
+      const targetG = 59;
+      const targetB = 177;
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i+1];
-        const b = data[i+2];
-        
-        // Luma calculation (perceived brightness)
-        const luma = (r * 0.299 + g * 0.587 + b * 0.114);
-        
-        // 1. Precise Background Removal
-        // We target anything that looks like white or very light paper noise
-        if (luma > 238) {
-          data[i+3] = 0;
-          continue;
+      // Scan and reconstruct movements
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          
+          // Perceived brightness
+          const r = source[idx];
+          const g = source[idx + 1];
+          const b = source[idx + 2];
+          const luma = (r * 0.299 + g * 0.587 + b * 0.114);
+          
+          // Background removal (strict)
+          if (luma > 240) {
+            data[idx + 3] = 0;
+            continue;
+          }
+
+          let intensity = 255 - luma;
+          
+          // Stroke Core Detection
+          // We look at neighborhood to distinguish between noise and real stroke ink
+          let localDensity = 0;
+          let minLuma = 255;
+          
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = x + dx;
+              const ny = y + dy;
+              if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                const nIdx = (ny * width + nx) * 4;
+                const nLuma = (source[nIdx] * 0.299 + source[nIdx+1] * 0.587 + source[nIdx+2] * 0.114);
+                if (nLuma < 230) localDensity++;
+                if (nLuma < minLuma) minLuma = nLuma;
+              }
+            }
+          }
+
+          // Culling noise while keeping thin lines
+          if (localDensity < 2 && intensity < 100) {
+            data[idx + 3] = 0;
+            continue;
+          }
+
+          // Reconstruction logic:
+          // Boost pixels that are part of a dense stroke (center of the line)
+          // Taper off edges for high-quality anti-aliasing (smooth curves)
+          let alpha;
+          if (intensity > 110 || (localDensity >= 6 && intensity > 60)) {
+            alpha = 255; // Solid Ink
+          } else if (intensity < 30) {
+            alpha = 0; // Transparent
+          } else {
+            // Linear interpolation for smooth edges
+            alpha = (intensity - 30) * (255 / (110 - 30));
+          }
+
+          // Apply rich blue color
+          data[idx] = targetR;
+          data[idx + 1] = targetG;
+          data[idx + 2] = targetB;
+          data[idx + 3] = alpha;
         }
-
-        // 2. Ink Density Calculation
-        // Use luma to determine how much "ink" is there
-        let intensity = 255 - luma;
-        
-        // Sharpness curve: make the center of strokes opaque and edges smooth
-        if (intensity < 30) {
-          data[i+3] = 0; // Filter micro-noise
-          continue;
-        }
-        
-        // Boost intensity to overcome low-res captures but keep anti-aliasing
-        intensity = Math.min(255, Math.pow(intensity / 255, 0.8) * 255 * 1.4);
-
-        // 3. Realistic Ink Texturing
-        // Authentic ballpoint pigment has subtle variations based on pressure
-        const noise = (Math.random() - 0.5) * 15;
-        const pressure = 0.85 + (intensity / 255) * 0.15; // Deeper color for thicker lines
-        
-        data[i] = Math.max(0, (baseR + noise) * pressure);
-        data[i+1] = Math.max(0, (baseG + noise) * pressure);
-        data[i+2] = Math.max(0, (baseB + noise) * pressure);
-        data[i+3] = intensity; 
       }
 
       ctx.putImageData(imageData, 0, 0);
+      
       const result = canvas.toDataURL('image/png');
       
       if (mode === 'draw' && sigCanvas.current) {

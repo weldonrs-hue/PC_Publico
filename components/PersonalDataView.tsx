@@ -22,7 +22,6 @@ import {
   Eraser,
   Check,
   X,
-  Sparkles,
   Shield
 } from 'lucide-react';
 import Image from 'next/image';
