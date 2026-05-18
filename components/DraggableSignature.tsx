@@ -25,12 +25,29 @@ export default function DraggableSignature({
   const [position, setPosition] = useState({ x: initialX, y: initialY });
   const [scale, setScale] = useState(initialScale);
   const [aspectRatio, setAspectRatio] = useState(2.5);
+  const [isSelected, setIsSelected] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
   const x = useMotionValue(initialX);
   const y = useMotionValue(initialY);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (nodeRef.current && !nodeRef.current.contains(e.target as Node)) {
+        setIsSelected(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     x.set(initialX);
@@ -47,6 +64,11 @@ export default function DraggableSignature({
     img.src = image;
   }, [image]);
 
+  const handleDragStart = () => {
+    setIsDragging(true);
+    setIsSelected(true);
+  };
+
   const handleDragEnd = () => {
     setIsDragging(false);
     const newX = x.get();
@@ -57,6 +79,7 @@ export default function DraggableSignature({
   const handleResize = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent, direction: string) => {
     e.stopPropagation();
     setIsResizing(true);
+    setIsSelected(true);
 
     const startX = 'touches' in e ? (e as any).touches[0].clientX : (e as any).clientX;
     const startY = 'touches' in e ? (e as any).touches[0].clientY : (e as any).clientY;
@@ -129,11 +152,16 @@ export default function DraggableSignature({
   return (
     <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden print:hidden">
       <motion.div
+        ref={nodeRef}
         drag={!isResizing}
         dragListener={!isResizing}
         dragMomentum={false}
-        onDragStart={() => setIsDragging(true)}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsSelected(true);
+        }}
         style={{ x, y, width: `${currentWidth}px`, height: `${currentHeight}px` }}
         className={`absolute pointer-events-auto cursor-move group select-none ${isDragging ? 'z-50' : 'z-40'}`}
       >
@@ -150,32 +178,32 @@ export default function DraggableSignature({
             />
           </div>
 
-          {/* Selection Border - Very thin and only group-hovered or active */}
-          <div className={`absolute -inset-0.5 border border-blue-400/30 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none ${isDragging || isResizing ? 'opacity-100 border-blue-500/50' : ''}`} />
+          {/* Selection Border - Always visible if selected */}
+          <div className={`absolute -inset-0.5 border border-blue-400/30 rounded-sm transition-opacity pointer-events-none ${isSelected || isDragging || isResizing ? 'opacity-100 border-blue-500/50' : 'opacity-0 group-hover:opacity-100'}`} />
 
-          {/* Resize Handles - Smaller: 6px */}
+          {/* Resize Handles - Visible if selected */}
           <div 
-            className="absolute -top-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            className={`absolute -top-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
             onPointerDown={(e) => handleResize(e as any, 'nw')}
           />
 
           <div 
-            className="absolute -top-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            className={`absolute -top-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
             onPointerDown={(e) => handleResize(e as any, 'ne')}
           />
 
           <div 
-            className="absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            className={`absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
             onPointerDown={(e) => handleResize(e as any, 'sw')}
           />
 
           <div 
-            className="absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize opacity-0 group-hover:opacity-100 shadow-sm hover:scale-125 transition-all pointer-events-auto z-10"
+            className={`absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
             onPointerDown={(e) => handleResize(e as any, 'se')}
           />
 
-          {/* Top Controls Overlay - Even more discrete */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm shadow-md border border-gray-100 rounded p-0.5 opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap">
+          {/* Top Controls Overlay - Visible if selected */}
+          <div className={`absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm shadow-md border border-gray-100 rounded p-0.5 transition-all whitespace-nowrap ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
             <button 
               onClick={() => {
                 setPosition({ x: initialX, y: initialY });

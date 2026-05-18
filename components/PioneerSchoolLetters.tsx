@@ -157,6 +157,8 @@ export default function PioneerSchoolLetters({
     const signatureName = personalData?.nome || '________________';
     const circuito = personalData?.circuito || '________________';
     const signatureText = `${signatureName} (${circuito})`;
+    const signatureImage = personalData?.signatureImage || null;
+    const signatureValue = signatureImage || signatureText;
     const telefoneCircuito = personalData?.telefoneCircuito || '________________';
 
     return {
@@ -194,10 +196,10 @@ export default function PioneerSchoolLetters({
       'NOME DO INSTRUTOR': signatureText,
       'instrutor': signatureText,
       'INSTRUTOR': signatureText,
-      'ASSINATURA': signatureText,
-      'assinatura': signatureText,
-      '%ASSINATURA': '',
-      'ASSINATURA_GLOBAL': '',
+      'ASSINATURA': signatureValue,
+      'assinatura': signatureValue,
+      '%ASSINATURA': signatureValue,
+      'ASSINATURA_GLOBAL': signatureValue,
       'VIAJANTE': signatureName,
       'viajante': signatureName,
       'NOME_VIAJANTE': signatureName,
