@@ -215,6 +215,7 @@ interface PioneerSchoolViewProps {
   defaultCircuit: string;
   isGuest?: boolean;
   guestTurma?: string | null;
+  isAdmin?: boolean;
 }
 
 export default function PioneerSchoolView({ 
@@ -223,7 +224,8 @@ export default function PioneerSchoolView({
   congregations, 
   defaultCircuit,
   isGuest = false,
-  guestTurma = null
+  guestTurma = null,
+  isAdmin = false
 }: PioneerSchoolViewProps) {
   const [userId, setUserId] = useState(initialUserId);
   const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info' | 'templates_pss'>(() => {
@@ -1752,6 +1754,7 @@ export default function PioneerSchoolView({
         ) : activeTab === 'templates_pss' ? (
           <PSSAssignmentLetters 
             userId={userId}
+            isAdmin={isAdmin}
             selectedTurma={selectedTurma}
             schoolInfo={schoolInfo}
             workshopAssignments={workshopAssignments}

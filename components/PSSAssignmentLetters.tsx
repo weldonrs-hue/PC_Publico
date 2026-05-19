@@ -14,10 +14,13 @@ import {
   FileDown,
   PenTool,
   Sparkles,
-  Trash2
+  Trash2,
+  Settings2,
+  X
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
+import DocxToPdfDemo from './DocxToPdfDemo';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
 import { 
@@ -25,12 +28,17 @@ import {
   getDocs, 
   doc, 
   getDoc,
-  setDoc
+  setDoc,
+  query,
+  where,
+  limit
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface PSSAssignmentLettersProps {
   userId: string;
+  isAdmin?: boolean;
   selectedTurma: '1' | '2' | '3';
   schoolInfo: {
     dataTurma: string;
@@ -48,6 +56,7 @@ const TEMPLATE_NAMES = Array.from({ length: 18 }, (_, i) => `PSS assignment lett
 
 export default function PSSAssignmentLetters({ 
   userId, 
+  isAdmin,
   selectedTurma, 
   schoolInfo, 
   workshopAssignments 
@@ -60,6 +69,7 @@ export default function PSSAssignmentLetters({
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
+  const [showManager, setShowManager] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -432,9 +442,21 @@ export default function PSSAssignmentLetters({
               <List size={18} />
               Selecione o Template
             </h3>
-            <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
-              {TEMPLATE_NAMES.length} Modelos Disponíveis
-            </span>
+            
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <button
+                  onClick={() => setShowManager(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm border border-blue-100 hover:bg-blue-50 transition-all"
+                >
+                  <Settings2 size={14} />
+                  Gerenciar Templates
+                </button>
+              )}
+              <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
+                {TEMPLATE_NAMES.length} Modelos Disponíveis
+              </span>
+            </div>
           </div>
           
           <div className="flex overflow-x-auto md:grid md:grid-cols-4 lg:grid-cols-6 gap-2 pb-2 md:pb-0 custom-scrollbar">
@@ -569,6 +591,49 @@ export default function PSSAssignmentLetters({
           border-radius: 10px;
         }
       `}</style>
+
+      {/* Template Management Modal */}
+      <AnimatePresence>
+        {showManager && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-7xl h-[90vh] overflow-hidden flex flex-col shadow-2xl relative"
+            >
+              <div className="absolute top-6 right-6 z-10">
+                <button 
+                  onClick={() => {
+                    setShowManager(false);
+                    fetchTemplates(); // Refresh templates when closing manager
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-all"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <DocxToPdfDemo 
+                  userId={userId}
+                  isAdmin={isAdmin}
+                  canManage={true}
+                  initialMode="manager"
+                  onBack={() => {
+                    setShowManager(false);
+                    fetchTemplates();
+                  }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

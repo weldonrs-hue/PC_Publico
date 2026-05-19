@@ -200,10 +200,23 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         }
 
         // Fetch current user role
+        const userEmail = auth.currentUser?.email;
+        const isAdminEmail = 
+          userEmail === 'weldonrs@gmail.com' || 
+          userEmail === '2283701@progcir.app' ||
+          userEmail === '2283701@progcir.com';
+        
         const userDocRef = doc(db, 'users', userId);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          setCurrentUserRole(userDocSnap.data().role || 'user');
+        const userDocSnap = await getDoc(userDocRef).catch(err => {
+          console.warn('SettingsView: Failed to fetch user profile, using email for role check:', err);
+          return null;
+        });
+
+        if (userDocSnap && userDocSnap.exists()) {
+          const data = userDocSnap.data();
+          setCurrentUserRole(isAdminEmail ? 'admin' : (data.role || 'user'));
+        } else {
+          setCurrentUserRole(isAdminEmail ? 'admin' : 'user');
         }
       } catch (error) {
         console.error('Erro ao buscar configurações:', error);

@@ -125,7 +125,7 @@ export default function DashboardCards({
                   ) : card.title === 'Dados Pessoais' ? (
                     <div className="flex flex-col">
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide truncate">
-                        {user?.usuario || 'usuário'}
+                        {personalData?.nome || user?.usuario || 'usuário'}
                       </p>
                       {user?.role === 'admin' && (
                         <p className="inline-block self-start text-[8px] font-black text-emerald-600 tracking-widest uppercase mt-0.5">Administrador</p>

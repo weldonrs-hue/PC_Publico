@@ -78,6 +78,8 @@ export default function Home() {
   const [showTerms, setShowTerms] = useState(false);
   const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
 
+  const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com';
+
   // Initialize client-side state
   useEffect(() => {
     const isQuota = isQuotaExceeded();
@@ -287,12 +289,17 @@ export default function Home() {
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        const isAdminEmail = 
+          firebaseUser.email === 'weldonrs@gmail.com' || 
+          firebaseUser.email === '2283701@progcir.app' ||
+          firebaseUser.email === '2283701@progcir.com';
+
         // Set a basic user state immediately so we don't stay on the login screen if authenticated
         const basicUserData = {
           id: firebaseUser.uid,
           usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
           email: firebaseUser.email,
-          role: 'user', // Default role
+          role: isAdminEmail ? 'admin' : 'user', // Set initial role accurately
           photoURL: firebaseUser.photoURL || null,
           migrationCompleted: true, // Assume true to avoid migration loops if quota is hit
           itinerariesInitialized: true
@@ -303,12 +310,12 @@ export default function Home() {
 
         // Update last login once per session/auth change
         try {
-          // Check if quota is already exceeded before doing anything
           if (isQuotaExceeded()) {
             setQuotaExceeded(true);
             return;
           }
 
+          // Fetch doc with a slight delay to allow offline cache if needed
           const userDoc = await getDoc(userDocRef);
           const isAdminEmail = 
             firebaseUser.email === 'weldonrs@gmail.com' || 
@@ -316,16 +323,22 @@ export default function Home() {
             firebaseUser.email === '2283701@progcir.com';
           const role = isAdminEmail ? 'admin' : 'user';
 
+          // Try to get personal data to sync name
+          const pdDocRef = doc(db, 'personal_data', firebaseUser.uid);
+          const pdDoc = await getDoc(pdDocRef).catch(() => null);
+          const pdData = pdDoc?.exists() ? pdDoc.data() : null;
+          const syncName = pdData?.nome || firebaseUser.displayName || null;
+
           if (!userDoc.exists()) {
-            // Only attempt setDoc if quota not already known to be exceeded
             if (!quotaExceededRef.current) {
               await setDoc(userDocRef, {
                 email: firebaseUser.email,
+                nome: syncName,
                 role: role,
-                photoURL: null,
+                photoURL: pdData?.profilePhoto || firebaseUser.photoURL || null,
                 createdAt: new Date().toISOString(),
                 lastLogin: new Date().toISOString(),
-                migrationCompleted: false
+                migrationCompleted: true
               });
               localStorage.setItem(`lastLoginUpdate_${firebaseUser.uid}`, new Date().getTime().toString());
             }
@@ -333,12 +346,20 @@ export default function Home() {
             const data = userDoc.data();
             const updates: any = {};
             
-            // Ensure admin role is set for admin emails
             if (isAdminEmail && data.role !== 'admin') {
               updates.role = 'admin';
             }
+            
+            // Sync name if missing in users but present in personal_data
+            if (syncName && !data.nome) {
+              updates.nome = syncName;
+            }
 
-            // Update lastLogin only once per day to save quota (changed from 1 hour to 24 hours)
+            // Sync photo if missing
+            if (pdData?.profilePhoto && !data.photoURL) {
+              updates.photoURL = pdData.profilePhoto;
+            }
+
             const lastUpdate = localStorage.getItem(`lastLoginUpdate_${firebaseUser.uid}`);
             const now = new Date().getTime();
             if (!lastUpdate || (now - parseInt(lastUpdate)) > 86400000) { // 24 hours
@@ -347,13 +368,16 @@ export default function Home() {
             }
 
             if (Object.keys(updates).length > 0 && !quotaExceededRef.current) {
-              await updateDoc(userDocRef, updates);
+              await updateDoc(userDocRef, updates).catch(err => {
+                if (err.message?.includes('quota') || err.message?.includes('resource-exhausted')) {
+                  setQuotaExceededGlobal();
+                }
+              });
             }
           }
         } catch (error: any) {
           console.error('Error updating user login info:', error);
           if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
-            setQuotaExceeded(true);
             setQuotaExceededGlobal();
           }
         }
@@ -362,11 +386,16 @@ export default function Home() {
         unsubUser = onSnapshot(userDocRef, (userDoc) => {
           if (userDoc.exists()) {
             const data = userDoc.data();
+            const isAdminEmail = 
+              firebaseUser.email === 'weldonrs@gmail.com' || 
+              firebaseUser.email === '2283701@progcir.app' ||
+              firebaseUser.email === '2283701@progcir.com';
+            
             const userData = {
               id: firebaseUser.uid,
               usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
               email: firebaseUser.email,
-              role: data.role || 'user',
+              role: isAdminEmail ? 'admin' : (data.role || 'user'),
               photoURL: data.photoURL || null,
               migrationCompleted: data.migrationCompleted || false,
               itinerariesInitialized: data.itinerariesInitialized || false
@@ -536,6 +565,43 @@ export default function Home() {
           if (pdDoc && pdDoc.exists()) {
             const pdData = pdDoc.data();
             setPersonalData(pdData);
+            
+            // Sync to users collection for consistency in other parts of the app (like Chat)
+            // ONLY if data actually changed and quota hasn't been hit
+            if ((pdData.nome || pdData.role) && !quotaExceededRef.current) {
+              const runSync = async () => {
+                try {
+                  const uDocRef = doc(db, 'users', activeUid);
+                  const uDocSnap = await getDoc(uDocRef);
+                  if (uDocSnap.exists()) {
+                    const uData = uDocSnap.data();
+                    const updates: any = {};
+                    if (pdData.nome && pdData.nome !== uData.nome) updates.nome = pdData.nome;
+                    if (pdData.role && pdData.role !== uData.role) updates.role = pdData.role;
+                    if (pdData.profilePhoto && pdData.profilePhoto !== uData.photoURL) updates.photoURL = pdData.profilePhoto;
+                    
+                    if (Object.keys(updates).length > 0) {
+                      await updateDoc(uDocRef, updates);
+                    }
+                  } else {
+                    // If user doc doesn't exist, create it
+                    await setDoc(uDocRef, {
+                      nome: pdData.nome || '',
+                      role: pdData.role || 'user',
+                      photoURL: pdData.profilePhoto || null,
+                      lastActive: serverTimestamp()
+                    });
+                  }
+                } catch (err: any) {
+                  console.warn('Silent sync to users failed:', err);
+                  if (err.message?.includes('quota') || err.message?.includes('resource-exhausted')) {
+                    setQuotaExceeded(true);
+                  }
+                }
+              };
+              runSync();
+            }
+
             // Only update user state if the username is different to avoid loops
             if (pdData.numeroPessoal && pdData.numeroPessoal !== user.usuario) {
               setUser((prev: any) => prev ? ({ ...prev, usuario: pdData.numeroPessoal }) : null);
@@ -1198,9 +1264,10 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'pioneer_school' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+          {currentView === 'pioneer_school' && (personalData?.role === 'viajante' || isAdminUser) && (
             <PioneerSchoolView 
               userId={user.id}
+              isAdmin={isAdminUser}
               onBack={() => changeView('schools')}
               congregations={congregations}
               defaultCircuit={personalData?.circuito || ''}
@@ -1274,9 +1341,9 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'cartas' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+          {currentView === 'cartas' && (personalData?.role === 'viajante' || isAdminUser) && (
             <CartasSeletorView 
-              isAdmin={user?.role === 'admin'}
+              isAdmin={isAdminUser}
               appConfig={appConfig}
               onViewChange={(view) => {
                 if (view.endsWith(':manager')) {
@@ -1368,8 +1435,8 @@ export default function Home() {
           {currentView === 'docx_demo' && (
             <DocxToPdfDemo 
               userId={user.id}
-              isAdmin={user.role === 'admin'}
-              canManage={user?.role === 'admin' || appConfig.allowPSSUploadForAll}
+              isAdmin={isAdminUser}
+              canManage={isAdminUser || appConfig.allowPSSUploadForAll}
               initialMode={pssInitialMode}
               onBack={() => changeView('cartas')}
             />
@@ -1428,6 +1495,7 @@ export default function Home() {
           image={imageToCrop} 
           onCropComplete={handleCropComplete} 
           onCancel={() => setImageToCrop(null)} 
+          isProfileMode={true}
         />
       )}
       <TermsAndPrivacy 

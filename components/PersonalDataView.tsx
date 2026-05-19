@@ -17,7 +17,6 @@ import {
   Globe,
   Loader2,
   Upload,
-  Camera,
   Trash2,
   PenTool,
   Eraser,
@@ -63,7 +62,6 @@ const defaultData = {
   emailPessoal: '',
   telefonePessoal: '',
   signatureImage: null as string | null,
-  profilePhoto: null as string | null,
   signatureOffset: 0,
   signatureSize: 60,
   role: '' as 'viajante' | 'pioneiro_especial' | 'pioneiro_regular' | ''
@@ -75,22 +73,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const [loading, setLoading] = useState(true);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 500 * 1024) { // 500KB limit for base64
-        alert('Foto muito grande! Por favor, escolha uma imagem menor que 500KB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, profilePhoto: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleSignatureSave = (signatureDataUrl: string) => {
     setFormData({ ...formData, signatureImage: signatureDataUrl });
@@ -249,18 +231,31 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       const docRef = doc(db, 'personal_data', userId);
       await setDoc(docRef, dataToSave);
 
-      // 2. Also sync profile photo to users collection for consistency across the app
+      // 2. Also sync name and role to users collection for consistency across the app
       try {
         const userDocRef = doc(db, 'users', userId);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          await updateDoc(userDocRef, {
-            photoURL: formData.profilePhoto,
-            nome: formData.nome || userDoc.data().nome || ''
+        const uDoc = await getDoc(userDocRef);
+        
+        const userUpdate: any = {
+          nome: formData.nome || '',
+          role: formData.role || 'user',
+          photoURL: formData.profilePhoto || null
+        };
+
+        if (uDoc.exists()) {
+          await updateDoc(userDocRef, userUpdate);
+        } else {
+          await setDoc(userDocRef, {
+            ...userUpdate,
+            email: auth.currentUser?.email,
+            lastLogin: new Date().toISOString()
           });
         }
-      } catch (err) {
-        console.warn('Failed to sync profile photo to users collection:', err);
+      } catch (err: any) {
+        console.warn('Failed to sync profile info to users collection:', err);
+        if (err.message?.includes('quota') || err.message?.includes('resource-exhausted')) {
+          setQuotaExceededGlobal();
+        }
       }
 
       setInitialData(dataToSave);
@@ -322,41 +317,6 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-            {/* Profile Photo Selection */}
-            <div className="flex flex-col items-center gap-4 py-4 border-b border-gray-100">
-              <div className="relative group">
-                <div className="w-24 h-24 rounded-3xl bg-emerald-50 border-2 border-emerald-100 flex items-center justify-center overflow-hidden shadow-sm">
-                  {formData.profilePhoto ? (
-                    <img 
-                      src={formData.profilePhoto} 
-                      alt="Profile" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User size={40} className="text-emerald-200" />
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute -bottom-2 -right-2 p-2 bg-emerald-600 text-white rounded-xl shadow-lg hover:bg-emerald-700 transition-all"
-                >
-                  <Camera size={16} />
-                </button>
-                <input 
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handlePhotoUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold text-gray-700">Foto do Perfil</p>
-                <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">Clique no ícone para alterar</p>
-              </div>
-            </div>
-
             {/* Row 1: Names and ID */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-1 space-y-2">

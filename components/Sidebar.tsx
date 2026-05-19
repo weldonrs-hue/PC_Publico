@@ -55,6 +55,16 @@ export default function Sidebar({
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [totalUnreadChatCount, setTotalUnreadChatCount] = useState(0);
+
+  // Listen for unread notification updates
+  useEffect(() => {
+    const handleUnreadUpdate = (e: any) => {
+      setTotalUnreadChatCount(e.detail.count || 0);
+    };
+    window.addEventListener('chat_unread_update', handleUnreadUpdate);
+    return () => window.removeEventListener('chat_unread_update', handleUnreadUpdate);
+  }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -234,6 +244,11 @@ export default function Sidebar({
                 title={isDisabled ? 'Função em desenvolvimento' : item.label}
               >
                 <item.icon size={20} className="flex-shrink-0" />
+                {item.view === 'chat' && totalUnreadChatCount > 0 && !isChatOpen && (
+                  <span className="absolute landscape:right-4 landscape:top-3 portrait:right-2 portrait:top-2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#4C1D95] animate-pulse">
+                    {totalUnreadChatCount > 99 ? '99+' : totalUnreadChatCount}
+                  </span>
+                )}
                 <span className="font-sans landscape:block lg:block hidden text-[10px] lg:text-base">
                   {item.label}
                 </span>
@@ -296,6 +311,7 @@ export default function Sidebar({
           image={imageToCrop} 
           onCropComplete={handleCropComplete} 
           onCancel={() => setImageToCrop(null)} 
+          isProfileMode={true}
         />
       )}
     </aside>

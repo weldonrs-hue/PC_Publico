@@ -40,7 +40,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential
 } from 'firebase/auth';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface UserMetadata {
@@ -52,6 +52,7 @@ interface UserMetadata {
   photoURL?: string;
   nome?: string;
   numeroPessoal?: string;
+  isInactive?: boolean;
 }
 
 interface RoleChangeRequest {
@@ -95,22 +96,29 @@ export default function UsersView({ onBack }: UsersViewProps) {
         getDocs(query(collection(db, 'role_change_requests'), orderBy('createdAt', 'desc')))
       ]);
 
-      // Map personal data for quick lookup
-      const personalDataMap = new Map();
-      personalDataSnapshot.docs.forEach(doc => {
-        personalDataMap.set(doc.id, doc.data());
-      });
+      const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
       const usersData = usersSnapshot.docs.map(doc => {
         const data = doc.data();
-        const pd = personalDataMap.get(doc.id);
+        // Robust matching:
+        // 1. By Document ID (UID)
+        // 2. By internal userId field in personal_data (if it exists and differs from doc ID)
+        // 3. Fallback: By numeroPessoal (User's usuario field) matching personal_data's numeroPessoal
+        const pd = pdDocs.find(p => 
+          p.id === doc.id || 
+          p.userId === doc.id || 
+          (data.usuario && p.numeroPessoal === data.usuario) ||
+          (data.email && p.email === data.email)
+        );
         
         return {
           id: doc.id,
           ...data,
-          nome: pd?.nome || data.displayName || 'Sem nome',
+          nome: pd?.nome || data.nome || data.displayName || (data.usuario && data.usuario.length > 5 ? data.usuario : 'Sem nome'),
           role: pd?.role || data.role || 'user',
-          numeroPessoal: pd?.numeroPessoal || data.email?.split('@')[0] || '---'
+          numeroPessoal: pd?.numeroPessoal || data.usuario || data.email?.split('@')[0] || '---',
+          photoURL: pd?.profilePhoto || data.photoURL || null,
+          isInactive: !!data.isInactive
         } as UserMetadata;
       });
 
@@ -178,6 +186,17 @@ export default function UsersView({ onBack }: UsersViewProps) {
     user.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase())
   ));
+
+  const handleToggleInactive = async (user: UserMetadata) => {
+    try {
+      const userRef = doc(db, 'users', user.id);
+      await updateDoc(userRef, { isInactive: !user.isInactive });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isInactive: !u.isInactive } : u));
+    } catch (error) {
+      console.error('Error toggling inactive status:', error);
+      alert('Erro ao alterar status.');
+    }
+  };
 
   const handleDeleteUser = async () => {
     if (!userToDelete || !auth.currentUser) return;
@@ -327,6 +346,63 @@ export default function UsersView({ onBack }: UsersViewProps) {
         </div>
         
         <div className="flex items-center gap-2">
+          <button 
+            onClick={async () => {
+              if (isQuotaExceeded()) {
+                alert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.');
+                return;
+              }
+              if (!confirm('Esta ação irá sincronizar nomes e categorias de todos os usuários a partir de seus Dados Pessoais. Deseja continuar?')) return;
+              setRefreshing(true);
+              try {
+                const [usersSnapshot, personalDataSnapshot] = await Promise.all([
+                  getDocs(collection(db, 'users')),
+                  getDocs(collection(db, 'personal_data'))
+                ]);
+                
+                const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
+                const batch = writeBatch(db);
+                let count = 0;
+
+                usersSnapshot.docs.forEach(uDoc => {
+                  const uData = uDoc.data();
+                  // Try to find personal data by UID (document ID) or by numeroPessoal
+                  const pd = pdDocs.find(p => p.id === uDoc.id || p.userId === uDoc.id || (uData.usuario && p.numeroPessoal === uData.usuario));
+                  
+                  if (pd && (pd.nome || pd.role)) {
+                    const update: any = {};
+                    if (pd.nome && pd.nome !== uData.nome) update.nome = pd.nome;
+                    if (pd.role && pd.role !== uData.role) update.role = pd.role;
+                    if (pd.profilePhoto && pd.profilePhoto !== uData.photoURL) update.photoURL = pd.profilePhoto;
+
+                    if (Object.keys(update).length > 0) {
+                      batch.update(doc(db, 'users', uDoc.id), update);
+                      count++;
+                    }
+                  }
+                });
+
+                if (count > 0) {
+                  await batch.commit();
+                  alert(`${count} usuários atualizados com sucesso.`);
+                } else {
+                  alert('Todos os usuários já estão sincronizados.');
+                }
+                fetchUsers();
+              } catch (err) {
+                console.error('Error in batch sync:', err);
+                alert('Erro na sincronização em lote. Tente novamente.');
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl border border-indigo-200 text-xs font-bold transition-all disabled:opacity-50"
+            title="Sincronizar nomes e categorias de todos os usuários"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            SYNC GERAL
+          </button>
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
@@ -486,6 +562,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     )}
                   </div>
                 </th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Status</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
@@ -493,7 +570,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={5} className="px-6 py-8">
+                    <td colSpan={6} className="px-6 py-8">
                       <div className="h-4 bg-gray-100 rounded w-full"></div>
                     </td>
                   </tr>
@@ -573,22 +650,36 @@ export default function UsersView({ onBack }: UsersViewProps) {
                         {formatDate(user.lastLogin)}
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => handleToggleInactive(user)}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border shadow-sm w-full max-w-[85px] mx-auto ${
+                          user.isInactive 
+                            ? 'bg-gray-100 text-gray-400 border-gray-200' 
+                            : 'bg-emerald-500 text-white border-emerald-400'
+                        }`}
+                      >
+                        {user.isInactive ? 'OFFLINE' : 'ATIVO'}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 text-right">
-                      {auth.currentUser?.uid !== user.id && (
-                        <button
-                          onClick={() => setUserToDelete(user)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                          title="Excluir dados do usuário"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        {auth.currentUser?.uid !== user.id && (
+                          <button
+                            onClick={() => setUserToDelete(user)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            title="Excluir dados do usuário"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <Users size={48} strokeWidth={1} />
                       <p className="text-lg font-medium">Nenhum usuário encontrado</p>
