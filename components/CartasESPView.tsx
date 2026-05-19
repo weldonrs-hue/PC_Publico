@@ -574,9 +574,9 @@ export default function CartasESPView({ userId, isAdmin, canManage, initialMode 
         .docx-preview-container * {
           border-color: #e5e7eb !important;
         }
-        .docx-preview-container h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.5rem; }
-        .docx-preview-container table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; border: 1px solid #e5e7eb; }
+        .docx-preview-container h1 { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; color: #111827 !important; }
+        .docx-preview-container p { margin-bottom: 0.4rem; line-height: 1.25; color: #374151 !important; font-size: 1.1rem; }
+        .docx-preview-container table { width: 100%; border-collapse: collapse; margin-bottom: 0.5rem; border: 1px solid #e5e7eb; }
         .docx-preview-container td, .docx-preview-container th { border: 1px solid #e5e7eb; padding: 0.5rem; }
         
         .docx-preview-container .docx-preview {

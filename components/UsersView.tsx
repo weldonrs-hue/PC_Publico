@@ -13,6 +13,8 @@ import {
   RefreshCw,
   ShieldCheck,
   User as UserIcon,
+  Globe,
+  Sparkles,
   AlertCircle,
   Trash2,
   Loader2,
@@ -107,6 +109,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
           id: doc.id,
           ...data,
           nome: pd?.nome || data.displayName || 'Sem nome',
+          role: pd?.role || data.role || 'user',
           numeroPessoal: pd?.numeroPessoal || data.email?.split('@')[0] || '---'
         } as UserMetadata;
       });
@@ -518,9 +521,27 @@ export default function UsersView({ onBack }: UsersViewProps) {
                           <p className="text-sm font-bold text-gray-900 leading-tight">{user.nome}</p>
                           <p className="text-[11px] text-gray-500 font-medium">{user.email}</p>
                           {user.role === 'admin' && (
-                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[9px] font-bold uppercase">
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[9px] font-bold uppercase border border-amber-200">
                               <ShieldCheck size={10} />
                               Administrador
+                            </span>
+                          )}
+                          {user.role === 'viajante' && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold uppercase border border-blue-200">
+                              <Globe size={10} />
+                              Viajante
+                            </span>
+                          )}
+                          {user.role === 'pioneiro_especial' && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[9px] font-bold uppercase border border-purple-200">
+                              <Sparkles size={10} />
+                              Pioneiro Especial
+                            </span>
+                          )}
+                          {user.role === 'pioneiro_regular' && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase border border-emerald-200">
+                              <UserIcon size={10} />
+                              Pioneiro Regular
                             </span>
                           )}
                         </div>

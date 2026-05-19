@@ -67,7 +67,7 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, width, height);
       // Pre-sharpen the input aggressively
-      ctx.filter = 'contrast(2.5) brightness(1.1) saturate(0)';
+      ctx.filter = 'contrast(3) brightness(1.1) saturate(0)';
       ctx.drawImage(img, 0, 0);
       ctx.filter = 'none';
 
@@ -75,70 +75,58 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
       const data = imageData.data;
       const source = new Uint8ClampedArray(data);
 
-      // Professional Vibrant Ballpoint Blue (#003BB1) - Slightly deeper for better visibility
+      // Deep Blue Pen Ink (#002366 feel - very professional)
       const targetR = 0;
-      const targetG = 40;
-      const targetB = 160;
+      const targetG = 35;
+      const targetB = 102;
 
       // Scan and reconstruct movements with sharper edges
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const idx = (y * width + x) * 4;
+          const luma = source[idx]; // Source is already saturated to 0
           
-          const r = source[idx];
-          const g = source[idx + 1];
-          const b = source[idx + 2];
-          // Simple luma for grayscale since we saturated to 0
-          const luma = r; 
-          
-          // Background removal (strict)
-          if (luma > 245) {
+          // Strict Background removal
+          if (luma > 240) {
             data[idx + 3] = 0;
             continue;
           }
 
-          let intensity = 255 - luma;
-          
-          // Reconstruct lines:
-          // We want to avoid "blurry" edges by being more binary but with subtle anti-aliasing
-          // We detect if there's enough "ink" in the neighborhood to be a real line
-          let localMinLuma = 255;
+          // Line reconstruction:
+          // We look for the "core" of the line (darkest pixels)
+          // and treat everything else as potential anti-aliasing edges or noise
           let darkCount = 0;
-          
           for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
               const nx = x + dx;
               const ny = y + dy;
               if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                 const nIdx = (ny * width + nx) * 4;
-                const nLuma = source[nIdx];
-                if (nLuma < localMinLuma) localMinLuma = nLuma;
-                if (nLuma < 220) darkCount++;
+                if (source[nIdx] < 220) darkCount++;
               }
             }
           }
 
-          // Cull noise: lonely dark pixels are likely scanner noise
-          if (darkCount < 2 && luma > 180) {
+          // Culling noise - single isolated dark pixels are gone
+          if (darkCount < 2 && luma > 150) {
             data[idx + 3] = 0;
             continue;
           }
 
-          // Line reconstruction mapping
+          // Mapping logic: 
+          // 0-140 luma -> solid color (alpha 255)
+          // 140-230 luma -> tapered edge (alpha 255-0)
           let alpha;
-          // If it's a core line pixel (very dark) or part of a strong path
-          if (luma < 160 || (darkCount >= 5 && luma < 200)) {
-            alpha = 255; 
-          } else if (luma > 230) {
-             alpha = 0;
+          if (luma < 140) {
+            alpha = 255;
+          } else if (luma > 225) {
+            alpha = 0;
           } else {
-            // Sharper falloff for less blur
-            // Threshold is around 220
-            const ratio = (220 - luma) / (220 - 160);
-            alpha = Math.max(0, Math.min(255, ratio * 280)); 
+            // Sharper falloff curve
+            const ratio = (225 - luma) / (225 - 140);
+            alpha = Math.floor(Math.pow(ratio, 1.2) * 255);
           }
 
-          // Apply color
           data[idx] = targetR;
           data[idx + 1] = targetG;
           data[idx + 2] = targetB;

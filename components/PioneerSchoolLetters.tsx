@@ -572,9 +572,10 @@ export default function PioneerSchoolLetters({
           background-color: #ffffff !important;
         }
         .docx-preview-container p {
-          font-size: 1.8rem !important;
-          line-height: 1.6 !important;
+          font-size: 1.1rem !important;
+          line-height: 1.25 !important;
           color: #1a1a1a !important;
+          margin-bottom: 0.4rem !important;
         }
         .docx-preview-container * {
           border-color: #e5e7eb !important;
