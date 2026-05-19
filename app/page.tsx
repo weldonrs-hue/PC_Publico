@@ -39,6 +39,7 @@ const CartasCongressoView = dynamic(() => import('@/components/CartasCongressoVi
 const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
+const ChatView = dynamic(() => import('@/components/ChatView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
@@ -57,6 +58,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
+import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { Camera, User, ArrowLeft } from 'lucide-react';
 
@@ -67,6 +69,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const quotaExceededRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +191,7 @@ export default function Home() {
     allowAssembleiasUploadForAll: boolean;
     allowProgramacoesUploadForAll: boolean;
     allowPSSUploadForAll: boolean;
+    chatEnabledForAll: boolean;
   }>({ 
     reportEnabledForAll: false, 
     textEditorEnabledForAll: false, 
@@ -197,7 +201,8 @@ export default function Home() {
     allowCongressoUploadForAll: false,
     allowAssembleiasUploadForAll: false,
     allowProgramacoesUploadForAll: false,
-    allowPSSUploadForAll: false
+    allowPSSUploadForAll: false,
+    chatEnabledForAll: false
   });
   const [hasGuestInvites, setHasGuestInvites] = useState(false);
 
@@ -426,7 +431,8 @@ export default function Home() {
           allowCongressoUploadForAll: !!data.allowCongressoUploadForAll,
           allowAssembleiasUploadForAll: !!data.allowAssembleiasUploadForAll,
           allowProgramacoesUploadForAll: !!data.allowProgramacoesUploadForAll,
-          allowPSSUploadForAll: !!data.allowPSSUploadForAll
+          allowPSSUploadForAll: !!data.allowPSSUploadForAll,
+          chatEnabledForAll: !!data.chatEnabledForAll
         });
       } else {
         console.log('Home: App settings doc not found.');
@@ -441,7 +447,8 @@ export default function Home() {
             allowCongressoUploadForAll: false,
             allowAssembleiasUploadForAll: false,
             allowProgramacoesUploadForAll: false,
-            allowPSSUploadForAll: false
+            allowPSSUploadForAll: false,
+            chatEnabledForAll: false
           }).catch(err => {
             console.error('Home: Failed to init app settings:', err);
           });
@@ -455,7 +462,8 @@ export default function Home() {
           allowCongressoUploadForAll: false,
           allowAssembleiasUploadForAll: false,
           allowProgramacoesUploadForAll: false,
-          allowPSSUploadForAll: false
+          allowPSSUploadForAll: false,
+          chatEnabledForAll: false
         });
       }
     }, (err) => {
@@ -948,6 +956,9 @@ export default function Home() {
           espInitialMode={espInitialMode}
           hasGuestInvites={hasGuestInvites}
           onBack={() => changeView('dashboard')}
+          onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          isChatOpen={isChatOpen}
+          chatEnabled={appConfig.chatEnabledForAll}
           onViewChange={(view) => {
             if (view === 'dashboard') {
               // If already in a Circuito sub-view, reset to main dashboard
@@ -1374,6 +1385,24 @@ export default function Home() {
           )}
         </div>
 
+
+        {/* Chat Overlay */}
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div 
+              initial={{ opacity: 0, y: 100, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 100, scale: 0.95 }}
+              className="fixed bottom-4 right-4 z-[5000] w-[calc(100vw-32px)] sm:w-[450px] h-[600px] max-h-[calc(100vh-100px)] shadow-2xl"
+            >
+              <ChatView 
+                user={user} 
+                personalData={personalData} 
+                onClose={() => setIsChatOpen(false)} 
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Footer */}
         <footer className="mt-auto p-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center text-xs text-gray-400 print:hidden gap-4">

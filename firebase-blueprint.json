@@ -286,9 +286,27 @@
         "scale": { "type": "number" }
       },
       "required": ["x", "y", "scale"]
+    },
+    "chat_message": {
+      "title": "Chat Message",
+      "description": "A message sent in the internal chat system",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "channel": { "type": "string", "description": "Channel ID, 'general' by default" }
+      },
+      "required": ["senderId", "senderName", "text", "timestamp", "channel"]
     }
   },
   "firestore": {
+    "/chat_messages/{msgId}": {
+      "schema": "chat_message",
+      "description": "Collection of messages for real-time chat between users"
+    },
     "/personal_data/{dataId}": {
       "schema": "personal_data",
       "description": "Collection of personal data for overseers"

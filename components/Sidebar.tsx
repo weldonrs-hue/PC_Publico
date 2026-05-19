@@ -2,7 +2,7 @@
 // Force rebuild - updated
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList, Mail } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList, Mail, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import ImageCropper from './ImageCropper';
@@ -16,6 +16,7 @@ const navItems = [
   { icon: Calendar, label: 'Eventos', view: 'events' },
   { icon: Mail, label: 'Cartas', view: 'cartas' },
   { icon: Shapes, label: 'Diversos', view: 'misc' },
+  { icon: MessageSquare, label: 'Chat', view: 'chat' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
 
@@ -28,6 +29,9 @@ interface SidebarProps {
   onBack: () => void;
   onViewChange: (view: any) => void;
   hasGuestInvites?: boolean;
+  onToggleChat?: () => void;
+  isChatOpen?: boolean;
+  chatEnabled?: boolean;
 }
 
 import Logo from './Logo';
@@ -40,7 +44,10 @@ export default function Sidebar({
   espInitialMode, 
   onBack, 
   onViewChange,
-  hasGuestInvites = false
+  hasGuestInvites = false,
+  onToggleChat,
+  isChatOpen = false,
+  chatEnabled = false
 }: SidebarProps) {
   const navRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -148,6 +155,8 @@ export default function Sidebar({
       if (item.view === 'schools') return hasGuestInvites;
     }
     
+    if (item.view === 'chat' && !chatEnabled && !isAdminUser) return false;
+    
     return true;
   });
 
@@ -204,14 +213,20 @@ export default function Sidebar({
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  if (!isDisabled) onViewChange(item.view);
+                  if (!isDisabled) {
+                    if (item.view === 'chat' && onToggleChat) {
+                      onToggleChat();
+                    } else {
+                      onViewChange(item.view);
+                    }
+                  }
                 }}
                 className={`
                   flex items-center rounded-xl transition-all duration-300 group relative overflow-hidden
                   landscape:justify-start
                   landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
                   portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[55px] md:portrait:min-w-[70px]
-                  ${isActive(item.view) 
+                  ${(isActive(item.view) || (item.view === 'chat' && isChatOpen))
                     ? 'bg-gradient-to-r from-white/15 to-transparent border-l-4 border-[#C084FC] text-white shadow-lg' 
                     : 'text-white/60 hover:text-white hover:bg-white/5 active:scale-95'}
                   ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : ''}

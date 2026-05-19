@@ -1,0 +1,558 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { db, auth } from '@/lib/firebase';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  onSnapshot, 
+  addDoc, 
+  serverTimestamp,
+  doc,
+  getDoc,
+  updateDoc,
+  where
+} from 'firebase/firestore';
+import { Send, User, MessageCircle, Loader2, Users, ChevronLeft, X, Search, Phone, Video, Info, MoreHorizontal } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+
+const CHAT_PRIMARY = '#0058be';
+const CHAT_SECONDARY_CONTAINER = '#dee0e2';
+const CHAT_SURFACE = '#f8f9ff';
+
+interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string;
+  text: string;
+  timestamp: any;
+  channel: string;
+}
+
+interface ChatUser {
+  id: string;
+  nome: string;
+  photoURL?: string;
+  role?: string;
+  isOnline?: boolean;
+  lastActive?: Date | null;
+}
+
+interface ChatViewProps {
+  user: any;
+  personalData: any;
+  onClose?: () => void;
+}
+
+export default function ChatView({ user, personalData, onClose }: ChatViewProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatUsers, setChatUsers] = useState<ChatUser[]>([]);
+  const [activeChannel, setActiveChannel] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isInactive, setIsInactive] = useState(false);
+  const [currentUserData, setCurrentUserData] = useState<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Heartbeat to track presence
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    
+    const updatePresence = async () => {
+      try {
+        const userRef = doc(db, 'users', auth.currentUser!.uid);
+        await updateDoc(userRef, {
+          lastActive: serverTimestamp(),
+          isInactive: isInactive // Keep sync with the toggle
+        });
+      } catch (error) {
+        console.warn('Error updating presence:', error);
+      }
+    };
+
+    updatePresence();
+    const interval = setInterval(updatePresence, 3 * 60 * 1000); // Every 3 mins
+    return () => clearInterval(interval);
+  }, [auth.currentUser, isInactive]);
+
+  // Fetch users for list
+  useEffect(() => {
+    const q = query(collection(db, 'users'), limit(500));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const users = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const lastActive = data.lastActive?.toDate ? data.lastActive.toDate() : (data.lastActive ? new Date(data.lastActive) : null);
+        const isOnline = lastActive && (new Date().getTime() - lastActive.getTime() < 10 * 60 * 1000); // 10 mins threshold
+        
+        if (doc.id === auth.currentUser?.uid) {
+          setCurrentUserData(data);
+          setIsInactive(!!data.isInactive);
+        }
+
+        return {
+          id: doc.id,
+          nome: data.nome || data.usuario || data.email?.split('@')[0] || 'Usuário Sem Nome',
+          photoURL: data.photoURL,
+          role: data.role,
+          isOnline: isOnline && !data.isInactive,
+          lastActive: lastActive
+        };
+      }) as ChatUser[];
+      setChatUsers(users);
+      setLoadingUsers(false);
+    });
+    return () => unsubscribe();
+  }, [auth.currentUser?.uid]);
+
+  const getPrivateChannelId = (uid1: string, uid2: string) => {
+    const ids = [uid1, uid2].sort();
+    return `private_${ids[0]}_${ids[1]}`;
+  };
+
+  useEffect(() => {
+    if (!auth.currentUser || !activeChannel) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+
+    const q = query(
+      collection(db, 'chat_messages'),
+      where('channel', '==', activeChannel),
+      orderBy('timestamp', 'asc'),
+      limit(100)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Message[];
+      setMessages(msgs);
+      setLoading(false);
+      setTimeout(scrollToBottom, 100);
+    }, (error) => {
+      console.error('Error listening to messages:', error);
+      handleFirestoreError(error, OperationType.LIST, 'chat_messages');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [activeChannel]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || sending || !auth.currentUser) return;
+
+    setSending(true);
+    const messageText = newMessage;
+    setNewMessage('');
+
+    try {
+      await addDoc(collection(db, 'chat_messages'), {
+        senderId: auth.currentUser.uid,
+        senderName: personalData?.nome || user.usuario || 'Usuário',
+        senderPhoto: personalData?.profilePhoto || user.photoURL || null,
+        text: messageText,
+        timestamp: serverTimestamp(),
+        channel: activeChannel
+      });
+      scrollToBottom();
+      inputRef.current?.focus();
+    } catch (error) {
+       console.error('Error sending message:', error);
+       handleFirestoreError(error, OperationType.CREATE, 'chat_messages');
+       setNewMessage(messageText);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const switchChannel = (targetUser: ChatUser | 'general' | null) => {
+    if (targetUser === null) {
+      setActiveChannel(null);
+      setSelectedUser(null);
+    } else if (targetUser === 'general') {
+      setActiveChannel('general');
+      setSelectedUser(null);
+    } else {
+      setActiveChannel(getPrivateChannelId(auth.currentUser!.uid, targetUser.id));
+      setSelectedUser(targetUser);
+    }
+    setIsSidebarOpen(false);
+  };
+
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString();
+  };
+
+  const filteredUsers = chatUsers.filter(u => 
+    u.id !== auth.currentUser?.uid && 
+    (u.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     u.role?.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const isShowingChat = !!activeChannel;
+
+  return (
+    <div className="flex h-full bg-white rounded-xl overflow-hidden border border-[#c2c6d6] shadow-2xl relative pointer-events-auto font-sans">
+      {/* List Area (WhatsApp side) */}
+      <div className={`flex-1 flex flex-col h-full bg-white transition-all duration-300 ${isShowingChat ? 'hidden' : 'flex'}`}>
+        {/* Header List */}
+        <header className="bg-[#0058be] flex items-center justify-between px-5 py-4 w-full shadow-md z-10 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center overflow-hidden shadow-inner">
+                {personalData?.profilePhoto ? (
+                  <img src={personalData.profilePhoto} alt="Me" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                   <User className="text-white/80" size={26} />
+                )}
+              </div>
+              <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-2 border-[#0058be] rounded-full shadow-sm transition-colors ${isInactive ? 'bg-gray-400' : 'bg-[#4edea3]'}`}></span>
+            </div>
+            <div className="flex flex-col">
+              <h1 className="font-black text-[15px] text-white leading-tight tracking-tight">
+                {personalData?.nome || user.usuario || 'Meu Chat'}
+              </h1>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${isInactive ? 'bg-white/40' : 'bg-[#4edea3] animate-pulse'}`} />
+                <span className="text-[10px] text-white/80 font-bold uppercase tracking-wider">
+                  {isInactive ? 'Modo Offline' : 'Online'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsInactive(!isInactive)}
+              className={`text-[9px] font-black px-4 py-2 rounded-xl transition-all border shadow-lg active:scale-95 ${
+                isInactive 
+                  ? 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600' 
+                  : 'bg-red-500 text-white border-red-400 hover:bg-red-600'
+              }`}
+              title={isInactive ? 'Ativar meu status Online' : 'Ficar em modo Offline'}
+            >
+              {isInactive ? 'ATIVAR' : 'DESATIVAR'}
+            </button>
+            {onClose && (
+              <button 
+                onClick={onClose}
+                className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-xl transition-all"
+              >
+                <X size={20} />
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Search Bar */}
+        <div className="px-4 pt-4 pb-2 bg-[#f8f9ff]">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#727785] group-focus-within:text-[#0058be] transition-colors" size={18} />
+            <input 
+              type="text"
+              placeholder="Pesquisar conversas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white border border-[#c2c6d6] rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#0058be]/20 focus:border-[#0058be] transition-all placeholder:text-[#727785]/70"
+            />
+          </div>
+        </div>
+
+        {/* Chat List */}
+        <div className="flex-1 overflow-y-auto py-2 custom-scrollbar bg-[#f8f9ff]">
+          {/* General Channel */}
+          <div 
+            onClick={() => switchChannel('general')}
+            className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-[#dee9fc] transition-colors border-b border-[#c2c6d6]/30"
+          >
+            <div className="relative flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-[#0058be] flex items-center justify-center text-white shadow-sm">
+                <Users size={24} />
+              </div>
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#4edea3] border-2 border-white rounded-full"></span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-baseline">
+                <h3 className="font-bold text-sm text-[#121c2a] truncate">Canal Geral</h3>
+                <span className="text-[10px] text-[#0058be] font-bold">PÚBLICO</span>
+              </div>
+              <p className="text-[12px] text-[#727785] truncate">Fale com todos os membros</p>
+            </div>
+          </div>
+
+          {loadingUsers ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="animate-spin text-[#0058be]" size={24} />
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <Search size={32} className="text-gray-300 mb-2" />
+              <p className="text-sm text-gray-400">Nenhum usuário encontrado</p>
+            </div>
+          ) : filteredUsers.map(chatUser => (
+            <div 
+              key={chatUser.id}
+              onClick={() => switchChannel(chatUser)}
+              className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-[#dee9fc] transition-colors border-b border-[#c2c6d6]/30"
+            >
+              <div className="relative flex-shrink-0">
+                {chatUser.photoURL ? (
+                  <img 
+                    src={chatUser.photoURL} 
+                    alt={chatUser.nome} 
+                    className="w-12 h-12 rounded-full object-cover border border-gray-100" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-[#dee0e2] flex items-center justify-center text-[#5c5f60] font-bold">
+                    {chatUser.nome.charAt(0)}
+                  </div>
+                )}
+                {chatUser.isOnline && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#4edea3] border-2 border-white rounded-full transition-all scale-110"></div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline">
+                  <h3 className="font-bold text-sm text-[#121c2a] truncate">{chatUser.nome}</h3>
+                  <span className="text-[10px] text-[#727785]">{chatUser.role === 'viajante' ? 'Circuito' : 'Pioneiro'}</span>
+                </div>
+                <p className="text-[12px] text-[#727785] truncate italic">Clique para iniciar conversa privada</p>
+              </div>
+            </div>
+          ))}
+
+          {/* Tip Area */}
+          <div className="mx-4 my-6 p-4 rounded-xl bg-[#e6eeff] border border-[#0058be]/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="text-[#0058be]" size={18} />
+              <span className="text-[11px] font-bold text-[#0058be] uppercase tracking-wider">Dica do Suporte</span>
+            </div>
+            <p className="text-[12px] text-[#424754]">Você sabia que pode compartilhar fotos de perfil? Atualize seus dados pessoais!</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className={`flex-1 flex flex-col min-w-0 bg-white ${!isShowingChat ? 'hidden' : 'flex'}`}>
+        {/* Chat Header */}
+        <header className="px-5 py-3 border-b border-[#c2c6d6] flex items-center justify-between bg-[#0058be] text-white shadow-md sticky top-0 z-10 transition-all">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => switchChannel(null)}
+              className="p-2 -ml-2 hover:bg-white/10 rounded-full text-white transition-colors"
+              title="Voltar"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm ${selectedUser ? 'border-2 border-white/20' : 'bg-white/10'}`}>
+                  {selectedUser ? (
+                    selectedUser.photoURL ? (
+                      <img 
+                        src={selectedUser.photoURL} 
+                        className="w-full h-full rounded-full object-cover" 
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="text-white font-bold">{selectedUser.nome.charAt(0)}</span>
+                    )
+                  ) : <Users size={20} />}
+                </div>
+                {(selectedUser?.isOnline || (!selectedUser && !isInactive)) && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#4edea3] border-2 border-[#0058be] rounded-full" />
+                )}
+              </div>
+              <div className="flex flex-col">
+                <h2 className="font-bold text-white text-[16px] leading-tight">
+                  {selectedUser ? selectedUser.nome : 'Canal Geral'}
+                </h2>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`w-2 h-2 rounded-full ${(!selectedUser && isInactive) || (selectedUser && !selectedUser.isOnline) ? 'bg-white/40' : 'bg-[#4edea3]'}`} />
+                  <p className="text-[11px] text-white/80 font-medium">
+                    {(!selectedUser && isInactive) || (selectedUser && !selectedUser.isOnline) ? 'Offline' : 'Online Agora'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onClose && (
+              <button 
+                onClick={onClose}
+                className="p-2 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors"
+                title="Fechar Chat"
+              >
+                <X size={20} />
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Messages */}
+        <div 
+          className={`flex-1 overflow-y-auto px-4 py-6 space-y-4 transition-opacity duration-300 bg-[#f8f9ff]/50 ${isInactive ? 'opacity-20 pointer-events-none grayscale' : 'opacity-100'}`}
+          style={{
+            scrollbarWidth: 'thin'
+          }}
+        >
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-3">
+              <Loader2 className="animate-spin text-[#0058be]" size={32} />
+              <p className="text-xs font-bold text-[#727785] uppercase tracking-widest">Carregando...</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+              <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center">
+                <MessageCircle size={40} className="text-[#0058be]/20" />
+              </div>
+              <div className="text-center font-sans">
+                <p className="font-bold text-[#121c2a]">Diga um "Oi!"</p>
+                <p className="text-sm text-[#727785] mt-1">Comece uma conversa agora mesmo.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {messages.map((msg, index) => {
+                const isMe = msg.senderId === auth.currentUser?.uid;
+                const prevMsg = index > 0 ? messages[index - 1] : null;
+                const showDate = !prevMsg || formatDate(msg.timestamp) !== formatDate(prevMsg.timestamp);
+                
+                return (
+                  <div key={msg.id} className="w-full">
+                    {showDate && (
+                      <div className="flex justify-center my-6">
+                        <span className="text-[11px] font-bold text-[#727785] uppercase tracking-wider bg-white px-3 py-1 rounded-full border border-[#c2c6d6] shadow-sm font-sans">
+                          {formatDate(msg.timestamp)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} gap-1 font-sans`}>
+                      <div className={`flex items-end gap-2 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {!isMe && (
+                          <div className="w-8 flex-shrink-0">
+                            {(() => {
+                              const chatUser = chatUsers.find(u => u.id === msg.senderId);
+                              const photo = chatUser?.photoURL || msg.senderPhoto;
+                              return photo ? (
+                                <img 
+                                  src={photo} 
+                                  alt="" 
+                                  referrerPolicy="no-referrer"
+                                  className="w-8 h-8 rounded-full object-cover shadow-sm border border-[#c2c6d6]" 
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-[#dee0e2] flex items-center justify-center text-[11px] font-bold text-[#5c5f60]">
+                                  {(chatUser?.nome || msg.senderName).charAt(0)}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-col">
+                          {!isMe && !selectedUser && (
+                            <span className="text-[11px] font-bold text-[#727785] mb-1 ml-1">
+                              {chatUsers.find(u => u.id === msg.senderId)?.nome || msg.senderName}
+                            </span>
+                          )}
+                          <div 
+                            className={`
+                              px-4 py-2.5 text-[14px] leading-relaxed shadow-sm
+                              ${isMe 
+                                ? 'bg-[#0058be] text-white rounded-2xl rounded-br-[4px]' 
+                                : 'bg-[#dee0e2] text-[#121c2a] rounded-2xl rounded-bl-[4px]'}
+                            `}
+                          >
+                            <p className="whitespace-pre-wrap">{msg.text}</p>
+                          </div>
+                          <span className={`text-[10px] text-[#727785] mt-1 px-1 ${isMe ? 'text-right' : 'text-left'}`}>
+                            {formatTime(msg.timestamp)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Input Area */}
+        <footer className={`p-4 bg-white border-t border-[#c2c6d6] ${isInactive ? 'hidden' : 'block'}`}>
+          <div className="max-w-4xl mx-auto flex items-end gap-2">
+            <div className="flex-1 flex items-end bg-white border border-[#c2c6d6] rounded-xl p-2 focus-within:border-[#0058be] transition-colors shadow-sm">
+              <textarea
+                ref={inputRef as any}
+                value={newMessage}
+                onChange={(e) => {
+                  setNewMessage(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e as any);
+                  }
+                }}
+                placeholder="Digite sua mensagem..."
+                rows={1}
+                className="flex-1 bg-transparent border-none focus:ring-0 text-[14px] py-1.5 resize-none max-h-32 text-[#121c2a] font-sans"
+              />
+            </div>
+            
+            <button
+              onClick={handleSendMessage}
+              disabled={!newMessage.trim() || sending}
+              className={`
+                p-2.5 rounded-lg flex-shrink-0 flex items-center justify-center transition-all active:scale-95 shadow-sm group h-[48px] px-5
+                ${newMessage.trim() && !sending 
+                  ? 'bg-[#0058be] text-white hover:bg-[#2170e4]' 
+                  : 'bg-[#dee0e2] text-[#5c5f60]'}
+              `}
+            >
+                {sending ? <Loader2 size={24} className="animate-spin" /> : (
+                  <>
+                    <Send size={20} className="mr-2 group-hover:translate-x-0.5 transition-transform" />
+                    <span className="font-bold">Enviar</span>
+                  </>
+                )}
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
