@@ -205,8 +205,8 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
           setIsInactive(!!data.isInactive);
         }
 
-        // Prioritize name, but provide a better fallback than just username (number) if possible
-        const userNome = data.nome || data.displayName || (data.usuario && (data.usuario.length < 5 || !isNaN(Number(data.usuario))) ? (data.email?.split('@')[0] || data.usuario) : data.usuario) || 'Usuário';
+        // Robust name detection matching UsersView logic
+        const userNome = data.nome || data.displayName || (data.usuario && data.usuario.length > 4 ? data.usuario : (data.email?.split('@')[0] || data.usuario || 'Usuário'));
 
         // Map roles to friendly labels
         let roleLabel = 'Usuário';
@@ -416,10 +416,14 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
             </button>
             {onClose && (
               <button 
-                onClick={onClose}
-                className="text-white/80 hover:text-white hover:bg-white/10 p-2 rounded-xl transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="bg-white/10 text-white hover:bg-white/20 p-2.5 rounded-2xl transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95"
+                title="Fechar Chat"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={3} />
               </button>
             )}
           </div>
@@ -596,11 +600,14 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
           <div className="flex items-center gap-2">
             {onClose && (
               <button 
-                onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="bg-white/10 text-white hover:bg-white/20 p-2.5 rounded-2xl transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95"
                 title="Fechar Chat"
               >
-                <X size={20} />
+                <X size={20} strokeWidth={3} />
               </button>
             )}
           </div>

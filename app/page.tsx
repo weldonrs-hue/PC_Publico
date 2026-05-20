@@ -1096,9 +1096,25 @@ export default function Home() {
         <div className="landscape:pt-0 md:pt-0" />
 
         {quotaExceeded && (
-          <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-pulse">
-            ⚠️ Limite de cota do Firestore excedido. Alguns dados podem não carregar corretamente. Tente novamente mais tarde.
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-4 md:mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-4 text-amber-800 shadow-sm"
+          >
+            <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
+              <AlertCircle size={20} strokeWidth={3} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[11px] font-black uppercase tracking-widest leading-none mb-1">Limite de Cota Atingido</p>
+              <p className="text-[10px] font-bold text-amber-900/60 leading-tight">O Firestore atingiu o limite de operações diárias. O sistema entrará em modo de economia de dados até amanhã.</p>
+            </div>
+            <button 
+              onClick={() => setQuotaExceeded(false)}
+              className="p-2 hover:bg-amber-100 rounded-full transition-all text-amber-400 hover:text-amber-600"
+            >
+              <X size={18} />
+            </button>
+          </motion.div>
         )}
         <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto w-full">
           {currentView === 'dashboard' && (

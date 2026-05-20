@@ -326,14 +326,19 @@ export default function UsersView({ onBack }: UsersViewProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-6"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
             className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
-            title="Voltar ao Painel"
+            title="Voltar"
           >
             <ChevronLeft size={28} strokeWidth={3} />
           </button>
@@ -352,7 +357,9 @@ export default function UsersView({ onBack }: UsersViewProps) {
                 alert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.');
                 return;
               }
-              if (!confirm('Esta ação irá sincronizar nomes e categorias de todos os usuários a partir de seus Dados Pessoais. Deseja continuar?')) return;
+              const confirmMsg = `AVISO DE COTA FIRESTORE:\n\nEsta operação irá comparar e atualizar TODOS os usuários cadastrados. \nDependendo do número de usuários, isso pode consumir centenas de "WRITES" da sua cota diária.\n\nDeseja realmente continuar?`;
+              if (!confirm(confirmMsg)) return;
+              
               setRefreshing(true);
               try {
                 const [usersSnapshot, personalDataSnapshot] = await Promise.all([
@@ -413,13 +420,23 @@ export default function UsersView({ onBack }: UsersViewProps) {
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#512da8]/20 focus:border-[#512da8] transition-all"
             />
           </div>
-          <button 
-            onClick={fetchUsers}
-            disabled={refreshing}
-            className="p-2 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 text-gray-600 transition-all disabled:opacity-50"
-          >
-            <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={fetchUsers}
+              disabled={refreshing}
+              className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 text-gray-600 transition-all disabled:opacity-50"
+              title="Recarregar"
+            >
+              <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+            <button 
+              onClick={onBack}
+              className="p-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl border border-red-100 transition-all flex items-center justify-center shadow-lg active:scale-95 shrink-0"
+              title="Fechar"
+            >
+              <X size={20} strokeWidth={3} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -837,6 +854,6 @@ export default function UsersView({ onBack }: UsersViewProps) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

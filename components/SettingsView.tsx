@@ -586,8 +586,15 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         exit={{ opacity: 0, y: -20 }}
         className="space-y-8 relative"
       >
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center justify-between gap-4 mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Ajustes do Sistema</h2>
+          <button 
+            onClick={onBack}
+            className="p-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl border border-red-100 transition-all flex items-center justify-center shadow-lg active:scale-95 shrink-0"
+            title="Fechar"
+          >
+            <X size={20} strokeWidth={3} />
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
