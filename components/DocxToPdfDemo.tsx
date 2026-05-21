@@ -499,12 +499,23 @@ export default function DocxToPdfDemo({
                   O módulo de geração de workshops PSS será disponibilizado em breve.
                 </p>
               </div>
-              <button 
-                onClick={onBack}
-                className="mt-4 px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-              >
-                Voltar
-              </button>
+              <div className="flex gap-4 justify-center">
+                <button 
+                  onClick={onBack}
+                  className="px-8 py-3 bg-gray-100 text-gray-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all shadow-lg"
+                >
+                  Voltar
+                </button>
+                {canManage && (
+                  <button 
+                    onClick={() => setShowManager(true)}
+                    className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
+                  >
+                    <Settings2 size={16} />
+                    Gerenciar Templates
+                  </button>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

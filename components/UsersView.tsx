@@ -350,7 +350,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
           <button 
             onClick={async () => {
               if (isQuotaExceeded()) {
@@ -410,7 +410,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             SYNC GERAL
           </button>
-          <div className="relative flex-1 md:w-64">
+          <div className="relative flex-1 min-w-[200px] md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
@@ -431,10 +431,10 @@ export default function UsersView({ onBack }: UsersViewProps) {
             </button>
             <button 
               onClick={onBack}
-              className="p-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl border border-red-100 transition-all flex items-center justify-center shadow-lg active:scale-95 shrink-0"
+              className="p-2.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-xl border-2 border-red-200 transition-all flex items-center justify-center shadow-md active:scale-95 shrink-0 z-10"
               title="Fechar"
             >
-              <X size={20} strokeWidth={3} />
+              <X size={24} strokeWidth={3} />
             </button>
           </div>
         </div>

@@ -60,7 +60,7 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
-import { Camera, User, ArrowLeft } from 'lucide-react';
+import { Camera, User, ArrowLeft, AlertCircle, X } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -215,7 +215,7 @@ export default function Home() {
   const [programacoesInitialMode, setProgramacoesInitialMode] = useState<'geracao' | 'manager'>('geracao');
   const [pssInitialMode, setPssInitialMode] = useState<'geracao' | 'manager'>('geracao');
 
-  // Monitorar convites de instrutor convidado
+  // Monitorar convites de instrutor convidado - Otimizado com cleanup e quota check
   useEffect(() => {
     if (!user?.id || quotaExceeded) return;
     
@@ -223,30 +223,38 @@ export default function Home() {
     const numeroPessoal = personalData?.numeroPessoal;
     if (!numeroPessoal && !user?.id) return;
 
-    // We check both because some might be saved by number, some by ID
-    const qByNumber = query(
-      collection(db, 'pioneer_school_invitations'), 
-      where('collaboratorNumber', '==', numeroPessoal || 'NONE'),
-      where('status', '==', 'accepted')
-    );
+    let unsubByNumber: () => void = () => {};
+    let unsubById: () => void = () => {};
 
-    const qById = query(
-      collection(db, 'pioneer_school_invitations'), 
-      where('collaboratorId', '==', user.id),
-      where('status', '==', 'accepted')
-    );
-    
-    const unsubByNumber = onSnapshot(qByNumber, (snap) => {
-      if (!snap.empty) setHasGuestInvites(true);
-    }, (error) => {
-      console.warn('Home: Error listening to pioneer invites by number:', error);
-    });
+    try {
+      const qByNumber = query(
+        collection(db, 'pioneer_school_invitations'), 
+        where('collaboratorNumber', '==', numeroPessoal || 'NONE'),
+        where('status', '==', 'accepted')
+      );
 
-    const unsubById = onSnapshot(qById, (snap) => {
-      if (!snap.empty) setHasGuestInvites(true);
-    }, (error) => {
-      console.warn('Home: Error listening to pioneer invites by ID:', error);
-    });
+      const qById = query(
+        collection(db, 'pioneer_school_invitations'), 
+        where('collaboratorId', '==', user.id),
+        where('status', '==', 'accepted')
+      );
+      
+      unsubByNumber = onSnapshot(qByNumber, (snap) => {
+        if (!snap.empty) setHasGuestInvites(true);
+      }, (error) => {
+        console.warn('Home: Error listening to pioneer invites by number:', error);
+        if (error.message?.includes('quota')) setQuotaExceededGlobal();
+      });
+
+      unsubById = onSnapshot(qById, (snap) => {
+        if (!snap.empty) setHasGuestInvites(true);
+      }, (error) => {
+        console.warn('Home: Error listening to pioneer invites by ID:', error);
+        if (error.message?.includes('quota')) setQuotaExceededGlobal();
+      });
+    } catch (e) {
+      console.error('Error setting up invites listener:', e);
+    }
 
     return () => {
       unsubByNumber();
@@ -294,142 +302,83 @@ export default function Home() {
           firebaseUser.email === '2283701@progcir.app' ||
           firebaseUser.email === '2283701@progcir.com';
 
-        // Set a basic user state immediately so we don't stay on the login screen if authenticated
+        // Set a basic user state immediately
         const basicUserData = {
           id: firebaseUser.uid,
           usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
           email: firebaseUser.email,
-          role: isAdminEmail ? 'admin' : 'user', // Set initial role accurately
+          role: isAdminEmail ? 'admin' : 'user',
           photoURL: firebaseUser.photoURL || null,
-          migrationCompleted: true, // Assume true to avoid migration loops if quota is hit
+          migrationCompleted: true,
           itinerariesInitialized: true
         };
         setUser(basicUserData);
 
+        if (isQuotaExceeded()) {
+          setQuotaExceeded(true);
+          return;
+        }
+
         const userDocRef = doc(db, 'users', firebaseUser.uid);
 
-        // Update last login once per session/auth change
+        // Otimizar atualizações de perfil - Throttle por 1 hora
         try {
-          if (isQuotaExceeded()) {
-            setQuotaExceeded(true);
-            return;
-          }
-
-          // Fetch doc with a slight delay to allow offline cache if needed
-          const userDoc = await getDoc(userDocRef);
-          const isAdminEmail = 
-            firebaseUser.email === 'weldonrs@gmail.com' || 
-            firebaseUser.email === '2283701@progcir.app' ||
-            firebaseUser.email === '2283701@progcir.com';
-          const role = isAdminEmail ? 'admin' : 'user';
-
-          // Try to get personal data to sync name
-          const pdDocRef = doc(db, 'personal_data', firebaseUser.uid);
-          const pdDoc = await getDoc(pdDocRef).catch(() => null);
-          const pdData = pdDoc?.exists() ? pdDoc.data() : null;
-          const syncName = pdData?.nome || firebaseUser.displayName || null;
-
-          if (!userDoc.exists()) {
-            if (!quotaExceededRef.current) {
-              await setDoc(userDocRef, {
-                email: firebaseUser.email,
-                nome: syncName,
-                role: role,
-                photoURL: pdData?.profilePhoto || firebaseUser.photoURL || null,
-                createdAt: new Date().toISOString(),
-                lastLogin: new Date().toISOString(),
-                migrationCompleted: true
-              });
-              localStorage.setItem(`lastLoginUpdate_${firebaseUser.uid}`, new Date().getTime().toString());
-            }
-          } else {
-            const data = userDoc.data();
-            const updates: any = {};
-            
-            if (isAdminEmail && data.role !== 'admin') {
-              updates.role = 'admin';
-            }
-            
-            // Sync name if missing in users but present in personal_data
-            if (syncName && !data.nome) {
-              updates.nome = syncName;
-            }
-
-            // Sync photo if missing
-            if (pdData?.profilePhoto && !data.photoURL) {
-              updates.photoURL = pdData.profilePhoto;
-            }
-
-            const lastUpdate = localStorage.getItem(`lastLoginUpdate_${firebaseUser.uid}`);
-            const now = new Date().getTime();
-            if (!lastUpdate || (now - parseInt(lastUpdate)) > 86400000) { // 24 hours
-              updates.lastLogin = new Date().toISOString();
-              localStorage.setItem(`lastLoginUpdate_${firebaseUser.uid}`, now.toString());
-            }
-
-            if (Object.keys(updates).length > 0 && !quotaExceededRef.current) {
-              await updateDoc(userDocRef, updates).catch(err => {
-                if (err.message?.includes('quota') || err.message?.includes('resource-exhausted')) {
-                  setQuotaExceededGlobal();
-                }
-              });
-            }
+          const lastUpdate = localStorage.getItem(`lastProfileSync_${firebaseUser.uid}`);
+          const now = new Date().getTime();
+          
+          if (!lastUpdate || (now - parseInt(lastUpdate)) > 3600000) { 
+             const userDoc = await getDoc(userDocRef);
+             
+             if (!userDoc.exists()) {
+               await setDoc(userDocRef, {
+                 email: firebaseUser.email,
+                 role: isAdminEmail ? 'admin' : 'user',
+                 photoURL: firebaseUser.photoURL || null,
+                 createdAt: new Date().toISOString(),
+                 lastLogin: new Date().toISOString(),
+                 migrationCompleted: true
+               });
+             } else {
+               const data = userDoc.data();
+               const updates: any = {};
+               if (isAdminEmail && data.role !== 'admin') updates.role = 'admin';
+               updates.lastLogin = new Date().toISOString();
+               if (Object.keys(updates).length > 0) {
+                 await updateDoc(userDocRef, updates);
+               }
+             }
+             localStorage.setItem(`lastProfileSync_${firebaseUser.uid}`, now.toString());
           }
         } catch (error: any) {
-          console.error('Error updating user login info:', error);
-          if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
-            setQuotaExceededGlobal();
-          }
+          console.warn('Silent sync error (likely quota):', error);
+          if (error.message?.includes('quota')) setQuotaExceededGlobal();
         }
         
-        // Listen for changes without updating back (no loop)
+        // Listener otimizado para o perfil
         unsubUser = onSnapshot(userDocRef, (userDoc) => {
           if (userDoc.exists()) {
             const data = userDoc.data();
-            const isAdminEmail = 
-              firebaseUser.email === 'weldonrs@gmail.com' || 
-              firebaseUser.email === '2283701@progcir.app' ||
-              firebaseUser.email === '2283701@progcir.com';
-            
-            const userData = {
-              id: firebaseUser.uid,
-              usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
-              email: firebaseUser.email,
+            setUser((prev: any) => ({
+              ...prev,
               role: isAdminEmail ? 'admin' : (data.role || 'user'),
               photoURL: data.photoURL || null,
-              migrationCompleted: data.migrationCompleted || false,
-              itinerariesInitialized: data.itinerariesInitialized || false
-            };
-            setUser(userData);
+              migrationCompleted: data.migrationCompleted || false
+            }));
           }
         }, (error) => {
-          // Don't throw here to avoid crashing the app if quota is hit
-          if (auth.currentUser) {
-            console.error('Error listening to user profile (likely quota exceeded):', error);
-            if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
-              setQuotaExceeded(true);
-              setQuotaExceededGlobal();
-            }
+          if (error.message?.includes('quota')) {
+            setQuotaExceeded(true);
+            setQuotaExceededGlobal();
           }
         });
       } else {
-        if (unsubUser) {
-          unsubUser();
-          unsubUser = null;
-        }
+        if (unsubUser) { unsubUser(); unsubUser = null; }
         setUser(null);
         setPersonalData(null);
-        setLoadingPersonalData(false);
         setCongStats({ 
-          congregations: 0, 
-          groups: 0, 
-          substitutes: 0, 
-          analyzedCongregations: 0,
-          publicadoresAtivos: 0,
-          pioneirosRegulares: 0,
-          pioneirosEspeciais: 0,
-          anciaos: 0,
-          servos: 0
+          congregations: 0, groups: 0, substitutes: 0, analyzedCongregations: 0,
+          publicadoresAtivos: 0, pioneirosRegulares: 0, pioneirosEspeciais: 0,
+          anciaos: 0, servos: 0
         });
         setQuotaExceeded(false);
       }
@@ -518,451 +467,130 @@ export default function Home() {
   }, [user?.id, quotaExceeded]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || quotaExceeded) return;
 
     const isDashboard = currentView === 'dashboard';
+    const isStats = currentView === 'statistics' || currentView === 'congregation_statistics';
     
-    const fetchData = async () => {
-      // Use user.id as the primary source of truth for the UID
-      const activeUid = user?.id;
-      if (!activeUid) {
-        console.log('fetchData: No activeUid, skipping.');
-        return;
-      }
+    // Only load if needed
+    if (!isDashboard && !isStats && personalData) return;
 
-      // Ensure auth.currentUser is available and matches user.id
-      // This prevents permission errors due to race conditions during auth state changes
-      if (!auth.currentUser || auth.currentUser.uid !== activeUid) {
-        console.log(`fetchData: Waiting for auth.currentUser for UID ${activeUid}...`);
-        let attempts = 0;
-        while ((!auth.currentUser || auth.currentUser.uid !== activeUid) && attempts < 30) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
-        }
-        
-        if (!auth.currentUser || auth.currentUser.uid !== activeUid) {
-          console.warn(`fetchData: auth.currentUser not ready or UID mismatch after waiting. Auth UID: ${auth.currentUser?.uid}, activeUid: ${activeUid}`);
-          return;
-        }
-      }
-      
-      // fetchData: Starting logic removed slowgetIdTokenResult call
+    const fetchData = async () => {
+      const activeUid = user?.id;
+      if (!activeUid) return;
+
       try {
         setLoadingPersonalData(true);
-        // Fetch Personal Data if not already loaded or if it's been a while
-        if (!personalData || isDashboard) {
+        
+        // 1. Personal Data - Aggressive session cache
+        const cachedPD = sessionStorage.getItem(`pd_${activeUid}`);
+        if (cachedPD) {
+          setPersonalData(JSON.parse(cachedPD));
+          setLoadingPersonalData(false);
+        }
+
+        // Fetch if no cache OR is dashboard (to ensure fresh data)
+        if (!cachedPD || isDashboard) {
           const pdDocRef = doc(db, 'personal_data', activeUid);
-          console.log(`fetchData: Attempting getDoc(personal_data/${activeUid})`);
-          let pdDoc = null;
-          try {
-            pdDoc = await getDoc(pdDocRef);
-            console.log(`fetchData: Personal data doc exists: ${pdDoc.exists()}`);
-          } catch (error) {
-            // Log but don't throw yet, as we have a fallback query
-            console.warn(`fetchData: Initial getDoc(personal_data/${activeUid}) failed:`, error);
-          }
+          const pdDoc = await getDoc(pdDocRef);
           
-          if (pdDoc && pdDoc.exists()) {
-            const pdData = pdDoc.data();
-            setPersonalData(pdData);
-            
-            // Sync to users collection for consistency in other parts of the app (like Chat)
-            // ONLY if data actually changed and quota hasn't been hit
-            if ((pdData.nome || pdData.role) && !quotaExceededRef.current) {
-              const runSync = async () => {
-                try {
-                  const uDocRef = doc(db, 'users', activeUid);
-                  const uDocSnap = await getDoc(uDocRef);
-                  if (uDocSnap.exists()) {
-                    const uData = uDocSnap.data();
-                    const updates: any = {};
-                    if (pdData.nome && pdData.nome !== uData.nome) updates.nome = pdData.nome;
-                    if (pdData.role && pdData.role !== uData.role) updates.role = pdData.role;
-                    if (pdData.profilePhoto && pdData.profilePhoto !== uData.photoURL) updates.photoURL = pdData.profilePhoto;
-                    
-                    if (Object.keys(updates).length > 0) {
-                      await updateDoc(uDocRef, updates);
-                    }
-                  } else {
-                    // If user doc doesn't exist, create it
-                    await setDoc(uDocRef, {
-                      nome: pdData.nome || '',
-                      role: pdData.role || 'user',
-                      photoURL: pdData.profilePhoto || null,
-                      lastActive: serverTimestamp()
-                    });
-                  }
-                } catch (err: any) {
-                  console.warn('Silent sync to users failed:', err);
-                  if (err.message?.includes('quota') || err.message?.includes('resource-exhausted')) {
-                    setQuotaExceeded(true);
-                  }
-                }
-              };
-              runSync();
-            }
-
-            // Only update user state if the username is different to avoid loops
-            if (pdData.numeroPessoal && pdData.numeroPessoal !== user.usuario) {
-              setUser((prev: any) => prev ? ({ ...prev, usuario: pdData.numeroPessoal }) : null);
-            }
+          if (pdDoc.exists()) {
+            const data = pdDoc.data();
+            setPersonalData(data);
+            sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
           } else {
-            // Fallback: search by userId field
-            const hasMigratedFallback = localStorage.getItem(`pdMigrationFallbackAttempted_${activeUid}`);
-            if (!hasMigratedFallback && !quotaExceeded) {
-              console.log(`fetchData: Falling back to query for personal_data where userId == ${activeUid}`);
-              // Use auth.currentUser.uid directly to be absolutely sure we are using the authenticated UID
-              const currentUid = auth.currentUser?.uid;
-              if (!currentUid) {
-                console.warn('fetchData: auth.currentUser disappeared during query setup');
-                return;
-              }
-              const pdQuery = query(collection(db, 'personal_data'), where('userId', '==', currentUid), limit(1));
-              let pdSnapshot;
-              try {
-                pdSnapshot = await getDocs(pdQuery);
-                console.log(`fetchData: Fallback query by userId result empty: ${pdSnapshot.empty}`);
-              } catch (error) {
-                console.error('fetchData: Fallback query failed:', error);
-                handleFirestoreError(error, OperationType.LIST, 'personal_data (query by userId)');
-              }
-              
-              if (pdSnapshot && !pdSnapshot.empty) {
-                localStorage.setItem(`pdMigrationFallbackAttempted_${activeUid}`, 'true');
-                const pdData = pdSnapshot.docs[0].data();
-                setPersonalData(pdData);
-                // Migrate this doc to use activeUid as ID
-                try {
-                  await setDoc(doc(db, 'personal_data', activeUid), { ...pdData, userId: activeUid });
-                } catch (error) {
-                  console.error('fetchData: Failed to migrate personal_data doc:', error);
-                  handleFirestoreError(error, OperationType.WRITE, `personal_data/${activeUid}`);
-                }
-              } else {
-                console.log('fetchData: No personal data found in fallback query.');
-              }
-            }
-          }
-        }
-        
-        // MIGRATION LOGIC (only if not already completed)
-        if (!user.migrationCompleted && !personalData) {
-          const username = user.usuario;
-          const hasMigrated = localStorage.getItem(`migrationAttempted_${activeUid}`);
-          
-          if (username && !hasMigrated && !quotaExceeded) {
-            localStorage.setItem(`migrationAttempted_${activeUid}`, 'true');
-            let migrationSnapshot;
-            try {
-              let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
-              migrationSnapshot = await getDocs(migrationQuery);
-              
-              // If not found by username, try by email
-              if ((!migrationSnapshot || migrationSnapshot.empty) && auth.currentUser?.email) {
-                const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', auth.currentUser.email), limit(1));
-                migrationSnapshot = await getDocs(emailQuery);
-                
-                if (!migrationSnapshot || migrationSnapshot.empty) {
-                  const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', auth.currentUser.email), limit(1));
-                  migrationSnapshot = await getDocs(jwpubQuery);
-                }
-              }
-            } catch (error) {
-              // Migration query might fail if rules are strict, but we catch it
-              console.warn('Migration query failed (likely permissions):', error);
-            }
-
-            if (!auth.currentUser) return;
-
-            let oldUserId = null;
-            let oldData = null;
-
-            if (migrationSnapshot && !migrationSnapshot.empty) {
-              const docSnap = migrationSnapshot.docs[0];
-              oldData = docSnap.data();
-              oldUserId = oldData.userId;
-            }
-            
-            if (oldUserId && oldUserId !== activeUid && oldData) {
-              const migratedData = {
-                ...oldData,
-                userId: activeUid,
-                numeroPessoal: username
-              };
-              try {
-                await setDoc(doc(db, 'personal_data', activeUid), migratedData);
-                setPersonalData(migratedData);
-                
-                // Migrate other collections
-                const collectionsToMigrate = ['congregations', 'substitutes', 'itineraries', 'activity_analysis', 's303_reports'];
-                const batch = writeBatch(db);
-                let batchCount = 0;
-                
-                // Track documents to delete from old user
-                const docsToDelete: { collection: string; id: string }[] = [];
-                
-                for (const collName of collectionsToMigrate) {
-                  try {
-                    const q = query(collection(db, collName), where('userId', '==', oldUserId));
-                    const snapshot = await getDocs(q);
-                    for (const d of snapshot.docs) {
-                      const docData = d.data();
-                      let newDocRef;
-                      
-                      if (collName === 'activity_analysis' || collName === 's303_reports') {
-                        const congregacao = docData.congregacao || '';
-                        const dataVisita = docData.dataVisita || '';
-                        const newId = `${activeUid}_${congregacao}_${dataVisita.replace(/\//g, '-')}`;
-                        newDocRef = doc(db, collName, newId);
-                      } else {
-                        // Create a new document with a new ID to avoid modifying the original
-                        newDocRef = doc(collection(db, collName));
-                      }
-                      
-                      batch.set(newDocRef, { ...docData, userId: activeUid });
-                      docsToDelete.push({ collection: collName, id: d.id });
-                      batchCount++;
-                      if (batchCount >= 400) break; // Leave room for deletions
-                    }
-                  } catch (error) {
-                    console.warn(`Migration of ${collName} failed:`, error);
-                  }
-                  if (batchCount >= 400) break;
-                }
-
-                if (batchCount > 0) {
-                  await batch.commit();
-                }
-
-                // Delete old documents to prevent duplication in the system
-                const deleteBatch = writeBatch(db);
-                let deleteCount = 0;
-                
-                // Delete old personal_data and old user profile
-                deleteBatch.delete(doc(db, 'personal_data', oldUserId));
-                deleteBatch.delete(doc(db, 'users', oldUserId));
-                deleteCount += 2;
-
-                for (const docInfo of docsToDelete) {
-                  deleteBatch.delete(doc(db, docInfo.collection, docInfo.id));
-                  deleteCount++;
-                  if (deleteCount >= 450) break;
-                }
-                
-                if (deleteCount > 0) {
-                  await deleteBatch.commit();
-                }
-
-                // Mark migration as completed in current user doc
-                await updateDoc(doc(db, 'users', activeUid), { 
-                  migrationCompleted: true,
-                  migrationV2Completed: true
-                });
-              } catch (error) {
-                console.error('Migration process failed:', error);
-              }
-            }
-          } else if (user.migrationCompleted && !user.migrationV2Completed && !quotaExceeded) {
-            // V2 Migration for users who already migrated but missed analysis/reports
-            const username = user.usuario;
-            const hasMigratedV2 = localStorage.getItem(`migrationV2Attempted_${activeUid}`);
-            
-            if (username && !hasMigratedV2) {
-              localStorage.setItem(`migrationV2Attempted_${activeUid}`, 'true');
-              try {
-                let migrationQuery = query(collection(db, 'personal_data'), where('numeroPessoal', '==', username), limit(1));
-                let migrationSnapshot = await getDocs(migrationQuery);
-                
-                // If not found by username, try by email
-                if (migrationSnapshot.empty && auth.currentUser?.email) {
-                  const emailQuery = query(collection(db, 'personal_data'), where('emailPessoal', '==', auth.currentUser.email), limit(1));
-                  migrationSnapshot = await getDocs(emailQuery);
-                  
-                  if (migrationSnapshot.empty) {
-                    const jwpubQuery = query(collection(db, 'personal_data'), where('emailJwpub', '==', auth.currentUser.email), limit(1));
-                    migrationSnapshot = await getDocs(jwpubQuery);
-                  }
-                }
-                
-                if (!migrationSnapshot.empty) {
-                  const oldData = migrationSnapshot.docs[0].data();
-                  const oldUserId = oldData.userId;
-                  
-                  if (oldUserId && oldUserId !== activeUid) {
-                    const collectionsToMigrate = ['activity_analysis', 's303_reports'];
-                    const batch = writeBatch(db);
-                    let batchCount = 0;
-                    const docsToDelete: { collection: string; id: string }[] = [];
-                    
-                    for (const collName of collectionsToMigrate) {
-                      const q = query(collection(db, collName), where('userId', '==', oldUserId));
-                      const snapshot = await getDocs(q);
-                      for (const d of snapshot.docs) {
-                        const docData = d.data();
-                        const congregacao = docData.congregacao || '';
-                        const dataVisita = docData.dataVisita || '';
-                        const newId = `${activeUid}_${congregacao}_${dataVisita.replace(/\//g, '-')}`;
-                        const newDocRef = doc(db, collName, newId);
-                        
-                        batch.set(newDocRef, { ...docData, userId: activeUid });
-                        docsToDelete.push({ collection: collName, id: d.id });
-                        batchCount++;
-                        if (batchCount >= 450) break;
-                      }
-                      if (batchCount >= 450) break;
-                    }
-                    
-                    if (batchCount > 0) {
-                      await batch.commit();
-                      
-                      // Delete old docs for V2 migration too
-                      const deleteBatch = writeBatch(db);
-                      for (const docInfo of docsToDelete) {
-                        deleteBatch.delete(doc(db, docInfo.collection, docInfo.id));
-                      }
-                      await deleteBatch.commit();
-                    }
-                    
-                    await updateDoc(doc(db, 'users', activeUid), { migrationV2Completed: true });
-                    setUser((prev: any) => prev ? { ...prev, migrationV2Completed: true } : null);
-                  }
-                }
-              } catch (error) {
-                console.warn('V2 Migration failed:', error);
+            // Fallback query (only once per session)
+            const fallbackKey = `fallbackDone_${activeUid}`;
+            if (!sessionStorage.getItem(fallbackKey)) {
+              const q = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                const data = snap.docs[0].data();
+                setPersonalData(data);
+                sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
+                sessionStorage.setItem(fallbackKey, 'true');
               }
             }
           }
         }
 
-        // Fetch Stats (only if on dashboard or cache expired)
-        const cachedStatsStr = sessionStorage.getItem(`dashboardStats_${activeUid}`);
+        // 2. Statistics - Aggressive session cache (15 min)
+        const cachedStats = sessionStorage.getItem(`stats_${activeUid}`);
         const now = new Date().getTime();
-        let shouldFetchStats = isDashboard;
+        let needsUpdate = !cachedStats;
         
-        if (cachedStatsStr) {
-          const cached = JSON.parse(cachedStatsStr);
-          setCongStats(cached.stats);
-          // If cache is less than 10 minutes old, don't fetch unless explicitly on dashboard and cache is > 2 min
-          if (now - cached.timestamp < 600000) {
-            if (!isDashboard || (now - cached.timestamp < 120000)) {
-              shouldFetchStats = false;
-            }
-          }
+        if (cachedStats) {
+          const parsed = JSON.parse(cachedStats);
+          setCongStats(parsed.stats);
+          setCurrentEvent(parsed.currentEvent || '');
+          if (now - parsed.timestamp > 900000) needsUpdate = true;
         }
 
-        if (shouldFetchStats && !quotaExceeded) {
-          let congSnap: any, subSnap: any, itinSnap: any, analysisSnap: any;
-          try {
-            console.log(`fetchData: Fetching stats for ${activeUid}...`);
-            const results = await Promise.all([
-              getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))).catch(e => { console.error('Congregations fetch failed:', e); throw e; }),
-              getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))).catch(e => { console.error('Substitutes fetch failed:', e); throw e; }),
-              getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))).catch(e => { console.error('Itineraries fetch failed:', e); throw e; }),
-              getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid))).catch(e => { console.error('Analysis fetch failed:', e); throw e; })
-            ]);
-            [congSnap, subSnap, itinSnap, analysisSnap] = results;
-            console.log('fetchData: Stats fetched successfully');
-          } catch (error) {
-            console.error('fetchData: Promise.all for stats failed:', error);
-            handleFirestoreError(error, OperationType.GET, 'dashboard_stats');
-            return;
-          }
+        if (needsUpdate && isDashboard && !quotaExceeded) {
+          console.log(`fetchData: Refreshing dashboard stats for ${activeUid}`);
+          const [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
+            getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
+            getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
+            getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))),
+            getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid)))
+          ]);
 
           let groups = 0;
           congSnap.docs.forEach((doc: any) => {
             const data = doc.data();
-            if (data.grupos && Array.isArray(data.grupos)) {
-              groups += data.grupos.length;
-            }
+            if (data.grupos && Array.isArray(data.grupos)) groups += data.grupos.length;
           });
 
-          // Count unique congregations with analysis
-          const analyzedCongs = new Set();
-          analysisSnap.docs.forEach((doc: any) => {
-            const data = doc.data();
-            if (data.congregacao) {
-              analyzedCongs.add(data.congregacao);
-            }
-          });
-
-          const analysesByCong: { [key: string]: any } = {};
-          analysisSnap.docs.forEach((doc: any) => {
-            const data = doc.data();
+          const analyzedCongs = new Set(analysisSnap.docs.map(d => d.data().congregacao).filter(Boolean));
+          
+          const latestAnalyses: any = {};
+          analysisSnap.docs.forEach(d => {
+            const data = d.data();
             const cong = data.congregacao;
-            if (!analysesByCong[cong]) {
-              analysesByCong[cong] = data;
+            if (!latestAnalyses[cong]) {
+              latestAnalyses[cong] = data;
             } else {
-              const currentLatest = analysesByCong[cong];
-              const [d1, m1, y1] = currentLatest.dataVisita.split('/').map(Number);
-              const [d2, m2, y2] = data.dataVisita.split('/').map(Number);
-              const date1 = new Date(y1, m1 - 1, d1);
-              const date2 = new Date(y2, m2 - 1, d2);
-              if (date2 > date1) {
-                analysesByCong[cong] = data;
+              const parseDate = (s: string) => {
+                if (!s) return 0;
+                const [d,m,y] = s.split('/').map(Number);
+                return new Date(y, m-1, d).getTime();
+              };
+              if (parseDate(data.dataVisita) > parseDate(latestAnalyses[cong].dataVisita)) {
+                latestAnalyses[cong] = data;
               }
             }
           });
 
-          const latestAnalyses = Object.values(analysesByCong);
-          let totalPubs = 0;
-          let totalPioReg = 0;
-          let totalPioEsp = 0;
-          let totalAnciaos = 0;
-          let totalServos = 0;
-
-          latestAnalyses.forEach((analysis: any) => {
-            totalPubs += parseInt(analysis.pubAtivos) || 0;
-            totalPioReg += parseInt(analysis.ministério?.pioneirosRegulares?.relatando) || 0;
-            totalPioEsp += parseInt(analysis.ministério?.pioneirosEspeciais?.relatando) || 0;
-            totalAnciaos += analysis.estatisticas?.anciaos || 0;
-            totalServos += analysis.estatisticas?.servos || 0;
-          });
-
-          // Find current event
-          let foundEvent = '';
-          itinSnap.docs.forEach((doc: any) => {
-            const data = doc.data();
-            if (isCurrentWeek(data.semana)) {
-              foundEvent = data.evento || '';
-            }
-          });
-          setCurrentEvent(foundEvent);
-
-          const newStats = { 
-            congregations: congSnap.size, 
-            groups, 
+          const statsArr = Object.values(latestAnalyses);
+          const stats = {
+            congregations: congSnap.size,
+            groups,
             substitutes: subSnap.size,
             analyzedCongregations: analyzedCongs.size,
-            publicadoresAtivos: totalPubs,
-            pioneirosRegulares: totalPioReg,
-            pioneirosEspeciais: totalPioEsp,
-            anciaos: totalAnciaos,
-            servos: totalServos
+            publicadoresAtivos: statsArr.reduce((acc, a: any) => acc + (parseInt(a.pubAtivos) || 0), 0),
+            pioneirosRegulares: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosRegulares?.relatando) || 0), 0),
+            pioneirosEspeciais: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosEspeciais?.relatando) || 0), 0),
+            anciaos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.anciaos || 0), 0),
+            servos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.servos || 0), 0),
           };
-          setCongStats(newStats);
-          sessionStorage.setItem(`dashboardStats_${activeUid}`, JSON.stringify({
-            stats: newStats,
-            currentEvent: foundEvent,
-            timestamp: now
-          }));
-        } else if (cachedStatsStr) {
-          const cached = JSON.parse(cachedStatsStr);
-          if (cached.currentEvent !== undefined) {
-            setCurrentEvent(cached.currentEvent);
-          }
+
+          const foundEvent = itinSnap.docs.find(d => isCurrentWeek(d.data().semana))?.data().evento || '';
+          
+          setCongStats(stats);
+          setCurrentEvent(foundEvent);
+          sessionStorage.setItem(`stats_${activeUid}`, JSON.stringify({ stats, currentEvent: foundEvent, timestamp: now }));
         }
+
       } catch (error: any) {
-        console.error('Error in fetchData:', error);
-        if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
-          setQuotaExceeded(true);
-        }
+        console.error('Data loading error:', error);
+        if (error.message?.includes('quota')) setQuotaExceededGlobal();
       } finally {
         setLoadingPersonalData(false);
       }
     };
 
     fetchData();
-  }, [user?.id, user?.usuario, user?.migrationCompleted, user?.migrationV2Completed, currentView, quotaExceeded]); // Removed personalData to avoid potential loops
+  }, [user?.id, currentView, quotaExceeded]);
 
   // Logic to force Role Selection for new users or missing roles
   useEffect(() => {

@@ -206,7 +206,12 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
         }
 
         // Robust name detection matching UsersView logic
-        const userNome = data.nome || data.displayName || (data.usuario && data.usuario.length > 4 ? data.usuario : (data.email?.split('@')[0] || data.usuario || 'Usuário'));
+        let userNome = data.nome || data.displayName || (data.usuario && data.usuario.length > 4 ? data.usuario : (data.email?.split('@')[0] || data.usuario || 'Usuário'));
+        
+        // If it's still 'Usuário' or similar, try to use email part
+        if ((!userNome || userNome === 'Usuário' || userNome === 'Sem nome') && data.email) {
+          userNome = data.email.split('@')[0];
+        }
 
         // Map roles to friendly labels
         let roleLabel = 'Usuário';
@@ -226,7 +231,8 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
           photoURL: data.photoURL,
           role: roleLabel,
           isOnline: isOnline && !data.isInactive,
-          lastActive: lastActive
+          lastActive: lastActive,
+          account: data.usuario || data.email // Added account info as requested
         };
       }) as ChatUser[];
       setChatUsers(users);
@@ -523,8 +529,11 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
-                    <h1 className={`text-sm truncate ${unreadCount > 0 ? 'font-black text-[#121c2a]' : 'font-bold text-[#121c2a]'}`}>{chatUser.nome}</h1>
-                    <span className="text-[10px] text-[#727785] font-bold uppercase">{chatUser.role}</span>
+                    <div className="flex flex-col min-w-0">
+                      <h1 className={`text-sm truncate ${unreadCount > 0 ? 'font-black text-[#121c2a]' : 'font-bold text-[#121c2a]'}`}>{chatUser.nome}</h1>
+                      <p className="text-[10px] text-[#727785] truncate font-mono">{(chatUser as any).account}</p>
+                    </div>
+                    <span className="text-[10px] text-[#727785] font-bold uppercase shrink-0">{chatUser.role}</span>
                   </div>
                   <div className="flex justify-between items-center gap-2">
                     <p className={`text-[12px] truncate flex-1 font-sans ${unreadCount > 0 ? 'font-black text-[#121c2a]' : 'text-[#727785]'}`}>
