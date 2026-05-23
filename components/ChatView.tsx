@@ -8,6 +8,7 @@ import {
   orderBy, 
   limit, 
   onSnapshot, 
+  getDocs,
   addDoc, 
   serverTimestamp,
   doc,
@@ -15,7 +16,7 @@ import {
   updateDoc,
   where
 } from 'firebase/firestore';
-import { Send, User, MessageCircle, Loader2, Users, ChevronLeft, X, Search, Phone, Video, Info, MoreHorizontal } from 'lucide-react';
+import { Send, User, MessageCircle, Loader2, Users, ChevronLeft, X, Search, Phone, Video, Info, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 
@@ -123,54 +124,54 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
     }
   }, [auth.currentUser]);
 
-  // Listen to all relevant messages for previews and unread counts
+  // Listen to messages for previews and unread counts - Optimized: Use getDocs instead of onSnapshot
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || isQuotaExceeded()) return;
 
-    // Listen to messages for the current user (where they are sender or in private channel)
-    // For simplicity, we listen to all messages and filter. In production, we'd use a more targeted approach.
-    const q = query(
-      collection(db, 'chat_messages'),
-      orderBy('timestamp', 'desc'),
-      limit(500)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lastMsgs: Record<string, Message> = {};
-      const unreads: Record<string, number> = {};
-      
-      // We process from oldest to newest to correctly count unreads, but query was desc for efficiency
-      const docs = [...snapshot.docs].reverse();
-      
-      docs.forEach(doc => {
-        const msg = { id: doc.id, ...doc.data() } as Message;
-        const channel = msg.channel;
+    const fetchPreviews = async () => {
+      try {
+        const q = query(
+          collection(db, 'chat_messages'),
+          orderBy('timestamp', 'desc'),
+          limit(200) // Reduced from 500 to save quota
+        );
         
-        // Is this message relevant to me? (General OR I'm involved in private)
-        const isGeneral = channel === 'general';
-        const isMyPrivateChannel = channel.startsWith('private_') && channel.includes(auth.currentUser!.uid);
+        const snapshot = await getDocs(q);
+        const lastMsgs: Record<string, Message> = {};
+        const unreads: Record<string, number> = {};
+        const docs = [...snapshot.docs].reverse();
         
-        if (isGeneral || isMyPrivateChannel) {
-          lastMsgs[channel] = msg;
+        docs.forEach(doc => {
+          const msg = { id: doc.id, ...doc.data() } as Message;
+          const channel = msg.channel;
+          const isGeneral = channel === 'general';
+          const isMyPrivateChannel = channel.startsWith('private_') && channel.includes(auth.currentUser!.uid);
           
-          const lastRead = lastReadTimestamps[channel] || 0;
-          const msgTime = msg.timestamp?.toDate ? msg.timestamp.toDate().getTime() : (msg.timestamp ? new Date(msg.timestamp).getTime() : 0);
-          
-          if (msg.senderId !== auth.currentUser!.uid && msgTime > lastRead && channel !== activeChannel) {
-            unreads[channel] = (unreads[channel] || 0) + 1;
+          if (isGeneral || isMyPrivateChannel) {
+            lastMsgs[channel] = msg;
+            const lastRead = lastReadTimestamps[channel] || 0;
+            const msgTime = msg.timestamp?.toDate ? msg.timestamp.toDate().getTime() : (msg.timestamp ? new Date(msg.timestamp).getTime() : 0);
+            
+            if (msg.senderId !== auth.currentUser!.uid && msgTime > lastRead && channel !== activeChannel) {
+              unreads[channel] = (unreads[channel] || 0) + 1;
+            }
           }
-        }
-      });
-      
-      setLastMessages(lastMsgs);
-      setUnreadCounts(unreads);
+        });
+        
+        setLastMessages(lastMsgs);
+        setUnreadCounts(unreads);
+        
+        const totalUnread = Object.values(unreads).reduce((a, b) => a + b, 0);
+        window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
+      } catch (error: any) {
+        if (error.message?.includes('quota')) setQuotaExceededGlobal();
+      }
+    };
 
-      // Update global unread count for sidebar
-      const totalUnread = Object.values(unreads).reduce((a, b) => a + b, 0);
-      window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
-    });
-
-    return () => unsubscribe();
+    fetchPreviews();
+    // Refresh previews every 5 minutes instead of real-time snapshot
+    const interval = setInterval(fetchPreviews, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [auth.currentUser, lastReadTimestamps, activeChannel]);
 
   // Mark channel as read when opened
@@ -191,54 +192,71 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
     }
   }, [activeChannel, auth.currentUser]);
 
-  // Fetch users for list
+  // Fetch users for list - Optimized: Use getDocs instead of onSnapshot
   useEffect(() => {
-    const q = query(collection(db, 'users'), limit(500));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    if (!auth.currentUser?.uid || isQuotaExceeded()) return;
+    
+    const fetchUsers = async () => {
+      try {
+        const q = query(collection(db, 'users'), limit(500));
+        const snapshot = await getDocs(q);
         const users = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const lastActive = data.lastActive?.toDate ? data.lastActive.toDate() : (data.lastActive ? new Date(data.lastActive) : null);
-        const isOnline = lastActive && (new Date().getTime() - lastActive.getTime() < 10 * 60 * 1000); // 10 mins threshold
-        
-        if (doc.id === auth.currentUser?.uid) {
-          setCurrentUserData(data);
-          setIsInactive(!!data.isInactive);
-        }
+          const data = doc.data();
+          const lastActive = data.lastActive?.toDate ? data.lastActive.toDate() : (data.lastActive ? new Date(data.lastActive) : null);
+          const isOnline = lastActive && (new Date().getTime() - lastActive.getTime() < 10 * 60 * 1000);
+          
+          if (doc.id === auth.currentUser?.uid) {
+            setCurrentUserData(data);
+            setIsInactive(!!data.isInactive);
+          }
 
-        // Robust name detection matching UsersView logic
-        let userNome = data.nome || data.displayName || (data.usuario && data.usuario.length > 4 ? data.usuario : (data.email?.split('@')[0] || data.usuario || 'Usuário'));
-        
-        // If it's still 'Usuário' or similar, try to use email part
-        if ((!userNome || userNome === 'Usuário' || userNome === 'Sem nome') && data.email) {
-          userNome = data.email.split('@')[0];
-        }
+          let userNome = data.nome || data.displayName || (data.usuario && data.usuario.length > 4 ? data.usuario : (data.email?.split('@')[0] || data.usuario || 'Usuário'));
+          if ((!userNome || userNome === 'Usuário' || userNome === 'Sem nome') && data.email) {
+            userNome = data.email.split('@')[0];
+          }
 
-        // Map roles to friendly labels
-        let roleLabel = 'Usuário';
-        if (data.role === 'admin') roleLabel = 'Administrador';
-        else if (data.role === 'viajante') roleLabel = 'Viajante';
-        else if (data.role === 'pioneiro_especial') roleLabel = 'Pioneiro Especial';
-        else if (data.role === 'pioneiro_regular') roleLabel = 'Pioneiro Regular';
-        else if (data.role === 'anciao') roleLabel = 'Ancião';
-        else if (data.role === 'servo') roleLabel = 'Servo Ministerial';
-        else if (data.role === 'pioneiro') roleLabel = 'Pioneiro';
-        else if (data.role === 'publicador') roleLabel = 'Publicador';
-        else if (data.role) roleLabel = data.role.charAt(0).toUpperCase() + data.role.slice(1).replace('_', ' ');
+          let roleLabel = 'Usuário';
+          if (data.role === 'admin') roleLabel = 'Administrador';
+          else if (data.role === 'viajante') roleLabel = 'Viajante';
+          else if (data.role === 'pioneiro_especial') roleLabel = 'Pioneiro Especial';
+          else if (data.role === 'pioneiro_regular') roleLabel = 'Pioneiro Regular';
+          else if (data.role === 'anciao') roleLabel = 'Ancião';
+          else if (data.role === 'servo') roleLabel = 'Servo Ministerial';
+          else if (data.role === 'pioneiro') roleLabel = 'Pioneiro';
+          else if (data.role === 'publicador') roleLabel = 'Publicador';
+          else if (data.role) roleLabel = data.role.charAt(0).toUpperCase() + data.role.slice(1).replace('_', ' ');
 
-        return {
-          id: doc.id,
-          nome: userNome,
-          photoURL: data.photoURL,
-          role: roleLabel,
-          isOnline: isOnline && !data.isInactive,
-          lastActive: lastActive,
-          account: data.usuario || data.email // Added account info as requested
-        };
-      }) as ChatUser[];
-      setChatUsers(users);
-      setLoadingUsers(false);
-    });
-    return () => unsubscribe();
+          return {
+            id: doc.id,
+            nome: userNome,
+            photoURL: data.photoURL,
+            role: roleLabel,
+            isOnline: isOnline && !data.isInactive,
+            lastActive: lastActive,
+            account: data.usuario || data.email
+          };
+        }) as ChatUser[];
+        setChatUsers(users);
+        setLoadingUsers(false);
+      } catch (error: any) {
+        console.warn('Error fetching users:', error);
+        if (error.message?.includes('quota')) setQuotaExceededGlobal();
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+    
+    // Add listener for manual refresh
+    const handleManualRefresh = () => fetchUsers();
+    window.addEventListener('refresh_chat_users', handleManualRefresh);
+
+    // Refresh users list every 10 minutes instead of real-time
+    const interval = setInterval(fetchUsers, 10 * 60 * 1000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refresh_chat_users', handleManualRefresh);
+    };
   }, [auth.currentUser?.uid]);
 
   const getPrivateChannelId = (uid1: string, uid2: string) => {
@@ -396,22 +414,22 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
               </div>
               <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-2 border-[#0058be] rounded-full shadow-sm transition-colors ${isInactive ? 'bg-gray-400' : 'bg-[#4edea3]'}`}></span>
             </div>
-            <div className="flex flex-col">
-              <h1 className="font-black text-[15px] text-white leading-tight tracking-tight">
+            <div className="flex flex-col min-w-0">
+              <h1 className="font-black text-[15px] text-white leading-tight tracking-tight truncate">
                 {currentUserData?.nome || personalData?.nome || user.displayName || 'Meu Chat'}
               </h1>
-              <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${isInactive ? 'bg-white/40' : 'bg-[#4edea3] animate-pulse'}`} />
-                <span className="text-[10px] text-white/80 font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isInactive ? 'bg-white/40' : 'bg-[#4edea3] animate-pulse'}`} />
+                <span className="text-[10px] text-white/80 font-bold uppercase tracking-wider truncate">
                   {isInactive ? 'Modo Offline' : (currentUserData?.role ? chatUsers.find(u => u.id === auth.currentUser?.uid)?.role : 'Online')}
                 </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             <button 
               onClick={() => setIsInactive(!isInactive)}
-              className={`text-[9px] font-black px-4 py-2 rounded-xl transition-all border shadow-lg active:scale-95 ${
+              className={`text-[9px] font-black px-4 py-2 rounded-xl transition-all border shadow-lg active:scale-95 flex-shrink-0 ${
                 isInactive 
                   ? 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600' 
                   : 'bg-red-500 text-white border-red-400 hover:bg-red-600'
@@ -426,7 +444,7 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
                   e.stopPropagation();
                   onClose();
                 }}
-                className="bg-white/10 text-white hover:bg-white/20 p-2.5 rounded-2xl transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95"
+                className="bg-white/10 text-white hover:bg-white/20 p-2.5 rounded-2xl transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95 flex-shrink-0"
                 title="Fechar Chat"
               >
                 <X size={20} strokeWidth={3} />
@@ -451,6 +469,19 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
 
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto py-2 custom-scrollbar bg-[#f8f9ff]">
+          <div className="px-4 py-2 flex justify-between items-center bg-gray-50 border-b border-gray-100">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contatos</span>
+            <button 
+              onClick={() => {
+                const event = new CustomEvent('refresh_chat_users');
+                window.dispatchEvent(event);
+              }}
+              className="text-[10px] font-bold text-[#0058be] hover:underline flex items-center gap-1"
+            >
+              <RefreshCw size={10} />
+              ATUALIZAR
+            </button>
+          </div>
           {/* General Channel */}
           <div 
             onClick={() => switchChannel('general')}
@@ -573,8 +604,8 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
             >
               <ChevronLeft size={24} />
             </button>
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative flex-shrink-0">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm ${selectedUser ? 'border-2 border-white/20' : 'bg-white/10'}`}>
                   {selectedUser ? (
                     selectedUser.photoURL ? (
@@ -592,28 +623,27 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#4edea3] border-2 border-[#0058be] rounded-full" />
                 )}
               </div>
-              <div className="flex flex-col">
-                <h2 className="font-bold text-white text-[16px] leading-tight">
+              <div className="flex flex-col min-w-0">
+                <h2 className="font-bold text-white text-[16px] leading-tight truncate">
                   {selectedUser ? selectedUser.nome : 'Canal Geral'}
                 </h2>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={`w-2 h-2 rounded-full ${(!selectedUser && isInactive) || (selectedUser && !selectedUser.isOnline) ? 'bg-white/40' : 'bg-[#4edea3]'}`} />
-                  <p className="text-[11px] text-white/80 font-medium">
+                <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${(!selectedUser && isInactive) || (selectedUser && !selectedUser.isOnline) ? 'bg-white/40' : 'bg-[#4edea3]'}`} />
+                  <p className="text-[11px] text-white/80 font-medium truncate">
                     {selectedUser ? selectedUser.role : (isInactive ? 'Offline' : 'Online Agora')}
                   </p>
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             {onClose && (
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose();
                 }}
-                className="bg-white/10 text-white hover:bg-white/20 p-2.5 rounded-2xl transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95"
+                className="bg-white/10 text-white hover:bg-white/20 p-2.5 rounded-2xl transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95 flex-shrink-0"
                 title="Fechar Chat"
               >
                 <X size={20} strokeWidth={3} />

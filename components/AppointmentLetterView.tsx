@@ -75,10 +75,18 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     return null;
   };
 
-  const [letterDate, setLetterDate] = useState<Date>(() => {
-    return parseVisitDate(visitDate) || new Date();
+  const [letterDate, setLetterDate] = useState<string>(() => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const monthNames = [
+      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+    const month = monthNames[now.getMonth()];
+    const year = now.getFullYear();
+    return `${day} de ${month} de ${year}`;
   });
-  const [isDateFocused, setIsDateFocused] = useState(false);
+
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
@@ -230,12 +238,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     }
   };
 
-  useEffect(() => {
-    const date = parseVisitDate(visitDate);
-    if (date) {
-      setLetterDate(date);
-    }
-  }, [visitDate]);
+  // Date is initialized once with current date and can be freely edited by the user
 
   const handlePrint = () => {
     window.print();
@@ -350,39 +353,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     });
   };
 
-  const formatLongDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', { 
-      weekday: 'long', 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    });
-  };
-
-  const formatShortDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    });
-  };
-
-  const handleDateInputChange = (value: string) => {
-    // Allow user to type freely while focused
-    // We'll only try to parse it on blur or if it matches dd/mm/yyyy
-    const parts = value.split('/');
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const year = parseInt(parts[2], 10);
-      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-        const newDate = new Date(year, month, day);
-        if (!isNaN(newDate.getTime())) {
-          setLetterDate(newDate);
-        }
-      }
-    }
-  };
+  // No complex formatting helpers are needed, as letterDate is managed as a direct editable string.
 
   const saveSignature = async (image: string | null) => {
     if (!userId) return;
@@ -576,12 +547,11 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
             <div className="text-right mb-6">
               <input 
                 type="text"
-                value={isDateFocused ? formatShortDate(letterDate) : formatLongDate(letterDate)}
-                onChange={(e) => handleDateInputChange(e.target.value)}
-                onFocus={() => setIsDateFocused(true)}
-                onBlur={() => setIsDateFocused(false)}
+                value={letterDate}
+                onChange={(e) => setLetterDate(e.target.value)}
                 className="text-[15px] text-right bg-transparent border-none outline-none w-full print:placeholder-transparent"
                 style={{ fontFamily: "'Times New Roman', Times, serif" }}
+                placeholder="Insira a data da carta"
               />
             </div>
 
