@@ -524,6 +524,28 @@ export default function PioneerSchoolView({
     }
   };
 
+  const getParticipantLabel = (scenarioId: number, index: number) => {
+    if (scenarioId === 1) {
+      return index === 0 ? 'Marido' : 'Esposa';
+    }
+    if ([2, 3, 4, 6, 7, 8, 10, 11, 12, 13, 14, 15].includes(scenarioId)) {
+      return index === 0 ? 'Publicador' : 'Morador';
+    }
+    if (scenarioId === 5) {
+      if (index === 0) return 'Publicador 1';
+      if (index === 1) return 'Publicador 2';
+      if (index === 2) return 'Morador 1';
+      if (index === 3) return 'Morador 2';
+    }
+    if (scenarioId === 9) {
+      return index === 0 ? 'Publicador 1' : 'Publicador 2';
+    }
+    if (scenarioId === 16 || scenarioId === 17 || scenarioId === 18) {
+      return index === 0 ? 'Instrutor' : 'Estudante';
+    }
+    return '';
+  };
+
   const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
     try {
       const existing = workshopAssignments[scenarioId];
@@ -1716,7 +1738,9 @@ export default function PioneerSchoolView({
                                       className={`relative px-2 py-0.5 min-h-[32px] flex items-center transition-all ${isFocused ? 'ring-2 ring-inset ring-[#3e5e66] bg-white z-10' : ''}`}
                                     >
                                       <div className="hidden workshop-participant-text text-[15px] font-medium text-slate-800">
-                                        {participant || (idx < 2 ? '...........................................' : '')}
+                                        {participant ? (
+                                          getParticipantLabel(scenario.id, idx) ? `${getParticipantLabel(scenario.id, idx)} - ${participant}` : participant
+                                        ) : (idx < 2 ? '...........................................' : '')}
                                       </div>
                                       <div className="workshop-select-ui w-full h-full">
                                         <select
@@ -1728,7 +1752,9 @@ export default function PioneerSchoolView({
                                           onKeyDown={(e) => handleWorkshopKeyDown(e, scenario.id, idx)}
                                           className={`w-full bg-transparent border-none rounded-none text-[15px] py-1 cursor-pointer transition-colors focus:ring-0 outline-none appearance-none block leading-tight ${!participant ? 'text-slate-400 font-normal italic' : 'text-slate-800 font-bold'}`}
                                         >
-                                          <option value="" className="text-slate-400 font-normal italic">- Selecionar -</option>
+                                          <option value="" className="text-slate-400 font-normal italic">
+                                            {getParticipantLabel(scenario.id, idx) ? `${getParticipantLabel(scenario.id, idx)} - ` : '- Selecionar -'}
+                                          </option>
                                           {workshopDropdownStudents.map((student) => (
                                             <option key={student.id} value={student.nome} className="text-slate-800 font-bold">
                                               {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}

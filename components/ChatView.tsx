@@ -55,6 +55,12 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
   const [lastMessages, setLastMessages] = useState<Record<string, Message>>({});
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, number>>({});
+  const lastReadTimestampsRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    lastReadTimestampsRef.current = lastReadTimestamps;
+  }, [lastReadTimestamps]);
+
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -149,7 +155,7 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
           
           if (isGeneral || isMyPrivateChannel) {
             lastMsgs[channel] = msg;
-            const lastRead = lastReadTimestamps[channel] || 0;
+            const lastRead = lastReadTimestampsRef.current[channel] || 0;
             const msgTime = msg.timestamp?.toDate ? msg.timestamp.toDate().getTime() : (msg.timestamp ? new Date(msg.timestamp).getTime() : 0);
             
             if (msg.senderId !== auth.currentUser!.uid && msgTime > lastRead && channel !== activeChannel) {
@@ -172,7 +178,7 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
     // Refresh previews every 5 minutes instead of real-time snapshot
     const interval = setInterval(fetchPreviews, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [auth.currentUser, lastReadTimestamps, activeChannel]);
+  }, [auth.currentUser, activeChannel]);
 
   // Mark channel as read when opened
   useEffect(() => {
@@ -183,12 +189,19 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
         localStorage.setItem(`chat_last_read_${auth.currentUser!.uid}`, JSON.stringify(next));
         return next;
       });
-      // Clear unread count for this channel immediately
+      // Clear unread count for this channel immediately and notify sidebar
       setUnreadCounts(prev => {
         const next = { ...prev };
         delete next[activeChannel];
         return next;
       });
+      setTimeout(() => {
+        setUnreadCounts(current => {
+          const totalUnread = Object.values(current).reduce((a, b) => a + b, 0);
+          window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
+          return current;
+        });
+      }, 0);
     }
   }, [activeChannel, auth.currentUser]);
 
@@ -287,6 +300,28 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
       setMessages(msgs);
       setLoading(false);
       setTimeout(scrollToBottom, 100);
+
+      // Mark the channel as read in real-time when new messages arrive while channel is open
+      if (auth.currentUser) {
+        const now = Date.now();
+        setLastReadTimestamps(prev => {
+          const next = { ...prev, [activeChannel]: now };
+          localStorage.setItem(`chat_last_read_${auth.currentUser!.uid}`, JSON.stringify(next));
+          return next;
+        });
+        setUnreadCounts(prev => {
+          const next = { ...prev };
+          delete next[activeChannel];
+          return next;
+        });
+        setTimeout(() => {
+          setUnreadCounts(current => {
+            const totalUnread = Object.values(current).reduce((a, b) => a + b, 0);
+            window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
+            return current;
+          });
+        }, 0);
+      }
     }, (error) => {
       console.error('Error listening to messages:', error);
       handleFirestoreError(error, OperationType.LIST, 'chat_messages');
@@ -391,13 +426,13 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
   const isShowingChat = !!activeChannel;
 
   return (
-    <div className="flex h-full bg-white rounded-xl overflow-hidden border border-[#c2c6d6] shadow-2xl relative pointer-events-auto font-sans">
+    <div className="flex w-full h-full bg-white rounded-xl overflow-hidden border border-[#c2c6d6] shadow-2xl relative pointer-events-auto font-sans">
       {/* List Area (WhatsApp side) */}
-      <div className={`flex-1 flex flex-col h-full bg-white transition-all duration-300 ${isShowingChat ? 'hidden' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col h-full bg-white min-w-0 transition-all duration-300 ${isShowingChat ? 'hidden' : 'flex'}`}>
         {/* Header List */}
-        <header className="bg-[#0058be] flex items-center justify-between px-5 py-4 w-full shadow-md z-10 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="relative">
+        <header className="bg-[#0058be] flex items-center justify-between px-5 py-4 w-full shadow-md z-10 transition-all flex-shrink-0">
+          <div className="flex-1 flex items-center gap-3 min-w-0">
+            <div className="relative flex-shrink-0">
               <div className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center overflow-hidden shadow-inner">
                 {personalData?.profilePhoto || currentUserData?.photoURL ? (
                   <img 
@@ -454,8 +489,8 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
         </header>
 
         {/* Search Bar */}
-        <div className="px-4 pt-4 pb-2 bg-[#f8f9ff]">
-          <div className="relative group">
+        <div className="px-4 pt-4 pb-2 bg-[#f8f9ff] flex-shrink-0">
+          <div className="relative group w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#727785] group-focus-within:text-[#0058be] transition-colors" size={18} />
             <input 
               type="text"
@@ -595,16 +630,16 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
       {/* Main Chat Area */}
       <div className={`flex-1 flex flex-col min-w-0 bg-white ${!isShowingChat ? 'hidden' : 'flex'}`}>
         {/* Chat Header */}
-        <header className="px-5 py-3 border-b border-[#c2c6d6] flex items-center justify-between bg-[#0058be] text-white shadow-md sticky top-0 z-10 transition-all">
-          <div className="flex items-center gap-3">
+        <header className="px-5 py-3 border-b border-[#c2c6d6] flex items-center justify-between bg-[#0058be] text-white shadow-md sticky top-0 z-10 transition-all flex-shrink-0">
+          <div className="flex-1 flex items-center gap-3 min-w-0">
             <button 
               onClick={() => switchChannel(null)}
-              className="p-2 -ml-2 hover:bg-white/10 rounded-full text-white transition-colors"
+              className="p-2 -ml-2 hover:bg-white/10 rounded-full text-white transition-colors flex-shrink-0"
               title="Voltar"
             >
               <ChevronLeft size={24} />
             </button>
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex-1 flex items-center gap-3 min-w-0">
               <div className="relative flex-shrink-0">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm ${selectedUser ? 'border-2 border-white/20' : 'bg-white/10'}`}>
                   {selectedUser ? (

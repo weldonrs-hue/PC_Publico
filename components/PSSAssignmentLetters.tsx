@@ -142,16 +142,52 @@ export default function PSSAssignmentLetters({
     }
   }, [selectedTemplate, templates, schoolInfo, workshopAssignments, personalData]);
 
+  const getParticipantLabel = (scenarioId: number, index: number) => {
+    if (scenarioId === 1) {
+      return index === 0 ? 'Marido' : 'Esposa';
+    }
+    if ([2, 3, 4, 6, 7, 8, 10, 11, 12, 13, 14, 15].includes(scenarioId)) {
+      return index === 0 ? 'Publicador' : 'Morador';
+    }
+    if (scenarioId === 5) {
+      if (index === 0) return 'Publicador 1';
+      if (index === 1) return 'Publicador 2';
+      if (index === 2) return 'Morador 1';
+      if (index === 3) return 'Morador 2';
+    }
+    if (scenarioId === 9) {
+      return index === 0 ? 'Publicador 1' : 'Publicador 2';
+    }
+    if (scenarioId === 16 || scenarioId === 17 || scenarioId === 18) {
+      return index === 0 ? 'Instrutor' : 'Estudante';
+    }
+    return '';
+  };
+
   const getReplacements = (templateName: string, signatureImage: string) => {
     // Extract number from "PSS assignment letter_T_XX"
     const match = templateName.match(/_T_(\d+)/);
     const scenarioId = match ? parseInt(match[1]) : 0;
     
     const assignment = workshopAssignments[scenarioId];
-    const participantsList = assignment?.participants ? assignment.participants.split('|').filter(p => p.trim()) : [];
+    const rawParticipants = assignment?.participants ? assignment.participants.split('|') : [];
+    
     let nomes = '________________';
-    if (participantsList.length > 0) {
-      nomes = participantsList.join('\n');
+    if (rawParticipants.some(p => p.trim())) {
+      const parts: string[] = [];
+      rawParticipants.forEach((p, idx) => {
+        if (p.trim()) {
+          const label = getParticipantLabel(scenarioId, idx);
+          if (label) {
+            parts.push(`${label} - ${p.trim()}`);
+          } else {
+            parts.push(p.trim());
+          }
+        }
+      });
+      if (parts.length > 0) {
+        nomes = parts.join('\n');
+      }
     }
 
     const now = new Date();
