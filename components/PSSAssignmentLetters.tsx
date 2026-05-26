@@ -16,7 +16,9 @@ import {
   Sparkles,
   Trash2,
   Settings2,
-  X
+  X,
+  FileUp,
+  Save
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
@@ -39,6 +41,7 @@ import { AnimatePresence, motion } from 'motion/react';
 interface PSSAssignmentLettersProps {
   userId: string;
   isAdmin?: boolean;
+  canManage?: boolean;
   selectedTurma: '1' | '2' | '3';
   schoolInfo: {
     dataTurma: string;
@@ -57,21 +60,31 @@ const TEMPLATE_NAMES = Array.from({ length: 18 }, (_, i) => `PSS assignment lett
 export default function PSSAssignmentLetters({ 
   userId, 
   isAdmin,
+  canManage,
   selectedTurma, 
   schoolInfo, 
   workshopAssignments 
 }: PSSAssignmentLettersProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>(TEMPLATE_NAMES[0]);
-  const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
+  const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isPrivate?: boolean }>>({});
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
-  const [showManager, setShowManager] = useState(false);
+  
+  // Management state
+  const [isManaging, setIsManaging] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [missingTags, setMissingTags] = useState<string[]>([]);
+  const [saveAsGlobal, setSaveAsGlobal] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchTemplates();
@@ -117,9 +130,9 @@ export default function PSSAssignmentLetters({
         const globalId = name;
         
         if (fetchedTemplates[privateId]) {
-          consolidated[name] = fetchedTemplates[privateId];
+          consolidated[name] = { ...fetchedTemplates[privateId], isPrivate: true };
         } else if (fetchedTemplates[globalId]) {
-          consolidated[name] = fetchedTemplates[globalId];
+          consolidated[name] = { ...fetchedTemplates[globalId], isPrivate: false };
         }
       });
 
@@ -211,7 +224,7 @@ export default function PSSAssignmentLetters({
       instructorName = schoolInfo.instrutorA || '________________';
     }
     
-    return {
+    const res: any = {
       'data': dataValue,
       'DATA': dataValue,
       'nomes': nomes,
@@ -244,6 +257,17 @@ export default function PSSAssignmentLetters({
       '%ASSINATURA': '',
       'ASSINATURA_GLOBAL': '',
     };
+
+    // Add individual names with identification
+    for (let i = 0; i < 4; i++) {
+      const p = rawParticipants[i] || '';
+      const label = getParticipantLabel(scenarioId, i);
+      const name = p.trim();
+      const identifiedName = name ? (label ? `${label} - ${name}` : name) : (i < rawParticipants.length ? '________________' : '');
+      res[`NOME${i + 1}`] = identifiedName;
+    }
+
+    return res;
   };
 
   const processAndPreview = async () => {
@@ -459,6 +483,77 @@ export default function PSSAssignmentLetters({
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.name.endsWith('.docx')) {
+        setFile(selectedFile);
+        try {
+          const rawBuffer = await selectedFile.arrayBuffer();
+          const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+          
+          // Validate tags
+          const tags = await extractTagsFromDocx(cleanedBuffer);
+          const required = [
+            ['NOME'],
+            ['E-MAIL', 'EMAIL'],
+            ['TELEFONE', 'CONTATO'],
+            ['DATA'],
+            ['ASSINATURA', '%ASSINATURA']
+          ];
+          const missing = getMissingTags(tags, required);
+          setMissingTags(missing);
+        } catch (err) {
+          console.error('Error validating uploaded docx:', err);
+        }
+      } else {
+        setErrorMessage('Por favor, selecione um arquivo .docx');
+        setSaveStatus('error');
+      }
+    }
+  };
+
+  const saveTemplate = async () => {
+    if (!file) return;
+    setIsSaving(true);
+    setSaveStatus('idle');
+    try {
+      const rawBuffer = await file.arrayBuffer();
+      const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+      const blob = new Blob([cleanedBuffer]);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      await setDoc(doc(db, 'document_templates', docId), {
+        name: selectedTemplate,
+        content: base64,
+        updatedAt: new Date().toISOString(),
+        category: 'pss',
+        isGlobal: isAdmin && saveAsGlobal,
+        ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
+      });
+
+      setSaveStatus('success');
+      setFile(null);
+      fetchTemplates();
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error: any) {
+      console.error('Error saving template:', error);
+      setErrorMessage(error.message || 'Erro ao salvar');
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-20 space-y-4">
@@ -497,23 +592,133 @@ export default function PSSAssignmentLetters({
           
           <div className="flex overflow-x-auto md:grid md:grid-cols-4 lg:grid-cols-6 gap-2 pb-2 md:pb-0 custom-scrollbar">
             {TEMPLATE_NAMES.map(name => (
-              <button
-                key={name}
-                onClick={() => setSelectedTemplate(name)}
-                className={`flex-shrink-0 w-32 md:w-auto text-left px-3 py-2 rounded-xl text-[14px] font-black transition-all uppercase tracking-tighter border-2 ${
-                  selectedTemplate === name 
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
-                    : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="truncate">{name.replace('PSS assignment letter_', '')}</span>
-                  {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
-                </div>
-              </button>
+              <div key={name} className="relative group/card">
+                <button
+                  onClick={() => setSelectedTemplate(name)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-[14px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
+                    selectedTemplate === name 
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                      : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1 w-full">
+                    <span className="truncate">{name.replace('PSS assignment letter_T_', 'WS ')}</span>
+                    {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
+                  </div>
+                  {templates[name] && (
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-md w-fit ${
+                      templates[name].isPrivate 
+                        ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
+                        : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
+                    }`}>
+                      {templates[name].isPrivate ? 'Seu Modelo' : 'Modelo ProgCir'}
+                    </span>
+                  )}
+                </button>
+
+                {canManage && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedTemplate(name); setIsManaging(!isManaging); }}
+                    className={`absolute -top-1.5 -right-1.5 p-1.5 rounded-full shadow-lg border transition-all z-20 ${
+                      isManaging && selectedTemplate === name
+                        ? 'bg-amber-500 text-white border-amber-400 rotate-90'
+                        : 'bg-white text-gray-400 border-gray-100 hover:text-blue-600'
+                    }`}
+                  >
+                    <Settings2 size={10} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>
+
+        {isManaging && canManage && (
+          <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
+                <FileUp size={16} />
+                Gerenciar Modelo: {selectedTemplate.replace('PSS assignment letter_', '')}
+              </h4>
+              <button onClick={() => setIsManaging(false)} className="text-amber-400 hover:text-amber-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                {isAdmin && (
+                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-100">
+                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
+                    <button
+                      onClick={() => setSaveAsGlobal(!saveAsGlobal)}
+                      className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-blue-500' : 'bg-gray-300'}`}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
+                    </button>
+                  </div>
+                )}
+
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-full flex flex-col items-center justify-center p-6 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
+                    file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
+                  }`}
+                >
+                  <FileUp size={24} className={file ? 'text-emerald-500' : 'text-gray-300'} />
+                  <span className="mt-2 truncate max-w-full">{file ? file.name : 'CARREGAR NOVO MODELO DOCX'}</span>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {file && (
+                  <div className="space-y-3">
+                    {missingTags.length > 0 ? (
+                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1">
+                        <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
+                          <AlertCircle size={12} /> Marcadores Faltantes
+                        </p>
+                        <p className="text-[8px] font-bold text-red-500 leading-tight">
+                          Recomendado: {missingTags.join(', ')}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1">
+                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Status: OK
+                        </p>
+                        <p className="text-[8px] font-bold text-emerald-500 leading-tight">Documento validado!</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={saveTemplate}
+                      disabled={isSaving}
+                      className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
+                        saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+                      } disabled:opacity-50`}
+                    >
+                      {isSaving ? <RefreshCw className="animate-spin" size={14} /> : saveStatus === 'success' ? <CheckCircle2 size={14} /> : <Save size={14} />}
+                      {isSaving ? 'SALVANDO...' : saveStatus === 'success' ? 'SALVO!' : 'SALVAR MODELO'}
+                    </button>
+                    
+                    {saveStatus === 'error' && (
+                      <p className="text-[9px] text-red-500 font-bold text-center uppercase">{errorMessage || 'Erro ao salvar'}</p>
+                    )}
+                  </div>
+                )}
+                {!file && (
+                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-xl border border-amber-50">
+                    <p className="text-[9px] text-amber-600 font-black text-center uppercase tracking-widest leading-relaxed">
+                      Selecione um arquivo .docx para atualizar o modelo <br/> deste documento no servidor.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Lado Direito: Preview e Ações */}
         <div className="w-full space-y-4">
@@ -589,8 +794,13 @@ export default function PSSAssignmentLetters({
 
       <style jsx global>{`
         .docx-preview-container {
-          color: #374151 !important;
           background-color: #ffffff !important;
+        }
+        .docx-preview-container p {
+          font-size: 1.1rem !important;
+          line-height: 1.25 !important;
+          color: #1a1a1a !important;
+          margin-bottom: 0.4rem !important;
         }
         .docx-preview-container * {
           border-color: #e5e7eb !important;
@@ -598,10 +808,6 @@ export default function PSSAssignmentLetters({
           text-decoration-color: transparent !important;
           box-shadow: none !important;
         }
-        .docx-preview-container h1 { font-size: 3rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.8rem; }
-        .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
-        
         .docx-preview-container .docx-preview {
           padding: 0 !important;
           margin: 0 !important;
@@ -627,49 +833,6 @@ export default function PSSAssignmentLetters({
           border-radius: 10px;
         }
       `}</style>
-
-      {/* Template Management Modal */}
-      <AnimatePresence>
-        {showManager && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-7xl h-[90vh] overflow-hidden flex flex-col shadow-2xl relative"
-            >
-              <div className="absolute top-6 right-6 z-10">
-                <button 
-                  onClick={() => {
-                    setShowManager(false);
-                    fetchTemplates(); // Refresh templates when closing manager
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-all"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <DocxToPdfDemo 
-                  userId={userId}
-                  isAdmin={isAdmin}
-                  canManage={true}
-                  initialMode="manager"
-                  onBack={() => {
-                    setShowManager(false);
-                    fetchTemplates();
-                  }}
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

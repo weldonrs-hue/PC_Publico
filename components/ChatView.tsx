@@ -178,7 +178,7 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
     // Refresh previews every 5 minutes instead of real-time snapshot
     const interval = setInterval(fetchPreviews, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [auth.currentUser, activeChannel]);
+  }, [auth.currentUser, activeChannel, lastReadTimestamps]);
 
   // Mark channel as read when opened
   useEffect(() => {
@@ -430,10 +430,10 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
       {/* List Area (WhatsApp side) */}
       <div className={`flex-1 flex flex-col h-full bg-white min-w-0 transition-all duration-300 ${isShowingChat ? 'hidden' : 'flex'}`}>
         {/* Header List */}
-        <header className="bg-[#0058be] flex items-center justify-between px-5 py-4 w-full shadow-md z-10 transition-all flex-shrink-0">
-          <div className="flex-1 flex items-center gap-3 min-w-0">
+        <header className="bg-[#0058be] flex items-center justify-between px-4 py-3 w-full shadow-md z-10 transition-all flex-shrink-0 gap-2">
+          <div className="flex-1 flex items-center gap-2 min-w-0">
             <div className="relative flex-shrink-0">
-              <div className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center overflow-hidden shadow-inner">
+              <div className="w-10 h-10 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center overflow-hidden shadow-inner">
                 {personalData?.profilePhoto || currentUserData?.photoURL ? (
                   <img 
                     src={personalData?.profilePhoto || currentUserData?.photoURL} 
@@ -443,35 +443,34 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
                   />
                 ) : (
                   <div className="w-full h-full bg-[#dee0e2] flex items-center justify-center">
-                    <User className="text-[#5c5f60]" size={24} />
+                    <User className="text-[#5c5f60]" size={20} />
                   </div>
                 )}
               </div>
-              <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-2 border-[#0058be] rounded-full shadow-sm transition-colors ${isInactive ? 'bg-gray-400' : 'bg-[#4edea3]'}`}></span>
+              <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-[#0058be] rounded-full shadow-sm transition-colors ${isInactive ? 'bg-gray-400' : 'bg-[#4edea3]'}`}></span>
             </div>
             <div className="flex flex-col min-w-0">
-              <h1 className="font-black text-[15px] text-white leading-tight tracking-tight truncate">
+              <h1 className="font-black text-[14px] text-white leading-tight tracking-tight truncate">
                 {currentUserData?.nome || personalData?.nome || user.displayName || 'Meu Chat'}
               </h1>
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isInactive ? 'bg-white/40' : 'bg-[#4edea3] animate-pulse'}`} />
-                <span className="text-[10px] text-white/80 font-bold uppercase tracking-wider truncate">
-                  {isInactive ? 'Modo Offline' : (currentUserData?.role ? chatUsers.find(u => u.id === auth.currentUser?.uid)?.role : 'Online')}
+              <div className="flex items-center gap-1 overflow-hidden">
+                <span className="text-[9px] text-white/80 font-bold uppercase tracking-wider truncate">
+                  {isInactive ? 'Offline' : (currentUserData?.role ? chatUsers.find(u => u.id === auth.currentUser?.uid)?.role : 'Online')}
                 </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button 
               onClick={() => setIsInactive(!isInactive)}
-              className={`text-[9px] font-black px-4 py-2 rounded-xl transition-all border shadow-lg active:scale-95 flex-shrink-0 ${
+              className={`text-[9px] font-black px-3 py-1.5 rounded-lg transition-all border shadow-lg active:scale-95 flex-shrink-0 ${
                 isInactive 
                   ? 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600' 
                   : 'bg-red-500 text-white border-red-400 hover:bg-red-600'
               }`}
               title={isInactive ? 'Ativar meu status Online' : 'Ficar em modo Offline'}
             >
-              {isInactive ? 'ATIVAR' : 'DESATIVAR'}
+              {isInactive ? 'ATIVAR' : 'OFFLINE'}
             </button>
             {onClose && (
               <button 
@@ -479,25 +478,25 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
                   e.stopPropagation();
                   onClose();
                 }}
-                className="bg-white/10 text-white hover:bg-white/20 p-2.5 rounded-2xl transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95 flex-shrink-0"
+                className="bg-white/10 text-white hover:bg-white/20 p-2 rounded-lg transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95 flex-shrink-0"
                 title="Fechar Chat"
               >
-                <X size={20} strokeWidth={3} />
+                <X size={18} strokeWidth={3} />
               </button>
             )}
           </div>
         </header>
 
         {/* Search Bar */}
-        <div className="px-4 pt-4 pb-2 bg-[#f8f9ff] flex-shrink-0">
+        <div className="px-3 pt-3 pb-1 bg-[#f8f9ff] flex-shrink-0 mb-1">
           <div className="relative group w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#727785] group-focus-within:text-[#0058be] transition-colors" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#727785] group-focus-within:text-[#0058be] transition-colors" size={16} />
             <input 
               type="text"
-              placeholder="Pesquisar conversas..."
+              placeholder="Pesquisar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-[#c2c6d6] rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#0058be]/20 focus:border-[#0058be] transition-all placeholder:text-[#727785]/70"
+              className="w-full bg-white border border-[#c2c6d6] rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#0058be]/20 focus:border-[#0058be] transition-all placeholder:text-[#727785]/70 shadow-sm"
             />
           </div>
         </div>

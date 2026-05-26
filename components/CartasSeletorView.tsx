@@ -144,28 +144,13 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
                 </div>
               </button>
 
-              {/* Conditional Footer for Management */}
+              {/* Status Indicator */}
               {option.active && (
-                <div className="border-t border-gray-50 p-4 bg-gray-50/30 flex items-center justify-between">
-                  <div className={`flex items-center gap-1.5 transition-opacity ${option.active ? 'opacity-100' : 'opacity-0'}`}>
+                <div className="border-t border-gray-50 p-4 bg-gray-50/30 flex items-center justify-center">
+                  <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Ativo</span>
+                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Módulo Ativo</span>
                   </div>
-
-                  {canManage && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // This would trigger the manager mode logic in the parent or handle it here
-                        // For ESP, we can explicitly set a mode if we pass more through onViewChange
-                        onViewChange(`${option.view}:manager`);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-white text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all transform active:scale-95"
-                    >
-                      <Settings2 size={14} />
-                      Gerenciar Templates
-                    </button>
-                  )}
                 </div>
               )}
             </motion.div>

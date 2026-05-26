@@ -15,7 +15,10 @@ import {
   Mail,
   PenTool,
   Sparkles,
-  Trash2
+  Trash2,
+  Settings2,
+  FileUp,
+  Save
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { toJpeg } from 'html-to-image';
@@ -26,6 +29,8 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface PioneerSchoolLettersProps {
   userId: string;
+  isAdmin?: boolean;
+  canManage?: boolean;
   selectedTurma: '1' | '2' | '3';
   schoolInfo: {
     dataTurma: string;
@@ -48,22 +53,34 @@ const ESP_TEMPLATES = [
 ];
 
 export default function PioneerSchoolLetters({ 
-  userId, 
+  userId,
+  isAdmin,
+  canManage,
   selectedTurma, 
   schoolInfo
 }: PioneerSchoolLettersProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>(ESP_TEMPLATES[0].id);
-  const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
+  const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isPrivate?: boolean }>>({});
   const [personalData, setPersonalData] = useState<any>(null);
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Management state
+  const [isManaging, setIsManaging] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [missingTags, setMissingTags] = useState<string[]>([]);
+  const [saveAsGlobal, setSaveAsGlobal] = useState(false);
 
   const [needsProcessing, setNeedsProcessing] = useState(true);
 
   const previewRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchTemplates();
@@ -86,9 +103,9 @@ export default function PioneerSchoolLetters({
         const globalId = t.id;
         
         if (fetchedTemplates[privateId]) {
-          consolidated[t.id] = fetchedTemplates[privateId];
+          consolidated[t.id] = { ...fetchedTemplates[privateId], isPrivate: true };
         } else if (fetchedTemplates[globalId]) {
-          consolidated[t.id] = fetchedTemplates[globalId];
+          consolidated[t.id] = { ...fetchedTemplates[globalId], isPrivate: false };
         }
       });
 
@@ -440,6 +457,76 @@ export default function PioneerSchoolLetters({
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.name.endsWith('.docx')) {
+        setFile(selectedFile);
+        try {
+          const rawBuffer = await selectedFile.arrayBuffer();
+          const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+          
+          // Validate tags
+          const tags = await extractTagsFromDocx(cleanedBuffer);
+          const required = [
+            ['DATA', 'TURMA_DATA', 'DATATURMA'],
+            ['ASSINATURA', '%ASSINATURA', 'ASSINATURA_GLOBAL'],
+            ['VIAJANTE', 'NOME_VIAJANTE'],
+            ['CIRCUITO', 'NOME_CIRCUITO']
+          ];
+          const missing = getMissingTags(tags, required);
+          setMissingTags(missing);
+        } catch (err) {
+          console.error('Error validating uploaded docx:', err);
+        }
+      } else {
+        setErrorMessage('Por favor, selecione um arquivo .docx');
+        setSaveStatus('error');
+      }
+    }
+  };
+
+  const saveTemplate = async () => {
+    if (!file) return;
+    setIsSaving(true);
+    setSaveStatus('idle');
+    try {
+      const rawBuffer = await file.arrayBuffer();
+      const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+      const blob = new Blob([cleanedBuffer]);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      await setDoc(doc(db, 'document_templates', docId), {
+        name: selectedTemplate,
+        content: base64,
+        updatedAt: new Date().toISOString(),
+        category: 'esp',
+        isGlobal: isAdmin && saveAsGlobal,
+        ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
+      });
+
+      setSaveStatus('success');
+      setFile(null);
+      fetchTemplates();
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error: any) {
+      console.error('Error saving template:', error);
+      setErrorMessage(error.message || 'Erro ao salvar');
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-20 space-y-4">
@@ -462,23 +549,133 @@ export default function PioneerSchoolLetters({
           
           <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-3 pb-2 md:pb-0 custom-scrollbar">
             {ESP_TEMPLATES.map(template => (
-              <button
-                key={template.id}
-                onClick={() => setSelectedTemplate(template.id)}
-                className={`flex-shrink-0 w-40 md:w-auto text-left px-4 py-3 rounded-xl text-[16px] font-black transition-all uppercase tracking-tight border-2 ${
-                  selectedTemplate === template.id 
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
-                    : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="truncate">{template.name}</span>
-                  {templates[template.id] && <CheckCircle2 size={14} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />}
-                </div>
-              </button>
+              <div key={template.id} className="relative group/card">
+                <button
+                  onClick={() => setSelectedTemplate(template.id)}
+                  className={`w-full text-left px-4 py-3 rounded-xl text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-1 ${
+                    selectedTemplate === template.id 
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
+                      : 'bg-white text-gray-600 border-gray-50 hover:border-emerald-200 hover:bg-emerald-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1 w-full">
+                    <span className="truncate">{template.name}</span>
+                    {templates[template.id] && <CheckCircle2 size={14} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />}
+                  </div>
+                  {templates[template.id] && (
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-md w-fit ${
+                      templates[template.id].isPrivate 
+                        ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
+                        : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700')
+                    }`}>
+                      {templates[template.id].isPrivate ? 'Seu Modelo' : 'Modelo ProgCir'}
+                    </span>
+                  )}
+                </button>
+                
+                {canManage && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedTemplate(template.id); setIsManaging(!isManaging); }}
+                    className={`absolute -top-2 -right-2 p-1.5 rounded-full shadow-lg border transition-all z-20 ${
+                      isManaging && selectedTemplate === template.id
+                        ? 'bg-amber-500 text-white border-amber-400 rotate-90'
+                        : 'bg-white text-gray-400 border-gray-100 hover:text-emerald-600'
+                    }`}
+                  >
+                    <Settings2 size={12} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>
+
+        {isManaging && canManage && (
+          <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
+                <FileUp size={16} />
+                Gerenciar Modelo: {ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
+              </h4>
+              <button onClick={() => setIsManaging(false)} className="text-amber-400 hover:text-amber-600 transition-colors">
+                <Trash2 size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                {isAdmin && (
+                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-100">
+                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
+                    <button
+                      onClick={() => setSaveAsGlobal(!saveAsGlobal)}
+                      className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
+                    </button>
+                  </div>
+                )}
+
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-full flex flex-col items-center justify-center p-6 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
+                    file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
+                  }`}
+                >
+                  <FileUp size={24} className={file ? 'text-emerald-500' : 'text-gray-300'} />
+                  <span className="mt-2 truncate max-w-full">{file ? file.name : 'CARREGAR NOVO MODELO DOCX'}</span>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {file && (
+                  <div className="space-y-3">
+                    {missingTags.length > 0 ? (
+                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1">
+                        <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
+                          <AlertCircle size={12} /> Marcadores Faltantes
+                        </p>
+                        <p className="text-[8px] font-bold text-red-500 leading-tight">
+                          Recomendado: {missingTags.join(', ')}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1">
+                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Status: OK
+                        </p>
+                        <p className="text-[8px] font-bold text-emerald-500 leading-tight">Documento validado!</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={saveTemplate}
+                      disabled={isSaving}
+                      className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
+                        saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      } disabled:opacity-50`}
+                    >
+                      {isSaving ? <RefreshCw className="animate-spin" size={14} /> : saveStatus === 'success' ? <CheckCircle2 size={14} /> : <Save size={14} />}
+                      {isSaving ? 'SALVANDO...' : saveStatus === 'success' ? 'SALVO!' : 'SALVAR MODELO'}
+                    </button>
+                    
+                    {saveStatus === 'error' && (
+                      <p className="text-[9px] text-red-500 font-bold text-center uppercase">{errorMessage || 'Erro ao salvar'}</p>
+                    )}
+                  </div>
+                )}
+                {!file && (
+                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-xl border border-amber-50">
+                    <p className="text-[9px] text-amber-600 font-black text-center uppercase tracking-widest leading-relaxed">
+                      Selecione um arquivo .docx para atualizar o modelo <br/> deste documento no servidor.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="w-full space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">

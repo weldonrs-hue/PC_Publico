@@ -1781,6 +1781,7 @@ export default function PioneerSchoolView({
           <PSSAssignmentLetters 
             userId={userId}
             isAdmin={isAdmin}
+            canManage={!isGuest}
             selectedTurma={selectedTurma}
             schoolInfo={schoolInfo}
             workshopAssignments={workshopAssignments}
