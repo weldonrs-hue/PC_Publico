@@ -19,73 +19,56 @@ export default function FileViewer({ onBack }: FileViewerProps) {
   const clientRef = useRef<any>(null);
 
   useEffect(() => {
-    // Inizialize viewer when file changes and container is ready
-    if (!file || !containerRef.current) return;
-
+    let client: any, viewer: any;
     let destroyed = false;
 
-    const init = async () => {
+    if (!file || !containerRef.current) return;
+
+    const initViewer = async () => {
       setIsLoading(true);
       setError(null);
-
       try {
-        // Create client if not exists
-        if (!clientRef.current) {
-          clientRef.current = await UDocClient.create({
-            googleFonts: true,
-            locale: 'en',
-            disableTelemetry: false,
-            disableUpdateCheck: false
-          });
-        }
+        client = await UDocClient.create({
+          googleFonts: true,
+          locale: 'pt-BR',
+        });
+        
+        if (destroyed) return;
+
+        viewer = await client.createViewer({
+          container: containerRef.current,
+          theme: 'light',
+          toolbar: true,
+        });
 
         if (destroyed) return;
 
-        // Create viewer if not exists
-        if (!viewerRef.current) {
-          viewerRef.current = await clientRef.current.createViewer({
-            container: containerRef.current,
-            theme: 'light',
-            toolbar: true,
-            showLoadingOverlay: false // We use our own loader
-          });
-        }
-
-        if (destroyed) return;
-
-        // Load document
-        await viewerRef.current.load(file);
+        await viewer.load(file);
         
         if (!destroyed) {
           setIsLoading(false);
         }
       } catch (err: any) {
-        console.error('docMentis initialization error:', err);
+        console.error('FileViewer Error:', err);
         if (!destroyed) {
-          setError(err.message || 'Erro ao carregar o visualizador de documentos.');
+          setError(err.message || 'Erro ao carregar documento.');
           setIsLoading(false);
         }
       }
     };
 
-    init();
+    initViewer();
 
     return () => {
       destroyed = true;
+      if (viewer) {
+        try { viewer.destroy(); } catch (e) {}
+      }
+      if (client) {
+        try { client.destroy(); } catch (e) {}
+      }
     };
   }, [file]);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (viewerRef.current) {
-        try { viewerRef.current.destroy(); } catch(e) {}
-      }
-      if (clientRef.current) {
-        try { clientRef.current.destroy(); } catch(e) {}
-      }
-    };
-  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -196,7 +179,7 @@ export default function FileViewer({ onBack }: FileViewerProps) {
       <div className="bg-white border-t border-gray-200 px-6 py-2 flex items-center justify-between text-[10px] font-bold text-gray-400">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
-          <span className="uppercase tracking-widest text-[#4A5568]">docMentis Core v0.6 v0.642</span>
+          <span className="uppercase tracking-widest text-[#4A5568]">docMentis Core v0.642</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="uppercase tracking-wider">Aceleração WASM/SIMD Ativa</span>
