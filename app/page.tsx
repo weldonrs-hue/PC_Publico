@@ -30,8 +30,8 @@ const MiscView = dynamic(() => import('@/components/MiscView'), {
     </div>
   )
 });
-const TextEditor = dynamic(() => import('@/components/TextEditor'), { ssr: false });
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
+const FileViewer = dynamic(() => import('@/components/FileViewer'), { ssr: false });
 const DocxToPdfDemo = dynamic(() => import('@/components/DocxToPdfDemo'), { ssr: false });
 const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
 const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
@@ -68,7 +68,7 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'text_editor' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const quotaExceededRef = useRef(false);
@@ -185,7 +185,6 @@ export default function Home() {
   const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
   const [appConfig, setAppConfig] = useState<{ 
     reportEnabledForAll: boolean;
-    textEditorEnabledForAll: boolean;
     congregationImportEnabledForAll: boolean;
     allowESPUploadForAll: boolean;
     allowEMRUploadForAll: boolean;
@@ -196,7 +195,6 @@ export default function Home() {
     chatEnabledForAll: boolean;
   }>({ 
     reportEnabledForAll: false, 
-    textEditorEnabledForAll: false, 
     congregationImportEnabledForAll: false,
     allowESPUploadForAll: false,
     allowEMRUploadForAll: false,
@@ -272,7 +270,7 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
-    } else if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
+    } else if (['misc', 'field_service_report', 'file_viewer'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
     } else if (['cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, cartas: currentView }));
@@ -402,7 +400,6 @@ export default function Home() {
         console.log('Home: App settings updated:', data);
         setAppConfig({ 
           reportEnabledForAll: !!data.reportEnabledForAll,
-          textEditorEnabledForAll: !!data.textEditorEnabledForAll,
           congregationImportEnabledForAll: !!data.congregationImportEnabledForAll,
           allowESPUploadForAll: !!data.allowESPUploadForAll,
           allowEMRUploadForAll: !!data.allowEMRUploadForAll,
@@ -418,7 +415,6 @@ export default function Home() {
           console.log('Home: Initializing app settings for admin...');
           setDoc(configRef, { 
             reportEnabledForAll: false,
-            textEditorEnabledForAll: false,
             congregationImportEnabledForAll: false,
             allowESPUploadForAll: false,
             allowEMRUploadForAll: false,
@@ -433,7 +429,6 @@ export default function Home() {
         }
         setAppConfig({ 
           reportEnabledForAll: false, 
-          textEditorEnabledForAll: false, 
           congregationImportEnabledForAll: false,
           allowESPUploadForAll: false,
           allowEMRUploadForAll: false,
@@ -688,7 +683,7 @@ export default function Home() {
               }
             } else if (view === 'misc') {
               // If already in a Misc sub-view, reset to main misc
-              if (['misc', 'text_editor', 'field_service_report'].includes(currentView)) {
+              if (['misc', 'field_service_report', 'file_viewer'].includes(currentView)) {
                 changeView('misc');
               } else {
                 // Restore last visited sub-view in Misc
@@ -952,16 +947,15 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'text_editor' && (
-            <TextEditor 
+          {currentView === 'field_service_report' && (
+            <FieldServiceReportView 
               userId={user?.id}
               onBack={() => changeView('misc')}
             />
           )}
 
-          {currentView === 'field_service_report' && (
-            <FieldServiceReportView 
-              userId={user?.id}
+          {currentView === 'file_viewer' && (
+            <FileViewer 
               onBack={() => changeView('misc')}
             />
           )}

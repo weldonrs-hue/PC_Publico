@@ -58,7 +58,6 @@ interface SettingsViewProps {
   isAdmin?: boolean;
   appConfig?: { 
     reportEnabledForAll: boolean;
-    textEditorEnabledForAll: boolean;
     congregationImportEnabledForAll: boolean;
     allowESPUploadForAll: boolean;
     allowEMRUploadForAll: boolean;
@@ -333,19 +332,6 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       const configRef = doc(db, 'config', 'app_settings');
       await setDoc(configRef, { 
         reportEnabledForAll: !appConfig?.reportEnabledForAll 
-      }, { merge: true });
-    } catch (err) {
-      console.error('Erro ao atualizar configuração global:', err);
-      alert('Erro ao atualizar configuração. Verifique suas permissões.');
-    }
-  };
-
-  const handleToggleTextEditorVisibility = async () => {
-    if (!isAdmin) return;
-    try {
-      const configRef = doc(db, 'config', 'app_settings');
-      await setDoc(configRef, { 
-        textEditorEnabledForAll: !appConfig?.textEditorEnabledForAll 
       }, { merge: true });
     } catch (err) {
       console.error('Erro ao atualizar configuração global:', err);
@@ -678,7 +664,6 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             <div className="space-y-4">
               {[
                 { id: 'reportEnabledForAll', label: 'Relatório de Pregação', desc: 'Ao ativar esta opção, o Relatório de Pregação ficará visível e utilizável por todos os usuários do circuito. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleReportVisibility, value: appConfig?.reportEnabledForAll },
-                { id: 'textEditorEnabledForAll', label: 'Editor de Texto', desc: 'Ao ativar esta opção, o Editor de Texto ficará visível e utilizável por todos os usuários do circuito. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleTextEditorVisibility, value: appConfig?.textEditorEnabledForAll },
                 { id: 'congregationImportEnabledForAll', label: 'Importação em Massa', desc: 'Ao ativar esta opção, o botão de Importação em Massa na Gestão de Congregações ficará visível e utilizável por todos os usuários. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleImportVisibility, value: appConfig?.congregationImportEnabledForAll },
                 { id: 'allowESPUploadForAll', label: 'Upload Cartas ESP', desc: 'Permite que usuários enviem novos templates para Cartas ESP. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowESPUploadForAll },
                 { id: 'allowEMRUploadForAll', label: 'Upload Cartas EMR', desc: 'Permite que usuários enviem novos templates para Cartas EMR. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowEMRUploadForAll },

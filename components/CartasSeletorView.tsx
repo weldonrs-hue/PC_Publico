@@ -21,7 +21,7 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
   const options = [
     {
       id: 'workshops',
-      title: 'Workshops PSS',
+      title: 'Designações PSS',
       subtitle: 'ESCOLA DE PIONEIROS',
       icon: Wrench,
       color: '#3B82F6',
@@ -33,7 +33,7 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'esp',
       title: 'Cartas ESP',
-      subtitle: 'ESCOLA DE PIONEIROS',
+      subtitle: 'ANFITRIÃ E REFEIÇÕES',
       icon: Mail,
       color: '#10B981', // Emerald
       gradient: 'from-emerald-500 to-teal-600',

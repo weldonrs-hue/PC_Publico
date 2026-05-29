@@ -8,17 +8,16 @@ interface MiscViewProps {
   isAdmin?: boolean;
   appConfig?: { 
     reportEnabledForAll: boolean;
-    textEditorEnabledForAll: boolean;
   };
 }
 
 const miscItems = [
   {
-    id: 'text_editor',
-    title: 'EDITOR DE TEXTO',
-    subtitle: 'TIPO WORD COM FUNÇÕES ESSENCIAIS',
-    color: '#8B5CF6', // Violet
-    gradient: 'from-violet-500 to-indigo-600',
+    id: 'file_viewer',
+    title: 'LEITOR DE ARQUIVOS',
+    subtitle: 'VISUALIZADOR DOCX, PDF E MAIS',
+    color: '#3B82F6', // Blue
+    gradient: 'from-blue-500 to-indigo-600',
     icon: FileText,
   },
   {
@@ -46,10 +45,8 @@ export default function MiscView({ onViewChange, isAdmin, appConfig }: MiscViewP
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {miscItems.map((item, index) => {
           const isReport = item.id === 'field_service_report';
-          const isTextEditor = item.id === 'text_editor';
           
-          const isInactive = (isReport && !isAdmin && !appConfig?.reportEnabledForAll) ||
-                            (isTextEditor && !isAdmin && !appConfig?.textEditorEnabledForAll);
+          const isInactive = (isReport && !isAdmin && !appConfig?.reportEnabledForAll);
 
           return (
             <motion.div

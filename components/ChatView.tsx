@@ -430,7 +430,7 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
       {/* List Area (WhatsApp side) */}
       <div className={`flex-1 flex flex-col h-full bg-white min-w-0 transition-all duration-300 ${isShowingChat ? 'hidden' : 'flex'}`}>
         {/* Header List */}
-        <header className="bg-[#0058be] flex items-center justify-between px-4 py-3 w-full shadow-md z-10 transition-all flex-shrink-0 gap-2">
+        <header className="bg-[#0058be] flex items-center justify-between px-4 py-3 w-full shadow-md z-10 transition-all flex-shrink-0 gap-3 overflow-hidden">
           <div className="flex-1 flex items-center gap-2 min-w-0">
             <div className="relative flex-shrink-0">
               <div className="w-10 h-10 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center overflow-hidden shadow-inner">
@@ -450,27 +450,26 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
               <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-[#0058be] rounded-full shadow-sm transition-colors ${isInactive ? 'bg-gray-400' : 'bg-[#4edea3]'}`}></span>
             </div>
             <div className="flex flex-col min-w-0">
-              <h1 className="font-black text-[14px] text-white leading-tight tracking-tight truncate">
+              <h1 className="font-extrabold text-[13px] text-white leading-none tracking-tight truncate">
                 {currentUserData?.nome || personalData?.nome || user.displayName || 'Meu Chat'}
               </h1>
-              <div className="flex items-center gap-1 overflow-hidden">
-                <span className="text-[9px] text-white/80 font-bold uppercase tracking-wider truncate">
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[9px] text-white/70 font-bold uppercase tracking-tight truncate">
                   {isInactive ? 'Offline' : (currentUserData?.role ? chatUsers.find(u => u.id === auth.currentUser?.uid)?.role : 'Online')}
                 </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
             <button 
               onClick={() => setIsInactive(!isInactive)}
-              className={`text-[9px] font-black px-3 py-1.5 rounded-lg transition-all border shadow-lg active:scale-95 flex-shrink-0 ${
+              className={`text-[9px] font-black px-2 py-1 rounded-lg transition-all border shadow-lg active:scale-95 flex-shrink-0 uppercase ${
                 isInactive 
                   ? 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600' 
                   : 'bg-red-500 text-white border-red-400 hover:bg-red-600'
               }`}
-              title={isInactive ? 'Ativar meu status Online' : 'Ficar em modo Offline'}
             >
-              {isInactive ? 'ATIVAR' : 'OFFLINE'}
+              {isInactive ? 'Ativar' : 'Offline'}
             </button>
             {onClose && (
               <button 
@@ -478,10 +477,9 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
                   e.stopPropagation();
                   onClose();
                 }}
-                className="bg-white/10 text-white hover:bg-white/20 p-2 rounded-lg transition-all shadow-lg flex items-center justify-center border border-white/20 active:scale-95 flex-shrink-0"
-                title="Fechar Chat"
+                className="bg-white/10 text-white hover:bg-white/20 p-2 rounded-lg transition-all flex items-center justify-center border border-white/20 active:scale-95 flex-shrink-0"
               >
-                <X size={18} strokeWidth={3} />
+                <X size={16} strokeWidth={3} />
               </button>
             )}
           </div>
@@ -593,19 +591,19 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline">
-                    <div className="flex flex-col min-w-0">
-                      <h1 className={`text-sm truncate ${unreadCount > 0 ? 'font-black text-[#121c2a]' : 'font-bold text-[#121c2a]'}`}>{chatUser.nome}</h1>
-                      <p className="text-[10px] text-[#727785] truncate font-mono">{(chatUser as any).account}</p>
+                  <div className="flex justify-between items-start gap-2 mb-0.5">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <h1 className={`text-[13px] truncate leading-tight ${unreadCount > 0 ? 'font-black text-[#121c2a]' : 'font-bold text-[#121c2a]'}`}>{chatUser.nome}</h1>
+                      <p className="text-[9px] text-[#727785] truncate font-mono opacity-60">{(chatUser as any).account}</p>
                     </div>
-                    <span className="text-[10px] text-[#727785] font-bold uppercase shrink-0">{chatUser.role}</span>
+                    <span className="text-[8px] font-black text-[#0058be] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 uppercase shrink-0 tracking-tight">{chatUser.role}</span>
                   </div>
                   <div className="flex justify-between items-center gap-2">
-                    <p className={`text-[12px] truncate flex-1 font-sans ${unreadCount > 0 ? 'font-black text-[#121c2a]' : 'text-[#727785]'}`}>
-                      {lastMsg ? lastMsg.text : 'Clique para iniciar conversa privada'}
+                    <p className={`text-[11px] truncate flex-1 font-sans ${unreadCount > 0 ? 'font-black text-[#121c2a]' : 'text-[#727785]'}`}>
+                      {lastMsg ? lastMsg.text : 'Clique para iniciar conversa'}
                     </p>
                     {lastMsg && (
-                      <span className="text-[9px] text-gray-400 whitespace-nowrap">
+                      <span className="text-[8px] text-gray-400 whitespace-nowrap bg-gray-50 px-1 rounded">
                         {formatTime(lastMsg.timestamp)}
                       </span>
                     )}

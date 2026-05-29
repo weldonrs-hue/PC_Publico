@@ -163,17 +163,17 @@ export default function CongressLetters({
       setProcessedDocBuffer(null);
       setStatus('idle');
     }
-  }, [selectedTemplate, templates, conventionData, selectedSpeaker]);
+  }, [selectedTemplate, templates, conventionData, selectedSpeaker, personalData]);
 
   const getReplacements = () => {
     const details = conventionData?.details || {};
-    const signatureImage = personalData?.signatureImage || '';
     const signatureName = personalData?.nome || '________________';
     const circuito = personalData?.circuito || '________________';
-    const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
     const signatureText = `${signatureName} (${circuito})`;
-    const signatureValue = signatureImage && signatureImage.startsWith('data:image') ? signatureImage : signatureText;
-
+    const signatureImage = personalData?.signatureImage || null;
+    const signatureValue = signatureImage || signatureText;
+    const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
+    
     // Para o preview, se não houver orador selecionado, usamos um placeholder
     const speakerName = selectedSpeaker || 'NOME DO ORADOR';
     
@@ -193,13 +193,19 @@ export default function CongressLetters({
       'DIA': 'Sexta-feira',
       'ORADOR': speakerName,
       'ASSINATURA': signatureValue,
+      'assinatura': signatureValue,
       '%ASSINATURA': signatureValue,
+      'ASSINATURA_GLOBAL': signatureValue,
       'VIAJANTE': signatureName,
+      'viajante': signatureName,
+      'NOME_VIAJANTE': signatureName,
       'CIRCUITO': circuito,
+      'NOME_CIRCUITO': circuito,
       'FONE': telefoneCircuito,
       'TELEFONE': telefoneCircuito,
       'DATAHORA': details.trainingDate || '________________',
       'LOCALTREINO': details.trainingLocation || '________________',
+      'HOJE': new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),
     };
   };
 
@@ -220,12 +226,14 @@ export default function CongressLetters({
       const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
       const zip = new PizZip(cleanedBuffer);
       
-      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      const xmlFiles = zip.file(/word\/(document|header\d*|footer\d*)\.xml/);
       xmlFiles.forEach(file => {
         let xmlContent = file.asText();
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
+        // 2. Join split tags - MUCH safer version
+        // Supports [TAG] and @TAG with spaces and special characters
         for (let i = 0; i < 6; i++) {
           xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
         }
@@ -239,18 +247,10 @@ export default function CongressLetters({
         }
         
         // 3. Surgical replacement of @TAG to [TAG]
-        const repsForRegex = getReplacements();
-        const hasImage = repsForRegex.ASSINATURA && repsForRegex.ASSINATURA.startsWith('data:image');
-
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
-          // Handle Signature - prioritize image only if it's available in replacements
-          if (hasImage) {
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          } else {
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
-          }
-          
+          // Handle Signature
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
@@ -309,7 +309,7 @@ export default function CongressLetters({
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
-        modules: [new ImageModule(opts)]
+        modules: ImageModule ? [new ImageModule(opts)] : []
       });
 
       docObj.render(replacements);
@@ -462,55 +462,66 @@ export default function CongressLetters({
   const speakers = conventionData ? Object.values(conventionData.speakers || {}) as string[] : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col gap-6">
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-800 flex items-center gap-2 text-xs uppercase tracking-widest">
-              <Mail size={18} className="text-violet-600" />
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-violet-50 text-violet-700 px-4 py-2 rounded-xl border border-violet-100">
+              <Mail size={20} />
               Selecione o Modelo de Carta
             </h3>
+            
+            {canManage && (
+              <button
+                onClick={() => setIsManaging(!isManaging)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                  isManaging 
+                    ? 'bg-amber-500 text-white border-amber-400' 
+                    : 'bg-white text-violet-600 border-violet-100 hover:bg-violet-50'
+                }`}
+              >
+                <Settings2 size={14} />
+                {isManaging ? 'Fechar Gerenciador' : 'Gerenciar Templates'}
+              </button>
+            )}
           </div>
           
-          <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-3 pb-2 md:pb-0 custom-scrollbar">
+          <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-4 pb-2 md:pb-0 custom-scrollbar">
             {CONGRESSO_TEMPLATES.map(template => (
-              <div key={template.id} className="relative group/card">
-                <button
-                  onClick={() => setSelectedTemplate(template.id)}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-1 ${
-                    selectedTemplate === template.id 
-                      ? 'bg-violet-600 text-white border-violet-600 shadow-md' 
-                      : 'bg-white text-gray-600 border-gray-50 hover:border-violet-200 hover:bg-violet-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-1 w-full">
-                    <span className="truncate">{template.name}</span>
-                    {templates[template.id] && <CheckCircle2 size={14} className={selectedTemplate === template.id ? 'text-white' : 'text-violet-500'} />}
-                  </div>
+              <button
+                key={template.id}
+                onClick={() => setSelectedTemplate(template.id)}
+                className={`w-full text-left px-5 py-4 rounded-2xl text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-2 relative group h-full justify-between ${
+                  selectedTemplate === template.id 
+                    ? 'bg-violet-600 text-white border-violet-600 shadow-xl scale-[1.02]' 
+                    : 'bg-white text-gray-600 border-gray-100 hover:border-violet-200 hover:bg-violet-50 hover:shadow-md'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className="truncate">{template.name}</span>
                   {templates[template.id] && (
-                    <span className={`text-[8px] px-1.5 py-0.5 rounded-md w-fit ${
+                    <CheckCircle2 size={18} className={selectedTemplate === template.id ? 'text-white' : 'text-violet-500'} />
+                  )}
+                </div>
+                {templates[template.id] ? (
+                  <div className="flex items-center gap-1.5 mt-auto">
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold shadow-sm ${
                       templates[template.id].isPrivate 
                         ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                         : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700')
                     }`}>
-                      {templates[template.id].isPrivate ? 'Seu Modelo' : 'Modelo ProgCir'}
+                      {templates[template.id].isPrivate ? 'MEU MODELO' : 'GLOBAL PROGCIR'}
                     </span>
-                  )}
-                </button>
-                
-                {canManage && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedTemplate(template.id); setIsManaging(!isManaging); }}
-                    className={`absolute -top-2 -right-2 p-1.5 rounded-full shadow-lg border transition-all z-20 ${
-                      isManaging && selectedTemplate === template.id
-                        ? 'bg-amber-500 text-white border-amber-400 rotate-90'
-                        : 'bg-white text-gray-400 border-gray-100 hover:text-violet-600'
-                    }`}
-                  >
-                    <Settings2 size={12} />
-                  </button>
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-bold text-red-400 mt-auto flex items-center gap-1">
+                    <AlertCircle size={10} /> NÃO CONFIGURADO
+                  </span>
                 )}
-              </div>
+                {selectedTemplate === template.id && (
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-white/30 rounded-full blur-[1px]"></div>
+                )}
+              </button>
             ))}
           </div>
         </div>
@@ -603,24 +614,24 @@ export default function CongressLetters({
         )}
 
         <div className="w-full space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="bg-violet-100 p-2 rounded-lg">
-                <FileText className="text-violet-600" size={20} />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="bg-violet-600 p-3 rounded-2xl shadow-lg shadow-violet-200 text-white">
+                <FileText size={24} />
               </div>
-              <div>
-                <h3 className="font-black text-gray-800 text-xs uppercase tracking-widest">Pré-visualização</h3>
-                <div className="flex items-center gap-2">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase truncate max-w-[150px]">
+              <div className="min-w-0">
+                <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] text-violet-600 font-extrabold uppercase tracking-tight bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
                     {CONGRESSO_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
-                  </p>
+                  </span>
                   {speakers.length > 0 && selectedTemplate !== 'cong_aviso_treinamentos' && (
-                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-0.5 shadow-sm">
-                      <User size={10} className="text-gray-400" />
+                    <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1 shadow-sm transition-all hover:border-violet-300">
+                      <User size={12} className="text-violet-500" />
                       <select 
                         value={selectedSpeaker}
                         onChange={(e) => setSelectedSpeaker(e.target.value)}
-                        className="bg-transparent text-[9px] font-black text-gray-600 uppercase tracking-tighter outline-none cursor-pointer"
+                        className="bg-transparent text-[10px] font-black text-gray-700 uppercase tracking-tighter outline-none cursor-pointer"
                       >
                         {Array.from(new Set(speakers)).map((s, i) => (
                           <option key={i} value={s}>{s}</option>
@@ -632,57 +643,55 @@ export default function CongressLetters({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
               {needsProcessing && (
                 <button
                   onClick={processAndPreview}
                   disabled={isProcessing}
-                  className="group flex items-center h-10 w-10 hover:w-44 transition-all duration-500 ease-in-out rounded-full bg-violet-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
+                  className="flex items-center gap-2 bg-violet-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-violet-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                   title="Gerar PDF/Prévia"
                 >
-                  <div className="shrink-0">
-                    {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  </div>
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">
-                    Gerar PDF/Prévia
-                  </span>
+                  {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  GERAR DOCUMENTO
                 </button>
               )}
 
-              <button
-                onClick={downloadAsDocx}
-                disabled={status !== 'success' || isProcessing}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-gray-800 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
-                title="Baixar Word"
-              >
-                <FileDown size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Baixar Word</span>
-              </button>
+              <div className="flex items-center bg-gray-100 p-1 rounded-2xl gap-1">
+                <button
+                  onClick={downloadAsDocx}
+                  disabled={status !== 'success' || isProcessing}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:text-black transition-all disabled:opacity-50 border border-transparent hover:border-gray-300"
+                  title="Baixar Word"
+                >
+                  <FileDown size={14} />
+                  WORD
+                </button>
 
-              <button
-                onClick={downloadAsPdf}
-                disabled={status !== 'success' || isProcessing}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-red-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
-                title="Baixar PDF"
-              >
-                <Download size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Baixar PDF</span>
-              </button>
+                <button
+                  onClick={downloadAsPdf}
+                  disabled={status !== 'success' || isProcessing}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-red-50 transition-all disabled:opacity-50 border border-transparent hover:border-red-200"
+                  title="Baixar PDF"
+                >
+                  <Download size={14} />
+                  PDF
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="relative group">
+          <div className="relative group p-0.5 bg-gray-200 rounded-[2rem] shadow-2xl overflow-hidden ring-4 ring-white">
             <div 
-              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-3xl shadow-inner-lg overflow-auto p-4 md:p-12 custom-scrollbar"
+              className="w-full aspect-[1/1.414] bg-white overflow-auto p-4 md:p-12 custom-scrollbar flex flex-col items-center"
             >
               <div 
-                className="docx-preview-container mx-auto bg-white relative"
+                className="docx-preview-container bg-white relative shadow-2xl origin-top transition-transform duration-500"
                 style={{ width: '800px', minWidth: '800px' }}
               >
                 <div ref={previewRef} />
                 
                 {!processedDocBuffer && !isProcessing && (
-                  <div dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 py-20 px-10 text-center text-xs uppercase font-black tracking-widest leading-relaxed">Selecione um template para visualizar</div>' }} />
+                  <div dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 py-32 px-10 text-center text-[10px] uppercase font-black tracking-[0.2em] leading-relaxed opacity-50">Selecione um template para visualizar</div>' }} />
                 )}
               </div>
             </div>
@@ -708,18 +717,7 @@ export default function CongressLetters({
       <style jsx global>{`
         .docx-preview-container {
           background-color: #ffffff !important;
-        }
-        .docx-preview-container p {
-          font-size: 1.1rem !important;
-          line-height: 1.25 !important;
-          color: #1a1a1a !important;
-          margin-bottom: 0.4rem !important;
-        }
-        .docx-preview-container * {
-          border-color: #e5e7eb !important;
-          outline-color: transparent !important;
-          text-decoration-color: transparent !important;
-          box-shadow: none !important;
+          color: #374151 !important;
         }
         .docx-preview-container .docx-preview {
           padding: 0 !important;
@@ -731,6 +729,18 @@ export default function CongressLetters({
           padding: 0 !important;
           margin: 0 !important;
           background: white !important;
+          box-shadow: none !important;
+        }
+        .docx-preview-container p {
+          font-size: 1.1rem !important;
+          line-height: 1.25 !important;
+          color: #1a1a1a !important;
+          margin-bottom: 0.4rem !important;
+        }
+        .docx-preview-container * {
+          border-color: #e5e7eb !important;
+          outline-color: transparent !important;
+          text-decoration-color: transparent !important;
           box-shadow: none !important;
         }
         

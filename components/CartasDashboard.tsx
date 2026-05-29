@@ -12,8 +12,8 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
   const cards = [
     {
       id: 'workshops',
-      title: 'Workshops PSS',
-      description: 'Templates de designação para Escola de Pioneiros.',
+      title: 'Designações PSS',
+      description: 'Modelos de designação para Escola de Pioneiros.',
       icon: Wrench,
       view: 'docx_demo',
       color: '#3B82F6',
@@ -21,8 +21,8 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     },
     {
       id: 'esp',
-      title: 'Uploads ESP',
-      description: 'Anfitriã, refeições e convites pioneiros.',
+      title: 'Cartas ESP',
+      description: 'Anfitriã, refeições e convites para a ESP.',
       icon: Mail,
       view: 'cartas_esp',
       color: '#10B981',
@@ -30,7 +30,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     },
     {
       id: 'emr',
-      title: 'Uploads EMR',
+      title: 'Cartas EMR',
       description: 'Modelos para Escola de Evangelizadores.',
       icon: Mail,
       view: 'cartas_emr',
@@ -40,8 +40,8 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     },
     {
       id: 'congresso',
-      title: 'Uploads Congresso',
-      description: 'Convite oração, Presidente e Treinamentos.',
+      title: 'Cartas Congresso',
+      description: 'Oração, Presidente e Treinamentos.',
       icon: Mail,
       view: 'cartas_congresso',
       color: '#8B5CF6',
@@ -49,7 +49,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     },
     {
       id: 'assembleias',
-      title: 'Uploads Assembleias',
+      title: 'Cartas Assembleias',
       description: 'Documentação para Assembleias de Circuito.',
       icon: Mail,
       view: 'cartas_assembleias',
@@ -59,7 +59,7 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     },
     {
       id: 'programacoes',
-      title: 'Uploads Program.',
+      title: 'Programações',
       description: 'Gestão de templates de programações.',
       icon: FileText,
       view: 'cartas_programacoes',

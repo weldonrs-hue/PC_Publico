@@ -254,8 +254,8 @@ export default function PSSAssignmentLetters({
       'viajante': travelerName,
       'NOME': travelerName,
       'nome': travelerName,
-      '%ASSINATURA': '',
-      'ASSINATURA_GLOBAL': '',
+      '%ASSINATURA': signatureImage && signatureImage.startsWith('data:image') ? signatureImage : '',
+      'ASSINATURA_GLOBAL': signatureText,
     };
 
     // Add individual names with identification
@@ -337,17 +337,16 @@ export default function PSSAssignmentLetters({
       // Keep signatures as the text defined in replacements
 
       // Pre-process all XML files in the zip (document, headers, footers)
-      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      const xmlFiles = zip.file(/word\/(document|header\d*|footer\d*)\.xml/);
       
       xmlFiles.forEach(file => {
         let xmlContent = file.asText();
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // Join split tags - MUCH safer version
-        // Supports [TAG] and @TAG with spaces and special characters
+        // Joined split tag logic - more robust version
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
         }
         
         // Ensure namespaces are present for images (required for docxtemplater-image-module)
@@ -359,10 +358,16 @@ export default function PSSAssignmentLetters({
         }
         
         // Convert @TAG to [TAG] or [%TAG]
+        const hasImage = signatureImage && signatureImage.startsWith('data:image');
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
           // Handle Signature specifically
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          if (hasImage) {
+            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          } else {
+            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
+          }
+          
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
