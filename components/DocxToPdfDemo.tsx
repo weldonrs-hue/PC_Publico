@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import { UDocClient } from '@docmentis/udoc-viewer';
 import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft, Settings2, Layout, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -44,73 +43,75 @@ export default function DocxToPdfDemo({
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Render high-fidelity preview using @docmentis/udoc-viewer
+  const viewerRef = useRef<any>(null);
+  const [isViewerReady, setIsViewerReady] = useState(false);
+
+  // Initialize viewer when management view is active
   useEffect(() => {
-    let client: any = null;
-    let viewer: any = null;
     let destroyed = false;
 
-    if (!processedBuffer) return;
-
     const initViewer = async () => {
+      if (!showManager) return;
+
       // Small delays to ensure container is fully loaded and attached to DOM
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 20; i++) {
         if (previewRef.current) break;
         await new Promise(r => setTimeout(r, 50));
       }
 
       if (!previewRef.current || destroyed) return;
 
-      setIsProcessingPreview(true);
       try {
-        const initOptions = {
-          googleFonts: true,
-          locale: 'pt-BR',
-        };
-
-        try {
-          client = await UDocClient.create(initOptions);
-        } catch (initErr) {
-          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
-          client = await UDocClient.create({
-            ...initOptions,
-            baseUrl: window.location.origin + '/udoc-viewer/'
-          });
-        }
-
+        const { getUDocClient } = await import('@/lib/udoc');
+        const client = await getUDocClient();
+        
         if (destroyed) return;
 
-        viewer = await client.createViewer({
+        const viewer = await client.createViewer({
           container: previewRef.current,
           theme: 'light',
           toolbar: true,
           sidebar: false,
         });
 
-        if (destroyed) return;
-
-        await viewer.load(new Uint8Array(processedBuffer));
-      } catch (err: any) {
-        console.error('UDoc Viewer Error inside DocxToPdfDemo:', err);
-      } finally {
         if (!destroyed) {
+          viewerRef.current = viewer;
+          setIsViewerReady(true);
+        }
+      } catch (err: any) {
+        console.error('UDoc Viewer Init Error inside DocxToPdfDemo:', err);
+      }
+    };
+
+    if (showManager && !viewerRef.current) {
+      initViewer();
+    }
+
+    return () => {
+      destroyed = true;
+      if (viewerRef.current) {
+        try { viewerRef.current.destroy(); viewerRef.current = null; setIsViewerReady(false); } catch (e) {}
+      }
+    };
+  }, [showManager]);
+
+  // Handle document updates
+  useEffect(() => {
+    const updateDoc = async () => {
+      if (isViewerReady && viewerRef.current && processedBuffer) {
+        setIsProcessingPreview(true);
+        try {
+          await viewerRef.current.load(new Uint8Array(processedBuffer));
+        } catch (err) {
+          console.error('UDoc Viewer Load Error:', err);
+        } finally {
           setIsProcessingPreview(false);
         }
       }
     };
 
-    initViewer();
-
-    return () => {
-      destroyed = true;
-      if (viewer) {
-        try { viewer.destroy(); } catch (e) {}
-      }
-      if (client) {
-        try { client.destroy(); } catch (e) {}
-      }
-    };
-  }, [processedBuffer]);
+    updateDoc();
+  }, [processedBuffer, isViewerReady]);
 
   useEffect(() => {
     fetchTemplates();
@@ -504,7 +505,8 @@ export default function DocxToPdfDemo({
                   >
                     <div 
                       ref={previewRef}
-                      className={`w-full h-full ${!processedBuffer ? 'hidden' : 'block'}`} 
+                      className="w-full h-full"
+                      style={{ display: processedBuffer ? 'block' : 'block', visibility: processedBuffer ? 'visible' : 'hidden', position: processedBuffer ? 'relative' : 'absolute' }}
                     />
                     
                     {!processedBuffer && (

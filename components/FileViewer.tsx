@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { UDocClient } from '@docmentis/udoc-viewer';
 import { FileText, ArrowLeft, Upload, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -18,8 +17,9 @@ export default function FileViewer({ onBack }: FileViewerProps) {
   const viewerRef = useRef<any>(null);
   const clientRef = useRef<any>(null);
 
+  const [isViewerReady, setIsViewerReady] = useState(false);
+
   useEffect(() => {
-    let client: any, viewer: any;
     let destroyed = false;
 
     if (!file) return;
@@ -36,39 +36,21 @@ export default function FileViewer({ onBack }: FileViewerProps) {
       setIsLoading(true);
       setError(null);
       try {
-        // Try to initialize without baseUrl first to use the built-in Blob worker (avoids CORS)
-        // If that fails (e.g. WASM not found), try local assets as fallback
-        const initOptions = {
-          googleFonts: true,
-          locale: 'pt-BR',
-        };
-
-        try {
-          client = await UDocClient.create(initOptions);
-        } catch (initErr) {
-          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
-          // Fallback to local assets if default init fails
-          client = await UDocClient.create({
-            ...initOptions,
-            baseUrl: window.location.origin + '/udoc-viewer/'
-          });
-        }
+        const { getUDocClient } = await import('@/lib/udoc');
+        const client = await getUDocClient();
         
         if (destroyed) return;
 
-        viewer = await client.createViewer({
+        const viewer = await client.createViewer({
           container: containerRef.current,
           theme: 'dark',
           toolbar: true,
           sidebar: true,
         });
 
-        if (destroyed) return;
-
-        await viewer.load(file);
-        
         if (!destroyed) {
-          setIsLoading(false);
+          viewerRef.current = viewer;
+          setIsViewerReady(true);
         }
       } catch (err: any) {
         console.error('FileViewer Error:', err);
@@ -79,18 +61,37 @@ export default function FileViewer({ onBack }: FileViewerProps) {
       }
     };
 
-    initViewer();
+    if (!viewerRef.current) {
+      initViewer();
+    }
 
     return () => {
       destroyed = true;
-      if (viewer) {
-        try { viewer.destroy(); } catch (e) {}
-      }
-      if (client) {
-        try { client.destroy(); } catch (e) {}
+      if (viewerRef.current) {
+        try { viewerRef.current.destroy(); viewerRef.current = null; } catch (e) {}
+        setIsViewerReady(false);
       }
     };
   }, [file]);
+
+  // Handle file updates separately
+  useEffect(() => {
+    const loadFile = async () => {
+      if (isViewerReady && viewerRef.current && file) {
+        setIsLoading(true);
+        try {
+          await viewerRef.current.load(file);
+        } catch (err: any) {
+          console.error('FileViewer Load Error:', err);
+          setError(err.message || 'Erro ao carregar o documento.');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadFile();
+  }, [file, isViewerReady]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

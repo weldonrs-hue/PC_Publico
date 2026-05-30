@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import { UDocClient } from '@docmentis/udoc-viewer';
 import { 
   FileText, 
   Download, 
@@ -80,13 +79,12 @@ export default function PioneerSchoolLetters({
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Render high-fidelity preview using @docmentis/udoc-viewer
-  useEffect(() => {
-    let client: any = null;
-    let viewer: any = null;
-    let destroyed = false;
+  const viewerRef = useRef<any>(null);
+  const [isViewerReady, setIsViewerReady] = useState(false);
 
-    if (!processedDocBuffer) return;
+  // Initialize viewer once
+  useEffect(() => {
+    let destroyed = false;
 
     const initViewer = async () => {
       // Small delays to ensure container is fully loaded and attached to DOM
@@ -97,56 +95,57 @@ export default function PioneerSchoolLetters({
 
       if (!previewRef.current || destroyed) return;
 
-      setIsProcessing(true);
       try {
-        const initOptions = {
-          googleFonts: true,
-          locale: 'pt-BR',
-        };
-
-        try {
-          client = await UDocClient.create(initOptions);
-        } catch (initErr) {
-          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
-          client = await UDocClient.create({
-            ...initOptions,
-            baseUrl: window.location.origin + '/udoc-viewer/'
-          });
-        }
-
+        const { getUDocClient } = await import('@/lib/udoc');
+        const client = await getUDocClient();
+        
         if (destroyed) return;
 
-        viewer = await client.createViewer({
+        const viewer = await client.createViewer({
           container: previewRef.current,
           theme: 'light',
           toolbar: true,
           sidebar: false,
         });
 
-        if (destroyed) return;
-
-        await viewer.load(new Uint8Array(processedDocBuffer));
-      } catch (err: any) {
-        console.error('UDoc Viewer Error inside PioneerSchoolLetters:', err);
-      } finally {
         if (!destroyed) {
+          viewerRef.current = viewer;
+          setIsViewerReady(true);
+        }
+      } catch (err: any) {
+        console.error('UDoc Viewer Init Error inside PioneerSchoolLetters:', err);
+      }
+    };
+
+    if (!viewerRef.current) {
+      initViewer();
+    }
+
+    return () => {
+      destroyed = true;
+      if (viewerRef.current) {
+        try { viewerRef.current.destroy(); viewerRef.current = null; } catch (e) {}
+      }
+    };
+  }, []);
+
+  // Handle document updates
+  useEffect(() => {
+    const updateDoc = async () => {
+      if (isViewerReady && viewerRef.current && processedDocBuffer) {
+        setIsProcessing(true);
+        try {
+          await viewerRef.current.load(new Uint8Array(processedDocBuffer));
+        } catch (err) {
+          console.error('UDoc Viewer Load Error:', err);
+        } finally {
           setIsProcessing(false);
         }
       }
     };
 
-    initViewer();
-
-    return () => {
-      destroyed = true;
-      if (viewer) {
-        try { viewer.destroy(); } catch (e) {}
-      }
-      if (client) {
-        try { client.destroy(); } catch (e) {}
-      }
-    };
-  }, [processedDocBuffer]);
+    updateDoc();
+  }, [processedDocBuffer, isViewerReady]);
 
   useEffect(() => {
     fetchTemplates();
@@ -736,7 +735,8 @@ export default function PioneerSchoolLetters({
             >
               <div 
                 ref={previewRef} 
-                className={`w-full h-full ${!processedDocBuffer ? 'hidden' : 'block'}`} 
+                className="w-full h-full"
+                style={{ display: processedDocBuffer ? 'block' : 'block', visibility: processedDocBuffer ? 'visible' : 'hidden', position: processedDocBuffer ? 'relative' : 'absolute' }}
               />
 
               {!processedDocBuffer && !isProcessing && (

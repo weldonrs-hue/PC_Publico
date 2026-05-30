@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build": "node scripts/copy-udoc-assets.mjs && NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "next start",
+    "postinstall": "node scripts/copy-udoc-assets.mjs",
     "lint": "eslint .",
     "clean": "next clean"
   },

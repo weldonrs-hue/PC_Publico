@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import { UDocClient } from '@docmentis/udoc-viewer';
 import { 
   FileText, 
   Download, 
@@ -84,13 +83,12 @@ export default function PSSAssignmentLetters({
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Render high-fidelity preview using @docmentis/udoc-viewer
-  useEffect(() => {
-    let client: any = null;
-    let viewer: any = null;
-    let destroyed = false;
+  const viewerRef = useRef<any>(null);
+  const [isViewerReady, setIsViewerReady] = useState(false);
 
-    if (!processedDocBuffer) return;
+  // Initialize viewer once
+  useEffect(() => {
+    let destroyed = false;
 
     const initViewer = async () => {
       // Small delays to ensure container is fully loaded and attached to DOM
@@ -101,56 +99,57 @@ export default function PSSAssignmentLetters({
 
       if (!previewRef.current || destroyed) return;
 
-      setIsProcessing(true);
       try {
-        const initOptions = {
-          googleFonts: true,
-          locale: 'pt-BR',
-        };
-
-        try {
-          client = await UDocClient.create(initOptions);
-        } catch (initErr) {
-          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
-          client = await UDocClient.create({
-            ...initOptions,
-            baseUrl: window.location.origin + '/udoc-viewer/'
-          });
-        }
-
+        const { getUDocClient } = await import('@/lib/udoc');
+        const client = await getUDocClient();
+        
         if (destroyed) return;
 
-        viewer = await client.createViewer({
+        const viewer = await client.createViewer({
           container: previewRef.current,
           theme: 'light',
           toolbar: true,
           sidebar: false,
         });
 
-        if (destroyed) return;
-
-        await viewer.load(new Uint8Array(processedDocBuffer));
-      } catch (err: any) {
-        console.error('UDoc Viewer Error inside PSSAssignmentLetters:', err);
-      } finally {
         if (!destroyed) {
+          viewerRef.current = viewer;
+          setIsViewerReady(true);
+        }
+      } catch (err: any) {
+        console.error('UDoc Viewer Init Error inside PSSAssignmentLetters:', err);
+      }
+    };
+
+    if (!viewerRef.current) {
+      initViewer();
+    }
+
+    return () => {
+      destroyed = true;
+      if (viewerRef.current) {
+        try { viewerRef.current.destroy(); viewerRef.current = null; } catch (e) {}
+      }
+    };
+  }, []);
+
+  // Handle document updates
+  useEffect(() => {
+    const updateDoc = async () => {
+      if (isViewerReady && viewerRef.current && processedDocBuffer) {
+        setIsProcessing(true);
+        try {
+          await viewerRef.current.load(new Uint8Array(processedDocBuffer));
+        } catch (err) {
+          console.error('UDoc Viewer Load Error:', err);
+        } finally {
           setIsProcessing(false);
         }
       }
     };
 
-    initViewer();
-
-    return () => {
-      destroyed = true;
-      if (viewer) {
-        try { viewer.destroy(); } catch (e) {}
-      }
-      if (client) {
-        try { client.destroy(); } catch (e) {}
-      }
-    };
-  }, [processedDocBuffer]);
+    updateDoc();
+  }, [processedDocBuffer, isViewerReady]);
 
   useEffect(() => {
     fetchTemplates();
@@ -565,26 +564,25 @@ export default function PSSAssignmentLetters({
       <div className="flex flex-col gap-6">
         {/* Top: Lista de Templates em Grid */}
         <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-800 flex items-center gap-2">
-              <List size={18} />
-              Selecione o Template
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100">
+              <Mail size={20} />
+              Selecione o Modelo de Carta PSS
             </h3>
             
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <button
-                  onClick={() => setShowManager(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm border border-blue-100 hover:bg-blue-50 transition-all"
-                >
-                  <Settings2 size={14} />
-                  Gerenciar Templates
-                </button>
-              )}
-              <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
-                {TEMPLATE_NAMES.length} Modelos Disponíveis
-              </span>
-            </div>
+            {canManage && (
+              <button
+                onClick={() => setIsManaging(!isManaging)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                  isManaging 
+                    ? 'bg-amber-500 text-white border-amber-400' 
+                    : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'
+                }`}
+              >
+                <Settings2 size={14} />
+                {isManaging ? 'Fechar Gerenciador' : 'Gerenciar Templates'}
+              </button>
+            )}
           </div>
           
           <div className="flex overflow-x-auto md:grid md:grid-cols-4 lg:grid-cols-6 gap-2 pb-2 md:pb-0 custom-scrollbar">
@@ -619,7 +617,7 @@ export default function PSSAssignmentLetters({
                     className={`absolute -top-1.5 -right-1.5 p-1.5 rounded-full shadow-lg border transition-all z-20 ${
                       isManaging && selectedTemplate === name
                         ? 'bg-amber-500 text-white border-amber-400 rotate-90'
-                        : 'bg-white text-gray-400 border-gray-100 hover:text-blue-600'
+                        : 'bg-white text-gray-400 border-gray-100 hover:text-amber-600'
                     }`}
                   >
                     <Settings2 size={10} />
@@ -638,7 +636,7 @@ export default function PSSAssignmentLetters({
                 Gerenciar Modelo: {selectedTemplate.replace('PSS assignment letter_', '')}
               </h4>
               <button onClick={() => setIsManaging(false)} className="text-amber-400 hover:text-amber-600 transition-colors">
-                <X size={16} />
+                <Trash2 size={16} />
               </button>
             </div>
 
@@ -649,7 +647,7 @@ export default function PSSAssignmentLetters({
                     <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
                     <button
                       onClick={() => setSaveAsGlobal(!saveAsGlobal)}
-                      className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-blue-500' : 'bg-gray-300'}`}
+                      className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-emerald-500' : 'bg-gray-300'}`}
                     >
                       <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
                     </button>
@@ -693,7 +691,7 @@ export default function PSSAssignmentLetters({
                       onClick={saveTemplate}
                       disabled={isSaving}
                       className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
-                        saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+                        saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
                       } disabled:opacity-50`}
                     >
                       {isSaving ? <RefreshCw className="animate-spin" size={14} /> : saveStatus === 'success' ? <CheckCircle2 size={14} /> : <Save size={14} />}
@@ -761,7 +759,8 @@ export default function PSSAssignmentLetters({
             >
               <div 
                 ref={previewRef} 
-                className={`w-full h-full ${!processedDocBuffer ? 'hidden' : 'block'}`} 
+                className="w-full h-full" 
+                style={{ display: processedDocBuffer ? 'block' : 'block', visibility: processedDocBuffer ? 'visible' : 'hidden', position: processedDocBuffer ? 'relative' : 'absolute' }}
               />
 
               {!processedDocBuffer && !isProcessing && (
