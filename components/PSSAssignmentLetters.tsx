@@ -9,6 +9,7 @@ import {
   RefreshCw, 
   CheckCircle2, 
   List,
+  Mail,
   AlertCircle,
   FileDown,
   PenTool,
@@ -19,7 +20,6 @@ import {
   FileUp,
   Save
 } from 'lucide-react';
-import DocxToPdfDemo from './DocxToPdfDemo';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
 import { 
@@ -39,6 +39,7 @@ interface PSSAssignmentLettersProps {
   userId: string;
   isAdmin?: boolean;
   canManage?: boolean;
+  initialMode?: 'geracao' | 'manager';
   selectedTurma: '1' | '2' | '3';
   schoolInfo: {
     dataTurma: string;
@@ -58,6 +59,7 @@ export default function PSSAssignmentLetters({
   userId, 
   isAdmin,
   canManage,
+  initialMode = 'geracao',
   selectedTurma, 
   schoolInfo, 
   workshopAssignments 
@@ -72,13 +74,17 @@ export default function PSSAssignmentLetters({
   const [personalData, setPersonalData] = useState<any>(null);
   
   // Management state
-  const [isManaging, setIsManaging] = useState(false);
+  const [isManaging, setIsManaging] = useState(initialMode === 'manager');
   const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [missingTags, setMissingTags] = useState<string[]>([]);
   const [saveAsGlobal, setSaveAsGlobal] = useState(false);
+
+  const schoolInfoKey = JSON.stringify(schoolInfo);
+  const personalDataKey = JSON.stringify(personalData);
+  const workshopAssignmentsKey = JSON.stringify(workshopAssignments);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +142,7 @@ export default function PSSAssignmentLetters({
   // Handle document updates
   useEffect(() => {
     const updateDoc = async () => {
-      if (isViewerReady && viewerRef.current && processedDocBuffer) {
+      if (isViewerReady && viewerRef.current && processedDocBuffer && processedDocBuffer.byteLength > 0) {
         setIsProcessing(true);
         try {
           await viewerRef.current.load(new Uint8Array(processedDocBuffer));
@@ -218,7 +224,7 @@ export default function PSSAssignmentLetters({
       setProcessedDocBuffer(null);
       setStatus('idle');
     }
-  }, [selectedTemplate, templates, schoolInfo, workshopAssignments, personalData]);
+  }, [selectedTemplate, templates, schoolInfoKey, workshopAssignmentsKey, personalDataKey]);
 
   const getParticipantLabel = (scenarioId: number, index: number) => {
     if (scenarioId === 1) {
@@ -405,9 +411,9 @@ export default function PSSAssignmentLetters({
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // Joined split tag logic - more robust version
+        // Joined split tag logic - safer version
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
         }
         
         // Ensure namespaces are present for images (required for docxtemplater-image-module)
@@ -570,7 +576,7 @@ export default function PSSAssignmentLetters({
               Selecione o Modelo de Carta PSS
             </h3>
             
-            {canManage && (
+            {canManage && initialMode !== 'manager' && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${

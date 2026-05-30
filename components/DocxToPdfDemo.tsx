@@ -289,40 +289,26 @@ export default function DocxToPdfDemo({
           </button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 uppercase tracking-tight">
-              {showManager ? 'Gerenciador PSS' : 'Workshops PSS'}
+              Gerenciar Templates PSS
             </h1>
-            <p className="text-gray-500 font-medium uppercase tracking-widest text-[12px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100 w-fit mt-1">
-              {showManager ? 'Gestão de Templates' : 'Geração de Documentos'}
+            <p className="text-gray-500 font-medium uppercase tracking-widest text-[12px] bg-blue-50 text-blue-100 px-3 py-1 rounded-full border border-blue-50 w-fit mt-1">
+              Escola de Pioneiros
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {canManage && (
-            <button
-              onClick={() => setShowManager(!showManager)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-                showManager 
-                  ? 'bg-blue-600 text-white shadow-lg' 
-                  : 'bg-white text-blue-600 border border-blue-100 hover:bg-blue-50'
-              }`}
-            >
-              {showManager ? <Layout size={16} /> : <Settings2 size={16} />}
-              {showManager ? 'Ir para Geração' : 'Gerenciar Templates'}
-            </button>
-          )}
         </div>
       </div>
 
       <AnimatePresence mode="wait">
-        {showManager ? (
-          <motion.div
-            key="manager"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="flex flex-col gap-6"
-          >
+        <motion.div
+          key="manager"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="flex flex-col gap-6"
+        >
             {/* Top: Lista de Uploads em Grid */}
             <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -525,44 +511,6 @@ export default function DocxToPdfDemo({
               </div>
             </div>
           </motion.div>
-        ) : (
-          <motion.div
-            key="generation"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-white rounded-[3rem] shadow-xl border border-gray-100 p-12 text-center"
-          >
-            <div className="max-w-md mx-auto space-y-6">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto text-blue-600 shadow-inner">
-                <Send size={48} />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Em Breve</h3>
-                <p className="text-gray-500 font-medium">
-                  O módulo de geração de workshops PSS será disponibilizado em breve.
-                </p>
-              </div>
-              <div className="flex gap-4 justify-center">
-                <button 
-                  onClick={onBack}
-                  className="px-8 py-3 bg-gray-100 text-gray-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all shadow-lg"
-                >
-                  Voltar
-                </button>
-                {canManage && (
-                  <button 
-                    onClick={() => setShowManager(true)}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
-                  >
-                    <Settings2 size={16} />
-                    Gerenciar Templates
-                  </button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
 
 

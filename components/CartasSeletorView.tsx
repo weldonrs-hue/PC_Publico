@@ -28,7 +28,8 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
       gradient: 'from-blue-500 to-indigo-600',
       view: 'docx_demo',
       active: true,
-      uploadKey: 'allowPSSUploadForAll'
+      uploadKey: 'allowPSSUploadForAll',
+      forceManager: true
     },
     {
       id: 'esp',
@@ -123,7 +124,15 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
             >
               {/* Main Button Area */}
               <button
-                onClick={() => option.active && onViewChange(option.view)}
+                onClick={() => {
+                  if (option.active) {
+                    if (option.forceManager) {
+                      onViewChange(`${option.view}:manager`);
+                    } else {
+                      onViewChange(option.view);
+                    }
+                  }
+                }}
                 disabled={!option.active}
                 className={`flex-1 p-8 flex flex-col items-center justify-center text-center w-full relative h-full ${!option.active ? 'cursor-not-allowed' : 'cursor-pointer'}`}
               >
@@ -146,11 +155,20 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
 
               {/* Status Indicator */}
               {option.active && (
-                <div className="border-t border-gray-50 p-4 bg-gray-50/30 flex items-center justify-center">
-                  <div className="flex items-center gap-1.5">
+                <div className="border-t border-gray-50 p-4 bg-gray-50/30 flex items-center justify-between px-8">
+                  <div className="flex items-center gap-1.5 font-black uppercase text-gray-400 tracking-wider">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Módulo Ativo</span>
+                    <span className="text-[9px]">Ativo</span>
                   </div>
+                  {canManage && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onViewChange(`${option.view}:manager`); }}
+                      className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-white border border-gray-100 shadow-sm text-emerald-600 hover:shadow-md hover:bg-emerald-50 transition-all text-[9px] font-black uppercase tracking-widest group/btn"
+                    >
+                      <Settings2 size={12} className="group-hover/btn:rotate-90 transition-transform duration-500" />
+                      Gerenciar
+                    </button>
+                  )}
                 </div>
               )}
             </motion.div>

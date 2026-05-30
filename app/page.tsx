@@ -32,8 +32,8 @@ const MiscView = dynamic(() => import('@/components/MiscView'), {
 });
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
 const FileViewer = dynamic(() => import('@/components/FileViewer'), { ssr: false });
-const DocxToPdfDemo = dynamic(() => import('@/components/DocxToPdfDemo'), { ssr: false });
 const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
+const CartasPSSView = dynamic(() => import('@/components/CartasPSSView'), { ssr: false });
 const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
 const CartasCongressoView = dynamic(() => import('@/components/CartasCongressoView'), { ssr: false });
 const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
@@ -999,7 +999,7 @@ export default function Home() {
                   if (view === 'cartas_emr') setEmrInitialMode('geracao');
                   if (view === 'cartas_assembleias') setAssembleiasInitialMode('geracao');
                   if (view === 'cartas_programacoes') setProgramacoesInitialMode('geracao');
-                  if (view === 'docx_demo') setPssInitialMode('geracao');
+                  if (view === 'docx_demo') setPssInitialMode('manager');
                   changeView(view as any);
                 }
               }}
@@ -1071,11 +1071,10 @@ export default function Home() {
           )}
 
           {currentView === 'docx_demo' && (
-            <DocxToPdfDemo 
+            <CartasPSSView 
               userId={user.id}
               isAdmin={isAdminUser}
               canManage={isAdminUser || appConfig.allowPSSUploadForAll}
-              initialMode={pssInitialMode}
               onBack={() => changeView('cartas')}
             />
           )}

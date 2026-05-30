@@ -132,7 +132,7 @@ export default function PioneerSchoolLetters({
   // Handle document updates
   useEffect(() => {
     const updateDoc = async () => {
-      if (isViewerReady && viewerRef.current && processedDocBuffer) {
+      if (isViewerReady && viewerRef.current && processedDocBuffer && processedDocBuffer.byteLength > 0) {
         setIsProcessing(true);
         try {
           await viewerRef.current.load(new Uint8Array(processedDocBuffer));
