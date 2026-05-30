@@ -22,23 +22,45 @@ export default function FileViewer({ onBack }: FileViewerProps) {
     let client: any, viewer: any;
     let destroyed = false;
 
-    if (!file || !containerRef.current) return;
+    if (!file) return;
 
     const initViewer = async () => {
+      // Small delay to ensure containerRef is attached to DOM (important for AnimatePresence)
+      for (let i = 0; i < 10; i++) {
+        if (containerRef.current) break;
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      if (!containerRef.current || destroyed) return;
+
       setIsLoading(true);
       setError(null);
       try {
-        client = await UDocClient.create({
+        // Try to initialize without baseUrl first to use the built-in Blob worker (avoids CORS)
+        // If that fails (e.g. WASM not found), try local assets as fallback
+        const initOptions = {
           googleFonts: true,
           locale: 'pt-BR',
-        });
+        };
+
+        try {
+          client = await UDocClient.create(initOptions);
+        } catch (initErr) {
+          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
+          // Fallback to local assets if default init fails
+          client = await UDocClient.create({
+            ...initOptions,
+            baseUrl: window.location.origin + '/udoc-viewer/'
+          });
+        }
         
         if (destroyed) return;
 
         viewer = await client.createViewer({
           container: containerRef.current,
-          theme: 'light',
+          theme: 'dark',
           toolbar: true,
+          sidebar: true,
         });
 
         if (destroyed) return;
@@ -51,7 +73,7 @@ export default function FileViewer({ onBack }: FileViewerProps) {
       } catch (err: any) {
         console.error('FileViewer Error:', err);
         if (!destroyed) {
-          setError(err.message || 'Erro ao carregar documento.');
+          setError(err.message || 'Erro ao carregar o visualizador. Verifique se o formato do arquivo é suportado.');
           setIsLoading(false);
         }
       }
@@ -77,34 +99,36 @@ export default function FileViewer({ onBack }: FileViewerProps) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm z-10">
-        <div className="flex items-center gap-4">
+    <div className="h-full flex flex-col bg-[#1A1B1E] text-white">
+      {/* Minimal Header */}
+      <div className="bg-[#2C2E33] border-b border-[#373A40] px-4 py-2 flex items-center justify-between z-10 shrink-0">
+        <div className="flex items-center gap-3">
           <button 
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+            className="p-1.5 hover:bg-[#373A40] rounded-lg transition-colors text-gray-400 hover:text-white"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
-              <FileText size={20} />
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-600/20 p-1.5 rounded-lg text-blue-400">
+              <FileText size={16} />
             </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900 uppercase tracking-tight">Leitor de Arquivos</h1>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">docMentis High-Fidelity Viewer</p>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#909296]">Documento de Alta Fidelidade</span>
+              <span className="text-xs font-bold truncate max-w-[200px]">
+                {file instanceof File ? file.name : (typeof file === 'string' ? file.split('/').pop() : 'Visualizador')}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-blue-200"
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black rounded-lg transition-all shadow-lg shadow-blue-900/20"
           >
-            <Upload size={16} />
-            ABRIR ARQUIVO
+            <Upload size={14} />
+            CARREGAR NOVO
           </button>
           <input 
             type="file" 
@@ -117,7 +141,7 @@ export default function FileViewer({ onBack }: FileViewerProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative bg-[#1A1B1E]">
         <AnimatePresence mode="wait">
           {!file ? (
             <motion.div 
@@ -176,13 +200,13 @@ export default function FileViewer({ onBack }: FileViewerProps) {
       </div>
 
       {/* Footer Info */}
-      <div className="bg-white border-t border-gray-200 px-6 py-2 flex items-center justify-between text-[10px] font-bold text-gray-400">
+      <div className="bg-[#1A1B1E] border-t border-[#373A40] px-4 py-1.5 flex items-center justify-between text-[10px] font-bold text-[#5C5F66]">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
-          <span className="uppercase tracking-widest text-[#4A5568]">docMentis Core v0.642</span>
+          <div className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
+          <span className="uppercase tracking-widest">NÚCLEO DOCMENTIS v0.642</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="uppercase tracking-wider">Aceleração WASM/SIMD Ativa</span>
+          <span className="uppercase tracking-wider">ACELERAÇÃO WASM/SIMD ATIVA</span>
         </div>
       </div>
     </div>
