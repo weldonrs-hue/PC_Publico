@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import * as docxPreview from 'docx-preview';
+import { UDocClient } from '@docmentis/udoc-viewer';
 import { 
   FileText, 
   Download, 
@@ -20,8 +20,6 @@ import {
   FileUp,
   Save
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import { toJpeg } from 'html-to-image';
 import DocxToPdfDemo from './DocxToPdfDemo';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
@@ -85,6 +83,74 @@ export default function PSSAssignmentLetters({
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Render high-fidelity preview using @docmentis/udoc-viewer
+  useEffect(() => {
+    let client: any = null;
+    let viewer: any = null;
+    let destroyed = false;
+
+    if (!processedDocBuffer) return;
+
+    const initViewer = async () => {
+      // Small delays to ensure container is fully loaded and attached to DOM
+      for (let i = 0; i < 15; i++) {
+        if (previewRef.current) break;
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      if (!previewRef.current || destroyed) return;
+
+      setIsProcessing(true);
+      try {
+        const initOptions = {
+          googleFonts: true,
+          locale: 'pt-BR',
+        };
+
+        try {
+          client = await UDocClient.create(initOptions);
+        } catch (initErr) {
+          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
+          client = await UDocClient.create({
+            ...initOptions,
+            baseUrl: window.location.origin + '/udoc-viewer/'
+          });
+        }
+
+        if (destroyed) return;
+
+        viewer = await client.createViewer({
+          container: previewRef.current,
+          theme: 'light',
+          toolbar: true,
+          sidebar: false,
+        });
+
+        if (destroyed) return;
+
+        await viewer.load(new Uint8Array(processedDocBuffer));
+      } catch (err: any) {
+        console.error('UDoc Viewer Error inside PSSAssignmentLetters:', err);
+      } finally {
+        if (!destroyed) {
+          setIsProcessing(false);
+        }
+      }
+    };
+
+    initViewer();
+
+    return () => {
+      destroyed = true;
+      if (viewer) {
+        try { viewer.destroy(); } catch (e) {}
+      }
+      if (client) {
+        try { client.destroy(); } catch (e) {}
+      }
+    };
+  }, [processedDocBuffer]);
 
   useEffect(() => {
     fetchTemplates();
@@ -332,10 +398,6 @@ export default function PSSAssignmentLetters({
       
       const replacements = getReplacements(selectedTemplate, signatureImage);
       
-      // For preview, we want to show the text since we're not using the draggable image anymore
-      const previewReplacements = { ...replacements };
-      // Keep signatures as the text defined in replacements
-
       // Pre-process all XML files in the zip (document, headers, footers)
       const xmlFiles = zip.file(/word\/(document|header\d*|footer\d*)\.xml/);
       
@@ -377,35 +439,7 @@ export default function PSSAssignmentLetters({
         zip.file(file.name, xmlContent);
       });
 
-      const docPreview = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-        delimiters: { start: '[', end: ']' },
-        modules: ImageModule ? [new ImageModule(imgOpts)] : []
-      });
-
-      docPreview.render(previewReplacements);
-
-      const outPreview = docPreview.getZip().generate({
-        type: 'blob',
-        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      });
-
-      const previewArrayBuffer = await outPreview.arrayBuffer();
-      
-      if (previewRef.current) {
-        previewRef.current.innerHTML = '';
-        await docxPreview.renderAsync(previewArrayBuffer, previewRef.current, undefined, {
-          className: "docx-preview",
-          inWrapper: false,
-          ignoreWidth: true,
-          ignoreHeight: true,
-          breakPages: false,
-          useBase64URL: true,
-        });
-      }
-
-      // Also generate the "real" buffer with signed content for download
+      // Also generate the "real" buffer with signed content for download & preview
       const docReal = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
@@ -442,50 +476,8 @@ export default function PSSAssignmentLetters({
     document.body.removeChild(link);
   };
 
-  const downloadAsPdf = async () => {
-    if (!previewRef.current) return;
-
-    setIsProcessing(true);
-    try {
-      const element = previewRef.current;
-      
-      // Select the actual docx container to avoid capturing padding of the outer div
-      const docxElement = element.querySelector('.docx') as HTMLElement || element;
-      
-      // Use html-to-image with carefully controlled dimensions
-      const dataUrl = await toJpeg(docxElement, { 
-        quality: 0.98,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        width: 800, // Matching the fixed width for consistent export
-        style: {
-          margin: '0',
-          padding: '0',
-          backgroundColor: '#ffffff',
-          width: '800px' // Match the preview width exactly
-        }
-      });
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const margin = 15; // Increased margin for better printing
-      const contentWidth = pdfWidth - (margin * 2);
-      const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
-
-      pdf.addImage(dataUrl, 'JPEG', margin, margin, contentWidth, contentHeight);
-      pdf.save(`${selectedTemplate}_Turma${selectedTurma}.pdf`);
-    } catch (err) {
-      console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF.');
-    } finally {
-      setIsProcessing(false);
-    }
+  const downloadAsPdf = () => {
+    alert('Dica: Para obter a máxima qualidade e fidelidade visual do seu PDF, utilize o botão de Download (seta para baixo) ou a Impressora integrados diretamente no topo do próprio Visualizador de Documentos abaixo!');
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -765,22 +757,23 @@ export default function PSSAssignmentLetters({
 
           <div className="relative group">
             <div 
-              className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-2xl shadow-inner-lg overflow-auto p-4 md:p-12 custom-scrollbar"
+              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-3xl shadow-inner-lg overflow-hidden relative"
             >
               <div 
-                className="docx-preview-container mx-auto bg-white relative"
-                style={{ width: '800px', minWidth: '800px' }}
-              >
-                <div ref={previewRef} />
+                ref={previewRef} 
+                className={`w-full h-full ${!processedDocBuffer ? 'hidden' : 'block'}`} 
+              />
 
-                {!processedDocBuffer && !isProcessing && (
-                  <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                )}
-              </div>
+              {!processedDocBuffer && !isProcessing && (
+                <div 
+                  className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center text-center p-8 text-gray-500 font-bold uppercase tracking-widest text-xs"
+                  dangerouslySetInnerHTML={{ __html: previewHtml || 'Selecione um template para visualizar' }}
+                />
+              )}
             </div>
             {isProcessing && (
-              <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-2xl pointer-events-none">
-                <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
+              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
+                <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
               </div>
             )}
             {status === 'error' && (
@@ -798,34 +791,6 @@ export default function PSSAssignmentLetters({
       </div>
 
       <style jsx global>{`
-        .docx-preview-container {
-          background-color: #ffffff !important;
-        }
-        .docx-preview-container p {
-          font-size: 1.1rem !important;
-          line-height: 1.25 !important;
-          color: #1a1a1a !important;
-          margin-bottom: 0.4rem !important;
-        }
-        .docx-preview-container * {
-          border-color: #e5e7eb !important;
-          outline-color: transparent !important;
-          text-decoration-color: transparent !important;
-          box-shadow: none !important;
-        }
-        .docx-preview-container .docx-preview {
-          padding: 0 !important;
-          margin: 0 !important;
-          box-shadow: none !important;
-          width: 100% !important;
-        }
-        .docx-preview-container section.docx {
-          padding: 0 !important;
-          margin: 0 !important;
-          background: white !important;
-          box-shadow: none !important;
-        }
-        
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
           height: 4px;
