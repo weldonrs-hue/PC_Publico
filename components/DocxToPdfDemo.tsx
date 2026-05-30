@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import * as docxPreview from 'docx-preview';
+import { UDocClient } from '@docmentis/udoc-viewer';
 import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft, Settings2, Layout, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -44,31 +44,73 @@ export default function DocxToPdfDemo({
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Render high-fidelity preview using @docmentis/udoc-viewer
   useEffect(() => {
-    if (processedBuffer && previewRef.current) {
-      renderDocxPreview(processedBuffer);
-    }
-  }, [processedBuffer]);
+    let client: any = null;
+    let viewer: any = null;
+    let destroyed = false;
 
-  const renderDocxPreview = async (buffer: ArrayBuffer) => {
-    if (!previewRef.current) return;
-    setIsProcessingPreview(true);
-    try {
-      previewRef.current.innerHTML = '';
-      await docxPreview.renderAsync(buffer, previewRef.current, undefined, {
-        className: "docx-preview",
-        inWrapper: false,
-        ignoreWidth: true,
-        ignoreHeight: true,
-        breakPages: false,
-        useBase64URL: true,
-      });
-    } catch (err) {
-      console.error('Error rendering docx preview:', err);
-    } finally {
-      setIsProcessingPreview(false);
-    }
-  };
+    if (!processedBuffer) return;
+
+    const initViewer = async () => {
+      // Small delays to ensure container is fully loaded and attached to DOM
+      for (let i = 0; i < 15; i++) {
+        if (previewRef.current) break;
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      if (!previewRef.current || destroyed) return;
+
+      setIsProcessingPreview(true);
+      try {
+        const initOptions = {
+          googleFonts: true,
+          locale: 'pt-BR',
+        };
+
+        try {
+          client = await UDocClient.create(initOptions);
+        } catch (initErr) {
+          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
+          client = await UDocClient.create({
+            ...initOptions,
+            baseUrl: window.location.origin + '/udoc-viewer/'
+          });
+        }
+
+        if (destroyed) return;
+
+        viewer = await client.createViewer({
+          container: previewRef.current,
+          theme: 'light',
+          toolbar: true,
+          sidebar: false,
+        });
+
+        if (destroyed) return;
+
+        await viewer.load(new Uint8Array(processedBuffer));
+      } catch (err: any) {
+        console.error('UDoc Viewer Error inside DocxToPdfDemo:', err);
+      } finally {
+        if (!destroyed) {
+          setIsProcessingPreview(false);
+        }
+      }
+    };
+
+    initViewer();
+
+    return () => {
+      destroyed = true;
+      if (viewer) {
+        try { viewer.destroy(); } catch (e) {}
+      }
+      if (client) {
+        try { client.destroy(); } catch (e) {}
+      }
+    };
+  }, [processedBuffer]);
 
   useEffect(() => {
     fetchTemplates();
@@ -458,22 +500,22 @@ export default function DocxToPdfDemo({
                 </div>
                 <div className="relative group shadow-2xl rounded-[2.5rem]">
                   <div 
-                    className="w-full aspect-[1/1.414] bg-white border border-gray-200 rounded-[2.5rem] shadow-inner-lg overflow-hidden p-8 md:p-16"
-                    style={{ overflowY: 'auto' }}
+                    className="w-full h-[650px] bg-[#1A1B1E] border border-[#2c2e33] rounded-[2.5rem] shadow-inner-lg overflow-hidden relative"
                   >
                     <div 
                       ref={previewRef}
-                      className="docx-preview-container mx-auto"
-                    >
-                      {!processedBuffer && (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center uppercase font-black tracking-widest text-[10px]">
-                          Selecione um template para visualizar
-                        </div>
-                      )}
-                    </div>
+                      className={`w-full h-full ${!processedBuffer ? 'hidden' : 'block'}`} 
+                    />
+                    
+                    {!processedBuffer && (
+                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center text-gray-500 font-bold uppercase tracking-widest text-xs">
+                        Selecione um template para visualizar
+                      </div>
+                    )}
+                    
                     {isProcessingPreview && (
-                      <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center">
-                        <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center">
+                        <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" />
                       </div>
                     )}
                   </div>
@@ -523,51 +565,16 @@ export default function DocxToPdfDemo({
 
 
       <style jsx global>{`
-        .docx-preview-container {
-          color: #374151 !important;
-          background-color: #ffffff !important;
-        }
-        .docx-preview-container * {
-          border-color: #e5e7eb !important;
-          outline-color: transparent !important;
-          text-decoration-color: transparent !important;
-          box-shadow: none !important;
-        }
-        .docx-preview-container h1 { font-size: 2.5rem; font-weight: bold; margin-bottom: 1.25rem; color: #111827 !important; }
-        .docx-preview-container h2 { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; color: #1f2937 !important; }
-        .docx-preview-container p { margin-bottom: 0.75rem; line-height: 1.6; color: #374151 !important; font-size: 1.5rem; }
-        .docx-preview-container table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; border: 1px solid #e5e7eb; background: #ffffff; }
-        .docx-preview-container td, .docx-preview-container th { border: 1px solid #e5e7eb; padding: 0.5rem; color: #374151 !important; }
-        .docx-preview-container strong, .docx-preview-container b { color: #111827 !important; font-weight: bold; }
-        .docx-preview-container ul, .docx-preview-container ol { margin-bottom: 0.5rem; padding-left: 1.5rem; }
-        .docx-preview-container li { margin-bottom: 0.25rem; color: #374151 !important; }
-        
-        .docx-preview-container .docx-preview {
-          padding: 0 !important;
-          margin: 0 !important;
-          box-shadow: none !important;
-          width: 100% !important;
-        }
-        .docx-preview-container section.docx {
-          padding: 0 !important;
-          margin: 0 !important;
-          background: white !important;
-          box-shadow: none !important;
-        }
-        
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f1f1;
+          background: #1A1B1E;
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #d1d5db;
+          background: #2c2e33;
           border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af;
         }
       `}</style>
     </div>

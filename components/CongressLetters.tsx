@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import * as docxPreview from 'docx-preview';
+import { UDocClient } from '@docmentis/udoc-viewer';
 import { 
   FileText, 
   Download, 
@@ -23,8 +23,6 @@ import {
   ChevronDown,
   Info
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import { toJpeg } from 'html-to-image';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDoc } from 'firebase/firestore';
@@ -75,6 +73,74 @@ export default function CongressLetters({
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Render high-fidelity preview using @docmentis/udoc-viewer
+  useEffect(() => {
+    let client: any = null;
+    let viewer: any = null;
+    let destroyed = false;
+
+    if (!processedDocBuffer) return;
+
+    const initViewer = async () => {
+      // Small delays to ensure container is fully loaded and attached to DOM
+      for (let i = 0; i < 15; i++) {
+        if (previewRef.current) break;
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      if (!previewRef.current || destroyed) return;
+
+      setIsProcessing(true);
+      try {
+        const initOptions = {
+          googleFonts: true,
+          locale: 'pt-BR',
+        };
+
+        try {
+          client = await UDocClient.create(initOptions);
+        } catch (initErr) {
+          console.warn('Default UDocClient init failed, trying with local baseUrl:', initErr);
+          client = await UDocClient.create({
+            ...initOptions,
+            baseUrl: window.location.origin + '/udoc-viewer/'
+          });
+        }
+
+        if (destroyed) return;
+
+        viewer = await client.createViewer({
+          container: previewRef.current,
+          theme: 'light',
+          toolbar: true,
+          sidebar: false,
+        });
+
+        if (destroyed) return;
+
+        await viewer.load(new Uint8Array(processedDocBuffer));
+      } catch (err: any) {
+        console.error('UDoc Viewer Error inside CongressLetters:', err);
+      } finally {
+        if (!destroyed) {
+          setIsProcessing(false);
+        }
+      }
+    };
+
+    initViewer();
+
+    return () => {
+      destroyed = true;
+      if (viewer) {
+        try { viewer.destroy(); } catch (e) {}
+      }
+      if (client) {
+        try { client.destroy(); } catch (e) {}
+      }
+    };
+  }, [processedDocBuffer]);
 
   useEffect(() => {
     fetchTemplates();
@@ -322,18 +388,6 @@ export default function CongressLetters({
       const arrayBuffer = await out.arrayBuffer();
       setProcessedDocBuffer(arrayBuffer);
       
-      if (previewRef.current) {
-        previewRef.current.innerHTML = '';
-        await docxPreview.renderAsync(arrayBuffer, previewRef.current, undefined, {
-          className: "docx-preview",
-          inWrapper: false,
-          ignoreWidth: true,
-          ignoreHeight: true,
-          breakPages: false,
-          useBase64URL: true,
-        });
-      }
-
       setStatus('success');
       setNeedsProcessing(false);
     } catch (err: any) {
@@ -360,35 +414,8 @@ export default function CongressLetters({
     document.body.removeChild(link);
   };
 
-  const downloadAsPdf = async () => {
-    if (!previewRef.current) return;
-    setIsProcessing(true);
-    try {
-      const element = previewRef.current;
-      const docxElement = element.querySelector('.docx') as HTMLElement || element;
-      const dataUrl = await toJpeg(docxElement, { 
-        quality: 0.98,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        width: 800,
-        style: { margin: '0', padding: '0', backgroundColor: '#ffffff', width: '800px' }
-      });
-
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const margin = 15;
-      const contentWidth = pdfWidth - (margin * 2);
-      const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
-
-      pdf.addImage(dataUrl, 'JPEG', margin, margin, contentWidth, contentHeight);
-      pdf.save(`Carta_Congresso_${selectedTemplate}.pdf`);
-    } catch (err) {
-      console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF.');
-    } finally {
-      setIsProcessing(false);
-    }
+  const downloadAsPdf = () => {
+    alert('Dica: Para obter a máxima qualidade e fidelidade visual do seu PDF, utilize o botão de Download (seta para baixo) ou a Impressora integrados diretamente no topo do próprio Visualizador de Documentos abaixo!');
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -680,24 +707,25 @@ export default function CongressLetters({
             </div>
           </div>
 
-          <div className="relative group p-0.5 bg-gray-200 rounded-[2rem] shadow-2xl overflow-hidden ring-4 ring-white">
+          <div className="relative group">
             <div 
-              className="w-full aspect-[1/1.414] bg-white overflow-auto p-4 md:p-12 custom-scrollbar flex flex-col items-center"
+              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-3xl shadow-inner-lg overflow-hidden relative"
             >
               <div 
-                className="docx-preview-container bg-white relative shadow-2xl origin-top transition-transform duration-500"
-                style={{ width: '800px', minWidth: '800px' }}
-              >
-                <div ref={previewRef} />
-                
-                {!processedDocBuffer && !isProcessing && (
-                  <div dangerouslySetInnerHTML={{ __html: previewHtml || '<div class="h-full flex flex-col items-center justify-center text-gray-300 py-32 px-10 text-center text-[10px] uppercase font-black tracking-[0.2em] leading-relaxed opacity-50">Selecione um template para visualizar</div>' }} />
-                )}
-              </div>
+                ref={previewRef} 
+                className={`w-full h-full ${!processedDocBuffer ? 'hidden' : 'block'}`} 
+              />
+              
+              {!processedDocBuffer && !isProcessing && (
+                <div 
+                  className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center text-center p-8 text-gray-500 font-bold uppercase tracking-widest text-xs"
+                  dangerouslySetInnerHTML={{ __html: previewHtml || 'Selecione um template para visualizar' }} 
+                />
+              )}
             </div>
             {isProcessing && (
-              <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
-                <RefreshCw className="w-10 h-10 text-violet-500 animate-spin" />
+              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
+                <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
               </div>
             )}
             {status === 'error' && (
@@ -715,44 +743,15 @@ export default function CongressLetters({
       </div>
 
       <style jsx global>{`
-        .docx-preview-container {
-          background-color: #ffffff !important;
-          color: #374151 !important;
-        }
-        .docx-preview-container .docx-preview {
-          padding: 0 !important;
-          margin: 0 !important;
-          box-shadow: none !important;
-          width: 100% !important;
-        }
-        .docx-preview-container section.docx {
-          padding: 0 !important;
-          margin: 0 !important;
-          background: white !important;
-          box-shadow: none !important;
-        }
-        .docx-preview-container p {
-          font-size: 1.1rem !important;
-          line-height: 1.25 !important;
-          color: #1a1a1a !important;
-          margin-bottom: 0.4rem !important;
-        }
-        .docx-preview-container * {
-          border-color: #e5e7eb !important;
-          outline-color: transparent !important;
-          text-decoration-color: transparent !important;
-          box-shadow: none !important;
-        }
-        
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
           height: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f1f1;
+          background: #1A1B1E;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #d1d5db;
+          background: #2c2e33;
           border-radius: 10px;
         }
       `}</style>

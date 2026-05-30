@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import * as docxPreview from 'docx-preview';
 import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft, Mail, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -136,30 +135,16 @@ export default function CartasESPView({ userId, isAdmin, canManage, onBack }: Ca
       </AnimatePresence>
 
       <style jsx global>{`
-        .docx-preview-container {
-          color: #374151 !important;
-          background-color: #ffffff !important;
-          font-family: 'Inter', sans-serif;
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
         }
-        .docx-preview-container * {
-          border-color: #e5e7eb !important;
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #1A1B1E;
         }
-        .docx-preview-container h1 { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; color: #111827 !important; }
-        .docx-preview-container p { margin-bottom: 0.4rem; line-height: 1.25; color: #374151 !important; font-size: 1.1rem; }
-        .docx-preview-container table { width: 100%; border-collapse: collapse; margin-bottom: 0.5rem; border: 1px solid #e5e7eb; }
-        .docx-preview-container td, .docx-preview-container th { border: 1px solid #e5e7eb; padding: 0.5rem; }
-        
-        .docx-preview-container .docx-preview {
-          padding: 0 !important;
-          margin: 0 !important;
-          box-shadow: none !important;
-          width: 100% !important;
-        }
-        .docx-preview-container section.docx {
-          padding: 0 !important;
-          margin: 0 !important;
-          background: white !important;
-          box-shadow: none !important;
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #2c2e33;
+          border-radius: 10px;
         }
       `}</style>
     </div>

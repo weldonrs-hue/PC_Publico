@@ -8,9 +8,6 @@ import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'f
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import * as docxPreview from 'docx-preview';
-import { jsPDF } from 'jspdf';
-import { toJpeg } from 'html-to-image';
 
 interface RegionalConventionViewProps {
   userId: string;
@@ -609,55 +606,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         link.click();
         document.body.removeChild(link);
       } else {
-        // PDF conversion using jspdf + html-to-image
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'fixed';
-        tempDiv.style.top = '0';
-        tempDiv.style.left = '0';
-        tempDiv.style.width = '816px'; // Standard US Letter width at 96dpi
-        tempDiv.style.backgroundColor = 'white';
-        tempDiv.style.zIndex = '-9999';
-        tempDiv.className = 'docx-pdf-rendering';
-        document.body.appendChild(tempDiv);
-        
-        try {
-          const arrayBuffer = await out.arrayBuffer();
-          await docxPreview.renderAsync(arrayBuffer, tempDiv, undefined, {
-            inWrapper: false,
-            ignoreWidth: false,
-            ignoreHeight: false,
-            debug: false,
-          });
-
-          // Wait for rendering and images to fully load within the preview
-          await new Promise(resolve => setTimeout(resolve, 800));
-
-          const dataUrl = await toJpeg(tempDiv, { 
-            quality: 0.95,
-            pixelRatio: 2,
-            backgroundColor: '#ffffff'
-          });
-
-          const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-          });
-
-          const imgProps = pdf.getImageProperties(dataUrl);
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-          pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-          pdf.save(`Carta_${speakerName.replace(/\s+/g, '_')}.pdf`);
-        } catch (pdfError) {
-          console.error('Detailed PDF error:', pdfError);
-          throw pdfError;
-        } finally {
-          if (document.body.contains(tempDiv)) {
-            document.body.removeChild(tempDiv);
-          }
-        }
+        alert('Dica: Para obter o PDF com máxima fidelidade e qualidade visual, utilize a aba "Cartas Congresso". Lá você poderá visualizar o documento com perfeição antes de baixar o PDF usando as ferramentas integradas do novo visualizador!');
       }
     } catch (err) {
       console.error('Error generating document:', err);
