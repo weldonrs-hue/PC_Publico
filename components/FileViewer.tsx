@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FileText, ArrowLeft, Upload, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, ArrowLeft, Upload, Loader2, AlertCircle, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface FileViewerProps {
@@ -93,6 +93,23 @@ export default function FileViewer({ onBack }: FileViewerProps) {
     loadFile();
   }, [file, isViewerReady]);
 
+  const handlePrint = () => {
+    if (viewerRef.current?.print) {
+      viewerRef.current.print();
+    } else {
+      try {
+        const udocIframe = containerRef.current?.querySelector('iframe');
+        if (udocIframe && udocIframe.contentWindow) {
+          udocIframe.contentWindow.print();
+        } else {
+          window.print();
+        }
+      } catch (e) {
+        window.print();
+      }
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
@@ -124,6 +141,14 @@ export default function FileViewer({ onBack }: FileViewerProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button 
+            onClick={handlePrint}
+            disabled={!file || isLoading}
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#40C057] hover:bg-[#37B24D] text-white text-[10px] font-black rounded-lg transition-all shadow-lg shadow-green-900/10 disabled:opacity-50"
+          >
+            <Printer size={14} />
+            IMPRIMIR
+          </button>
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black rounded-lg transition-all shadow-lg shadow-blue-900/20"

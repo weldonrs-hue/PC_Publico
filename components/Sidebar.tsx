@@ -114,7 +114,7 @@ export default function Sidebar({
       return miscViews.includes(currentView);
     }
     if (itemView === 'cartas') {
-      const cartasViews = ['cartas', 'cartas_esp', 'cartas_dashboard', 'docx_demo', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
+      const cartasViews = ['cartas', 'cartas_esp', 'cartas_dashboard', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'];
       return cartasViews.includes(currentView);
     }
     return false;

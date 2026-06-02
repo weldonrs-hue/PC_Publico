@@ -11,15 +11,6 @@ interface CartasDashboardProps {
 export default function CartasDashboard({ onViewChange }: CartasDashboardProps) {
   const cards = [
     {
-      id: 'workshops',
-      title: 'Designações PSS',
-      description: 'Modelos de designação para Escola de Pioneiros.',
-      icon: Wrench,
-      view: 'docx_demo',
-      color: '#3B82F6',
-      gradient: 'from-blue-500 to-indigo-600',
-    },
-    {
       id: 'esp',
       title: 'Cartas ESP',
       description: 'Anfitriã, refeições e convites para a ESP.',

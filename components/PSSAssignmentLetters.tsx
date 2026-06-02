@@ -18,7 +18,8 @@ import {
   Settings2,
   X,
   FileUp,
-  Save
+  Save,
+  Printer
 } from 'lucide-react';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
@@ -28,6 +29,7 @@ import {
   doc, 
   getDoc,
   setDoc,
+  deleteDoc,
   query,
   where,
   limit
@@ -142,10 +144,13 @@ export default function PSSAssignmentLetters({
   // Handle document updates
   useEffect(() => {
     const updateDoc = async () => {
-      if (isViewerReady && viewerRef.current && processedDocBuffer && processedDocBuffer.byteLength > 0) {
+      if (isViewerReady && viewerRef.current && processedDocBuffer && processedDocBuffer instanceof ArrayBuffer && processedDocBuffer.byteLength > 0) {
         setIsProcessing(true);
         try {
-          await viewerRef.current.load(new Uint8Array(processedDocBuffer));
+          const loadData = new Uint8Array(processedDocBuffer);
+          if (loadData && loadData.length > 0) {
+            await viewerRef.current.load(loadData);
+          }
         } catch (err) {
           console.error('UDoc Viewer Load Error:', err);
         } finally {
@@ -186,13 +191,17 @@ export default function PSSAssignmentLetters({
   };
 
   const fetchTemplates = async () => {
+    console.log('Fetching PSS templates for userId:', userId);
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'document_templates'));
+      const q = query(collection(db, 'document_templates'), where('category', '==', 'pss'));
+      const querySnapshot = await getDocs(q);
       const fetchedTemplates: Record<string, any> = {};
       querySnapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
       });
+
+      console.log('PSS templates fetched:', Object.keys(fetchedTemplates).length);
 
       // Consolidate templates prioritizing private ones
       const consolidated: Record<string, any> = {};
@@ -202,8 +211,10 @@ export default function PSSAssignmentLetters({
         
         if (fetchedTemplates[privateId]) {
           consolidated[name] = { ...fetchedTemplates[privateId], isPrivate: true };
+          console.log(`Found private version for ${name}`);
         } else if (fetchedTemplates[globalId]) {
           consolidated[name] = { ...fetchedTemplates[globalId], isPrivate: false };
+          console.log(`Found global version for ${name}`);
         }
       });
 
@@ -217,14 +228,28 @@ export default function PSSAssignmentLetters({
 
   // Auto-load template when selectedTemplate or templates changes
   useEffect(() => {
-    if (templates[selectedTemplate]) {
+    if (file) {
+      // If we have a local file selected, we show its preview
+      triggerLocalPreview();
+    } else if (templates[selectedTemplate]) {
       processAndPreview();
     } else {
       setPreviewHtml('<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center text-sm uppercase font-bold tracking-widest">Template não encontrado no banco de dados. Carregue-o na aba Gerador de Documentos primeiro.</div>');
       setProcessedDocBuffer(null);
       setStatus('idle');
     }
-  }, [selectedTemplate, templates, schoolInfoKey, workshopAssignmentsKey, personalDataKey]);
+  }, [selectedTemplate, templates, file, schoolInfoKey, workshopAssignmentsKey, personalDataKey]);
+
+  const triggerLocalPreview = async () => {
+    if (!file) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      const cleaned = cleanPSSMetadata(buffer);
+      processAndPreview(cleaned);
+    } catch (err) {
+      console.error('Error triggering local preview:', err);
+    }
+  };
 
   const getParticipantLabel = (scenarioId: number, index: number) => {
     if (scenarioId === 1) {
@@ -341,9 +366,25 @@ export default function PSSAssignmentLetters({
     return res;
   };
 
-  const processAndPreview = async () => {
-    const template = templates[selectedTemplate];
-    if (!template) return;
+  const processAndPreview = async (overrideBuffer?: ArrayBuffer) => {
+    let sourceBuffer: ArrayBuffer;
+    
+    if (overrideBuffer) {
+      sourceBuffer = overrideBuffer;
+    } else {
+      const template = templates[selectedTemplate];
+      if (!template || !template.content) {
+        console.error('Template not found or has no content:', selectedTemplate);
+        return;
+      }
+      
+      const binaryString = window.atob(template.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      sourceBuffer = bytes.buffer;
+    }
 
     setIsProcessing(true);
     setStatus('idle');
@@ -391,14 +432,7 @@ export default function PSSAssignmentLetters({
         getSize: () => [sigWidth, sigHeight],
       };
 
-      const binaryString = window.atob(template.content);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      // Clean metadata first
-      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
       const zip = new PizZip(cleanedBuffer);
       
       const replacements = getReplacements(selectedTemplate, signatureImage);
@@ -485,6 +519,24 @@ export default function PSSAssignmentLetters({
     alert('Dica: Para obter a máxima qualidade e fidelidade visual do seu PDF, utilize o botão de Download (seta para baixo) ou a Impressora integrados diretamente no topo do próprio Visualizador de Documentos abaixo!');
   };
 
+  const handlePrint = () => {
+    if (viewerRef.current?.print) {
+      viewerRef.current.print();
+    } else {
+      // Fallback for some UDoc versions: try calling the internal print method if it exists
+      try {
+        const udocIframe = previewRef.current?.querySelector('iframe');
+        if (udocIframe && udocIframe.contentWindow) {
+          udocIframe.contentWindow.print();
+        } else {
+          window.print();
+        }
+      } catch (e) {
+        window.print();
+      }
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -520,6 +572,10 @@ export default function PSSAssignmentLetters({
     setIsSaving(true);
     setSaveStatus('idle');
     try {
+      const isGlobal = isAdmin && saveAsGlobal;
+      const mode = isGlobal ? 'GLOBAL' : 'PRIVADO';
+      console.log(`Saving template: ${selectedTemplate} mode: ${mode}`);
+      
       const rawBuffer = await file.arrayBuffer();
       const cleanedBuffer = cleanPSSMetadata(rawBuffer);
       const blob = new Blob([cleanedBuffer]);
@@ -533,24 +589,74 @@ export default function PSSAssignmentLetters({
         reader.readAsDataURL(blob);
       });
 
-      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      const docId = isGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      
+      console.log(`Writing to Firestore docId: ${docId}`);
       await setDoc(doc(db, 'document_templates', docId), {
         name: selectedTemplate,
         content: base64,
         updatedAt: new Date().toISOString(),
         category: 'pss',
-        isGlobal: isAdmin && saveAsGlobal,
-        ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
+        isGlobal: isGlobal,
+        ownerId: isGlobal ? 'admin' : userId
       });
 
+      // Se salvou como global, remove a versão privada do usuário atual se existir
+      // para que a global passe a ser a ativa imediatamente
+      if (isGlobal) {
+        const privateId = `${userId}_${selectedTemplate}`;
+        try {
+          const privateSnap = await getDoc(doc(db, 'document_templates', privateId));
+          if (privateSnap.exists()) {
+            console.log('Removing old private version to favor global...');
+            await deleteDoc(doc(db, 'document_templates', privateId));
+          }
+        } catch (e) {
+          console.warn('Silent error removing private version during global save:', e);
+        }
+      }
+
+      console.log('Template saved successfully');
+      
       setSaveStatus('success');
+      await fetchTemplates();
       setFile(null);
-      fetchTemplates();
+      
+      alert(isGlobal ? 'Modelo salvo com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi salvo com sucesso.');
+      
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error saving template:', error);
       setErrorMessage(error.message || 'Erro ao salvar');
       setSaveStatus('error');
+      alert('Erro ao salvar template: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deletePrivateTemplate = async () => {
+    if (!templates[selectedTemplate]?.isPrivate) return;
+    if (!confirm('Tem certeza que deseja excluir sua versão personalizada deste modelo? O sistema voltará a usar o modelo padrão.')) return;
+    
+    setIsSaving(true);
+    try {
+      const docId = `${userId}_${selectedTemplate}`;
+      await deleteDoc(doc(db, 'document_templates', docId));
+      
+      console.log('Template private version deleted:', docId);
+      
+      await fetchTemplates();
+      setSaveStatus('success');
+      
+      alert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.');
+      
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error: any) {
+      console.error('Error deleting template:', error);
+      setErrorMessage(error.message || 'Erro ao excluir');
+      setSaveStatus('error');
+      alert('Erro ao excluir versão personalizada: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -661,15 +767,25 @@ export default function PSSAssignmentLetters({
                 )}
 
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-full flex flex-col items-center justify-center p-6 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
-                    file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
-                  }`}
-                >
-                  <FileUp size={24} className={file ? 'text-emerald-500' : 'text-gray-300'} />
-                  <span className="mt-2 truncate max-w-full">{file ? file.name : 'CARREGAR NOVO MODELO DOCX'}</span>
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full flex flex-col items-center justify-center p-6 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
+                      file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
+                    }`}
+                  >
+                    <FileUp size={24} className={file ? 'text-emerald-500' : 'text-gray-300'} />
+                    <span className="mt-2 truncate max-w-full">{file ? file.name : 'CARREGAR NOVO MODELO DOCX'}</span>
+                  </button>
+                  {file && (
+                    <button 
+                      onClick={() => setFile(null)} 
+                      className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-md hover:bg-red-600 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -703,18 +819,27 @@ export default function PSSAssignmentLetters({
                       {isSaving ? <RefreshCw className="animate-spin" size={14} /> : saveStatus === 'success' ? <CheckCircle2 size={14} /> : <Save size={14} />}
                       {isSaving ? 'SALVANDO...' : saveStatus === 'success' ? 'SALVO!' : 'SALVAR MODELO'}
                     </button>
-                    
-                    {saveStatus === 'error' && (
-                      <p className="text-[9px] text-red-500 font-bold text-center uppercase">{errorMessage || 'Erro ao salvar'}</p>
-                    )}
                   </div>
                 )}
-                {!file && (
+                {!file && templates[selectedTemplate]?.isPrivate && (
+                   <button
+                    onClick={deletePrivateTemplate}
+                    disabled={isSaving}
+                    className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                  >
+                    {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                    {isSaving ? 'EXCLUINDO...' : 'EXCLUIR MINHA VERSÃO'}
+                  </button>
+                )}
+                {!file && !templates[selectedTemplate]?.isPrivate && (
                   <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-xl border border-amber-50">
                     <p className="text-[9px] text-amber-600 font-black text-center uppercase tracking-widest leading-relaxed">
                       Selecione um arquivo .docx para atualizar o modelo <br/> deste documento no servidor.
                     </p>
                   </div>
+                )}
+                {saveStatus === 'error' && (
+                  <p className="text-[9px] text-red-500 font-bold text-center uppercase mt-2">{errorMessage || 'Erro ao salvar'}</p>
                 )}
               </div>
             </div>
@@ -737,6 +862,16 @@ export default function PSSAssignmentLetters({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrint}
+                disabled={status !== 'success' || isProcessing}
+                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-blue-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
+                title="Imprimir"
+              >
+                <Printer size={14} className="shrink-0" />
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">Imprimir</span>
+              </button>
+
               <button
                 onClick={downloadAsDocx}
                 disabled={status !== 'success' || isProcessing}

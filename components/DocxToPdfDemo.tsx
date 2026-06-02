@@ -98,10 +98,13 @@ export default function DocxToPdfDemo({
   // Handle document updates
   useEffect(() => {
     const updateDoc = async () => {
-      if (isViewerReady && viewerRef.current && processedBuffer) {
+      if (isViewerReady && viewerRef.current && processedBuffer && processedBuffer instanceof ArrayBuffer && processedBuffer.byteLength > 0) {
         setIsProcessingPreview(true);
         try {
-          await viewerRef.current.load(new Uint8Array(processedBuffer));
+          const loadData = new Uint8Array(processedBuffer);
+          if (loadData && loadData.length > 0) {
+            await viewerRef.current.load(loadData);
+          }
         } catch (err) {
           console.error('UDoc Viewer Load Error:', err);
         } finally {

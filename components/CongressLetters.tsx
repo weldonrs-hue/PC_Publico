@@ -18,6 +18,7 @@ import {
   Settings2,
   FileUp,
   Save,
+  Printer,
   User,
   ChevronDown,
   Info
@@ -126,10 +127,13 @@ export default function CongressLetters({
   // Handle document updates
   useEffect(() => {
     const updateDoc = async () => {
-      if (isViewerReady && viewerRef.current && processedDocBuffer) {
+      if (isViewerReady && viewerRef.current && processedDocBuffer && processedDocBuffer instanceof ArrayBuffer && processedDocBuffer.byteLength > 0) {
         setIsProcessing(true);
         try {
-          await viewerRef.current.load(new Uint8Array(processedDocBuffer));
+          const loadData = new Uint8Array(processedDocBuffer);
+          if (loadData && loadData.length > 0) {
+            await viewerRef.current.load(loadData);
+          }
         } catch (err) {
           console.error('UDoc Viewer Load Error:', err);
         } finally {
@@ -150,7 +154,8 @@ export default function CongressLetters({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'document_templates'));
+      const q = query(collection(db, 'document_templates'), where('category', '==', 'congresso'));
+      const querySnapshot = await getDocs(q);
       const fetchedTemplates: Record<string, any> = {};
       querySnapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
@@ -417,6 +422,23 @@ export default function CongressLetters({
     alert('Dica: Para obter a máxima qualidade e fidelidade visual do seu PDF, utilize o botão de Download (seta para baixo) ou a Impressora integrados diretamente no topo do próprio Visualizador de Documentos abaixo!');
   };
 
+  const handlePrint = () => {
+    if (viewerRef.current?.print) {
+      viewerRef.current.print();
+    } else {
+      try {
+        const udocIframe = previewRef.current?.querySelector('iframe');
+        if (udocIframe && udocIframe.contentWindow) {
+          udocIframe.contentWindow.print();
+        } else {
+          window.print();
+        }
+      } catch (e) {
+        window.print();
+      }
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile?.name.endsWith('.docx')) {
@@ -443,7 +465,8 @@ export default function CongressLetters({
     try {
       const rawBuffer = await file.arrayBuffer();
       const cleanedBuffer = cleanPSSMetadata(rawBuffer);
-      const docId = isAdmin && saveAsGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
+      const isGlobal = isAdmin && saveAsGlobal;
+      const docId = isGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       
       const reader = new FileReader();
       const base64 = await new Promise<string>((resolve) => {
@@ -459,9 +482,22 @@ export default function CongressLetters({
         content: base64,
         updatedAt: new Date().toISOString(),
         category: 'congresso',
-        isGlobal: isAdmin && saveAsGlobal,
-        ownerId: isAdmin && saveAsGlobal ? 'admin' : userId
+        isGlobal: isGlobal,
+        ownerId: isGlobal ? 'admin' : userId
       });
+
+      // Cleanup user private version if saving global
+      if (isGlobal) {
+        const privateId = `${userId}_${selectedTemplate}`;
+        try {
+          const privateSnap = await getDoc(doc(db, 'document_templates', privateId));
+          if (privateSnap.exists()) {
+            await deleteDoc(doc(db, 'document_templates', privateId));
+          }
+        } catch (e) {
+          console.warn('Silent error removing private version during global save:', e);
+        }
+      }
 
       setSaveStatus('success');
       setFile(null);
@@ -683,6 +719,16 @@ export default function CongressLetters({
               )}
 
               <div className="flex items-center bg-gray-100 p-1 rounded-2xl gap-1">
+                <button
+                  onClick={handlePrint}
+                  disabled={status !== 'success' || isProcessing}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 transition-all disabled:opacity-50 border border-transparent hover:border-blue-200"
+                  title="Imprimir"
+                >
+                  <Printer size={14} />
+                  IMPRIMIR
+                </button>
+
                 <button
                   onClick={downloadAsDocx}
                   disabled={status !== 'success' || isProcessing}

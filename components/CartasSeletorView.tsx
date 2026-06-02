@@ -20,18 +20,6 @@ interface CartasSeletorViewProps {
 export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: CartasSeletorViewProps) {
   const options = [
     {
-      id: 'workshops',
-      title: 'Designações PSS',
-      subtitle: 'ESCOLA DE PIONEIROS',
-      icon: Wrench,
-      color: '#3B82F6',
-      gradient: 'from-blue-500 to-indigo-600',
-      view: 'docx_demo',
-      active: true,
-      uploadKey: 'allowPSSUploadForAll',
-      forceManager: true
-    },
-    {
       id: 'esp',
       title: 'Cartas ESP',
       subtitle: 'ANFITRIÃ E REFEIÇÕES',
