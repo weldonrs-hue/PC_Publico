@@ -105,7 +105,10 @@ export default function CongressLetters({
 
         if (!destroyed) {
           viewerRef.current = viewer;
-          setIsViewerReady(true);
+          // Add a small extra delay before marking as ready to ensure internal setup is complete
+          setTimeout(() => {
+            if (!destroyed) setIsViewerReady(true);
+          }, 300);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error inside CongressLetters:', err);
@@ -127,15 +130,36 @@ export default function CongressLetters({
   // Handle document updates
   useEffect(() => {
     const updateDoc = async () => {
-      if (isViewerReady && viewerRef.current && processedDocBuffer && processedDocBuffer instanceof ArrayBuffer && processedDocBuffer.byteLength > 0) {
+      if (isViewerReady && viewerRef.current && processedDocBuffer) {
+        // Ensure processedDocBuffer is an ArrayBuffer and has content
+        const buffer = processedDocBuffer instanceof ArrayBuffer ? processedDocBuffer : 
+                      (processedDocBuffer as any).buffer instanceof ArrayBuffer ? (processedDocBuffer as any).buffer : null;
+        
+        if (!buffer || buffer.byteLength === 0) return;
+
         setIsProcessing(true);
         try {
-          const loadData = new Uint8Array(processedDocBuffer);
-          if (loadData && loadData.length > 0) {
-            await viewerRef.current.load(loadData);
+          const loadData = new Uint8Array(buffer);
+          await viewerRef.current.load(loadData);
+        } catch (err: any) {
+          console.error('UDoc Viewer Load Error (Congress):', err);
+          // Retry logic if it's the "length" error which might mean internal state wasn't ready
+          if (String(err).includes('length') || String(err).includes('null')) {
+            console.log('UDoc load failed, retrying in 1000ms...');
+            setTimeout(async () => {
+              if (viewerRef.current && processedDocBuffer) {
+                try {
+                   const retryBuffer = processedDocBuffer instanceof ArrayBuffer ? processedDocBuffer : 
+                                      (processedDocBuffer as any).buffer instanceof ArrayBuffer ? (processedDocBuffer as any).buffer : null;
+                   if (retryBuffer) {
+                     await viewerRef.current.load(new Uint8Array(retryBuffer));
+                   }
+                } catch (e) {
+                   console.error('Retry load failed:', e);
+                }
+              }
+            }, 1000);
           }
-        } catch (err) {
-          console.error('UDoc Viewer Load Error:', err);
         } finally {
           setIsProcessing(false);
         }

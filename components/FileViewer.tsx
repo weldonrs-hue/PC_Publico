@@ -50,7 +50,10 @@ export default function FileViewer({ onBack }: FileViewerProps) {
 
         if (!destroyed) {
           viewerRef.current = viewer;
-          setIsViewerReady(true);
+          // Add a small extra delay before marking as ready to ensure internal setup is complete
+          setTimeout(() => {
+            if (!destroyed) setIsViewerReady(true);
+          }, 400);
         }
       } catch (err: any) {
         console.error('FileViewer Error:', err);
@@ -83,7 +86,23 @@ export default function FileViewer({ onBack }: FileViewerProps) {
           await viewerRef.current.load(file);
         } catch (err: any) {
           console.error('FileViewer Load Error:', err);
-          setError(err.message || 'Erro ao carregar o documento.');
+          
+          // Retry logic for UDoc issues
+          if (String(err).includes('length') || String(err).includes('null')) {
+            console.log('FileViewer load failed, retrying in 1200ms...');
+            setTimeout(async () => {
+              if (viewerRef.current && file) {
+                try {
+                  await viewerRef.current.load(file);
+                } catch (e) {
+                  console.error('FileViewer retry failed:', e);
+                  setError('Erro ao carregar o documento após tentativa de recuperação.');
+                }
+              }
+            }, 1200);
+          } else {
+            setError(err.message || 'Erro ao carregar o documento.');
+          }
         } finally {
           setIsLoading(false);
         }
