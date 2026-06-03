@@ -499,14 +499,44 @@ export default function CongressLetters({
         }
       }
 
+      alert(isGlobal ? 'Modelo salvo com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi salvo com sucesso.');
       setSaveStatus('success');
       setFile(null);
-      fetchTemplates();
+      await fetchTemplates();
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error saving:', error);
       setErrorMessage(error.message || 'Erro ao salvar');
       setSaveStatus('error');
+      alert('Erro ao salvar template: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deletePrivateTemplate = async () => {
+    const templateData = templates[selectedTemplate];
+    if (!templateData?.isPrivate) return;
+    if (!confirm('Tem certeza que deseja excluir sua versão personalizada deste modelo? O sistema voltará a usar o modelo padrão.')) return;
+    
+    setIsSaving(true);
+    try {
+      const docId = `${userId}_${selectedTemplate}`;
+      await deleteDoc(doc(db, 'document_templates', docId));
+      
+      console.log('Template private version deleted:', docId);
+      
+      await fetchTemplates();
+      setSaveStatus('success');
+      
+      alert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.');
+      
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error: any) {
+      console.error('Error deleting template:', error);
+      setErrorMessage(error.message || 'Erro ao excluir');
+      setSaveStatus('error');
+      alert('Erro ao excluir versão personalizada: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -572,7 +602,7 @@ export default function CongressLetters({
                         ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                         : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700')
                     }`}>
-                      {templates[template.id].isPrivate ? 'MEU MODELO' : 'GLOBAL PROGCIR'}
+                      {templates[template.id].isPrivate ? 'SEU MODELO' : 'GLOBAL PROGCIR'}
                     </span>
                   </div>
                 ) : (
@@ -657,6 +687,17 @@ export default function CongressLetters({
                       {isSaving ? <RefreshCw className="animate-spin" size={14} /> : saveStatus === 'success' ? <CheckCircle2 size={14} /> : <Save size={14} />}
                       {isSaving ? 'SALVANDO...' : saveStatus === 'success' ? 'SALVO!' : 'SALVAR MODELO'}
                     </button>
+                    
+                    {!file && templates[selectedTemplate]?.isPrivate && (
+                      <button
+                        onClick={deletePrivateTemplate}
+                        disabled={isSaving}
+                        className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                      >
+                        {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                        {isSaving ? 'EXCLUINDO...' : 'EXCLUIR MINHA VERSÃO'}
+                      </button>
+                    )}
                     
                     {saveStatus === 'error' && (
                       <p className="text-[9px] text-red-500 font-bold text-center uppercase">{errorMessage || 'Erro ao salvar'}</p>

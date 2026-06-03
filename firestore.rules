@@ -48,7 +48,8 @@ service cloud.firestore {
 
     match /document_templates/{id} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
+      allow create, update: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
     }
 
     match /role_change_requests/{id} {

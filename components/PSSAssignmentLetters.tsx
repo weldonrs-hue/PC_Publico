@@ -32,7 +32,8 @@ import {
   deleteDoc,
   query,
   where,
-  limit
+  limit,
+  onSnapshot
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { AnimatePresence, motion } from 'motion/react';
@@ -100,9 +101,9 @@ export default function PSSAssignmentLetters({
 
     const initViewer = async () => {
       // Small delays to ensure container is fully loaded and attached to DOM
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 20; i++) {
         if (previewRef.current) break;
-        await new Promise(r => setTimeout(r, 50));
+        await new Promise(r => setTimeout(r, 75));
       }
 
       if (!previewRef.current || destroyed) return;
@@ -136,7 +137,12 @@ export default function PSSAssignmentLetters({
     return () => {
       destroyed = true;
       if (viewerRef.current) {
-        try { viewerRef.current.destroy(); viewerRef.current = null; } catch (e) {}
+        try { 
+          viewerRef.current.destroy(); 
+          viewerRef.current = null; 
+        } catch (e) {
+          console.warn('Error destroying viewer:', e);
+        }
       }
     };
   }, []);
@@ -153,6 +159,19 @@ export default function PSSAssignmentLetters({
           }
         } catch (err) {
           console.error('UDoc Viewer Load Error:', err);
+          // Retry logic if it's the "length" error which might mean internal state wasn't ready
+          if (String(err).includes('length')) {
+            console.log('Retrying load in 500ms...');
+            setTimeout(async () => {
+              if (viewerRef.current && processedDocBuffer) {
+                try {
+                   await viewerRef.current.load(new Uint8Array(processedDocBuffer));
+                } catch (e) {
+                   console.error('Retry load failed:', e);
+                }
+              }
+            }, 500);
+          }
         } finally {
           setIsProcessing(false);
         }
@@ -162,48 +181,17 @@ export default function PSSAssignmentLetters({
     updateDoc();
   }, [processedDocBuffer, isViewerReady]);
 
+  // Real-time templates listener
   useEffect(() => {
-    fetchTemplates();
-    fetchPersonalData();
-  }, []);
-
-  const fetchPersonalData = async () => {
-    if (!userId) return;
-    try {
-      const docRef = doc(db, 'personal_data', userId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setPersonalData(docSnap.data());
-      } else {
-        // Fallback: search by userId field
-        const querySnapshot = await getDocs(query(
-          collection(db, 'personal_data'), 
-          where('userId', '==', userId), 
-          limit(1)
-        ));
-        if (!querySnapshot.empty) {
-          setPersonalData(querySnapshot.docs[0].data());
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching personal data:', error);
-    }
-  };
-
-  const fetchTemplates = async () => {
-    console.log('Fetching PSS templates for userId:', userId);
     setLoading(true);
-    try {
-      const q = query(collection(db, 'document_templates'), where('category', '==', 'pss'));
-      const querySnapshot = await getDocs(q);
+    const q = query(collection(db, 'document_templates'), where('category', '==', 'pss'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedTemplates: Record<string, any> = {};
-      querySnapshot.forEach((doc) => {
+      snapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
       });
 
-      console.log('PSS templates fetched:', Object.keys(fetchedTemplates).length);
-
-      // Consolidate templates prioritizing private ones
       const consolidated: Record<string, any> = {};
       TEMPLATE_NAMES.forEach(name => {
         const privateId = `${userId}_${name}`;
@@ -211,20 +199,48 @@ export default function PSSAssignmentLetters({
         
         if (fetchedTemplates[privateId]) {
           consolidated[name] = { ...fetchedTemplates[privateId], isPrivate: true };
-          console.log(`Found private version for ${name}`);
         } else if (fetchedTemplates[globalId]) {
           consolidated[name] = { ...fetchedTemplates[globalId], isPrivate: false };
-          console.log(`Found global version for ${name}`);
         }
       });
 
       setTemplates(consolidated);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    } finally {
       setLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error('Error listening to templates:', error);
+      handleFirestoreError(error, OperationType.GET, 'document_templates');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  useEffect(() => {
+    const fetchPersonalData = async () => {
+      if (!userId) return;
+      try {
+        const docRef = doc(db, 'personal_data', userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setPersonalData(docSnap.data());
+        } else {
+          // Fallback: search by userId field
+          const querySnapshot = await getDocs(query(
+            collection(db, 'personal_data'), 
+            where('userId', '==', userId), 
+            limit(1)
+          ));
+          if (!querySnapshot.empty) {
+            setPersonalData(querySnapshot.docs[0].data());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching personal data:', error);
+      }
+    };
+
+    fetchPersonalData();
+  }, [userId]);
 
   // Auto-load template when selectedTemplate or templates changes
   useEffect(() => {
@@ -557,6 +573,29 @@ export default function PSSAssignmentLetters({
           ];
           const missing = getMissingTags(tags, required);
           setMissingTags(missing);
+
+          // PROACTIVE PREVIEW: Show the uploaded file immediately
+          const tempTemplates = { ...templates };
+          const blob = new Blob([cleanedBuffer]);
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              resolve(result.split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          
+          tempTemplates[selectedTemplate] = {
+            content: base64,
+            updatedAt: new Date().toISOString(),
+            isPrivate: true, // Show as if it's yours
+            isLocalPreview: true // Flag to distinguish
+          };
+          setTemplates(tempTemplates);
+          setErrorMessage('');
+          setSaveStatus('idle');
         } catch (err) {
           console.error('Error validating uploaded docx:', err);
         }
@@ -646,7 +685,6 @@ export default function PSSAssignmentLetters({
       
       console.log('Template private version deleted:', docId);
       
-      await fetchTemplates();
       setSaveStatus('success');
       
       alert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.');
@@ -718,7 +756,7 @@ export default function PSSAssignmentLetters({
                         ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                         : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
                     }`}>
-                      {templates[name].isPrivate ? 'Seu Modelo' : 'Modelo ProgCir'}
+                      {templates[name].isPrivate ? 'SEU MODELO' : 'GLOBAL PROGCIR'}
                     </span>
                   )}
                 </button>
