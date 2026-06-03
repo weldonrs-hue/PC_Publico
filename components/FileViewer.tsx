@@ -50,10 +50,12 @@ export default function FileViewer({ onBack }: FileViewerProps) {
 
         if (!destroyed) {
           viewerRef.current = viewer;
-          // Add a small extra delay before marking as ready to ensure internal setup is complete
+          // Add a generous delay before marking as ready to ensure internal setup is complete
           setTimeout(() => {
-            if (!destroyed) setIsViewerReady(true);
-          }, 400);
+            if (!destroyed && viewerRef.current) {
+              setIsViewerReady(true);
+            }
+          }, 1500);
         }
       } catch (err: any) {
         console.error('FileViewer Error:', err);
@@ -70,28 +72,35 @@ export default function FileViewer({ onBack }: FileViewerProps) {
 
     return () => {
       destroyed = true;
+      setIsViewerReady(false);
       if (viewerRef.current) {
-        try { viewerRef.current.destroy(); viewerRef.current = null; } catch (e) {}
-        setIsViewerReady(false);
+        try { 
+          const v = viewerRef.current;
+          viewerRef.current = null;
+          v.destroy(); 
+        } catch (e) {}
       }
     };
   }, [file]);
 
   // Handle file updates separately
   useEffect(() => {
+    let active = true;
     const loadFile = async () => {
-      if (isViewerReady && viewerRef.current && file) {
+      if (isViewerReady && viewerRef.current && file && active) {
         setIsLoading(true);
         try {
+          if (!viewerRef.current?.load) throw new Error('Viewer not ready');
           await viewerRef.current.load(file);
         } catch (err: any) {
+          if (!active) return;
           console.error('FileViewer Load Error:', err);
           
           // Retry logic for UDoc issues
           if (String(err).includes('length') || String(err).includes('null')) {
-            console.log('FileViewer load failed, retrying in 1200ms...');
+            console.log('FileViewer load failed, retrying in 2000ms...');
             setTimeout(async () => {
-              if (viewerRef.current && file) {
+              if (active && viewerRef.current?.load && file) {
                 try {
                   await viewerRef.current.load(file);
                 } catch (e) {
@@ -99,17 +108,18 @@ export default function FileViewer({ onBack }: FileViewerProps) {
                   setError('Erro ao carregar o documento após tentativa de recuperação.');
                 }
               }
-            }, 1200);
+            }, 2000);
           } else {
             setError(err.message || 'Erro ao carregar o documento.');
           }
         } finally {
-          setIsLoading(false);
+          if (active) setIsLoading(false);
         }
       }
     };
 
     loadFile();
+    return () => { active = false; };
   }, [file, isViewerReady]);
 
   const handlePrint = () => {

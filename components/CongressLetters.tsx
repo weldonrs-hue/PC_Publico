@@ -105,10 +105,12 @@ export default function CongressLetters({
 
         if (!destroyed) {
           viewerRef.current = viewer;
-          // Add a small extra delay before marking as ready to ensure internal setup is complete
+          // Add a generous delay before marking as ready to ensure internal setup is complete
           setTimeout(() => {
-            if (!destroyed) setIsViewerReady(true);
-          }, 300);
+            if (!destroyed && viewerRef.current) {
+               setIsViewerReady(true);
+            }
+          }, 1500);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error inside CongressLetters:', err);
@@ -121,52 +123,63 @@ export default function CongressLetters({
 
     return () => {
       destroyed = true;
+      setIsViewerReady(false);
       if (viewerRef.current) {
-        try { viewerRef.current.destroy(); viewerRef.current = null; } catch (e) {}
+        try { 
+          const v = viewerRef.current;
+          viewerRef.current = null;
+          v.destroy(); 
+        } catch (e) {}
       }
     };
   }, []);
 
   // Handle document updates
   useEffect(() => {
+    let active = true;
     const updateDoc = async () => {
       if (isViewerReady && viewerRef.current && processedDocBuffer) {
         // Ensure processedDocBuffer is an ArrayBuffer and has content
         const buffer = processedDocBuffer instanceof ArrayBuffer ? processedDocBuffer : 
                       (processedDocBuffer as any).buffer instanceof ArrayBuffer ? (processedDocBuffer as any).buffer : null;
         
-        if (!buffer || buffer.byteLength === 0) return;
+        if (!buffer || buffer.byteLength === 0 || !active) return;
 
         setIsProcessing(true);
         try {
+          if (!viewerRef.current || typeof viewerRef.current.load !== 'function') {
+            throw new Error('Viewer not ready');
+          }
           const loadData = new Uint8Array(buffer);
           await viewerRef.current.load(loadData);
         } catch (err: any) {
+          if (!active) return;
           console.error('UDoc Viewer Load Error (Congress):', err);
           // Retry logic if it's the "length" error which might mean internal state wasn't ready
           if (String(err).includes('length') || String(err).includes('null')) {
-            console.log('UDoc load failed, retrying in 1000ms...');
+            console.log('UDoc load failed, retrying in 2000ms...');
             setTimeout(async () => {
-              if (viewerRef.current && processedDocBuffer) {
+              if (active && viewerRef.current && processedDocBuffer) {
                 try {
                    const retryBuffer = processedDocBuffer instanceof ArrayBuffer ? processedDocBuffer : 
                                       (processedDocBuffer as any).buffer instanceof ArrayBuffer ? (processedDocBuffer as any).buffer : null;
-                   if (retryBuffer) {
+                   if (retryBuffer && viewerRef.current?.load) {
                      await viewerRef.current.load(new Uint8Array(retryBuffer));
                    }
                 } catch (e) {
                    console.error('Retry load failed:', e);
                 }
               }
-            }, 1000);
+            }, 2000);
           }
         } finally {
-          setIsProcessing(false);
+          if (active) setIsProcessing(false);
         }
       }
     };
 
     updateDoc();
+    return () => { active = false; };
   }, [processedDocBuffer, isViewerReady]);
 
   useEffect(() => {
