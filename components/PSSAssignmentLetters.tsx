@@ -120,17 +120,26 @@ export default function PSSAssignmentLetters({
           theme: 'light',
           toolbar: true,
           sidebar: false,
+          paperless: false,
+          renderMode: 'exact',
+          layout: 'paged'
         });
 
         if (!destroyed) {
           viewerRef.current = viewer;
-          // Add a generous delay before marking as ready to ensure internal setup is complete
+          // Set a default zoom to ensure it fits the width and looks correct
+          try {
+            await viewer.setZoom('fit-width');
+          } catch (e) {
+            console.warn('[udoc] Could not set initial zoom:', e);
+          }
+          
+          // Add a delay before marking as ready
           setTimeout(() => {
             if (!destroyed && viewerRef.current) {
               setIsViewerReady(true);
-              console.log('[udoc] Viewer marked as ready');
             }
-          }, 1500);
+          }, 1000);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error inside PSSAssignmentLetters:', err);
@@ -475,8 +484,10 @@ export default function PSSAssignmentLetters({
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         // Joined split tag logic - safer version
-        for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
+        for (let i = 0; i < 8; i++) {
+          const prevContent = xmlContent;
+          xmlContent = xmlContent.replace(/([\[@][^<\]]*?)(<\/w:t>(?:<w:proofErr[^>]*\/>|<w:noProof\/>)*?<w:t[^>]*>)([^<\]]*?[\A-Z0-9À-ÿ\_\]])/g, "$1$3$2");
+          if (prevContent === xmlContent) break;
         }
         
         // Ensure namespaces are present for images (required for docxtemplater-image-module)

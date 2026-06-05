@@ -70,13 +70,11 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
     
     const termsToRemoveRegex = [
       /Page\s*#\s*/gi,
-      /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi,
-      /Publication:\s*Student\s*Assignments/gi,
-      /Document:\s*PSS\s*assignment\s*letter[\w\d\_]*/gi,
+      /English\s*Title\s*:/gi,
+      /Publication\s*:\s*Student\s*Assignments/gi,
+      /Document\s*:\s*PSS\s*assignment\s*letter/gi,
       /PSS\s*assignment\s*letter/gi,
-      /Student\s*Assignments/gi,
-      /Publication:[\s\S]*?(?=<\/w:p>|$)/gi,
-      /English\s*Title:[\s\S]*?(?=<\/w:p>|$)/gi
+      /Student\s*Assignments/gi
     ];
 
     let anyModified = false;
@@ -84,14 +82,16 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
     let textNodesCleaned = 0;
 
     Object.keys(zip.files).forEach(fileName => {
-      if (fileName.endsWith('.xml')) {
+      // ONLY clean content files (document, headers, footers)
+      // Touching styles.xml, settings.xml etc. can corrupt the document layout
+      if (fileName.match(/word\/(document|header\d*|footer\d*)\.xml/)) {
         const file = zip.file(fileName);
         if (!file) return;
         
         let content = file.asText();
         let fileModified = false;
 
-        // 1. Paragraph cleaning
+        // 1. Paragraph cleaning (Safely clear text instead of removing tag)
         const paragraphRegex = /<w:p(?: [^>]+)?>([\s\S]*?)<\/w:p>/g;
         content = content.replace(paragraphRegex, (match, pContent) => {
           const plainText = pContent.replace(/<[^>]+>/g, '')
@@ -101,22 +101,28 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
           if (!plainText) return match;
 
           let matchesAnyTerm = false;
-          let remainingText = plainText;
-          
           termsToRemoveRegex.forEach(regex => {
             if (regex.test(plainText)) {
               matchesAnyTerm = true;
-              remainingText = remainingText.replace(regex, '').trim();
             }
           });
 
-          const isJustJunk = remainingText.length === 0 || /^[:\-\s\.\(\)\#\u2000-\u200F\uFEFF]*$/.test(remainingText);
+          // Check if the entire paragraph is just the metadata
+          const isMetadataOnly = termsToRemoveRegex.some(regex => {
+             const clean = plainText.replace(regex, '').trim();
+             // Allow for some minor punctuation or common template noise
+             return clean.length === 0 || /^[:\-\s\.\#]*$/.test(clean);
+          });
           
-          if (matchesAnyTerm && isJustJunk) {
+          if (matchesAnyTerm && isMetadataOnly) {
             fileModified = true;
             anyModified = true;
             paragraphsRemoved++;
-            return '';
+            // Instead of returning '', we return a paragraph with empty text nodes 
+            // to preserve structure (especially inside tables)
+            // AND we ensure we don't break the XML if there are multiple tags
+            return match.replace(/<w:t[^>]*>[\s\S]*?<\/w:t>/g, '<w:t></w:t>')
+                        .replace(/<w:instrText[^>]*>[\s\S]*?<\/w:instrText>/g, '<w:instrText></w:instrText>');
           }
 
           return match;

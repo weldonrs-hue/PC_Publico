@@ -102,16 +102,26 @@ export default function CongressLetters({
           theme: 'light',
           toolbar: true,
           sidebar: false,
+          paperless: false,
+          renderMode: 'exact',
+          layout: 'paged'
         });
 
         if (!destroyed) {
           viewerRef.current = viewer;
+          // Set a default zoom to ensure it fits the width and looks correct
+          try {
+            await viewer.setZoom('fit-width');
+          } catch (e) {
+            console.warn('[udoc] Could not set initial zoom:', e);
+          }
+          
           // Add a generous delay before marking as ready to ensure internal setup is complete
           setTimeout(() => {
             if (!destroyed && viewerRef.current) {
                setIsViewerReady(true);
             }
-          }, 1500);
+          }, 1000);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error inside CongressLetters:', err);
@@ -283,7 +293,8 @@ export default function CongressLetters({
     const circuito = personalData?.circuito || '________________';
     const signatureText = `${signatureName} (${circuito})`;
     const signatureImage = personalData?.signatureImage || null;
-    const signatureValue = signatureImage || signatureText;
+    const hasImage = signatureImage && signatureImage.startsWith('data:image');
+    const signatureValue = hasImage ? signatureImage : signatureText;
     const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
     
     // Para o preview, se não houver orador selecionado, usamos um placeholder
@@ -306,7 +317,7 @@ export default function CongressLetters({
       'ORADOR': speakerName,
       'ASSINATURA': signatureValue,
       'assinatura': signatureValue,
-      '%ASSINATURA': signatureValue,
+      '%ASSINATURA': hasImage ? signatureValue : '',
       'ASSINATURA_GLOBAL': signatureValue,
       'VIAJANTE': signatureName,
       'viajante': signatureName,
@@ -350,10 +361,11 @@ export default function CongressLetters({
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // 2. Join split tags - MUCH safer version
-        // Supports [TAG] and @TAG with spaces and special characters
-        for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
+        // 2. Join split tags - Safer approach to avoid breaking structures
+        for (let i = 0; i < 8; i++) {
+          const prevContent = xmlContent;
+          xmlContent = xmlContent.replace(/([\[@][^<\]]*?)(<\/w:t>(?:<w:proofErr[^>]*\/>|<w:noProof\/>)*?<w:t[^>]*>)([^<\]]*?[\A-Z0-9À-ÿ\_\]])/g, "$1$3$2");
+          if (prevContent === xmlContent) break;
         }
 
         // Ensure namespaces are present for images
@@ -365,10 +377,15 @@ export default function CongressLetters({
         }
         
         // 3. Surgical replacement of @TAG to [TAG]
+        const hasImage = replacements.ASSINATURA && typeof replacements.ASSINATURA === 'string' && replacements.ASSINATURA.startsWith('data:image');
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
           // Handle Signature
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          if (hasImage) {
+            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          } else {
+            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
+          }
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });

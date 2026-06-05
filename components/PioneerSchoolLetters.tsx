@@ -108,16 +108,26 @@ export default function PioneerSchoolLetters({
           theme: 'light',
           toolbar: true,
           sidebar: false,
+          paperless: false,
+          renderMode: 'exact',
+          layout: 'paged'
         });
 
         if (!destroyed) {
           viewerRef.current = viewer;
+          // Set a default zoom to ensure it fits the width and looks correct
+          try {
+            await viewer.setZoom('fit-width');
+          } catch (e) {
+            console.warn('[udoc] Could not set initial zoom:', e);
+          }
+          
           // Add a generous delay before marking as ready to ensure internal setup is complete
           setTimeout(() => {
             if (!destroyed && viewerRef.current) {
                setIsViewerReady(true);
             }
-          }, 1500);
+          }, 1000);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error inside PioneerSchoolLetters:', err);
@@ -283,66 +293,67 @@ export default function PioneerSchoolLetters({
     const email = schoolInfo.confirmacaoEmail || '________________';
     const contato = schoolInfo.confirmacaoWhatsapp || '________________';
     
-    const signatureName = personalData?.nome || '________________';
-    const circuito = personalData?.circuito || '________________';
-    const signatureText = `${signatureName} (${circuito})`;
-    const signatureImage = personalData?.signatureImage || null;
-    const signatureValue = signatureImage || signatureText;
-    const telefoneCircuito = personalData?.telefoneCircuito || '________________';
+      const signatureName = personalData?.nome || '________________';
+      const circuito = personalData?.circuito || '________________';
+      const signatureText = `${signatureName} (${circuito})`;
+      const signatureImage = personalData?.signatureImage || null;
+      const hasImage = signatureImage && signatureImage.startsWith('data:image');
+      const signatureValue = hasImage ? signatureImage : signatureText;
+      const telefoneCircuito = personalData?.telefoneCircuito || '________________';
 
-    return {
-      'TURMA': turma,
-      'DATA': schoolInfo.dataTurma || hoje,
-      'TURMA_DATA': schoolInfo.dataTurma || hoje,
-      'DATA_TURMA': schoolInfo.dataTurma || hoje,
-      'DATATURMA': schoolInfo.dataTurma || hoje,
-      'INSTRUTORES': instrutores,
-      'INSTRUTOR1': schoolInfo.instrutorA || '________________',
-      'INSTRUTOR2': schoolInfo.instrutorB || '________________',
-      'INSTRUTORA': schoolInfo.instrutorA || '________________',
-      'INSTRUTORB': schoolInfo.instrutorB || '________________',
-      'LOCAL': local,
-      'LOCALESCOLA': local,
-      'LOCAL_ESCOLA': local,
-      'ENDEREÇO': endereco,
-      'ENDERECO': endereco,
-      'ENDEREÇOESCOLA': endereco,
-      'ENDERECOESCOLA': endereco,
-      'ENDEREÇO_ESCOLA': endereco,
-      'ENDERECOENTREGA': enderecoEntrega,
-      'ENDEREÇOENTREGA': enderecoEntrega,
-      'DATAENTREGA': dataEntrega,
-      'DATACONFIRMAÇÃO': dataConfirmacao,
-      'DATACONFIRMACAO': dataConfirmacao,
-      'EMAIL': email,
-      'CONTATO': contato,
-      'WHATSAPP': contato,
-      'DATAHORA': schoolInfo.entregaLivroDataHora || '________________',
-      'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
-      'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
-      'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
-      'nome do instrutor': signatureText,
-      'NOME DO INSTRUTOR': signatureText,
-      'instrutor': signatureText,
-      'INSTRUTOR': signatureText,
-      'ASSINATURA': signatureValue,
-      'assinatura': signatureValue,
-      '%ASSINATURA': signatureValue,
-      'ASSINATURA_GLOBAL': signatureValue,
-      'VIAJANTE': signatureName,
-      'viajante': signatureName,
-      'NOME_VIAJANTE': signatureName,
-      'NOME': signatureName,
-      'nome': signatureName,
-      'CIRCUITO': circuito,
-      'NOME_CIRCUITO': circuito,
-      'TELEFONE': telefoneCircuito,
-      'FONE': telefoneCircuito,
-      'TELEFONE_CIRCUITO': telefoneCircuito,
-      'TELEFONECIRCUITO': telefoneCircuito,
-      'HOJE': hoje,
-      'DATA_ATUAL': hoje
-    };
+      return {
+        'TURMA': turma,
+        'DATA': schoolInfo.dataTurma || hoje,
+        'TURMA_DATA': schoolInfo.dataTurma || hoje,
+        'DATA_TURMA': schoolInfo.dataTurma || hoje,
+        'DATATURMA': schoolInfo.dataTurma || hoje,
+        'INSTRUTORES': instrutores,
+        'INSTRUTOR1': schoolInfo.instrutorA || '________________',
+        'INSTRUTOR2': schoolInfo.instrutorB || '________________',
+        'INSTRUTORA': schoolInfo.instrutorA || '________________',
+        'INSTRUTORB': schoolInfo.instrutorB || '________________',
+        'LOCAL': local,
+        'LOCALESCOLA': local,
+        'LOCAL_ESCOLA': local,
+        'ENDEREÇO': endereco,
+        'ENDERECO': endereco,
+        'ENDEREÇOESCOLA': endereco,
+        'ENDERECOESCOLA': endereco,
+        'ENDEREÇO_ESCOLA': endereco,
+        'ENDERECOENTREGA': enderecoEntrega,
+        'ENDEREÇOENTREGA': enderecoEntrega,
+        'DATAENTREGA': dataEntrega,
+        'DATACONFIRMAÇÃO': dataConfirmacao,
+        'DATACONFIRMACAO': dataConfirmacao,
+        'EMAIL': email,
+        'CONTATO': contato,
+        'WHATSAPP': contato,
+        'DATAHORA': schoolInfo.entregaLivroDataHora || '________________',
+        'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
+        'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
+        'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
+        'nome do instrutor': signatureText,
+        'NOME DO INSTRUTOR': signatureText,
+        'instrutor': signatureText,
+        'INSTRUTOR': signatureText,
+        'ASSINATURA': signatureValue,
+        'assinatura': signatureValue,
+        '%ASSINATURA': hasImage ? signatureValue : '',
+        'ASSINATURA_GLOBAL': signatureValue,
+        'VIAJANTE': signatureName,
+        'viajante': signatureName,
+        'NOME_VIAJANTE': signatureName,
+        'NOME': signatureName,
+        'nome': signatureName,
+        'CIRCUITO': circuito,
+        'NOME_CIRCUITO': circuito,
+        'TELEFONE': telefoneCircuito,
+        'FONE': telefoneCircuito,
+        'TELEFONE_CIRCUITO': telefoneCircuito,
+        'TELEFONECIRCUITO': telefoneCircuito,
+        'HOJE': hoje,
+        'DATA_ATUAL': hoje
+      };
   };
 
   const processAndPreview = async (overrideBuffer?: ArrayBuffer) => {
@@ -379,10 +390,12 @@ export default function PioneerSchoolLetters({
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // 2. Join split tags - MUCH safer version
-        // Supports [TAG] and @TAG with spaces and special characters
-        for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/([\[@][^<\]]*)(<\/w:t>(?:<w:proofErr[^>]*\/>)*?<w:t[^>]*>)([^<\]]+)/g, "$1$3$2");
+        // 2. Join split tags - Safer approach to avoid breaking structures
+        // This joins tags like [ T A G ] that Word might have split between w:t nodes
+        for (let i = 0; i < 8; i++) {
+          const prevContent = xmlContent;
+          xmlContent = xmlContent.replace(/([\[@][^<\]]*?)(<\/w:t>(?:<w:proofErr[^>]*\/>|<w:noProof\/>)*?<w:t[^>]*>)([^<\]]*?[\A-Z0-9À-ÿ\_\]])/g, "$1$3$2");
+          if (prevContent === xmlContent) break;
         }
         
         // Ensure namespaces present for images
@@ -394,10 +407,16 @@ export default function PioneerSchoolLetters({
         }
         
         // 3. Surgical replacement of @TAG to [TAG]
+        const hasImage = signatureValue && typeof signatureValue === 'string' && signatureValue.startsWith('data:image');
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
           // Handle Signature
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          if (hasImage) {
+            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          } else {
+            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
+          }
+          
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
