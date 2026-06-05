@@ -79,6 +79,7 @@ export default function PSSAssignmentLetters({
   // Management state
   const [isManaging, setIsManaging] = useState(initialMode === 'manager');
   const [file, setFile] = useState<File | null>(null);
+  const [localFileBuffer, setLocalFileBuffer] = useState<ArrayBuffer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -266,9 +267,10 @@ export default function PSSAssignmentLetters({
 
   // Auto-load template when selectedTemplate or templates changes
   useEffect(() => {
-    if (file) {
-      // If we have a local file selected, we show its preview
-      triggerLocalPreview();
+    if (localFileBuffer) {
+      // If we have a local file buffered (from upload), show its preview
+      console.log('Using local file buffer for preview');
+      processAndPreview(localFileBuffer);
     } else if (templates[selectedTemplate]) {
       processAndPreview();
     } else {
@@ -276,18 +278,7 @@ export default function PSSAssignmentLetters({
       setProcessedDocBuffer(null);
       setStatus('idle');
     }
-  }, [selectedTemplate, templates, file, schoolInfoKey, workshopAssignmentsKey, personalDataKey]);
-
-  const triggerLocalPreview = async () => {
-    if (!file) return;
-    try {
-      const buffer = await file.arrayBuffer();
-      const cleaned = cleanPSSMetadata(buffer);
-      processAndPreview(cleaned);
-    } catch (err) {
-      console.error('Error triggering local preview:', err);
-    }
-  };
+  }, [selectedTemplate, templates, localFileBuffer, schoolInfoKey, workshopAssignmentsKey, personalDataKey]);
 
   const getParticipantLabel = (scenarioId: number, index: number) => {
     if (scenarioId === 1) {
@@ -579,13 +570,19 @@ export default function PSSAssignmentLetters({
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.name.endsWith('.docx')) {
+        console.log('File selected:', selectedFile.name, selectedFile.size);
         setFile(selectedFile);
         try {
           const rawBuffer = await selectedFile.arrayBuffer();
+          console.log('Buffer read, cleaning metadata...');
           const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+          console.log('Metadata cleaned, buffer size:', cleanedBuffer.byteLength);
           
+          setLocalFileBuffer(cleanedBuffer);
+
           // Validate tags
           const tags = await extractTagsFromDocx(cleanedBuffer);
+          console.log('Extracted tags:', tags);
           const required = [
             ['NOME'],
             ['E-MAIL', 'EMAIL'],
@@ -595,31 +592,11 @@ export default function PSSAssignmentLetters({
           ];
           const missing = getMissingTags(tags, required);
           setMissingTags(missing);
-
-          // PROACTIVE PREVIEW: Show the uploaded file immediately
-          const tempTemplates = { ...templates };
-          const blob = new Blob([cleanedBuffer]);
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              resolve(result.split(',')[1]);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          
-          tempTemplates[selectedTemplate] = {
-            content: base64,
-            updatedAt: new Date().toISOString(),
-            isPrivate: true, // Show as if it's yours
-            isLocalPreview: true // Flag to distinguish
-          };
-          setTemplates(tempTemplates);
           setErrorMessage('');
           setSaveStatus('idle');
-        } catch (err) {
+        } catch (err: any) {
           console.error('Error validating uploaded docx:', err);
+          setErrorMessage('Erro ao ler arquivo: ' + err.message);
         }
       } else {
         setErrorMessage('Por favor, selecione um arquivo .docx');
@@ -629,38 +606,46 @@ export default function PSSAssignmentLetters({
   };
 
   const saveTemplate = async () => {
-    if (!file) return;
+    if (!file || !localFileBuffer) {
+      console.error('Save attempted without file or buffer', { hasFile: !!file, hasBuffer: !!localFileBuffer });
+      return;
+    }
     setIsSaving(true);
     setSaveStatus('idle');
     try {
       const isGlobal = isAdmin && saveAsGlobal;
       const mode = isGlobal ? 'GLOBAL' : 'PRIVADO';
-      console.log(`Saving template: ${selectedTemplate} mode: ${mode}`);
+      console.log(`Starting save: ${selectedTemplate} mode: ${mode}`);
       
-      const rawBuffer = await file.arrayBuffer();
-      const cleanedBuffer = cleanPSSMetadata(rawBuffer);
-      const blob = new Blob([cleanedBuffer]);
+      const blob = new Blob([localFileBuffer]);
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
           const result = reader.result as string;
           resolve(result.split(',')[1]);
         };
-        reader.onerror = reject;
+        reader.onerror = (e) => {
+          console.error('FileReader error:', e);
+          reject(new Error('Falha ao processar arquivo para upload'));
+        };
         reader.readAsDataURL(blob);
       });
 
       const docId = isGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       
-      console.log(`Writing to Firestore docId: ${docId}`);
-      await setDoc(doc(db, 'document_templates', docId), {
+      console.log(`Sending to Firestore: document_templates/${docId}`);
+      
+      const saveData = {
         name: selectedTemplate,
         content: base64,
         updatedAt: new Date().toISOString(),
         category: 'pss',
         isGlobal: isGlobal,
         ownerId: isGlobal ? 'admin' : userId
-      });
+      };
+
+      await setDoc(doc(db, 'document_templates', docId), saveData);
+      console.log('Firestore write complete');
 
       // Se salvou como global, remove a versão privada do usuário atual se existir
       // para que a global passe a ser a ativa imediatamente
@@ -669,7 +654,7 @@ export default function PSSAssignmentLetters({
         try {
           const privateSnap = await getDoc(doc(db, 'document_templates', privateId));
           if (privateSnap.exists()) {
-            console.log('Removing old private version to favor global...');
+            console.log('Removing outdated private version...');
             await deleteDoc(doc(db, 'document_templates', privateId));
           }
         } catch (e) {
@@ -677,19 +662,20 @@ export default function PSSAssignmentLetters({
         }
       }
 
-      console.log('Template saved successfully');
+      console.log('Template replacement finished successfully');
       
       setSaveStatus('success');
       setFile(null);
+      setLocalFileBuffer(null);
       
-      alert(isGlobal ? 'Modelo salvo com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi salvo com sucesso.');
+      alert(isGlobal ? 'Modelo substituído com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi atualizado com sucesso.');
       
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
-      console.error('Error saving template:', error);
-      setErrorMessage(error.message || 'Erro ao salvar');
+      console.error('CRITICAL: Error saving template:', error);
+      setErrorMessage('Falha ao salvar: ' + (error.message || 'Erro desconhecido'));
       setSaveStatus('error');
-      alert('Erro ao salvar template: ' + error.message);
+      alert('Erro ao substituir template: ' + (error.message || 'Verifique sua conexão e tente novamente.'));
     } finally {
       setIsSaving(false);
     }
@@ -784,7 +770,15 @@ export default function PSSAssignmentLetters({
 
                 {canManage && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedTemplate(name); setIsManaging(!isManaging); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (selectedTemplate === name) {
+                        setIsManaging(!isManaging);
+                      } else {
+                        setSelectedTemplate(name); 
+                        setIsManaging(true);
+                      }
+                    }}
                     className={`absolute -top-1.5 -right-1.5 p-1.5 rounded-full shadow-lg border transition-all z-20 ${
                       isManaging && selectedTemplate === name
                         ? 'bg-amber-500 text-white border-amber-400 rotate-90'

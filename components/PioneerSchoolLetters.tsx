@@ -69,6 +69,7 @@ export default function PioneerSchoolLetters({
   // Management state
   const [isManaging, setIsManaging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [localFileBuffer, setLocalFileBuffer] = useState<ArrayBuffer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -249,7 +250,10 @@ export default function PioneerSchoolLetters({
 
   // Automatically process when template or data changes
   useEffect(() => {
-    if (templates[selectedTemplate]) {
+    if (localFileBuffer) {
+      console.log('Using local file buffer for preview (ESP)');
+      processAndPreview(localFileBuffer);
+    } else if (templates[selectedTemplate]) {
       setNeedsProcessing(true);
       processAndPreview();
     } else {
@@ -341,22 +345,28 @@ export default function PioneerSchoolLetters({
     };
   };
 
-  const processAndPreview = async () => {
+  const processAndPreview = async (overrideBuffer?: ArrayBuffer) => {
     const template = templates[selectedTemplate];
-    if (!template) return;
+    if (!template && !overrideBuffer) return;
 
     setIsProcessing(true);
     setStatus('idle');
 
     try {
-      const binaryString = window.atob(template.content);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      let sourceBuffer: ArrayBuffer;
+      if (overrideBuffer) {
+        sourceBuffer = overrideBuffer;
+      } else {
+        const binaryString = window.atob(template.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        sourceBuffer = bytes.buffer;
       }
       
       // Clean metadata
-      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
       const zip = new PizZip(cleanedBuffer);
       
       // Pre-process all XML files in the zip (document, headers, footers)
@@ -514,11 +524,13 @@ export default function PioneerSchoolLetters({
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.name.endsWith('.docx')) {
+        console.log('File selected (ESP):', selectedFile.name);
         setFile(selectedFile);
         try {
           const rawBuffer = await selectedFile.arrayBuffer();
           const cleanedBuffer = cleanPSSMetadata(rawBuffer);
-          
+          setLocalFileBuffer(cleanedBuffer);
+
           // Validate tags
           const tags = await extractTagsFromDocx(cleanedBuffer);
           const required = [
@@ -529,8 +541,11 @@ export default function PioneerSchoolLetters({
           ];
           const missing = getMissingTags(tags, required);
           setMissingTags(missing);
-        } catch (err) {
+          setErrorMessage('');
+          setSaveStatus('idle');
+        } catch (err: any) {
           console.error('Error validating uploaded docx:', err);
+          setErrorMessage('Erro ao ler arquivo: ' + err.message);
         }
       } else {
         setErrorMessage('Por favor, selecione um arquivo .docx');
@@ -540,13 +555,11 @@ export default function PioneerSchoolLetters({
   };
 
   const saveTemplate = async () => {
-    if (!file) return;
+    if (!file || !localFileBuffer) return;
     setIsSaving(true);
     setSaveStatus('idle');
     try {
-      const rawBuffer = await file.arrayBuffer();
-      const cleanedBuffer = cleanPSSMetadata(rawBuffer);
-      const blob = new Blob([cleanedBuffer]);
+      const blob = new Blob([localFileBuffer]);
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -581,9 +594,10 @@ export default function PioneerSchoolLetters({
         }
       }
 
-      alert(isGlobal ? 'Modelo salvo com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi salvo com sucesso.');
+      alert(isGlobal ? 'Modelo substituído com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi atualizado com sucesso.');
       setSaveStatus('success');
       setFile(null);
+      setLocalFileBuffer(null);
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error saving template:', error);

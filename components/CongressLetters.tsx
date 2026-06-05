@@ -60,6 +60,7 @@ export default function CongressLetters({
   // Management state
   const [isManaging, setIsManaging] = useState(initialMode === 'manager');
   const [file, setFile] = useState<File | null>(null);
+  const [localFileBuffer, setLocalFileBuffer] = useState<ArrayBuffer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -263,7 +264,10 @@ export default function CongressLetters({
 
   // Automatically process when template or data changes
   useEffect(() => {
-    if (templates[selectedTemplate]) {
+    if (localFileBuffer) {
+      console.log('Using local file buffer for preview (Congress)');
+      processAndPreview(localFileBuffer);
+    } else if (templates[selectedTemplate]) {
       setNeedsProcessing(true);
       processAndPreview();
     } else {
@@ -317,21 +321,27 @@ export default function CongressLetters({
     };
   };
 
-  const processAndPreview = async () => {
+  const processAndPreview = async (overrideBuffer?: ArrayBuffer) => {
     const template = templates[selectedTemplate];
-    if (!template) return;
+    if (!template && !overrideBuffer) return;
 
     setIsProcessing(true);
     setStatus('idle');
 
     try {
-      const binaryString = window.atob(template.content);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      let sourceBuffer: ArrayBuffer;
+      if (overrideBuffer) {
+        sourceBuffer = overrideBuffer;
+      } else {
+        const binaryString = window.atob(template.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        sourceBuffer = bytes.buffer;
       }
       
-      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
       const zip = new PizZip(cleanedBuffer);
       
       const xmlFiles = zip.file(/word\/(document|header\d*|footer\d*)\.xml/);
@@ -480,39 +490,45 @@ export default function CongressLetters({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile?.name.endsWith('.docx')) {
+      console.log('File selected (Congress):', selectedFile.name);
       setFile(selectedFile);
       try {
         const rawBuffer = await selectedFile.arrayBuffer();
         const cleanedBuffer = cleanPSSMetadata(rawBuffer);
+        setLocalFileBuffer(cleanedBuffer);
+        
         const tags = await extractTagsFromDocx(cleanedBuffer);
         const required = [
           ['TEMA'], ['DATA'], ['LOCAL'], ['DIA'], ['ORADOR'], 
           ['ASSINATURA', '%ASSINATURA'], ['VIAJANTE'], ['CIRCUITO']
         ];
         setMissingTags(getMissingTags(tags, required));
-      } catch (err) {
+        setErrorMessage('');
+        setSaveStatus('idle');
+      } catch (err: any) {
         console.error('Error validating:', err);
+        setErrorMessage('Erro ao ler arquivo: ' + err.message);
       }
     }
   };
 
   const saveTemplate = async () => {
-    if (!file) return;
+    if (!file || !localFileBuffer) return;
     setIsSaving(true);
     setSaveStatus('idle');
     try {
-      const rawBuffer = await file.arrayBuffer();
-      const cleanedBuffer = cleanPSSMetadata(rawBuffer);
       const isGlobal = isAdmin && saveAsGlobal;
       const docId = isGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve) => {
+      const blob = new Blob([localFileBuffer]);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
         reader.onloadend = () => {
           const result = reader.result as string;
           resolve(result.split(',')[1]);
         };
-        reader.readAsDataURL(new Blob([cleanedBuffer]));
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
 
       await setDoc(doc(db, 'document_templates', docId), {
@@ -537,9 +553,10 @@ export default function CongressLetters({
         }
       }
 
-      alert(isGlobal ? 'Modelo salvo com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi salvo com sucesso.');
+      alert(isGlobal ? 'Modelo substituído com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi atualizado com sucesso.');
       setSaveStatus('success');
       setFile(null);
+      setLocalFileBuffer(null);
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error saving:', error);
