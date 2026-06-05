@@ -680,7 +680,6 @@ export default function PSSAssignmentLetters({
       console.log('Template saved successfully');
       
       setSaveStatus('success');
-      await fetchTemplates();
       setFile(null);
       
       alert(isGlobal ? 'Modelo salvo com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi salvo com sucesso.');

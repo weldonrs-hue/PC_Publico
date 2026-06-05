@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface CongressLettersProps {
@@ -182,23 +182,17 @@ export default function CongressLetters({
     return () => { active = false; };
   }, [processedDocBuffer, isViewerReady]);
 
+  // Real-time templates listener
   useEffect(() => {
-    fetchTemplates();
-    fetchPersonalData();
-    fetchConventionData();
-  }, [userId]);
-
-  const fetchTemplates = async () => {
     setLoading(true);
-    try {
-      const q = query(collection(db, 'document_templates'), where('category', '==', 'congresso'));
-      const querySnapshot = await getDocs(q);
+    const q = query(collection(db, 'document_templates'), where('category', '==', 'congresso'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedTemplates: Record<string, any> = {};
-      querySnapshot.forEach((doc) => {
+      snapshot.forEach((doc) => {
         fetchedTemplates[doc.id] = doc.data();
       });
 
-      // Consolidate templates prioritizing private ones
       const consolidated: Record<string, any> = {};
       CONGRESSO_TEMPLATES.forEach(t => {
         const privateId = `${userId}_${t.id}`;
@@ -212,12 +206,19 @@ export default function CongressLetters({
       });
 
       setTemplates(consolidated);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    } finally {
       setLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error('Error listening to templates:', error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  useEffect(() => {
+    fetchPersonalData();
+    fetchConventionData();
+  }, [userId]);
 
   const fetchPersonalData = async () => {
     try {
@@ -539,7 +540,6 @@ export default function CongressLetters({
       alert(isGlobal ? 'Modelo salvo com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi salvo com sucesso.');
       setSaveStatus('success');
       setFile(null);
-      await fetchTemplates();
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error saving:', error);
@@ -563,7 +563,6 @@ export default function CongressLetters({
       
       console.log('Template private version deleted:', docId);
       
-      await fetchTemplates();
       setSaveStatus('success');
       
       alert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.');
