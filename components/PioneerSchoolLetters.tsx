@@ -407,11 +407,28 @@ export default function PioneerSchoolLetters({
             // Avoid nested tables for simplicity
             if (tblInner.indexOf('<w:tbl>') !== -1) return tblMatch;
 
+            // Count max columns in any row to fix the grid correctly
+            let maxCols = 0;
+            const rows = tblInner.match(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g) || [];
+            rows.forEach(row => {
+              const cells = row.match(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g) || [];
+              if (cells.length > maxCols) maxCols = cells.length;
+            });
+
+            if (maxCols < 2) return tblMatch; // Only fix if it's meant to be a multi-column table
+
             let fixedTbl = tblInner;
             
             // 1. Fix Table Grid (Columns)
             fixedTbl = fixedTbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/, () => {
-              return `<w:tblGrid><w:gridCol w:w="3200"/><w:gridCol w:w="6438"/></w:tblGrid>`;
+              let grid = '<w:tblGrid>';
+              grid += '<w:gridCol w:w="3000"/>'; // First column (Label)
+              grid += '<w:gridCol w:w="6638"/>'; // Second column (Value)
+              for (let i = 2; i < maxCols; i++) {
+                grid += '<w:gridCol w:w="1000"/>';
+              }
+              grid += '</w:tblGrid>';
+              return grid;
             });
             
             // 2. Fix Table Properties
@@ -430,10 +447,10 @@ export default function PioneerSchoolLetters({
               let cCount = 0;
               const fixedTrInner = trInner.replace(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g, (tcMatch, tcInner) => {
                 cCount++;
-                if (cCount > 2) return tcMatch;
+                if (cCount > maxCols) return tcMatch;
                 
-                const width = cCount === 1 ? "3200" : "6438";
-                const noWrap = cCount === 1;
+                const width = cCount === 1 ? "3000" : (cCount === 2 ? "6638" : "1000");
+                const isLabelCell = cCount === 1;
                 
                 let tcPr = "";
                 let tcRest = tcInner;
@@ -449,7 +466,7 @@ export default function PioneerSchoolLetters({
                 if (!tcPr) tcPr = "<w:tcPr></w:tcPr>";
                 
                 tcPr = tcPr.replace(/<w:tcW [^>]*\/>/g, "").replace(/<w:noWrap\/>/g, "").replace(/<w:tcMar>[\s\S]*?<\/w:tcMar>/g, "");
-                const newProps = `<w:tcW w:w="${width}" w:type="dxa"/>${noWrap ? '<w:noWrap/>' : ''}<w:tcMar><w:left w:w="40" w:type="dxa"/><w:right w:w="40" w:type="dxa"/></w:tcMar>`;
+                const newProps = `<w:tcW w:w="${width}" w:type="dxa"/>${isLabelCell ? '<w:noWrap/>' : ''}<w:tcMar><w:left w:w="40" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar>`;
                 tcPr = tcPr.replace(/<\/w:tcPr>/, `${newProps}</w:tcPr>`);
                 
                 return `<w:tc>${tcPr}${tcRest}</w:tc>`;
@@ -738,7 +755,7 @@ export default function PioneerSchoolLetters({
               Selecione o Modelo de Carta
             </h3>
             
-            {canManage && (
+            {canManage && isAdmin && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
