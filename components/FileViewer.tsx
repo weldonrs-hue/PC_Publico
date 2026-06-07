@@ -44,12 +44,25 @@ export default function FileViewer({ onBack }: FileViewerProps) {
         const viewer = await client.createViewer({
           container: containerRef.current,
           theme: 'dark',
-          toolbar: true,
-          sidebar: true,
+          hideToolbar: false,
+          disableLeftPanel: false,
+          disableRightPanel: false,
+          scrollMode: 'continuous',
+          layoutMode: 'single-page',
+          zoomMode: 'fit-spread-width-max',
+          dpi: 120,
+          // @ts-ignore
+          renderMode: 'paged'
         });
 
         if (!destroyed) {
           viewerRef.current = viewer;
+          
+          try {
+            await (viewer as any).setViewMode('paged');
+            await (viewer as any).setZoomMode('fit-page-width');
+            await (viewer as any).setScrollMode('continuous');
+          } catch (e) {}
           // Add a generous delay before marking as ready to ensure internal setup is complete
           setTimeout(() => {
             if (!destroyed && viewerRef.current) {

@@ -11,6 +11,7 @@ export async function getUDocClient(): Promise<any> {
         const initOptions = {
           googleFonts: true,
           locale: 'pt-BR',
+          enablePerformanceCounter: false,
         };
 
         // Try local assets first with a more robust absolute URL

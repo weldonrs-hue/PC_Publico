@@ -118,22 +118,27 @@ export default function PSSAssignmentLetters({
         const viewer = await client.createViewer({
           container: previewRef.current,
           theme: 'light',
-          toolbar: true,
-          sidebar: false,
-          paperless: false,
-          renderMode: 'exact',
-          layout: 'paged'
+          hideToolbar: false,
+          disableLeftPanel: true,
+          disableRightPanel: true,
+          scrollMode: 'continuous',
+          layoutMode: 'single-page',
+          zoomMode: 'fit-page-width',
+          dpi: 96,
+          // @ts-ignore
+          renderMode: 'paged'
         });
 
         if (!destroyed) {
           viewerRef.current = viewer;
-          // Set a default zoom to ensure it fits the width and looks correct
-          try {
-            await viewer.setZoom('fit-width');
-          } catch (e) {
-            console.warn('[udoc] Could not set initial zoom:', e);
-          }
           
+          // Force view state to ensure paged layout for Word
+          try {
+            await (viewer as any).setViewMode('paged');
+            await (viewer as any).setZoomMode('fit-page-width');
+            await (viewer as any).setScrollMode('continuous');
+          } catch (e) {}
+
           // Add a delay before marking as ready
           setTimeout(() => {
             if (!destroyed && viewerRef.current) {
@@ -483,12 +488,85 @@ export default function PSSAssignmentLetters({
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // Joined split tag logic - safer version
+        // Joined split tag logic - safer and more robust
         for (let i = 0; i < 8; i++) {
           const prevContent = xmlContent;
-          xmlContent = xmlContent.replace(/([\[@][^<\]]*?)(<\/w:t>(?:<w:proofErr[^>]*\/>|<w:noProof\/>)*?<w:t[^>]*>)([^<\]]*?[\A-Z0-9À-ÿ\_\]])/g, "$1$3$2");
+          // Matches split tags like [@TAG] or [TAG] across text nodes, accounting for spaces and basic formatting
+          xmlContent = xmlContent.replace(/([\[@][^<\]]*?)(<\/w:t>(?:<w:proofErr[^>]*\/>|<w:noProof\/>)*?<w:t[^>]*>)([^<\]]*?[\sA-Z0-9À-ÿ\_\]])/g, "$1$3$2");
           if (prevContent === xmlContent) break;
         }
+
+        // Forceful layout fix for tables containing our form labels
+        const labelCheck = /Dia:|Assinatura:|Unidade:|Instruções:|Cena:|Tempo:|Designação:|Participante\(s\):|Participan-te\(s\):/;
+        
+        if (labelCheck.test(xmlContent)) {
+          xmlContent = xmlContent.replace(/<w:tbl>([\s\S]*?)<\/w:tbl>/g, (tblMatch, tblInner) => {
+            if (!labelCheck.test(tblInner)) return tblMatch;
+            // Avoid nested tables for simplicity in this regex fix
+            if (tblInner.indexOf('<w:tbl>') !== -1) return tblMatch;
+
+            let fixedTbl = tblInner;
+            
+            // 1. Fix Table Grid (Columns)
+            fixedTbl = fixedTbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/, () => {
+              return `<w:tblGrid><w:gridCol w:w="3200"/><w:gridCol w:w="6438"/></w:tblGrid>`;
+            });
+            
+            // 2. Fix Table Properties
+            fixedTbl = fixedTbl.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/, (match, prInner) => {
+              let pr = prInner;
+              const tblW = '<w:tblW w:w="9638" w:type="dxa"/>';
+              const tblInd = '<w:tblInd w:w="0" w:type="dxa"/>';
+              const tblLayout = '<w:tblLayout w:type="fixed"/>';
+              
+              // Remove existing ones to avoid duplicates
+              pr = pr.replace(/<w:tblW [^>]*\/>/g, "").replace(/<w:tblInd [^>]*\/>/g, "").replace(/<w:tblLayout [^>]*\/>/g, "");
+              return `<w:tblPr>${tblW}${tblInd}${tblLayout}${pr}</w:tblPr>`;
+            });
+            
+            // 3. Fix Rows and Cells
+            fixedTbl = fixedTbl.replace(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g, (trMatch, trInner) => {
+              let cCount = 0;
+              const fixedTrInner = trInner.replace(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g, (tcMatch, tcInner) => {
+                cCount++;
+                if (cCount > 2) return tcMatch; // Only fix the first two columns (Label and Value)
+                
+                const width = cCount === 1 ? "3200" : "6438";
+                const noWrap = cCount === 1;
+                
+                let tcPr = "";
+                let tcRest = tcInner;
+                
+                // Extract existing properties if any
+                if (tcInner.includes('<w:tcPr')) {
+                  const prMatch = tcInner.match(/<w:tcPr(?: [^>]*)?>(?:[\s\S]*?)<\/w:tcPr>/) || tcInner.match(/<w:tcPr[^>]*\/>/);
+                  if (prMatch) {
+                    tcPr = prMatch[0];
+                    tcRest = tcInner.replace(tcPr, "");
+                    // Convert self-closing to full tag for easier replacement
+                    if (tcPr.endsWith('/>')) {
+                      tcPr = tcPr.replace('/>', '></w:tcPr>');
+                    }
+                  }
+                }
+                
+                if (!tcPr) tcPr = "<w:tcPr></w:tcPr>";
+                
+                // Clear existing layout props to avoid conflict
+                tcPr = tcPr.replace(/<w:tcW [^>]*\/>/g, "").replace(/<w:noWrap\/>/g, "").replace(/<w:tcMar>[\s\S]*?<\/w:tcMar>/g, "");
+                
+                const newProps = `<w:tcW w:w="${width}" w:type="dxa"/>${noWrap ? '<w:noWrap/>' : ''}<w:tcMar><w:left w:w="40" w:type="dxa"/><w:right w:w="40" w:type="dxa"/></w:tcMar>`;
+                tcPr = tcPr.replace(/<\/w:tcPr>/, `${newProps}</w:tcPr>`);
+                
+                return `<w:tc>${tcPr}${tcRest}</w:tc>`;
+              });
+              return `<w:tr>${fixedTrInner}</w:tr>`;
+            });
+            
+            return `<w:tbl>${fixedTbl}</w:tbl>`;
+          });
+        }
+
         
         // Ensure namespaces are present for images (required for docxtemplater-image-module)
         if (!xmlContent.includes('xmlns:wp=')) {

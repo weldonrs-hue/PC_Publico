@@ -861,20 +861,20 @@ export default function PioneerSchoolView({
       await new Promise((resolve) => { contentImg.onload = resolve; });
 
       const pdfWidth = 210;
-      const pdfPageHeight = 148; 
-      const xMargin = 12;
-      const topMargin = 5;
-      const bottomMargin = 12;
-      const headerToTableGap = 5;
+      const pdfPageHeight = 297; 
+      const xMargin = 8;
+      const topMargin = 8;
+      const bottomMargin = 8;
+      const headerToTableGap = 3;
       
       const innerWidth = pdfWidth - (2 * xMargin);
       const headerHeight = (headerImg.height * innerWidth) / headerImg.width;
       const totalContentHeightInPdf = (contentImg.height * innerWidth) / contentImg.width;
 
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
-        format: 'a5',
+        format: 'a4',
         compress: true
       });
 
@@ -1457,7 +1457,7 @@ export default function PioneerSchoolView({
           display: block !important;
           background-color: white !important;
           visibility: visible !important;
-          width: 800px !important;
+          width: 1000px !important;
           margin: 0 !important;
           padding: 0 !important;
         }
@@ -1465,24 +1465,30 @@ export default function PioneerSchoolView({
           display: block !important;
           background-color: white !important;
           visibility: visible !important;
-          width: 800px !important;
+          width: 1000px !important;
           margin: 0 !important;
           padding: 0 !important;
-          font-size: 11px !important;
+          font-size: 10px !important;
         }
         .pdf-capture-content th {
-          font-size: 10px !important;
-          padding: 6px 4px !important;
+          font-size: 9px !important;
+          padding: 4px 4px !important;
+          border: 1px solid #ddd !important;
+          background-color: #37616b !important;
+          color: white !important;
         }
         .pdf-capture-content td {
-          font-size: 11px !important;
-          padding: 6px 8px !important;
+          font-size: 10px !important;
+          padding: 4px 8px !important;
+          border: 1px solid #eee !important;
+        }
+        .pdf-capture-content table {
+          border-collapse: collapse !important;
+          border: 1px solid #ddd !important;
         }
         .pdf-capture-content table, 
         .pdf-capture-content th, 
         .pdf-capture-content td {
-          border-left: none !important;
-          border-right: none !important;
           border-radius: 0 !important;
         }
         .pdf-capture-content input[type="checkbox"],
@@ -1524,7 +1530,7 @@ export default function PioneerSchoolView({
           {activeTab === 'students' ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
+              <table className="w-full text-left border-collapse min-w-[700px] students-table">
                 <thead>
                   <tr className="bg-[#37616b] text-white">
                     <th className="px-4 py-2 w-10 print:hidden pdf-hidden">
@@ -1665,7 +1671,7 @@ export default function PioneerSchoolView({
           <div className="bg-[#f3f4f6]">
             <div className="max-w-[1000px] mx-auto bg-white shadow-lg overflow-hidden border border-[#aebfc5]">
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
-                <table className="w-full border-collapse min-w-[800px]">
+                <table className="w-full border-collapse min-w-[800px] sessions-table">
                   <thead>
                     <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
                       <th className="p-4 text-left font-bold text-xl h-[60px]" colSpan={2}>
@@ -2242,6 +2248,97 @@ export default function PioneerSchoolView({
           </div>
         )}
       </AnimatePresence>
+
+      <style jsx global>{`
+        /* Excel-like styles for PDF capture */
+        .pdf-capture-header {
+          padding: 10px !important;
+          background-color: #ffffff !important;
+        }
+        
+        .pdf-capture-content {
+          width: 1000px !important; /* Force a standard width for relative scaling */
+          background-color: #ffffff !important;
+        }
+
+        .pdf-capture-content table.students-table {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          border: 1px solid #999 !important;
+          table-layout: fixed !important;
+        }
+
+        .pdf-capture-content table.students-table th, .pdf-capture-content table.students-table td {
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+          padding: 4px 6px !important;
+          border: 1px solid #999 !important;
+        }
+
+        .pdf-capture-content table.students-table th:nth-child(2), .pdf-capture-content table.students-table td:nth-child(2) { width: 50px !important; text-align: center !important; }
+        .pdf-capture-content table.students-table th:nth-child(3), .pdf-capture-content table.students-table td:nth-child(3) { width: auto !important; }
+        .pdf-capture-content table.students-table th:nth-child(4), .pdf-capture-content table.students-table td:nth-child(4) { width: 220px !important; }
+        .pdf-capture-content table.students-table th:nth-child(5), .pdf-capture-content table.students-table td:nth-child(5) { width: 120px !important; }
+        .pdf-capture-content table.students-table th:nth-child(6), .pdf-capture-content table.students-table td:nth-child(6) { width: 100px !important; text-align: center !important; }
+
+        .pdf-capture-content table.sessions-table {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          border: 1px solid #999 !important;
+          table-layout: fixed !important;
+        }
+
+        .pdf-capture-content table.sessions-table th, .pdf-capture-content table.sessions-table td {
+          border: 1px solid #999 !important;
+          padding: 6px !important;
+        }
+
+        .pdf-capture-content table.sessions-table th:nth-child(1), .pdf-capture-content table.sessions-table td:nth-child(1) { width: 25px !important; }
+        .pdf-capture-content table.sessions-table th:nth-child(2), .pdf-capture-content table.sessions-table td:nth-child(2) { width: auto !important; }
+        .pdf-capture-content table.sessions-table th:nth-child(3), .pdf-capture-content table.sessions-table td:nth-child(3) { width: 45% !important; }
+
+        .pdf-capture-content th {
+          background-color: #e2e8f0 !important;
+          color: #1e293b !important;
+          font-size: 10px !important;
+          font-weight: bold !important;
+          text-align: left !important;
+          text-transform: uppercase !important;
+        }
+
+        .pdf-capture-content td {
+          font-size: 9px !important;
+          color: #334155 !important;
+          line-height: 1.2 !important;
+          background-color: #ffffff !important;
+        }
+
+        .pdf-capture-content tr:nth-child(even) td {
+          background-color: #f8fafc !important;
+        }
+
+        .pdf-capture-content .workshop-select-ui {
+          display: none !important;
+        }
+
+        .pdf-capture-content .workshop-participant-text {
+          display: block !important;
+          font-size: 9px !important;
+          border: none !important;
+          padding: 0 !important;
+        }
+
+        /* Hide interactive elements in PDF */
+        .pdf-hidden {
+          display: none !important;
+        }
+
+        @media print {
+          .pdf-hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
