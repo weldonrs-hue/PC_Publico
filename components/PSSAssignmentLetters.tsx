@@ -1217,8 +1217,20 @@ export default function PSSAssignmentLetters({
               <div className="bg-blue-100 p-2 rounded-lg">
                 <FileText className="text-blue-600" size={20} />
               </div>
-              <div>
-                <h3 className="font-black text-gray-800 text-sm uppercase tracking-widest">Visualização</h3>
+              <div className="flex-1">
+                <div className="flex items-center justify-between w-full">
+                  <h3 className="font-black text-gray-800 text-sm uppercase tracking-widest">Visualização</h3>
+                  {status === 'success' && !isProcessing && (
+                    <button
+                      onClick={downloadAsDocx}
+                      className="flex items-center gap-1.5 text-gray-400 hover:text-blue-600 transition-all font-black text-[10px] uppercase tracking-tighter"
+                      title="Baixar Original (.docx)"
+                    >
+                      <span>Baixar</span>
+                      <FileDown size={12} />
+                    </button>
+                  )}
+                </div>
                 <p className="text-[14px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
                   {selectedTemplate.replace('PSS assignment letter_', '')}
                 </p>

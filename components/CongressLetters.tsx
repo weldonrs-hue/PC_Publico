@@ -1066,8 +1066,20 @@ export default function CongressLetters({
               <div className="bg-violet-600 p-3 rounded-2xl shadow-lg shadow-violet-200 text-white">
                 <FileText size={24} />
               </div>
-              <div className="min-w-0">
-                <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between w-full pr-1">
+                  <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
+                  {status === 'success' && !isProcessing && (
+                    <button
+                      onClick={downloadAsDocx}
+                      className="flex items-center gap-1 text-violet-300 hover:text-violet-600 transition-all font-black text-[9px] uppercase tracking-tighter"
+                      title="Baixar Original (.docx)"
+                    >
+                      <span>Baixar</span>
+                      <FileDown size={11} />
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] text-violet-600 font-extrabold uppercase tracking-tight bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
                     {CONGRESSO_TEMPLATES.find(t => t.id === selectedTemplate)?.name}

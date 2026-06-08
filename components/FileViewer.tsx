@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FileText, ArrowLeft, Upload, Loader2, AlertCircle, Printer } from 'lucide-react';
+import { FileText, ArrowLeft, Upload, Loader2, AlertCircle, Printer, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface FileViewerProps {
@@ -152,6 +152,34 @@ export default function FileViewer({ onBack }: FileViewerProps) {
     }
   };
 
+  const handleDownload = () => {
+    if (!file) return;
+    
+    let url: string;
+    let filename: string;
+    
+    if (file instanceof File) {
+      url = URL.createObjectURL(file);
+      filename = file.name;
+    } else if (typeof file === 'string') {
+      url = file;
+      filename = file.split('/').pop() || 'documento';
+    } else {
+      return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    if (file instanceof File) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   // Fix DocMentis printer choice in Modal
   useEffect(() => {
     const observer = new MutationObserver((mutations) => {
@@ -221,7 +249,18 @@ export default function FileViewer({ onBack }: FileViewerProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {file && (
+            <button 
+              onClick={handleDownload}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-3 py-1.5 hover:bg-[#373A40] rounded-lg transition-all text-gray-400 hover:text-white font-black text-[10px] uppercase tracking-widest border border-transparent hover:border-[#4a4d55]"
+              title="Baixar Original"
+            >
+              <span>Baixar</span>
+              <Download size={14} />
+            </button>
+          )}
           <button 
             onClick={handlePrint}
             disabled={!file || isLoading}
