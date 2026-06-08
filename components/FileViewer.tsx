@@ -152,6 +152,45 @@ export default function FileViewer({ onBack }: FileViewerProps) {
     }
   };
 
+  // Fix DocMentis printer choice in Modal
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) {
+            const modal = node.classList.contains('udoc-modal') ? node : node.querySelector('.udoc-modal');
+            if (modal) {
+              const titleNode = modal.querySelector('.udoc-modal-title');
+              if (titleNode && (titleNode.textContent?.toLowerCase().includes('imprimir') || titleNode.textContent?.toLowerCase().includes('print'))) {
+                const body = modal.querySelector('.udoc-modal-body') || modal.querySelector('[class*="body"]');
+                if (body && !body.querySelector('.custom-printer-selector')) {
+                  const selectorDiv = document.createElement('div');
+                  selectorDiv.className = 'custom-printer-selector mt-4 pt-4 border-t border-gray-100';
+                  selectorDiv.innerHTML = `
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Destino / Impressora</label>
+                    <div class="relative group">
+                      <select id="modal-printer-choice" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-[11px] font-bold text-gray-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer">
+                        <option value="system">Impressora Física (Sistema)</option>
+                      </select>
+                      <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-blue-500 transition-colors">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      </div>
+                    </div>
+                    <p class="text-[9px] text-gray-400 font-medium mt-2 leading-tight">* A escolha da impressora física específica será confirmada no sistema.</p>
+                  `;
+                  body.appendChild(selectorDiv);
+                }
+              }
+            }
+          }
+        });
+      });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
