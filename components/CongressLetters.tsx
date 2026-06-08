@@ -558,16 +558,17 @@ export default function CongressLetters({
 
       const container = previewRef.current;
       
-      // Docmentis (udoc) structure usually has .udoc-pages which contains the actual document pages
-      // and .udoc-page for each individual page.
-      const pagesContainer = container.querySelector('.udoc-pages') || container.querySelector('.udoc-viewer-content') || container.querySelector('.udoc-canvas-container');
+      // Try to find the document pages specifically for higher fidelity
+      // .udoc-pages contains all pages in current udoc version
+      // .udoc-canvas-container is the fallback container
+      const pagesContainer = container.querySelector('.udoc-pages') || 
+                             container.querySelector('.udoc-viewer-content') || 
+                             container.querySelector('.udoc-canvas-container') ||
+                             container.querySelector('[class*="udoc-viewer"]') ||
+                             container.querySelector('[class*="udoc-content"]');
       
-      if (!pagesContainer) {
-        throw new Error('Document content container not found');
-      }
-
-      // Find all individual pages
-      const pageElements = pagesContainer.querySelectorAll('.udoc-page');
+      const targetElement = pagesContainer || container;
+      const pageElements = targetElement.querySelectorAll('.udoc-page');
       
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -594,8 +595,8 @@ export default function CongressLetters({
           pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
         }
       } else {
-        // Fallback: capture the whole container if individual pages aren't found
-        const dataUrl = await toJpeg(pagesContainer as HTMLElement, {
+        // Fallback: capture the found container (or the root container if none found)
+        const dataUrl = await toJpeg(targetElement as HTMLElement, {
           quality: 0.95,
           pixelRatio: 2,
           backgroundColor: '#ffffff',
