@@ -831,23 +831,21 @@ export default function PioneerSchoolView({
 
     setGenerating(true);
     try {
-      const { toJpeg } = await import('html-to-image');
+      const { toPng } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
       // Capture Header
       headerElement.classList.add('pdf-capture-header');
-      const headerDataUrl = await toJpeg(headerElement, { 
-        quality: 1.0, 
-        pixelRatio: 2, 
+      const headerDataUrl = await toPng(headerElement, { 
+        pixelRatio: 3.5, 
         backgroundColor: '#ffffff'
       });
       headerElement.classList.remove('pdf-capture-header');
 
       // Capture the whole content
       contentElement.classList.add('pdf-capture-content');
-      const contentDataUrl = await toJpeg(contentElement, { 
-        quality: 1.0, 
-        pixelRatio: 2, 
+      const contentDataUrl = await toPng(contentElement, { 
+        pixelRatio: 3.5, 
         backgroundColor: '#ffffff'
       });
       contentElement.classList.remove('pdf-capture-content');
@@ -921,25 +919,23 @@ export default function PioneerSchoolView({
         if (index > 0) pdf.addPage();
         
         // Draw recurring header
-        pdf.addImage(headerDataUrl, 'JPEG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
+        pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
         
         // Calculate clipping for this page slice
-        // We use the full image and offset it, but we need to cover up the parts from other pages
         const sliceY = headerHeight + topMargin + headerToTableGap;
         
         // Draw the content image with an offset
-        // jspdf doesn't support easy clipping of images, so we use white rectangles to mask
-        pdf.addImage(contentDataUrl, 'JPEG', xMargin, sliceY - page.startInPdf, innerWidth, totalContentHeightInPdf, undefined, 'FAST');
+        pdf.addImage(contentDataUrl, 'PNG', xMargin, sliceY - page.startInPdf, innerWidth, totalContentHeightInPdf, undefined, 'FAST');
         
         // Mask the bottom overflow
         pdf.setFillColor(255, 255, 255);
         pdf.rect(0, sliceY + page.heightInPdf, pdfWidth, pdfPageHeight - (sliceY + page.heightInPdf), 'F');
         
-        // Mask the top overflow (above the current slice, but below header)
+        // Mask the top overflow
         pdf.rect(0, 0, pdfWidth, sliceY, 'F');
         
         // Re-draw header to stay on top
-        pdf.addImage(headerDataUrl, 'JPEG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
+        pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
       });
       
       const title = activeTab === 'students' ? 'Escola do Servico de Pioneiro - Lista de Alunos' : `Escola do Servico de Pioneiro - Sessao de Treino - Turma ${selectedTurma}`;
@@ -1465,22 +1461,22 @@ export default function PioneerSchoolView({
           display: block !important;
           background-color: white !important;
           visibility: visible !important;
-          width: 1000px !important;
+          width: 800px !important;
           margin: 0 !important;
           padding: 0 !important;
-          font-size: 10px !important;
+          font-size: 11px !important;
         }
         .pdf-capture-content th {
-          font-size: 9px !important;
-          padding: 4px 4px !important;
-          border: 1px solid #ddd !important;
+          font-size: 10px !important;
+          padding: 6px 4px !important;
+          border: 1px solid #999 !important;
           background-color: #37616b !important;
           color: white !important;
         }
         .pdf-capture-content td {
-          font-size: 10px !important;
-          padding: 4px 8px !important;
-          border: 1px solid #eee !important;
+          font-size: 11px !important;
+          padding: 6px 8px !important;
+          border: 1px solid #ccc !important;
         }
         .pdf-capture-content table {
           border-collapse: collapse !important;
@@ -2257,22 +2253,22 @@ export default function PioneerSchoolView({
         }
         
         .pdf-capture-content {
-          width: 1000px !important; /* Force a standard width for relative scaling */
+          width: 850px !important; /* Slightly narrower for better A4 fit at 96dpi */
           background-color: #ffffff !important;
         }
 
         .pdf-capture-content table.students-table {
           border-collapse: collapse !important;
           width: 100% !important;
-          border: 1px solid #999 !important;
+          border: 1px solid #666 !important;
           table-layout: fixed !important;
         }
 
         .pdf-capture-content table.students-table th, .pdf-capture-content table.students-table td {
           word-break: break-word !important;
           overflow-wrap: break-word !important;
-          padding: 4px 6px !important;
-          border: 1px solid #999 !important;
+          padding: 5px 8px !important;
+          border: 1px solid #666 !important;
         }
 
         .pdf-capture-content table.students-table th:nth-child(2), .pdf-capture-content table.students-table td:nth-child(2) { width: 50px !important; text-align: center !important; }
@@ -2284,13 +2280,13 @@ export default function PioneerSchoolView({
         .pdf-capture-content table.sessions-table {
           border-collapse: collapse !important;
           width: 100% !important;
-          border: 1px solid #999 !important;
+          border: 1px solid #666 !important;
           table-layout: fixed !important;
         }
 
         .pdf-capture-content table.sessions-table th, .pdf-capture-content table.sessions-table td {
-          border: 1px solid #999 !important;
-          padding: 6px !important;
+          border: 1px solid #666 !important;
+          padding: 8px !important;
         }
 
         .pdf-capture-content table.sessions-table th:nth-child(1), .pdf-capture-content table.sessions-table td:nth-child(1) { width: 25px !important; }
@@ -2299,17 +2295,17 @@ export default function PioneerSchoolView({
 
         .pdf-capture-content th {
           background-color: #e2e8f0 !important;
-          color: #1e293b !important;
-          font-size: 10px !important;
-          font-weight: bold !important;
+          color: #000000 !important;
+          font-size: 11px !important;
+          font-weight: 800 !important;
           text-align: left !important;
           text-transform: uppercase !important;
         }
 
         .pdf-capture-content td {
-          font-size: 9px !important;
-          color: #334155 !important;
-          line-height: 1.2 !important;
+          font-size: 11px !important;
+          color: #000000 !important;
+          line-height: 1.3 !important;
           background-color: #ffffff !important;
         }
 
@@ -2323,7 +2319,8 @@ export default function PioneerSchoolView({
 
         .pdf-capture-content .workshop-participant-text {
           display: block !important;
-          font-size: 9px !important;
+          font-size: 11px !important;
+          font-weight: 600 !important;
           border: none !important;
           padding: 0 !important;
         }

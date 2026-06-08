@@ -662,6 +662,9 @@ export default function CongressLetters({
       });
 
       if (pageElements.length > 0) {
+        const { toPng } = await import('html-to-image');
+        const { jsPDF } = await import('jspdf');
+
         // Create a hidden workspace to render pages cleanly
         const workspace = document.createElement('div');
         workspace.id = 'pdf-gen-workspace';
@@ -704,25 +707,26 @@ export default function CongressLetters({
             // Brief wait for any style recalculations
             await new Promise(resolve => setTimeout(resolve, 50));
 
-            const dataUrl = await toJpeg(clonedPage, {
-              quality: 1.0,
-              pixelRatio: 2.5, // Good balance of quality/speed
+            const dataUrl = await toPng(clonedPage, {
+              pixelRatio: 3.5, 
               backgroundColor: '#ffffff',
             });
 
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
             
-            pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+            pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
           }
         } finally {
           document.body.removeChild(workspace);
         }
       } else {
+        const { toPng } = await import('html-to-image');
+        const { jsPDF } = await import('jspdf');
+
         // Fallback: capture the found container or root, but filter out the toolbar
-        const dataUrl = await toJpeg(targetElement as HTMLElement, {
-          quality: 1.0,
-          pixelRatio: 3,
+        const dataUrl = await toPng(targetElement as HTMLElement, {
+          pixelRatio: 3.5,
           backgroundColor: '#ffffff',
           filter: (node) => {
             if (node instanceof HTMLElement) {
@@ -741,7 +745,7 @@ export default function CongressLetters({
         let position = 0;
         const pageHeight = pdf.internal.pageSize.getHeight();
 
-        pdf.addImage(dataUrl, 'JPEG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
         heightLeft -= pageHeight;
 
         while (heightLeft > 0) {
