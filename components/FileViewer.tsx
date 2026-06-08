@@ -254,11 +254,11 @@ export default function FileViewer({ onBack }: FileViewerProps) {
             <button 
               onClick={handleDownload}
               disabled={isLoading}
-              className="flex items-center gap-2 px-3 py-1.5 hover:bg-[#373A40] rounded-lg transition-all text-gray-400 hover:text-white font-black text-[10px] uppercase tracking-widest border border-transparent hover:border-[#4a4d55]"
+              className="flex items-center gap-2 px-4 py-1.5 bg-[#2C2E33] hover:bg-[#373A40] rounded-xl transition-all text-white border border-[#373A40] hover:border-blue-500/50 font-black text-[9px] uppercase tracking-widest shadow-lg"
               title="Baixar Original"
             >
-              <span>Baixar</span>
-              <Download size={14} />
+              <Download size={13} className="text-blue-400" />
+              <span>Baixar Original</span>
             </button>
           )}
           <button 

@@ -1350,24 +1350,24 @@ export default function PioneerSchoolView({
               <button
                 onClick={handleDownloadPDF}
                 disabled={generating}
-                className="group flex items-center h-10 w-10 hover:w-36 transition-all duration-500 ease-in-out rounded-full bg-indigo-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[10px] hover:pl-4 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#3e5e66] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
                 title="Baixar PDF"
               >
                 <div className="shrink-0">
-                  {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+                  {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} className="text-[#facc15]" />}
                 </div>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">
+                <span className="font-black">
                   {generating ? 'Gerando...' : 'Baixar PDF'}
                 </span>
               </button>
               <button
                 onClick={() => window.print()}
                 disabled={generating}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-gray-500 text-white shadow-md overflow-hidden whitespace-nowrap pl-[10px] hover:pl-4"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#facc15] text-[#3e5e66] rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#eab308] transition-all"
                 title="Imprimir"
               >
-                <Printer size={18} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Imprimir</span>
+                <Printer size={16} className="shrink-0" />
+                <span className="font-black">Imprimir</span>
               </button>
             </div>
           )}

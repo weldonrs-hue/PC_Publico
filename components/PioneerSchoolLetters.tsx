@@ -1123,16 +1123,6 @@ export default function PioneerSchoolLetters({
               <div className="flex-1">
                 <div className="flex items-center justify-between w-full pr-1">
                   <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
-                  {status === 'success' && !isProcessing && (
-                    <button
-                      onClick={downloadAsDocx}
-                      className="flex items-center gap-1 text-emerald-300 hover:text-emerald-600 transition-all font-black text-[9px] uppercase tracking-tighter"
-                      title="Baixar Original (.docx)"
-                    >
-                      <span>Baixar</span>
-                      <FileDown size={11} />
-                    </button>
-                  )}
                 </div>
                 <p className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-tight bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 w-fit">
                   {ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
@@ -1141,6 +1131,16 @@ export default function PioneerSchoolLetters({
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
+              {status === 'success' && !isProcessing && (
+                <button
+                  onClick={downloadAsDocx}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100"
+                  title="Baixar Original (.docx)"
+                >
+                  <FileDown size={14} />
+                  BAIXAR ORIGINAL
+                </button>
+              )}
               {needsProcessing && (
                 <button
                   onClick={processAndPreview}
