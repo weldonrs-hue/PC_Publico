@@ -611,16 +611,28 @@ export default function PioneerSchoolLetters({
       const container = previewRef.current;
       
       // Try to find the document pages specifically for higher fidelity
-      // .udoc-pages contains all pages in current udoc version
-      // .udoc-canvas-container is the fallback container
-      const pagesContainer = container.querySelector('.udoc-pages') || 
-                             container.querySelector('.udoc-viewer-content') || 
-                             container.querySelector('.udoc-canvas-container') ||
-                             container.querySelector('[class*="udoc-viewer"]') ||
-                             container.querySelector('[class*="udoc-content"]');
+      // .udoc-pages contains all pages. Each page is usually .udoc-page
+      let pageElements = Array.from(container.querySelectorAll('.udoc-page')) as HTMLElement[];
       
-      const targetElement = pagesContainer || container;
-      const pageElements = targetElement.querySelectorAll('.udoc-page');
+      // Fallback: If no .udoc-page found, try to find the container that holds the content
+      if (pageElements.length === 0) {
+        const pagesContainer = container.querySelector('.udoc-pages') || 
+                               container.querySelector('.udoc-viewer-content') || 
+                               container.querySelector('.udoc-canvas-container');
+        
+        if (pagesContainer) {
+          // If the pagesContainer has children, they are likely the pages
+          const children = Array.from(pagesContainer.children).filter(c => (c as HTMLElement).offsetHeight > 200) as HTMLElement[];
+          if (children.length > 0) {
+            pageElements = children;
+          } else {
+            pageElements = [pagesContainer as HTMLElement];
+          }
+        }
+      }
+
+      // If we still have nothing specific, use the whole container but filtered
+      const targetElement = pageElements.length > 0 ? null : container;
       
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -632,13 +644,25 @@ export default function PioneerSchoolLetters({
       if (pageElements.length > 0) {
         // Capture each page individually for better fidelity to page breaks
         for (let i = 0; i < pageElements.length; i++) {
+          const page = pageElements[i];
+          
+          // Skip elements that are obviously UI parts if they were somehow picked up
+          if (page.classList.contains('udoc-viewer-toolbar') || page.tagName === 'NAV') continue;
+
           if (i > 0) pdf.addPage();
           
-          const page = pageElements[i] as HTMLElement;
           const dataUrl = await toJpeg(page, {
-            quality: 0.95,
-            pixelRatio: 2,
+            quality: 1.0,
+            pixelRatio: 3, // Higher resolution
             backgroundColor: '#ffffff',
+            style: {
+              boxShadow: 'none',
+              margin: '0',
+              padding: '0',
+              border: 'none',
+              borderRadius: '0',
+              transform: 'scale(1)',
+            }
           });
 
           const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -647,11 +671,18 @@ export default function PioneerSchoolLetters({
           pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
         }
       } else {
-        // Fallback: capture the found container (or the root container if none found)
+        // Fallback: capture the found container or root, but filter out the toolbar
         const dataUrl = await toJpeg(targetElement as HTMLElement, {
-          quality: 0.95,
-          pixelRatio: 2,
+          quality: 1.0,
+          pixelRatio: 3,
           backgroundColor: '#ffffff',
+          filter: (node) => {
+            if (node instanceof HTMLElement) {
+              const classes = Array.from(node.classList);
+              return !classes.some(c => c.includes('toolbar') || c.includes('sidebar') || c.includes('left-panel'));
+            }
+            return true;
+          }
         });
 
         const imgProps = pdf.getImageProperties(dataUrl);
