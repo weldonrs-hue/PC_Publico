@@ -86,6 +86,7 @@ export default function PSSAssignmentLetters({
   const [errorMessage, setErrorMessage] = useState('');
   const [missingTags, setMissingTags] = useState<string[]>([]);
   const [saveAsGlobal, setSaveAsGlobal] = useState(false);
+  const [needsProcessing, setNeedsProcessing] = useState(true);
 
   const schoolInfoKey = JSON.stringify(schoolInfo);
   const personalDataKey = JSON.stringify(personalData);
@@ -287,6 +288,7 @@ export default function PSSAssignmentLetters({
       console.log('Using local file buffer for preview');
       processAndPreview(localFileBuffer);
     } else if (templates[selectedTemplate]) {
+      setNeedsProcessing(true);
       processAndPreview();
     } else {
       setPreviewHtml('<div class="h-full flex flex-col items-center justify-center text-gray-300 italic py-20 px-10 text-center text-sm uppercase font-bold tracking-widest">Template não encontrado no banco de dados. Carregue-o na aba Gerador de Documentos primeiro.</div>');
@@ -294,6 +296,51 @@ export default function PSSAssignmentLetters({
       setStatus('idle');
     }
   }, [selectedTemplate, templates, localFileBuffer, schoolInfoKey, workshopAssignmentsKey, personalDataKey]);
+
+  // Intercept DocMentis buttons for higher functionality
+  useEffect(() => {
+    if (!isViewerReady) return;
+
+    const interval = setInterval(() => {
+      const container = previewRef.current;
+      if (!container) return;
+
+      const toolbar = container.querySelector('.udoc-viewer-toolbar') || 
+                      container.querySelector('[class*="toolbar"]');
+      if (!toolbar) return;
+
+      const buttons = toolbar.querySelectorAll('button');
+      buttons.forEach(btn => {
+        const title = btn.getAttribute('title')?.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
+        
+        // Intercept Print Button
+        if (title.includes('imprimir') || title.includes('print')) {
+          if (!btn.hasAttribute('data-intercepted')) {
+            btn.setAttribute('data-intercepted', 'true');
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.print(); // Triggers browser native dialog with printer selection
+            }, true);
+          }
+        }
+        
+        // Intercept Save/PDF Button
+        if (title.includes('pdf') || title.includes('salvar') || title.includes('exportar') || title.includes('download')) {
+          if (!btn.hasAttribute('data-intercepted')) {
+            btn.setAttribute('data-intercepted', 'true');
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              downloadAsPdf(); // Use our higher fidelity custom PDF generator
+            }, true);
+          }
+        }
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isViewerReady]);
 
   const getParticipantLabel = (scenarioId: number, index: number) => {
     if (scenarioId === 1) {
@@ -622,6 +669,7 @@ export default function PSSAssignmentLetters({
       setProcessedDocBuffer(outReal);
       
       setStatus('success');
+      setNeedsProcessing(false);
     } catch (err: any) {
       console.error('Error processing DOCX:', err);
       setStatus('error');
@@ -1151,47 +1199,17 @@ export default function PSSAssignmentLetters({
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={handlePrint}
-                disabled={status !== 'success' || isProcessing}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-blue-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
-                title="Imprimir"
-              >
-                <Printer size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">Imprimir</span>
-              </button>
-
-              <button
-                onClick={downloadAsDocx}
-                disabled={status !== 'success' || isProcessing}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-gray-800 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
-                title="Baixar Word"
-              >
-                <FileDown size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">Baixar Word</span>
-              </button>
-
-              <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-full shadow-lg border border-red-100">
+              {needsProcessing && (
                 <button
-                  onClick={downloadAsPdf}
-                  disabled={status !== 'success' || isProcessing || generating}
-                  className="group flex items-center h-9 px-4 rounded-full bg-red-600 text-white shadow-md transition-all hover:bg-red-700 disabled:opacity-50"
-                  title="Baixar PDF do Documento"
+                  onClick={processAndPreview}
+                  disabled={isProcessing}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                  title="Gerar PDF/Prévia"
                 >
-                  {generating ? <RefreshCw size={14} className="shrink-0 animate-spin mr-2" /> : <Download size={14} className="shrink-0 mr-2" />}
-                  <span className="font-black text-[11px] uppercase tracking-wider">{generating ? 'Gerando...' : 'Salvar PDF'}</span>
+                  {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  GERAR DOCUMENTO
                 </button>
-
-                <button
-                  onClick={handleNativePrint}
-                  disabled={status !== 'success' || isProcessing}
-                  className="group flex items-center h-9 px-4 rounded-full bg-slate-800 text-white shadow-md transition-all hover:bg-slate-900 ml-1 disabled:opacity-50"
-                  title="Imprimir (Permite Escolher Impressora)"
-                >
-                  <Printer size={14} className="shrink-0 mr-2" />
-                  <span className="font-black text-[11px] uppercase tracking-wider">Imprimir</span>
-                </button>
-              </div>
+              )}
             </div>
           </div>
 

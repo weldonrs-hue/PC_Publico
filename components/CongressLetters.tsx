@@ -292,6 +292,51 @@ export default function CongressLetters({
     }
   }, [selectedTemplate, templates, conventionData, selectedSpeaker, personalData]);
 
+  // Intercept DocMentis buttons for higher functionality
+  useEffect(() => {
+    if (!isViewerReady) return;
+
+    const interval = setInterval(() => {
+      const container = previewRef.current;
+      if (!container) return;
+
+      const toolbar = container.querySelector('.udoc-viewer-toolbar') || 
+                      container.querySelector('[class*="toolbar"]');
+      if (!toolbar) return;
+
+      const buttons = toolbar.querySelectorAll('button');
+      buttons.forEach(btn => {
+        const title = btn.getAttribute('title')?.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
+        
+        // Intercept Print Button
+        if (title.includes('imprimir') || title.includes('print')) {
+          if (!btn.hasAttribute('data-intercepted')) {
+            btn.setAttribute('data-intercepted', 'true');
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.print(); // Triggers browser native dialog with printer selection
+            }, true);
+          }
+        }
+        
+        // Intercept Save/PDF Button
+        if (title.includes('pdf') || title.includes('salvar') || title.includes('exportar') || title.includes('download')) {
+          if (!btn.hasAttribute('data-intercepted')) {
+            btn.setAttribute('data-intercepted', 'true');
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              downloadAsPdf(); // Use our higher fidelity custom PDF generator
+            }, true);
+          }
+        }
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isViewerReady]);
+
   const getReplacements = () => {
     const details = conventionData?.details || {};
     const signatureName = personalData?.nome || '________________';
@@ -1030,50 +1075,6 @@ export default function CongressLetters({
                   GERAR DOCUMENTO
                 </button>
               )}
-
-              <div className="flex items-center bg-gray-100 p-1 rounded-2xl gap-1">
-                <button
-                  onClick={handlePrint}
-                  disabled={status !== 'success' || isProcessing}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 transition-all disabled:opacity-50 border border-transparent hover:border-blue-200"
-                  title="Imprimir"
-                >
-                  <Printer size={14} />
-                  IMPRIMIR
-                </button>
-
-                <button
-                  onClick={downloadAsDocx}
-                  disabled={status !== 'success' || isProcessing}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:text-black transition-all disabled:opacity-50 border border-transparent hover:border-gray-300"
-                  title="Baixar Word"
-                >
-                  <FileDown size={14} />
-                  WORD
-                </button>
-
-                <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-red-100">
-                  <button
-                    onClick={downloadAsPdf}
-                    disabled={status !== 'success' || isProcessing || generating}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-red-700 transition-all disabled:opacity-50"
-                    title="Baixar PDF do Documento"
-                  >
-                    {generating ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-                    {generating ? 'GERANDO...' : 'SALVAR PDF'}
-                  </button>
-
-                  <button
-                    onClick={handleNativePrint}
-                    disabled={status !== 'success' || isProcessing}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 transition-all disabled:opacity-50"
-                    title="Imprimir (Permite Escolher Impressora)"
-                  >
-                    <Printer size={14} />
-                    IMPRIMIR
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
