@@ -590,33 +590,61 @@ export default function CongressLetters({
       });
 
       if (pageElements.length > 0) {
-        // Capture each page individually for better fidelity to page breaks
-        for (let i = 0; i < pageElements.length; i++) {
-          const page = pageElements[i];
-          
-          // Skip elements that are obviously UI parts if they were somehow picked up
-          if (page.classList.contains('udoc-viewer-toolbar') || page.tagName === 'NAV') continue;
+        // Create a hidden workspace to render pages cleanly
+        const workspace = document.createElement('div');
+        workspace.id = 'pdf-gen-workspace';
+        workspace.style.position = 'fixed';
+        workspace.style.left = '-9999px';
+        workspace.style.top = '0';
+        workspace.style.width = '210mm'; // A4 standard width
+        workspace.style.backgroundColor = '#ffffff';
+        document.body.appendChild(workspace);
 
-          if (i > 0) pdf.addPage();
-          
-          const dataUrl = await toJpeg(page, {
-            quality: 1.0,
-            pixelRatio: 3, // Higher resolution
-            backgroundColor: '#ffffff',
-            style: {
-              boxShadow: 'none',
-              margin: '0',
-              padding: '0',
-              border: 'none',
-              borderRadius: '0',
-              transform: 'scale(1)',
-            }
-          });
+        try {
+          // Capture each page individually for better fidelity to page breaks
+          for (let i = 0; i < pageElements.length; i++) {
+            const originalPage = pageElements[i];
+            
+            // Skip elements that are obviously UI parts
+            if (originalPage.classList.contains('udoc-viewer-toolbar') || originalPage.tagName === 'NAV') continue;
 
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          
-          pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+            if (i > 0) pdf.addPage();
+            
+            // Clone the page into our clean workspace
+            const clonedPage = originalPage.cloneNode(true) as HTMLElement;
+            
+            // Force clean styles on the clone
+            clonedPage.style.boxShadow = 'none';
+            clonedPage.style.margin = '0';
+            clonedPage.style.padding = '0';
+            clonedPage.style.border = 'none';
+            clonedPage.style.borderRadius = '0';
+            clonedPage.style.backgroundColor = '#ffffff';
+            clonedPage.style.transform = 'none';
+            clonedPage.style.display = 'block';
+            clonedPage.style.width = '100%';
+            clonedPage.style.height = 'auto';
+            clonedPage.style.minHeight = '297mm'; 
+            
+            workspace.innerHTML = '';
+            workspace.appendChild(clonedPage);
+            
+            // Brief wait for any style recalculations
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            const dataUrl = await toJpeg(clonedPage, {
+              quality: 1.0,
+              pixelRatio: 2.5, // Good balance of quality/speed
+              backgroundColor: '#ffffff',
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+          }
+        } finally {
+          document.body.removeChild(workspace);
         }
       } else {
         // Fallback: capture the found container or root, but filter out the toolbar
@@ -1024,15 +1052,27 @@ export default function CongressLetters({
                   WORD
                 </button>
 
-                <button
-                  onClick={downloadAsPdf}
-                  disabled={status !== 'success' || isProcessing || generating}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-red-50 transition-all disabled:opacity-50 border border-transparent hover:border-red-200"
-                  title="Baixar PDF"
-                >
-                  {generating ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-                  {generating ? 'GERANDO...' : 'PDF'}
-                </button>
+                <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-red-100">
+                  <button
+                    onClick={downloadAsPdf}
+                    disabled={status !== 'success' || isProcessing || generating}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-red-700 transition-all disabled:opacity-50"
+                    title="Baixar PDF do Documento"
+                  >
+                    {generating ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                    {generating ? 'GERANDO...' : 'SALVAR PDF'}
+                  </button>
+
+                  <button
+                    onClick={handleNativePrint}
+                    disabled={status !== 'success' || isProcessing}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 transition-all disabled:opacity-50"
+                    title="Imprimir (Permite Escolher Impressora)"
+                  >
+                    <Printer size={14} />
+                    IMPRIMIR
+                  </button>
+                </div>
               </div>
             </div>
           </div>

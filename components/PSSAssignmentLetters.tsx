@@ -687,33 +687,61 @@ export default function PSSAssignmentLetters({
       });
 
       if (pageElements.length > 0) {
-        // Capture each page individually for better fidelity to page breaks
-        for (let i = 0; i < pageElements.length; i++) {
-          const page = pageElements[i];
-          
-          // Skip elements that are obviously UI parts if they were somehow picked up
-          if (page.classList.contains('udoc-viewer-toolbar') || page.tagName === 'NAV') continue;
+        // Create a hidden workspace to render pages cleanly
+        const workspace = document.createElement('div');
+        workspace.id = 'pdf-gen-workspace';
+        workspace.style.position = 'fixed';
+        workspace.style.left = '-9999px';
+        workspace.style.top = '0';
+        workspace.style.width = '210mm'; // A4 standard width
+        workspace.style.backgroundColor = '#ffffff';
+        document.body.appendChild(workspace);
 
-          if (i > 0) pdf.addPage();
-          
-          const dataUrl = await toJpeg(page, {
-            quality: 1.0,
-            pixelRatio: 3, // Higher resolution
-            backgroundColor: '#ffffff',
-            style: {
-              boxShadow: 'none',
-              margin: '0',
-              padding: '0',
-              border: 'none',
-              borderRadius: '0',
-              transform: 'scale(1)',
-            }
-          });
+        try {
+          // Capture each page individually for better fidelity to page breaks
+          for (let i = 0; i < pageElements.length; i++) {
+            const originalPage = pageElements[i];
+            
+            // Skip elements that are obviously UI parts
+            if (originalPage.classList.contains('udoc-viewer-toolbar') || originalPage.tagName === 'NAV') continue;
 
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          
-          pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+            if (i > 0) pdf.addPage();
+            
+            // Clone the page into our clean workspace
+            const clonedPage = originalPage.cloneNode(true) as HTMLElement;
+            
+            // Force clean styles on the clone
+            clonedPage.style.boxShadow = 'none';
+            clonedPage.style.margin = '0';
+            clonedPage.style.padding = '0';
+            clonedPage.style.border = 'none';
+            clonedPage.style.borderRadius = '0';
+            clonedPage.style.backgroundColor = '#ffffff';
+            clonedPage.style.transform = 'none';
+            clonedPage.style.display = 'block';
+            clonedPage.style.width = '100%';
+            clonedPage.style.height = 'auto';
+            clonedPage.style.minHeight = '297mm'; 
+            
+            workspace.innerHTML = '';
+            workspace.appendChild(clonedPage);
+            
+            // Brief wait for any style recalculations
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            const dataUrl = await toJpeg(clonedPage, {
+              quality: 1.0,
+              pixelRatio: 2.5, // Good balance of quality/speed
+              backgroundColor: '#ffffff',
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+          }
+        } finally {
+          document.body.removeChild(workspace);
         }
       } else {
         // Fallback: capture the found container or root, but filter out the toolbar
@@ -759,21 +787,19 @@ export default function PSSAssignmentLetters({
   };
 
   const handlePrint = () => {
+    // If the internal viewer print exists and user is okay with the custom dialog
     if (viewerRef.current?.print) {
       viewerRef.current.print();
     } else {
-      // Fallback for some UDoc versions: try calling the internal print method if it exists
-      try {
-        const udocIframe = previewRef.current?.querySelector('iframe');
-        if (udocIframe && udocIframe.contentWindow) {
-          udocIframe.contentWindow.print();
-        } else {
-          window.print();
-        }
-      } catch (e) {
-        window.print();
-      }
+      // Direct browser print fallback - allows printer selection
+      window.print();
     }
+  };
+
+  const handleNativePrint = () => {
+    // This method tries to open the browser print dialog directly
+    // Usually browser print needs some CSS to hide the UI
+    window.print();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1145,15 +1171,27 @@ export default function PSSAssignmentLetters({
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">Baixar Word</span>
               </button>
 
-              <button
-                onClick={downloadAsPdf}
-                disabled={status !== 'success' || isProcessing || generating}
-                className="group flex items-center h-10 w-10 hover:w-36 transition-all duration-500 ease-in-out rounded-full bg-red-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
-                title="Baixar PDF"
-              >
-                {generating ? <RefreshCw size={14} className="shrink-0 animate-spin" /> : <Download size={14} className="shrink-0" />}
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
-              </button>
+              <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-full shadow-lg border border-red-100">
+                <button
+                  onClick={downloadAsPdf}
+                  disabled={status !== 'success' || isProcessing || generating}
+                  className="group flex items-center h-9 px-4 rounded-full bg-red-600 text-white shadow-md transition-all hover:bg-red-700 disabled:opacity-50"
+                  title="Baixar PDF do Documento"
+                >
+                  {generating ? <RefreshCw size={14} className="shrink-0 animate-spin mr-2" /> : <Download size={14} className="shrink-0 mr-2" />}
+                  <span className="font-black text-[11px] uppercase tracking-wider">{generating ? 'Gerando...' : 'Salvar PDF'}</span>
+                </button>
+
+                <button
+                  onClick={handleNativePrint}
+                  disabled={status !== 'success' || isProcessing}
+                  className="group flex items-center h-9 px-4 rounded-full bg-slate-800 text-white shadow-md transition-all hover:bg-slate-900 ml-1 disabled:opacity-50"
+                  title="Imprimir (Permite Escolher Impressora)"
+                >
+                  <Printer size={14} className="shrink-0 mr-2" />
+                  <span className="font-black text-[11px] uppercase tracking-wider">Imprimir</span>
+                </button>
+              </div>
             </div>
           </div>
 

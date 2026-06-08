@@ -56,6 +56,59 @@
   scrollbar-width: none;
 }
 
+@media print {
+  /* Hide UI elements */
+  nav, 
+  aside, 
+  header, 
+  footer, 
+  button, 
+  .no-print,
+  .udoc-viewer-toolbar,
+  [class*="toolbar"],
+  [class*="sidebar"] {
+    display: none !important;
+  }
+
+  /* Show only udoc content */
+  body, html {
+    background-color: white !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  /* Target udoc pages specifically */
+  .udoc-viewer-container,
+  .udoc-viewer-container *,
+  .udoc-pages,
+  .udoc-pages *,
+  .udoc-page,
+  .udoc-page * {
+    visibility: visible;
+  }
+
+  .udoc-viewer-container,
+  .udoc-pages,
+  .udoc-page {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  .udoc-page {
+    page-break-after: always;
+  }
+}
+
 .custom-scrollbar-wide::-webkit-scrollbar {
   height: 6px;
 }
