@@ -65,6 +65,7 @@ export default function PioneerSchoolLetters({
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   
   // Management state
   const [isManaging, setIsManaging] = useState(false);
@@ -599,8 +600,86 @@ export default function PioneerSchoolLetters({
     document.body.removeChild(link);
   };
 
-  const downloadAsPdf = () => {
-    alert('Dica: Para obter a máxima qualidade e fidelidade visual do seu PDF, utilize o botão de Download (seta para baixo) ou a Impressora integrados diretamente no topo do próprio Visualizador de Documentos abaixo!');
+  const downloadAsPdf = async () => {
+    if (!previewRef.current || status !== 'success') return;
+    
+    setGenerating(true);
+    try {
+      const { toJpeg } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      const container = previewRef.current;
+      
+      // Docmentis (udoc) structure usually has .udoc-pages which contains the actual document pages
+      // and .udoc-page for each individual page.
+      const pagesContainer = container.querySelector('.udoc-pages') || container.querySelector('.udoc-viewer-content') || container.querySelector('.udoc-canvas-container');
+      
+      if (!pagesContainer) {
+        throw new Error('Document content container not found');
+      }
+
+      // Find all individual pages
+      const pageElements = pagesContainer.querySelectorAll('.udoc-page');
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+
+      if (pageElements.length > 0) {
+        // Capture each page individually for better fidelity to page breaks
+        for (let i = 0; i < pageElements.length; i++) {
+          if (i > 0) pdf.addPage();
+          
+          const page = pageElements[i] as HTMLElement;
+          const dataUrl = await toJpeg(page, {
+            quality: 0.95,
+            pixelRatio: 2,
+            backgroundColor: '#ffffff',
+          });
+
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          
+          pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        }
+      } else {
+        // Fallback: capture the whole container if individual pages aren't found
+        const dataUrl = await toJpeg(pagesContainer as HTMLElement, {
+          quality: 0.95,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+        });
+
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        pdf.addImage(dataUrl, 'JPEG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - pdfHeight;
+          pdf.addPage();
+          pdf.addImage(dataUrl, 'JPEG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+          heightLeft -= pageHeight;
+        }
+      }
+
+      const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
+      pdf.save(`${templateName}_Turma${selectedTurma}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Erro ao gerar PDF. Uma alternativa é utilizar a função "Imprimir" e selecionar "Salvar como PDF".');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handlePrint = () => {
@@ -955,12 +1034,12 @@ export default function PioneerSchoolLetters({
 
                 <button
                   onClick={downloadAsPdf}
-                  disabled={status !== 'success' || isProcessing}
+                  disabled={status !== 'success' || isProcessing || generating}
                   className="flex items-center gap-2 px-4 py-2.5 bg-white text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-red-50 transition-all disabled:opacity-50 border border-transparent hover:border-red-200"
                   title="Baixar PDF"
                 >
-                  <Download size={14} />
-                  PDF
+                  {generating ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                  {generating ? 'GERANDO...' : 'PDF'}
                 </button>
               </div>
             </div>

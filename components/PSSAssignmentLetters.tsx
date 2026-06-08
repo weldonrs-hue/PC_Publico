@@ -75,6 +75,7 @@ export default function PSSAssignmentLetters({
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
+  const [generating, setGenerating] = useState(false);
   
   // Management state
   const [isManaging, setIsManaging] = useState(initialMode === 'manager' && isAdmin);
@@ -487,17 +488,16 @@ export default function PSSAssignmentLetters({
         let xmlContent = file.asText();
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
-        
-        // Safer joined split tag logic - reduces structural risk
-        for (let i = 0; i < 8; i++) {
+                // Safer joined split tag logic - reduces structural risk
+        for (let i = 0; i < 5; i++) {
           const prevContent = xmlContent;
-          // Only join text nodes if they are within the same run or very close, to avoid breaking XML
-          xmlContent = xmlContent.replace(/([\[@][^<\]]*?)<\/w:t><w:t[^>]*>([^<\]]*?[\sA-Z0-9À-ÿ\_\]])/g, "$1$2");
+          // Only join text nodes if they are within the same text block, to avoid breaking XML
+          xmlContent = xmlContent.replace(/(<w:t[^>]*>[^<]*?)<\/w:t>(?:<w:[^>]+>)*?<w:t[^>]*>/g, "$1");
           if (prevContent === xmlContent) break;
         }
 
         // Forceful layout fix for tables containing our form labels
-        const labelCheck = /Dia:|Assinatura:|Unidade:|Instruções:|Cena:|Tempo:|Designação:|Participante\(s\):|Participan-te\(s\):/;
+        const labelCheck = /Dia:|Assinatura:|Unidade:|Instruções:|Cena:|Tempo:|Designação:|Designaçao:|Participante\(s\):|Participan-te\(s\):|Local:/;
         
         if (labelCheck.test(xmlContent)) {
           xmlContent = xmlContent.replace(/<w:tbl>([\s\S]*?)<\/w:tbl>/g, (tblMatch, tblInner) => {
@@ -520,10 +520,10 @@ export default function PSSAssignmentLetters({
             // 1. Fix Table Grid (Columns)
             fixedTbl = fixedTbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/, () => {
               let grid = '<w:tblGrid>';
-              grid += '<w:gridCol w:w="3000"/>'; // First column (Label) - approx 5.3cm
-              grid += '<w:gridCol w:w="6638"/>'; // Second column (Value) - approx 11.7cm
+              grid += '<w:gridCol w:w="2600"/>'; // First column (Label) - approx 4.6cm
+              grid += '<w:gridCol w:w="6400"/>'; // Second column (Value) - approx 11.3cm
               for (let i = 2; i < maxCols; i++) {
-                grid += '<w:gridCol w:w="1000"/>';
+                grid += '<w:gridCol w:w="500"/>';
               }
               grid += '</w:tblGrid>';
               return grid;
@@ -532,7 +532,7 @@ export default function PSSAssignmentLetters({
             // 2. Fix Table Properties
             fixedTbl = fixedTbl.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/, (match, prInner) => {
               let pr = prInner;
-              const tblW = '<w:tblW w:w="9638" w:type="dxa"/>'; // Standard safe width
+              const tblW = '<w:tblW w:w="9000" w:type="dxa"/>'; // Total width approx 15.8cm
               const tblInd = '<w:tblInd w:w="0" w:type="dxa"/>';
               const tblLayout = '<w:tblLayout w:type="fixed"/>';
               
@@ -547,7 +547,7 @@ export default function PSSAssignmentLetters({
                 cCount++;
                 if (cCount > maxCols) return tcMatch;
                 
-                const width = cCount === 1 ? "3000" : (cCount === 2 ? "6638" : "1000");
+                const width = cCount === 1 ? "2600" : (cCount === 2 ? "6400" : "500");
                 const isLabelCell = cCount === 1;
                 
                 let tcPr = "";
@@ -563,10 +563,11 @@ export default function PSSAssignmentLetters({
                 }
                 if (!tcPr) tcPr = "<w:tcPr></w:tcPr>";
                 
-                tcPr = tcPr.replace(/<w:tcW [^>]*\/>/g, "").replace(/<w:noWrap\/>/g, "").replace(/<w:tcMar>[\s\S]*?<\/w:tcMar>/g, "");
+                tcPr = tcPr.replace(/<w:tcW [^>]*\/>/g, "").replace(/<w:noWrap\/>/g, "").replace(/<w:tcMar>[\s\S]*?<\/w:tcMar>/g, "").replace(/<w:vAlign [^>]*\/>/g, "");
                 
-                // For the first column, we force noWrap and specific margins to ensure it doesn't wrap or mount
-                const newProps = `<w:tcW w:w="${width}" w:type="dxa"/>${isLabelCell ? '<w:noWrap/>' : ''}<w:tcMar><w:left w:w="40" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar>`;
+                // For the first column, we force noWrap and left alignment
+                // For the second column, we ensure enough left margin to separate from labels
+                const newProps = `<w:tcW w:w="${width}" w:type="dxa"/>${isLabelCell ? '<w:noWrap/>' : ''}<w:vAlign w:val="top"/><w:tcMar><w:left w:w="${isLabelCell ? '40' : '200'}" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>`;
                 tcPr = tcPr.replace(/<\/w:tcPr>/, `${newProps}</w:tcPr>`);
                 
                 return `<w:tc>${tcPr}${tcRest}</w:tc>`;
@@ -644,8 +645,85 @@ export default function PSSAssignmentLetters({
     document.body.removeChild(link);
   };
 
-  const downloadAsPdf = () => {
-    alert('Dica: Para obter a máxima qualidade e fidelidade visual do seu PDF, utilize o botão de Download (seta para baixo) ou a Impressora integrados diretamente no topo do próprio Visualizador de Documentos abaixo!');
+  const downloadAsPdf = async () => {
+    if (!previewRef.current || status !== 'success') return;
+    
+    setGenerating(true);
+    try {
+      const { toJpeg } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      const container = previewRef.current;
+      
+      // Docmentis (udoc) structure usually has .udoc-pages which contains the actual document pages
+      // and .udoc-page for each individual page.
+      const pagesContainer = container.querySelector('.udoc-pages') || container.querySelector('.udoc-viewer-content') || container.querySelector('.udoc-canvas-container');
+      
+      if (!pagesContainer) {
+        throw new Error('Document content container not found');
+      }
+
+      // Find all individual pages
+      const pageElements = pagesContainer.querySelectorAll('.udoc-page');
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+
+      if (pageElements.length > 0) {
+        // Capture each page individually for better fidelity to page breaks
+        for (let i = 0; i < pageElements.length; i++) {
+          if (i > 0) pdf.addPage();
+          
+          const page = pageElements[i] as HTMLElement;
+          const dataUrl = await toJpeg(page, {
+            quality: 0.95,
+            pixelRatio: 2,
+            backgroundColor: '#ffffff',
+          });
+
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          
+          pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        }
+      } else {
+        // Fallback: capture the whole container if individual pages aren't found
+        const dataUrl = await toJpeg(pagesContainer as HTMLElement, {
+          quality: 0.95,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+        });
+
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        let heightLeft = pdfHeight;
+        let position = 0;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        pdf.addImage(dataUrl, 'JPEG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - pdfHeight;
+          pdf.addPage();
+          pdf.addImage(dataUrl, 'JPEG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
+          heightLeft -= pageHeight;
+        }
+      }
+
+      pdf.save(`${selectedTemplate}_Turma${selectedTurma}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Erro ao gerar PDF. Uma alternativa é utilizar a função "Imprimir" e selecionar "Salvar como PDF".');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handlePrint = () => {
@@ -868,7 +946,7 @@ export default function PSSAssignmentLetters({
                   )}
                 </button>
 
-                {canManage && (
+                {canManage && isAdmin && (
                   <button
                     onClick={(e) => { 
                       e.stopPropagation(); 
@@ -1037,12 +1115,12 @@ export default function PSSAssignmentLetters({
 
               <button
                 onClick={downloadAsPdf}
-                disabled={status !== 'success' || isProcessing}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-red-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
+                disabled={status !== 'success' || isProcessing || generating}
+                className="group flex items-center h-10 w-10 hover:w-36 transition-all duration-500 ease-in-out rounded-full bg-red-600 text-white shadow-md overflow-hidden whitespace-nowrap pl-[11px] hover:pl-4 disabled:opacity-50"
                 title="Baixar PDF"
               >
-                <Download size={14} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">Baixar PDF</span>
+                {generating ? <RefreshCw size={14} className="shrink-0 animate-spin" /> : <Download size={14} className="shrink-0" />}
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[13px] uppercase tracking-widest">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
               </button>
             </div>
           </div>
