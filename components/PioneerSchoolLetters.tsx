@@ -24,6 +24,8 @@ import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/doc
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import PrintModal, { PrintOptions } from './PrintModal';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface PioneerSchoolLettersProps {
   userId: string;
@@ -78,6 +80,8 @@ export default function PioneerSchoolLetters({
   const [saveAsGlobal, setSaveAsGlobal] = useState(false);
 
   const [needsProcessing, setNeedsProcessing] = useState(true);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -278,50 +282,49 @@ export default function PioneerSchoolLetters({
     }
   }, [selectedTemplate, templates, schoolInfoKey, personalDataKey]);
 
-  // Intercept DocMentis buttons for higher functionality
+  // Enhanced Print Interceptor
   useEffect(() => {
-    if (!isViewerReady) return;
-
-    const interval = setInterval(() => {
-      const container = previewRef.current;
-      if (!container) return;
-
-      const toolbar = container.querySelector('.udoc-viewer-toolbar') || 
-                      container.querySelector('[class*="toolbar"]');
-      if (!toolbar) return;
-
-      const buttons = toolbar.querySelectorAll('button');
-      buttons.forEach(btn => {
-        const title = btn.getAttribute('title')?.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
-        
-        // Intercept Print Button
-        if (title.includes('imprimir') || title.includes('print')) {
-          if (!btn.hasAttribute('data-intercepted')) {
-            btn.setAttribute('data-intercepted', 'true');
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.print(); // Triggers browser native dialog with printer selection
-            }, true);
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) {
+            // Intercept internal DocMentis Print Button
+            const udocButtons = node.querySelectorAll('button');
+            udocButtons.forEach(btn => {
+              const title = btn.getAttribute('title')?.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
+              if (title.includes('imprimir') || title.includes('print')) {
+                if (!btn.hasAttribute('data-custom-modal-hooked')) {
+                  btn.setAttribute('data-custom-modal-hooked', 'true');
+                  btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Try to get total pages from viewer
+                    if (viewerRef.current) {
+                      try {
+                        const pages = viewerRef.current.getPageCount?.() || 1;
+                        setTotalPages(pages);
+                      } catch (err) {}
+                    }
+                    
+                    setIsPrintModalOpen(true);
+                  }, true);
+                }
+              }
+            });
           }
-        }
-        
-        // Intercept Save/PDF Button
-        if (title.includes('pdf') || title.includes('salvar') || title.includes('exportar') || title.includes('download')) {
-          if (!btn.hasAttribute('data-intercepted')) {
-            btn.setAttribute('data-intercepted', 'true');
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              downloadAsPdf(); // Use our higher fidelity custom PDF generator
-            }, true);
-          }
-        }
+        });
       });
-    }, 2000);
+    });
 
-    return () => clearInterval(interval);
-  }, [isViewerReady]);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleCustomPrint = (options: PrintOptions) => {
+    console.log('Initiating print (ESP) with options:', options);
+    window.print();
+  };
 
   const getReplacements = () => {
     const now = new Date();
@@ -1152,7 +1155,52 @@ export default function PioneerSchoolLetters({
         </div>
       </div>
 
+      <PrintModal 
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        onPrint={handleCustomPrint}
+        totalPages={totalPages}
+      />
+
       <style jsx global>{`
+        /* Print Styles Improvements */
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          
+          .udoc-viewer, 
+          .udoc-viewer *, 
+          .udoc-pages, 
+          .udoc-pages *,
+          .udoc-page,
+          .udoc-page * {
+            visibility: visible !important;
+          }
+          
+          .udoc-viewer {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
+          .udoc-viewer-toolbar,
+          [class*="toolbar"],
+          [class*="sidebar"] {
+            display: none !important;
+          }
+
+          @page {
+            size: auto;
+            margin: 0mm;
+          }
+        }
+
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
           height: 4px;
@@ -1163,6 +1211,32 @@ export default function PioneerSchoolLetters({
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: #2c2e33;
           border-radius: 10px;
+        }
+        
+        /* DocMentis Modal Print Fix */
+        .udoc-modal-footer button {
+          position: relative;
+        }
+        .udoc-modal-footer button:after {
+          content: attr(title);
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #333;
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 10px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s;
+          margin-bottom: 5px;
+          z-index: 9999;
+        }
+        .udoc-modal-footer button:hover:after {
+          opacity: 1;
         }
       `}</style>
     </div>

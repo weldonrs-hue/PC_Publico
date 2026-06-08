@@ -37,6 +37,7 @@ import {
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { AnimatePresence, motion } from 'motion/react';
+import PrintModal, { PrintOptions } from './PrintModal';
 
 interface PSSAssignmentLettersProps {
   userId: string;
@@ -87,6 +88,8 @@ export default function PSSAssignmentLetters({
   const [missingTags, setMissingTags] = useState<string[]>([]);
   const [saveAsGlobal, setSaveAsGlobal] = useState(false);
   const [needsProcessing, setNeedsProcessing] = useState(true);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
 
   const schoolInfoKey = JSON.stringify(schoolInfo);
   const personalDataKey = JSON.stringify(personalData);
@@ -297,50 +300,63 @@ export default function PSSAssignmentLetters({
     }
   }, [selectedTemplate, templates, localFileBuffer, schoolInfoKey, workshopAssignmentsKey, personalDataKey]);
 
-  // Intercept DocMentis buttons for higher functionality
+  // Enhanced Print Interceptor
   useEffect(() => {
-    if (!isViewerReady) return;
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) {
+            // Intercept internal DocMentis Print Button
+            const udocButtons = node.querySelectorAll('button');
+            udocButtons.forEach(btn => {
+              const title = btn.getAttribute('title')?.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
+              if (title.includes('imprimir') || title.includes('print')) {
+                if (!btn.hasAttribute('data-custom-modal-hooked')) {
+                  btn.setAttribute('data-custom-modal-hooked', 'true');
+                  btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Try to get total pages from viewer
+                    if (viewerRef.current) {
+                      try {
+                        const pages = viewerRef.current.getPageCount?.() || 1;
+                        setTotalPages(pages);
+                      } catch (err) {}
+                    }
+                    
+                    setIsPrintModalOpen(true);
+                  }, true);
+                }
+              }
+            });
 
-    const interval = setInterval(() => {
-      const container = previewRef.current;
-      if (!container) return;
-
-      const toolbar = container.querySelector('.udoc-viewer-toolbar') || 
-                      container.querySelector('[class*="toolbar"]');
-      if (!toolbar) return;
-
-      const buttons = toolbar.querySelectorAll('button');
-      buttons.forEach(btn => {
-        const title = btn.getAttribute('title')?.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
-        
-        // Intercept Print Button
-        if (title.includes('imprimir') || title.includes('print')) {
-          if (!btn.hasAttribute('data-intercepted')) {
-            btn.setAttribute('data-intercepted', 'true');
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.print(); // Triggers browser native dialog with printer selection
-            }, true);
+            // If a modal is already open (internal print dialog), we hide it if we want full control
+            const modal = node.classList.contains('udoc-modal') ? node : node.querySelector('.udoc-modal');
+            if (modal) {
+              const titleNode = modal.querySelector('.udoc-modal-title');
+              if (titleNode && (titleNode.textContent?.toLowerCase().includes('imprimir') || titleNode.textContent?.toLowerCase().includes('print'))) {
+                // We let it open for now, but adding a "System Print" button would be easier.
+                // But user wants a SEPARATE dialog. So let's just make sure our button opens OUR dialog.
+              }
+            }
           }
-        }
-        
-        // Intercept Save/PDF Button
-        if (title.includes('pdf') || title.includes('salvar') || title.includes('exportar') || title.includes('download')) {
-          if (!btn.hasAttribute('data-intercepted')) {
-            btn.setAttribute('data-intercepted', 'true');
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              downloadAsPdf(); // Use our higher fidelity custom PDF generator
-            }, true);
-          }
-        }
+        });
       });
-    }, 2000);
+    });
 
-    return () => clearInterval(interval);
-  }, [isViewerReady]);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleCustomPrint = (options: PrintOptions) => {
+    console.log('Initiating print with options:', options);
+    
+    // We can use the quality if we were generating images, but for native print 
+    // we mostly rely on CSS. 
+    // If the browser supports it, we'll open the selector.
+    window.print();
+  };
 
   const getParticipantLabel = (scenarioId: number, index: number) => {
     if (scenarioId === 1) {
@@ -1249,7 +1265,55 @@ export default function PSSAssignmentLetters({
         </div>
       </div>
 
+      {/* Custom Enhanced Print Modal */}
+      <PrintModal 
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        onPrint={handleCustomPrint}
+        totalPages={totalPages}
+      />
+
       <style jsx global>{`
+        /* Print Styles Improvements */
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          
+          /* Only show the document inside the viewer */
+          .udoc-viewer, 
+          .udoc-viewer *, 
+          .udoc-pages, 
+          .udoc-pages *,
+          .udoc-page,
+          .udoc-page * {
+            visibility: visible !important;
+          }
+          
+          .udoc-viewer {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
+          /* Hide toolbar and sidebars in print */
+          .udoc-viewer-toolbar,
+          [class*="toolbar"],
+          [class*="sidebar"] {
+            display: none !important;
+          }
+
+          @page {
+            size: auto;
+            margin: 0mm;
+          }
+        }
+
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
           height: 4px;
@@ -1260,6 +1324,32 @@ export default function PSSAssignmentLetters({
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: #d1d5db;
           border-radius: 10px;
+        }
+        
+        /* DocMentis Modal Print Fix */
+        .udoc-modal-footer button {
+          position: relative;
+        }
+        .udoc-modal-footer button:after {
+          content: attr(title);
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #333;
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 10px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s;
+          margin-bottom: 5px;
+          z-index: 9999;
+        }
+        .udoc-modal-footer button:hover:after {
+          opacity: 1;
         }
       `}</style>
     </div>

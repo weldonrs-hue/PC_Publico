@@ -136,42 +136,21 @@ export default function FileViewer({ onBack }: FileViewerProps) {
   }, [file, isViewerReady]);
 
   const handlePrint = () => {
-    // Force browser native print for printer selection choice
-    window.print();
-  };
-
-  // Intercept DocMentis buttons for higher functionality
-  useEffect(() => {
-    if (!isViewerReady) return;
-
-    const interval = setInterval(() => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const toolbar = container.querySelector('.udoc-viewer-toolbar') || 
-                      container.querySelector('[class*="toolbar"]');
-      if (!toolbar) return;
-
-      const buttons = toolbar.querySelectorAll('button');
-      buttons.forEach(btn => {
-        const title = btn.getAttribute('title')?.toLowerCase() || btn.getAttribute('aria-label')?.toLowerCase() || '';
-        
-        // Intercept Print Button
-        if (title.includes('imprimir') || title.includes('print')) {
-          if (!btn.hasAttribute('data-intercepted')) {
-            btn.setAttribute('data-intercepted', 'true');
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.print(); // Triggers browser native dialog with printer selection
-            }, true);
-          }
+    if (viewerRef.current?.print) {
+      viewerRef.current.print();
+    } else {
+      try {
+        const udocIframe = containerRef.current?.querySelector('iframe');
+        if (udocIframe && udocIframe.contentWindow) {
+          udocIframe.contentWindow.print();
+        } else {
+          window.print();
         }
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [isViewerReady]);
+      } catch (e) {
+        window.print();
+      }
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
