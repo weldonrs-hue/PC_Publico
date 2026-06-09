@@ -320,6 +320,9 @@ export default function PioneerSchoolView({
   };
 
   useEffect(() => {
+    // Only listen to students if user is logged in or is guest
+    if (!userId) return;
+
     const q = query(
       collection(db, 'pioneer_school_students'), 
       where('userId', '==', userId),
@@ -338,7 +341,15 @@ export default function PioneerSchoolView({
       setLoading(false);
     });
 
-    // Fetch workshop assignments
+    return () => unsubscribeStudents();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    // Only listen to workshop assignments if on the workshops tab or templates
+    if (activeTab !== 'workshops' && activeTab !== 'templates_pss') return;
+
     const qWorkshops = query(
       collection(db, 'pioneer_school_workshops'),
       where('userId', '==', userId),
@@ -359,7 +370,15 @@ export default function PioneerSchoolView({
       handleFirestoreError(error, OperationType.GET, 'pioneer_school_workshops');
     });
 
-    // Fetch school info
+    return () => unsubscribeWorkshops();
+  }, [userId, selectedTurma, activeTab]);
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    // Only listen to school info if on workshops, templates or info tab
+    if (activeTab === 'students') return;
+
     const infoDocId = `${userId}_turma${selectedTurma}`;
     const unsubscribeInfo = onSnapshot(doc(db, 'pioneer_school_info', infoDocId), (doc) => {
       if (doc.exists()) {
@@ -374,12 +393,8 @@ export default function PioneerSchoolView({
       handleFirestoreError(error, OperationType.GET, 'pioneer_school_info');
     });
 
-    return () => {
-      unsubscribeStudents();
-      unsubscribeWorkshops();
-      unsubscribeInfo();
-    };
-  }, [userId, selectedTurma]);
+    return () => unsubscribeInfo();
+  }, [userId, selectedTurma, activeTab]);
 
   useEffect(() => {
     const fetchPersonalData = async () => {
@@ -878,15 +893,18 @@ export default function PioneerSchoolView({
 
       const pageAvailableHeight = pdfPageHeight - topMargin - headerHeight - headerToTableGap - bottomMargin;
       
-      // Calculate scaling factor to fit in one page if possible
-      // We allow scaling down to 60% of original size. If it needs more, we split pages.
+      // Calculate scaling factor to fit in one page
+      // Use percentage-based scaling to force single page fit if within reasonable limits (>= 35%)
       const scaleToFitFactor = pageAvailableHeight / totalContentHeightInPdf;
-      const canFitOnOnePage = scaleToFitFactor >= 0.6;
+      const canFitOnOnePage = scaleToFitFactor >= 0.35;
 
       if (canFitOnOnePage) {
+        // Force fit to 1 page by scaling down
         const finalScale = Math.min(1, scaleToFitFactor);
         const scaledWidth = innerWidth * finalScale;
         const scaledHeight = totalContentHeightInPdf * finalScale;
+        
+        // Center horizontally
         const xOffset = xMargin + (innerWidth - scaledWidth) / 2;
 
         pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
@@ -1708,9 +1726,9 @@ export default function PioneerSchoolView({
             </div>
           </div>
         ) : activeTab === 'workshops' ? (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
-              <table className="w-full border-collapse min-w-[800px] sessions-table">
+          <div className="w-full">
+            <div className="overflow-x-auto pb-8 scrollbar-thin scrollbar-thumb-gray-300" id="itinerary-table-container">
+              <table className="w-full border-collapse min-w-[800px] sessions-table bg-white">
                   <thead>
                     <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
                       <th className="p-4 text-left font-bold text-xl h-[60px]" colSpan={2}>

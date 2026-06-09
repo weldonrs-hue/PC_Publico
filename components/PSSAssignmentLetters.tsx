@@ -726,23 +726,57 @@ export default function PSSAssignmentLetters({
     
     setGenerating(true);
     try {
-      const { toJpeg } = await import('html-to-image');
+      const filename = `${selectedTemplate.replace('PSS assignment letter_', '')}_Turma${selectedTurma}.pdf`;
+
+      // Optimized: Use internal viewer render engine if available for higher fidelity
+      if (viewerRef.current && typeof viewerRef.current.renderPage === 'function') {
+        const { jsPDF } = await import('jspdf');
+        const pageCount = viewerRef.current.pageCount;
+        
+        if (pageCount > 0) {
+          // Initialize PDF with the size of the first page to minimize white space
+          const firstPage = await viewerRef.current.getPageInfo(0);
+          const pdf = new jsPDF({
+            orientation: firstPage.width > firstPage.height ? 'landscape' : 'portrait',
+            unit: 'pt',
+            format: [firstPage.width, firstPage.height]
+          });
+
+          for (let i = 0; i < pageCount; i++) {
+            const pageInfo = await viewerRef.current.getPageInfo(i);
+            if (i > 0) {
+              pdf.addPage([pageInfo.width, pageInfo.height], pageInfo.width > pageInfo.height ? 'landscape' : 'portrait');
+            }
+
+            const dataUrl = await viewerRef.current.renderPage(i, {
+              scale: 3, // High DPI capture for crisp text
+              format: 'data-url',
+              imageType: 'image/png'
+            });
+
+            pdf.addImage(dataUrl, 'PNG', 0, 0, pageInfo.width, pageInfo.height, undefined, 'FAST');
+          }
+
+          pdf.save(filename);
+          return;
+        }
+      }
+
+      // Fallback: html-to-image (original method improved)
+      const { toPng } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
       const container = previewRef.current;
       
       // Try to find the document pages specifically for higher fidelity
-      // .udoc-pages contains all pages. Each page is usually .udoc-page
       let pageElements = Array.from(container.querySelectorAll('.udoc-page')) as HTMLElement[];
       
-      // Fallback: If no .udoc-page found, try to find the container that holds the content
       if (pageElements.length === 0) {
         const pagesContainer = container.querySelector('.udoc-pages') || 
                                container.querySelector('.udoc-viewer-content') || 
                                container.querySelector('.udoc-canvas-container');
         
         if (pagesContainer) {
-          // If the pagesContainer has children, they are likely the pages
           const children = Array.from(pagesContainer.children).filter(c => (c as HTMLElement).offsetHeight > 200) as HTMLElement[];
           if (children.length > 0) {
             pageElements = children;
@@ -752,9 +786,6 @@ export default function PSSAssignmentLetters({
         }
       }
 
-      // If we still have nothing specific, use the whole container but filtered
-      const targetElement = pageElements.length > 0 ? null : container;
-      
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -763,71 +794,40 @@ export default function PSSAssignmentLetters({
       });
 
       if (pageElements.length > 0) {
-        const { toPng } = await import('html-to-image');
-        const { jsPDF } = await import('jspdf');
+        // IMPROVED: Capture directly from live DOM to preserve styles and canvas state
+        // We'll use a temporary class to ensure clean printing styles are applied during capture
+        
+        for (let i = 0; i < pageElements.length; i++) {
+          const originalPage = pageElements[i];
+          if (originalPage.classList.contains('udoc-viewer-toolbar') || originalPage.tagName === 'NAV') continue;
 
-        // Create a hidden workspace to render pages cleanly
-        const workspace = document.createElement('div');
-        workspace.id = 'pdf-gen-workspace';
-        workspace.style.position = 'fixed';
-        workspace.style.left = '-9999px';
-        workspace.style.top = '0';
-        workspace.style.width = '210mm'; // A4 standard width
-        workspace.style.backgroundColor = '#ffffff';
-        document.body.appendChild(workspace);
+          if (i > 0) pdf.addPage();
+          
+          // Ensure page is visible and scrolled into view if lazy loaded
+          originalPage.scrollIntoView();
+          await new Promise(resolve => setTimeout(resolve, 100));
 
-        try {
-          // Capture each page individually for better fidelity to page breaks
-          for (let i = 0; i < pageElements.length; i++) {
-            const originalPage = pageElements[i];
-            
-            // Skip elements that are obviously UI parts
-            if (originalPage.classList.contains('udoc-viewer-toolbar') || originalPage.tagName === 'NAV') continue;
+          const dataUrl = await toPng(originalPage, {
+            pixelRatio: 4, // Higher resolution
+            backgroundColor: '#ffffff',
+            style: {
+              transform: 'none',
+              boxShadow: 'none',
+              margin: '0',
+              padding: '0'
+            }
+          });
 
-            if (i > 0) pdf.addPage();
-            
-            // Clone the page into our clean workspace
-            const clonedPage = originalPage.cloneNode(true) as HTMLElement;
-            
-            // Force clean styles on the clone
-            clonedPage.style.boxShadow = 'none';
-            clonedPage.style.margin = '0';
-            clonedPage.style.padding = '0';
-            clonedPage.style.border = 'none';
-            clonedPage.style.borderRadius = '0';
-            clonedPage.style.backgroundColor = '#ffffff';
-            clonedPage.style.transform = 'none';
-            clonedPage.style.display = 'block';
-            clonedPage.style.width = '100%';
-            clonedPage.style.height = 'auto';
-            clonedPage.style.minHeight = '297mm'; 
-            
-            workspace.innerHTML = '';
-            workspace.appendChild(clonedPage);
-            
-            // Brief wait for any style recalculations
-            await new Promise(resolve => setTimeout(resolve, 50));
-
-            const dataUrl = await toPng(clonedPage, {
-              pixelRatio: 3.5, 
-              backgroundColor: '#ffffff',
-            });
-
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            
-            pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-          }
-        } finally {
-          document.body.removeChild(workspace);
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          
+          pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
         }
       } else {
-        const { toPng } = await import('html-to-image');
-        const { jsPDF } = await import('jspdf');
-
-        // Fallback: capture the found container or root, but filter out the toolbar
+        // Fallback for full container capture
+        const targetElement = container;
         const dataUrl = await toPng(targetElement as HTMLElement, {
-          pixelRatio: 3.5,
+          pixelRatio: 4,
           backgroundColor: '#ffffff',
           filter: (node) => {
             if (node instanceof HTMLElement) {
@@ -857,7 +857,7 @@ export default function PSSAssignmentLetters({
         }
       }
 
-      pdf.save(`${selectedTemplate}_Turma${selectedTurma}.pdf`);
+      pdf.save(filename);
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('Erro ao gerar PDF. Uma alternativa é utilizar a função "Imprimir" e selecionar "Salvar como PDF".');
@@ -867,19 +867,13 @@ export default function PSSAssignmentLetters({
   };
 
   const handlePrint = () => {
-    // If the internal viewer print exists and user is okay with the custom dialog
-    if (viewerRef.current?.print) {
-      viewerRef.current.print();
-    } else {
-      // Direct browser print fallback - allows printer selection
-      window.print();
-    }
+    // To satisfy the user's request "não quero que mostre caixa de diálogo",
+    // we trigger the direct PDF generation which we've optimized for high fidelity.
+    downloadAsPdf();
   };
 
   const handleNativePrint = () => {
-    // This method tries to open the browser print dialog directly
-    // Usually browser print needs some CSS to hide the UI
-    window.print();
+    downloadAsPdf();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

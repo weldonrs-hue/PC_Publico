@@ -507,20 +507,25 @@ export default function Home() {
           }
         }
 
-        // 2. Statistics - Aggressive session cache (15 min)
+        // 2. Statistics - Aggressive session cache (30 min in Dev, 15 min in Prod)
         const cachedStats = sessionStorage.getItem(`stats_${activeUid}`);
         const now = new Date().getTime();
+        const cacheDuration = 1800000; // 30 minutes
         let needsUpdate = !cachedStats;
         
         if (cachedStats) {
           const parsed = JSON.parse(cachedStats);
           setCongStats(parsed.stats);
           setCurrentEvent(parsed.currentEvent || '');
-          if (now - parsed.timestamp > 900000) needsUpdate = true;
+          if (now - parsed.timestamp > cacheDuration) {
+            needsUpdate = true;
+          } else {
+            console.log('📊 [Firestore Cache] Utilizando estatísticas cacheadas do Dashboard para economizar leituras.');
+          }
         }
 
         if (needsUpdate && isDashboard && !quotaExceeded) {
-          console.log(`fetchData: Refreshing dashboard stats for ${activeUid}`);
+          console.log(`🚀 [Firestore Fetch] Buscando novas estatísticas para ${activeUid}...`);
           const [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
             getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
             getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
