@@ -837,7 +837,7 @@ export default function PioneerSchoolView({
       // Capture Header
       headerElement.classList.add('pdf-capture-header');
       const headerDataUrl = await toPng(headerElement, { 
-        pixelRatio: 3.5, 
+        pixelRatio: 3, 
         backgroundColor: '#ffffff'
       });
       headerElement.classList.remove('pdf-capture-header');
@@ -845,7 +845,7 @@ export default function PioneerSchoolView({
       // Capture the whole content
       contentElement.classList.add('pdf-capture-content');
       const contentDataUrl = await toPng(contentElement, { 
-        pixelRatio: 3.5, 
+        pixelRatio: 3, 
         backgroundColor: '#ffffff'
       });
       contentElement.classList.remove('pdf-capture-content');
@@ -860,10 +860,10 @@ export default function PioneerSchoolView({
 
       const pdfWidth = 210;
       const pdfPageHeight = 297; 
-      const xMargin = 8;
-      const topMargin = 8;
-      const bottomMargin = 8;
-      const headerToTableGap = 3;
+      const xMargin = 10;
+      const topMargin = 10;
+      const bottomMargin = 10;
+      const headerToTableGap = 5;
       
       const innerWidth = pdfWidth - (2 * xMargin);
       const headerHeight = (headerImg.height * innerWidth) / headerImg.width;
@@ -876,68 +876,69 @@ export default function PioneerSchoolView({
         compress: true
       });
 
-      // Calculate row boundaries for smart slicing
-      const tableRows = Array.from(contentElement.querySelectorAll('tr'));
-      const domContentHeight = contentElement.offsetHeight;
-      const scaleToPdf = totalContentHeightInPdf / domContentHeight;
-
       const pageAvailableHeight = pdfPageHeight - topMargin - headerHeight - headerToTableGap - bottomMargin;
       
-      let currentYInPdf = 0;
-      let pages: { startInPdf: number; heightInPdf: number }[] = [];
-      let currentPageRows: { top: number; height: number }[] = [];
-      let currentHeightInPdf = 0;
+      // Calculate scaling factor to fit in one page if possible
+      // We allow scaling down to 60% of original size. If it needs more, we split pages.
+      const scaleToFitFactor = pageAvailableHeight / totalContentHeightInPdf;
+      const canFitOnOnePage = scaleToFitFactor >= 0.6;
 
-      tableRows.forEach((row, index) => {
-        const rowRect = (row as HTMLElement).getBoundingClientRect();
-        const contentRect = contentElement.getBoundingClientRect();
-        const rowTopInContent = rowRect.top - contentRect.top;
-        const rowHeightInPdf = rowRect.height * scaleToPdf;
+      if (canFitOnOnePage) {
+        const finalScale = Math.min(1, scaleToFitFactor);
+        const scaledWidth = innerWidth * finalScale;
+        const scaledHeight = totalContentHeightInPdf * finalScale;
+        const xOffset = xMargin + (innerWidth - scaledWidth) / 2;
 
-        if (currentHeightInPdf + rowHeightInPdf > pageAvailableHeight && currentPageRows.length > 0) {
-          pages.push({
-            startInPdf: currentPageRows[0].top,
-            heightInPdf: currentHeightInPdf
-          });
-          currentPageRows = [];
-          currentHeightInPdf = 0;
-        }
-
-        currentPageRows.push({ top: rowTopInContent * scaleToPdf, height: rowHeightInPdf });
-        currentHeightInPdf += rowHeightInPdf;
-
-        // Last row handling
-        if (index === tableRows.length - 1) {
-          pages.push({
-            startInPdf: currentPageRows[0].top,
-            heightInPdf: currentHeightInPdf
-          });
-        }
-      });
-
-      pages.forEach((page, index) => {
-        if (index > 0) pdf.addPage();
-        
-        // Draw recurring header
         pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
+        pdf.addImage(contentDataUrl, 'PNG', xOffset, topMargin + headerHeight + headerToTableGap, scaledWidth, scaledHeight, undefined, 'FAST');
+      } else {
+        // Multi-page logic with smart slicing
+        const tableRows = Array.from(contentElement.querySelectorAll('tr'));
+        const domContentHeight = contentElement.offsetHeight;
+        const scaleToPdf = totalContentHeightInPdf / domContentHeight;
         
-        // Calculate clipping for this page slice
-        const sliceY = headerHeight + topMargin + headerToTableGap;
-        
-        // Draw the content image with an offset
-        pdf.addImage(contentDataUrl, 'PNG', xMargin, sliceY - page.startInPdf, innerWidth, totalContentHeightInPdf, undefined, 'FAST');
-        
-        // Mask the bottom overflow
-        pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, sliceY + page.heightInPdf, pdfWidth, pdfPageHeight - (sliceY + page.heightInPdf), 'F');
-        
-        // Mask the top overflow
-        pdf.rect(0, 0, pdfWidth, sliceY, 'F');
-        
-        // Re-draw header to stay on top
-        pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
-      });
-      
+        let pages: { startInPdf: number; heightInPdf: number }[] = [];
+        let currentPageRows: { top: number; height: number }[] = [];
+        let currentHeightInPdf = 0;
+
+        tableRows.forEach((row, index) => {
+          const rowRect = (row as HTMLElement).getBoundingClientRect();
+          const contentRect = contentElement.getBoundingClientRect();
+          const rowTopInContent = rowRect.top - contentRect.top;
+          const rowHeightInPdf = rowRect.height * scaleToPdf;
+
+          if (currentHeightInPdf + rowHeightInPdf > pageAvailableHeight && currentPageRows.length > 0) {
+            pages.push({
+              startInPdf: currentPageRows[0].top,
+              heightInPdf: currentHeightInPdf
+            });
+            currentPageRows = [];
+            currentHeightInPdf = 0;
+          }
+
+          currentPageRows.push({ top: rowTopInContent * scaleToPdf, height: rowHeightInPdf });
+          currentHeightInPdf += rowHeightInPdf;
+
+          if (index === tableRows.length - 1) {
+            pages.push({
+              startInPdf: currentPageRows[0].top,
+              heightInPdf: currentHeightInPdf
+            });
+          }
+        });
+
+        pages.forEach((page, index) => {
+          if (index > 0) pdf.addPage();
+          pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
+          const sliceY = headerHeight + topMargin + headerToTableGap;
+          pdf.addImage(contentDataUrl, 'PNG', xMargin, sliceY - page.startInPdf, innerWidth, totalContentHeightInPdf, undefined, 'FAST');
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(0, sliceY + page.heightInPdf, pdfWidth, pdfPageHeight - (sliceY + page.heightInPdf), 'F');
+          pdf.rect(0, 0, pdfWidth, sliceY, 'F');
+          pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
+        });
+      }
+
       const title = activeTab === 'students' ? 'Escola do Servico de Pioneiro - Lista de Alunos' : `Escola do Servico de Pioneiro - Sessao de Treino - Turma ${selectedTurma}`;
       pdf.save(`${title}.pdf`);
     } catch (error) {
@@ -1405,7 +1406,7 @@ export default function PioneerSchoolView({
 
       <style jsx global>{`
         @media print {
-          body { visibility: hidden; }
+          body { visibility: hidden; background-color: white !important; }
           #pioneer-school-report, #pioneer-school-report * { visibility: visible; }
           #pioneer-school-report { 
             position: absolute; 
@@ -1417,13 +1418,51 @@ export default function PioneerSchoolView({
             box-shadow: none !important; 
             padding: 0 !important; 
             margin: 0 !important; 
+            background-color: white !important;
           }
-          .print\:hidden { display: none !important; }
+          .print\:hidden, .pdf-hidden { display: none !important; }
           tr { page-break-inside: avoid !important; }
-          table { width: 100% !important; border-collapse: collapse !important; border: none !important; font-size: 9pt !important; }
-          th, td { border-left: none !important; border-right: none !important; padding: 4pt 6pt !important; }
-          th { background-color: #37616b !important; color: white !important; -webkit-print-color-adjust: exact !important; font-size: 8pt !important; }
+          
+          /* Table style improvements for print */
+          table { 
+            width: 100% !important; 
+            border-collapse: collapse !important; 
+            border: 1px solid #666 !important; 
+            font-size: 10pt !important; 
+            table-layout: auto !important;
+          }
+          th, td { 
+            border: 1px solid #999 !important; 
+            padding: 5pt 7pt !important; 
+            word-wrap: break-word !important;
+          }
+          th { 
+            background-color: #37616b !important; 
+            color: white !important; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important;
+            font-size: 9pt !important; 
+          }
           thead { display: table-header-group !important; }
+          
+          /* Workshop specific print adjustments */
+          .sessions-table {
+            border: 2px solid #3e5e66 !important;
+          }
+          .sessions-table th { 
+            background-color: #3e5e66 !important; 
+            color: white !important;
+            padding: 10pt !important;
+            font-size: 11pt !important;
+          }
+          .sessions-table td {
+            padding: 10pt !important;
+            font-size: 11pt !important;
+            border: 1px solid #ccc !important;
+            color: black !important;
+          }
+          .bg-\[\#e8f1f3\] { background-color: #e8f1f3 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .bg-\[\#5d7c85\] { background-color: #5d7c85 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           
           /* Remove layout borders for clean print */
           .bg-white.rounded-2xl { 
@@ -1432,82 +1471,87 @@ export default function PioneerSchoolView({
             border-radius: 0 !important;
           }
           
-          /* Specialized Instruction border in print */
-          .border-l-4.border-\[\#37616b\] {
-            border-left: none !important;
-            padding-left: 0 !important;
-          }
-          
-          input[type="checkbox"], .actions-column, .select-turma-ui { display: none !important; }
+          input[type="checkbox"], .actions-column, .select-turma-ui, .workshop-select-ui { display: none !important; }
           .turma-text { display: block !important; font-weight: bold !important; text-align: center !important; }
-          .workshop-select-ui { display: none !important; }
           .workshop-participant-text { 
             display: block !important; 
-            border-bottom: 1px dotted #999 !important; 
             min-height: 24px !important; 
-            color: #333 !important;
+            color: #000 !important;
+            font-weight: 600 !important;
           }
         }
-        /* Specialized PDF capture overrides */
+
+        /* Specialized PDF capture overrides - Optimized for clarity and proportion */
         .pdf-capture-header {
           display: block !important;
           background-color: white !important;
           visibility: visible !important;
-          width: 1000px !important;
+          width: 1200px !important;
           margin: 0 !important;
-          padding: 0 !important;
+          padding: 20px !important;
+          text-align: center !important;
         }
         .pdf-capture-content {
           display: block !important;
           background-color: white !important;
           visibility: visible !important;
-          width: 800px !important;
+          width: 1200px !important; /* Standardized width for reliable capture */
           margin: 0 !important;
           padding: 0 !important;
-          font-size: 11px !important;
+          font-size: 16px !important;
         }
         .pdf-capture-content th {
-          font-size: 10px !important;
-          padding: 6px 4px !important;
-          border: 1px solid #999 !important;
-          background-color: #37616b !important;
+          font-size: 14px !important;
+          padding: 12px 10px !important;
+          border: 1px solid #444 !important;
+          background-color: #3e5e66 !important;
           color: white !important;
+          font-weight: bold !important;
+          text-transform: uppercase !important;
         }
         .pdf-capture-content td {
-          font-size: 11px !important;
-          padding: 6px 8px !important;
+          font-size: 15px !important;
+          padding: 12px 15px !important;
           border: 1px solid #ccc !important;
+          background-color: #ffffff !important;
+          color: #000000 !important;
+          line-height: 1.4 !important;
         }
+        
+        .pdf-capture-content .sessions-table th { background-color: #3e5e66 !important; }
+        .pdf-capture-content .bg-\[\#e8f1f3\] { background-color: #e8f1f3 !important; }
+        .pdf-capture-content .bg-\[\#5d7c85\] { background-color: #5d7c85 !important; }
+        
         .pdf-capture-content table {
           border-collapse: collapse !important;
-          border: 1px solid #ddd !important;
-        }
-        .pdf-capture-content table, 
-        .pdf-capture-content th, 
-        .pdf-capture-content td {
-          border-radius: 0 !important;
+          width: 100% !important;
+          border: 2px solid #3e5e66 !important;
         }
         .pdf-capture-content input[type="checkbox"],
         .pdf-capture-content .pdf-hidden,
-        .pdf-capture-content .print\:hidden {
+        .pdf-capture-content .print\:hidden,
+        .pdf-capture-content .workshop-select-ui,
+        .pdf-capture-content .select-turma-ui {
           display: none !important;
+        }
+        .pdf-capture-content .workshop-participant-text {
+          display: block !important;
+          font-weight: 700 !important;
+          color: #000 !important;
+          font-size: 15px !important;
+        }
+        .pdf-capture-content .turma-text {
+          display: block !important;
+          font-size: 24px !important;
+          color: #facc15 !important;
+          margin-bottom: 20px !important;
         }
         .pdf-capture-content .bg-white.rounded-2xl { 
           border: none !important; 
           box-shadow: none !important; 
           border-radius: 0 !important;
         }
-        .pdf-capture-content .border-l-4 {
-          border-left: none !important;
-        }
-        .pdf-capture .bg-white.rounded-2xl { 
-          border: none !important; 
-          box-shadow: none !important; 
-          border-radius: 0 !important;
-        }
         .pdf-capture .pdf-only-element { display: block !important; }
-        .pdf-capture .print\:hidden { display: none !important; }
-        .pdf-capture .pdf-only-element\:hidden { display: none !important; }
       `}</style>
 
       <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0">
@@ -1664,10 +1708,9 @@ export default function PioneerSchoolView({
             </div>
           </div>
         ) : activeTab === 'workshops' ? (
-          <div className="bg-[#f3f4f6]">
-            <div className="max-w-[1000px] mx-auto bg-white shadow-lg overflow-hidden border border-[#aebfc5]">
-              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
-                <table className="w-full border-collapse min-w-[800px] sessions-table">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+              <table className="w-full border-collapse min-w-[800px] sessions-table">
                   <thead>
                     <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
                       <th className="p-4 text-left font-bold text-xl h-[60px]" colSpan={2}>
@@ -1741,7 +1784,9 @@ export default function PioneerSchoolView({
                                     >
                                       <div className="hidden workshop-participant-text text-[15px] font-medium text-slate-800">
                                         {participant ? (
-                                          getParticipantLabel(scenario.id, idx) ? `${getParticipantLabel(scenario.id, idx)} - ${participant}` : participant
+                                          getParticipantLabel(scenario.id, idx) 
+                                            ? `${getParticipantLabel(scenario.id, idx)} - ${participant} ✓` 
+                                            : `${participant} ✓`
                                         ) : (idx < 2 ? '...........................................' : '')}
                                       </div>
                                       <div className="workshop-select-ui w-full h-full">
@@ -1774,8 +1819,7 @@ export default function PioneerSchoolView({
                       </Fragment>
                     ))}
                   </tbody>
-                </table>
-              </div>
+              </table>
             </div>
           </div>
 
@@ -2245,97 +2289,6 @@ export default function PioneerSchoolView({
         )}
       </AnimatePresence>
 
-      <style jsx global>{`
-        /* Excel-like styles for PDF capture */
-        .pdf-capture-header {
-          padding: 10px !important;
-          background-color: #ffffff !important;
-        }
-        
-        .pdf-capture-content {
-          width: 850px !important; /* Slightly narrower for better A4 fit at 96dpi */
-          background-color: #ffffff !important;
-        }
-
-        .pdf-capture-content table.students-table {
-          border-collapse: collapse !important;
-          width: 100% !important;
-          border: 1px solid #666 !important;
-          table-layout: fixed !important;
-        }
-
-        .pdf-capture-content table.students-table th, .pdf-capture-content table.students-table td {
-          word-break: break-word !important;
-          overflow-wrap: break-word !important;
-          padding: 5px 8px !important;
-          border: 1px solid #666 !important;
-        }
-
-        .pdf-capture-content table.students-table th:nth-child(2), .pdf-capture-content table.students-table td:nth-child(2) { width: 50px !important; text-align: center !important; }
-        .pdf-capture-content table.students-table th:nth-child(3), .pdf-capture-content table.students-table td:nth-child(3) { width: auto !important; }
-        .pdf-capture-content table.students-table th:nth-child(4), .pdf-capture-content table.students-table td:nth-child(4) { width: 220px !important; }
-        .pdf-capture-content table.students-table th:nth-child(5), .pdf-capture-content table.students-table td:nth-child(5) { width: 120px !important; }
-        .pdf-capture-content table.students-table th:nth-child(6), .pdf-capture-content table.students-table td:nth-child(6) { width: 100px !important; text-align: center !important; }
-
-        .pdf-capture-content table.sessions-table {
-          border-collapse: collapse !important;
-          width: 100% !important;
-          border: 1px solid #666 !important;
-          table-layout: fixed !important;
-        }
-
-        .pdf-capture-content table.sessions-table th, .pdf-capture-content table.sessions-table td {
-          border: 1px solid #666 !important;
-          padding: 8px !important;
-        }
-
-        .pdf-capture-content table.sessions-table th:nth-child(1), .pdf-capture-content table.sessions-table td:nth-child(1) { width: 25px !important; }
-        .pdf-capture-content table.sessions-table th:nth-child(2), .pdf-capture-content table.sessions-table td:nth-child(2) { width: auto !important; }
-        .pdf-capture-content table.sessions-table th:nth-child(3), .pdf-capture-content table.sessions-table td:nth-child(3) { width: 45% !important; }
-
-        .pdf-capture-content th {
-          background-color: #e2e8f0 !important;
-          color: #000000 !important;
-          font-size: 11px !important;
-          font-weight: 800 !important;
-          text-align: left !important;
-          text-transform: uppercase !important;
-        }
-
-        .pdf-capture-content td {
-          font-size: 11px !important;
-          color: #000000 !important;
-          line-height: 1.3 !important;
-          background-color: #ffffff !important;
-        }
-
-        .pdf-capture-content tr:nth-child(even) td {
-          background-color: #f8fafc !important;
-        }
-
-        .pdf-capture-content .workshop-select-ui {
-          display: none !important;
-        }
-
-        .pdf-capture-content .workshop-participant-text {
-          display: block !important;
-          font-size: 11px !important;
-          font-weight: 600 !important;
-          border: none !important;
-          padding: 0 !important;
-        }
-
-        /* Hide interactive elements in PDF */
-        .pdf-hidden {
-          display: none !important;
-        }
-
-        @media print {
-          .pdf-hidden {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
