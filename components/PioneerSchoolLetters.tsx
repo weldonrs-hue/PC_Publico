@@ -811,15 +811,6 @@ export default function PioneerSchoolLetters({
     }
   };
 
-  const handlePrint = () => {
-    // Satisfy the user's request "não quero que mostre caixa de diálogo"
-    downloadAsPdf();
-  };
-
-  const handleNativePrint = () => {
-    downloadAsPdf();
-  };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -1123,14 +1114,26 @@ export default function PioneerSchoolLetters({
 
             <div className="flex items-center gap-3 flex-wrap">
               {status === 'success' && !isProcessing && (
-                <button
-                  onClick={downloadAsDocx}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100"
-                  title="Baixar Original (.docx)"
-                >
-                  <FileDown size={14} />
-                  BAIXAR ORIGINAL
-                </button>
+                <>
+                  <button
+                    onClick={downloadAsDocx}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100"
+                    title="Baixar Original (.docx)"
+                  >
+                    <FileDown size={14} />
+                    BAIXAR DOCX
+                  </button>
+
+                  <button
+                    onClick={downloadAsPdf}
+                    disabled={generating}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[#3e5e66] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
+                    title="Baixar PDF"
+                  >
+                    {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} className="text-[#facc15]" />}
+                    BAIXAR PDF
+                  </button>
+                </>
               )}
               {needsProcessing && (
                 <button

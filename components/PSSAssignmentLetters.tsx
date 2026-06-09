@@ -866,16 +866,6 @@ export default function PSSAssignmentLetters({
     }
   };
 
-  const handlePrint = () => {
-    // To satisfy the user's request "não quero que mostre caixa de diálogo",
-    // we trigger the direct PDF generation which we've optimized for high fidelity.
-    downloadAsPdf();
-  };
-
-  const handleNativePrint = () => {
-    downloadAsPdf();
-  };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -1246,16 +1236,6 @@ export default function PSSAssignmentLetters({
                   >
                     {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} className="text-[#facc15]" />}
                     BAIXAR PDF
-                  </button>
-                  
-                  <button
-                    onClick={handlePrint}
-                    disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#facc15] text-[#3e5e66] rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#eab308] transition-all"
-                    title="Imprimir"
-                  >
-                    <Printer size={14} />
-                    IMPRIMIR
                   </button>
                 </>
               )}
