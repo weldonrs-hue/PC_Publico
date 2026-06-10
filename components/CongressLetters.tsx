@@ -102,7 +102,7 @@ export default function CongressLetters({
           container: previewRef.current,
           theme: 'light',
           hideToolbar: false,
-          disableLeftPanel: true,
+          disableLeftPanel: false,
           disableRightPanel: true,
           scrollMode: 'continuous',
           layoutMode: 'single-page',
@@ -880,9 +880,9 @@ export default function CongressLetters({
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="bg-white p-6 rounded-none border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-violet-50 text-violet-700 px-4 py-2 rounded-xl border border-violet-100">
+            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-violet-50 text-violet-700 px-4 py-2 rounded-none border border-violet-100">
               <Mail size={20} />
               Selecione o Modelo de Carta
             </h3>
@@ -890,7 +890,7 @@ export default function CongressLetters({
             {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
                   isManaging 
                     ? 'bg-amber-500 text-white border-amber-400' 
                     : 'bg-white text-violet-600 border-violet-100 hover:bg-violet-50'
@@ -907,7 +907,7 @@ export default function CongressLetters({
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`w-full text-left px-5 py-4 rounded-2xl text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-2 relative group h-full justify-between ${
+                className={`w-full text-left px-5 py-4 rounded-none text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-2 relative group h-full justify-between ${
                   selectedTemplate === template.id 
                     ? 'bg-violet-600 text-white border-violet-600 shadow-xl scale-[1.02]' 
                     : 'bg-white text-gray-600 border-gray-100 hover:border-violet-200 hover:bg-violet-50 hover:shadow-md'
@@ -921,7 +921,7 @@ export default function CongressLetters({
                 </div>
                 {templates[template.id] ? (
                   <div className="flex items-center gap-1.5 mt-auto">
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold shadow-sm ${
+                    <span className={`text-[9px] px-2 py-0.5 rounded-none font-bold shadow-sm ${
                       templates[template.id].isPrivate 
                         ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                         : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-violet-100 text-violet-700')
@@ -943,7 +943,7 @@ export default function CongressLetters({
         </div>
 
         {isManaging && canManage && (
-          <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-amber-50 p-6 rounded-none border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
                 <FileUp size={16} />
@@ -957,13 +957,13 @@ export default function CongressLetters({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 {isAdmin && (
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-100">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-none border border-amber-100">
                     <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
                     <button
                       onClick={() => setSaveAsGlobal(!saveAsGlobal)}
                       className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-violet-500' : 'bg-gray-300'}`}
                     >
-                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-none transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
                     </button>
                   </div>
                 )}
@@ -971,7 +971,7 @@ export default function CongressLetters({
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className={`w-full flex flex-col items-center justify-center p-6 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
+                  className={`w-full flex flex-col items-center justify-center p-6 rounded-none text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
                     file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
                   }`}
                 >
@@ -984,7 +984,7 @@ export default function CongressLetters({
                 {file && (
                   <div className="space-y-3">
                     {missingTags.length > 0 ? (
-                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1">
+                      <div className="p-3 bg-red-50 border border-red-100 rounded-none space-y-1">
                         <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
                           <AlertCircle size={12} /> Marcadores Faltantes
                         </p>
@@ -993,7 +993,7 @@ export default function CongressLetters({
                         </p>
                       </div>
                     ) : (
-                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1">
+                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-none space-y-1">
                         <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
                           <CheckCircle2 size={12} /> Status: OK
                         </p>
@@ -1004,7 +1004,7 @@ export default function CongressLetters({
                     <button
                       onClick={saveTemplate}
                       disabled={isSaving}
-                      className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
+                      className={`w-full py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
                         saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-violet-600 text-white hover:bg-violet-700'
                       } disabled:opacity-50`}
                     >
@@ -1016,7 +1016,7 @@ export default function CongressLetters({
                       <button
                         onClick={deletePrivateTemplate}
                         disabled={isSaving}
-                        className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                        className="w-full py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
                       >
                         {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <Trash2 size={14} />}
                         {isSaving ? 'EXCLUINDO...' : 'EXCLUIR MINHA VERSÃO'}
@@ -1029,7 +1029,7 @@ export default function CongressLetters({
                   </div>
                 )}
                 {!file && (
-                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-xl border border-amber-50">
+                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-none border border-amber-50">
                     <p className="text-[9px] text-amber-600 font-black text-center uppercase tracking-widest leading-relaxed">
                       Selecione um arquivo .docx para atualizar o modelo <br/> deste documento no servidor.
                     </p>
@@ -1041,9 +1041,9 @@ export default function CongressLetters({
         )}
 
         <div className="w-full space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-none border border-gray-100 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="bg-violet-600 p-3 rounded-2xl shadow-lg shadow-violet-200 text-white">
+              <div className="bg-violet-600 p-3 rounded-none shadow-lg shadow-violet-200 text-white">
                 <FileText size={24} />
               </div>
               <div className="min-w-0 flex-1">
@@ -1051,11 +1051,11 @@ export default function CongressLetters({
                   <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] text-violet-600 font-extrabold uppercase tracking-tight bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
+                  <span className="text-[10px] text-violet-600 font-extrabold uppercase tracking-tight bg-violet-50 px-2 py-0.5 rounded-none border border-violet-100">
                     {CONGRESSO_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
                   </span>
                   {speakers.length > 0 && selectedTemplate !== 'cong_aviso_treinamentos' && (
-                    <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1 shadow-sm transition-all hover:border-violet-300">
+                    <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-none px-3 py-1 shadow-sm transition-all hover:border-violet-300">
                       <User size={12} className="text-violet-500" />
                       <select 
                         value={selectedSpeaker}
@@ -1077,7 +1077,7 @@ export default function CongressLetters({
                 <>
                   <button
                     onClick={downloadAsDocx}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-violet-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-violet-50 transition-all border border-transparent hover:border-violet-100"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-violet-600 rounded-none text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-violet-50 transition-all border border-transparent hover:border-violet-100"
                     title="Baixar Original (.docx)"
                   >
                     <FileDown size={14} />
@@ -1087,7 +1087,7 @@ export default function CongressLetters({
                   <button
                     onClick={downloadAsPdf}
                     disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-[#3e5e66] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[#3e5e66] text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
                     title="Baixar PDF"
                   >
                     {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} className="text-[#facc15]" />}
@@ -1099,7 +1099,7 @@ export default function CongressLetters({
                 <button
                   onClick={processAndPreview}
                   disabled={isProcessing}
-                  className="flex items-center gap-2 bg-violet-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-violet-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 bg-violet-600 text-white px-5 py-2.5 rounded-none text-[11px] font-black uppercase tracking-widest shadow-xl shadow-violet-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                   title="Gerar PDF/Prévia"
                 >
                   {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
@@ -1111,7 +1111,7 @@ export default function CongressLetters({
 
           <div className="relative group">
             <div 
-              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-3xl shadow-inner-lg overflow-hidden relative"
+              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-none shadow-inner-lg overflow-hidden relative"
             >
               <div 
                 ref={previewRef} 
@@ -1127,12 +1127,12 @@ export default function CongressLetters({
               )}
             </div>
             {isProcessing && (
-              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
+              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-none pointer-events-none">
                 <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
               </div>
             )}
             {status === 'error' && (
-              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-xl border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
+              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-none border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span className="text-[10px] font-bold uppercase">Erro no documento</span>
               </div>

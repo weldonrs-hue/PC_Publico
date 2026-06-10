@@ -108,7 +108,7 @@ export default function PioneerSchoolLetters({
           container: previewRef.current,
           theme: 'light',
           hideToolbar: false,
-          disableLeftPanel: true,
+          disableLeftPanel: false,
           disableRightPanel: true,
           scrollMode: 'continuous',
           layoutMode: 'single-page',
@@ -939,9 +939,9 @@ export default function PioneerSchoolLetters({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="bg-white p-6 rounded-none border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-100">
+            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-emerald-50 text-emerald-700 px-4 py-2 rounded-none border border-emerald-100">
               <Mail size={20} />
               Selecione o Modelo de Carta
             </h3>
@@ -949,7 +949,7 @@ export default function PioneerSchoolLetters({
             {canManage && isAdmin && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
                   isManaging 
                     ? 'bg-amber-500 text-white border-amber-400' 
                     : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'
@@ -966,7 +966,7 @@ export default function PioneerSchoolLetters({
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`w-full text-left px-5 py-4 rounded-2xl text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-2 relative group h-full justify-between ${
+                className={`w-full text-left px-5 py-4 rounded-none text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-2 relative group h-full justify-between ${
                   selectedTemplate === template.id 
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-xl scale-[1.02]' 
                     : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 hover:shadow-md'
@@ -980,7 +980,7 @@ export default function PioneerSchoolLetters({
                 </div>
                 {templates[template.id] ? (
                   <div className="flex items-center gap-1.5 mt-auto">
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold shadow-sm ${
+                    <span className={`text-[9px] px-2 py-0.5 rounded-none font-bold shadow-sm ${
                       templates[template.id].isPrivate 
                         ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                         : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700')
@@ -999,7 +999,7 @@ export default function PioneerSchoolLetters({
         </div>
 
         {isManaging && canManage && (
-          <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-amber-50 p-6 rounded-none border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
                 <FileUp size={16} />
@@ -1013,13 +1013,13 @@ export default function PioneerSchoolLetters({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 {isAdmin && (
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-100">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-none border border-amber-100">
                     <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
                     <button
                       onClick={() => setSaveAsGlobal(!saveAsGlobal)}
                       className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-emerald-500' : 'bg-gray-300'}`}
                     >
-                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-none transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
                     </button>
                   </div>
                 )}
@@ -1151,7 +1151,7 @@ export default function PioneerSchoolLetters({
 
           <div className="relative group">
             <div 
-              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-3xl shadow-inner-lg overflow-hidden relative"
+              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-none shadow-inner-lg overflow-hidden relative"
             >
               <div 
                 ref={previewRef} 
@@ -1167,12 +1167,12 @@ export default function PioneerSchoolLetters({
               )}
             </div>
             {isProcessing && (
-              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
+              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-none pointer-events-none">
                 <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
               </div>
             )}
             {status === 'error' && (
-              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-xl border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
+              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-none border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span className="text-[10px] font-bold uppercase">Erro no documento</span>
               </div>

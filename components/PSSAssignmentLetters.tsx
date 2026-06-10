@@ -122,7 +122,7 @@ export default function PSSAssignmentLetters({
           container: previewRef.current,
           theme: 'light',
           hideToolbar: false,
-          disableLeftPanel: true,
+          disableLeftPanel: false,
           disableRightPanel: true,
           scrollMode: 'continuous',
           layoutMode: 'single-page',
@@ -1020,9 +1020,9 @@ export default function PSSAssignmentLetters({
     <div className="space-y-6">
       <div className="flex flex-col gap-6">
         {/* Top: Lista de Templates em Grid */}
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+        <div className="bg-gray-50 p-4 rounded-none border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100">
+            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-blue-50 text-blue-700 px-4 py-2 rounded-none border border-blue-100">
               <Mail size={20} />
               Selecione o Modelo de Carta PSS
             </h3>
@@ -1030,7 +1030,7 @@ export default function PSSAssignmentLetters({
             {canManage && isAdmin && initialMode !== 'manager' && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
                   isManaging 
                     ? 'bg-amber-500 text-white border-amber-400' 
                     : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'
@@ -1047,7 +1047,7 @@ export default function PSSAssignmentLetters({
               <div key={name} className="relative group/card">
                 <button
                   onClick={() => setSelectedTemplate(name)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-[14px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
+                  className={`w-full text-left px-3 py-2 rounded-none text-[14px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
                     selectedTemplate === name 
                       ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                       : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
@@ -1058,7 +1058,7 @@ export default function PSSAssignmentLetters({
                     {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
                   </div>
                   {templates[name] && (
-                    <span className={`text-[8px] px-1.5 py-0.5 rounded-md w-fit ${
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-none w-fit ${
                       templates[name].isPrivate 
                         ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
                         : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
@@ -1221,7 +1221,7 @@ export default function PSSAssignmentLetters({
                 <>
                   <button
                     onClick={downloadAsDocx}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:text-blue-600 hover:border-blue-100 border border-transparent transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 rounded-none text-[10px] font-black uppercase tracking-widest shadow-sm hover:text-blue-600 hover:border-blue-100 border border-transparent transition-all"
                     title="Baixar Original (.docx)"
                   >
                     <FileDown size={14} />
@@ -1231,7 +1231,7 @@ export default function PSSAssignmentLetters({
                   <button
                     onClick={downloadAsPdf}
                     disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#3e5e66] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
+                    className="flex items-center gap-2 px-4 py-2 bg-[#3e5e66] text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
                     title="Baixar PDF"
                   >
                     {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} className="text-[#facc15]" />}
@@ -1243,7 +1243,7 @@ export default function PSSAssignmentLetters({
                 <button
                   onClick={processAndPreview}
                   disabled={isProcessing}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-none text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                   title="Gerar PDF/Prévia"
                 >
                   {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
@@ -1255,7 +1255,7 @@ export default function PSSAssignmentLetters({
 
           <div className="relative group">
             <div 
-              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-3xl shadow-inner-lg overflow-hidden relative"
+              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-none shadow-inner-lg overflow-hidden relative"
             >
               <div 
                 ref={previewRef} 
@@ -1271,12 +1271,12 @@ export default function PSSAssignmentLetters({
               )}
             </div>
             {isProcessing && (
-              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-3xl pointer-events-none">
+              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-none pointer-events-none">
                 <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
               </div>
             )}
             {status === 'error' && (
-              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-xl border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
+              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-none border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span className="text-[10px] font-bold uppercase">Erro no documento</span>
               </div>

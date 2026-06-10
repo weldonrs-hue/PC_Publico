@@ -80,7 +80,7 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="bg-emerald-100 p-3 rounded-2xl text-emerald-600 shadow-inner">
+          <div className="bg-emerald-100 p-3 rounded-none text-emerald-600 shadow-inner">
             <Mail size={24} strokeWidth={2.5} />
           </div>
           <div>
@@ -104,7 +104,7 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className={`group relative flex flex-col bg-white rounded-[2.5rem] transition-all duration-500 overflow-hidden border ${
+              className={`group relative flex flex-col bg-white rounded-none transition-all duration-500 overflow-hidden border ${
                 option.active 
                   ? 'shadow-xl border-gray-100 hover:shadow-2xl' 
                   : 'opacity-60 grayscale border-gray-200'
@@ -125,9 +125,9 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
                 className={`flex-1 p-8 flex flex-col items-center justify-center text-center w-full relative h-full ${!option.active ? 'cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {/* Background Accent */}
-                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${option.gradient} opacity-5 rounded-bl-[5rem] ${option.active ? 'group-hover:scale-150 transition-transform duration-700' : ''}`} />
+                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${option.gradient} opacity-5 rounded-none ${option.active ? 'group-hover:scale-150 transition-transform duration-700' : ''}`} />
                 
-                <div className={`w-20 h-20 rounded-3xl flex items-center justify-center bg-gradient-to-br ${option.gradient} text-white shadow-lg shadow-black/10 transition-all duration-500 mb-6 ${option.active ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`}>
+                <div className={`w-20 h-20 rounded-none flex items-center justify-center bg-gradient-to-br ${option.gradient} text-white shadow-lg shadow-black/10 transition-all duration-500 mb-6 ${option.active ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`}>
                   <option.icon size={40} strokeWidth={2.5} />
                 </div>
 
