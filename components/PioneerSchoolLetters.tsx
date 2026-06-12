@@ -14,6 +14,7 @@ import {
   Mail,
   PenTool,
   Sparkles,
+  Loader2,
   Trash2,
   Settings2,
   FileUp,
@@ -457,6 +458,8 @@ export default function PioneerSchoolLetters({
       const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
       const zip = new PizZip(cleanedBuffer);
       
+      const replacements = getReplacements();
+      
       // Pre-process all XML files in the zip (document, headers, footers)
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       
@@ -561,7 +564,8 @@ export default function PioneerSchoolLetters({
         }
         
         // 3. Surgical replacement of @TAG to [TAG]
-        const hasImage = signatureValue && typeof signatureValue === 'string' && signatureValue.startsWith('data:image');
+        const sigVal = replacements.ASSINATURA;
+        const hasImage = sigVal && typeof sigVal === 'string' && sigVal.startsWith('data:image');
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
           // Handle Signature
@@ -579,8 +583,6 @@ export default function PioneerSchoolLetters({
 
         zip.file(file.name, xmlContent);
       });
-      
-      const replacements = getReplacements();
       
       // For preview, we want to show the signature text as well
       const previewReplacements = { ...replacements };
@@ -680,13 +682,14 @@ export default function PioneerSchoolLetters({
       const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
       const filename = `${templateName}_Turma${selectedTurma}.pdf`;
 
+      const viewer = viewerRef.current;
       // Optimized: Use internal viewer render engine if available for higher fidelity
-      if (viewerRef.current && typeof viewerRef.current.renderPage === 'function') {
+      if (viewer && typeof viewer.renderPage === 'function') {
         const { jsPDF } = await import('jspdf');
-        const pageCount = viewerRef.current.pageCount;
+        const pageCount = viewer.pageCount;
         
         if (pageCount > 0) {
-          const firstPage = await viewerRef.current.getPageInfo(0);
+          const firstPage = await viewer.getPageInfo(0);
           const pdf = new jsPDF({
             orientation: firstPage.width > firstPage.height ? 'landscape' : 'portrait',
             unit: 'pt',
@@ -694,12 +697,12 @@ export default function PioneerSchoolLetters({
           });
 
           for (let i = 0; i < pageCount; i++) {
-            const pageInfo = await viewerRef.current.getPageInfo(i);
+            const pageInfo = await viewer.getPageInfo(i);
             if (i > 0) {
               pdf.addPage([pageInfo.width, pageInfo.height], pageInfo.width > pageInfo.height ? 'landscape' : 'portrait');
             }
 
-            const dataUrl = await viewerRef.current.renderPage(i, {
+            const dataUrl = await viewer.renderPage(i, {
               scale: 3,
               format: 'data-url',
               imageType: 'image/png'
@@ -939,7 +942,7 @@ export default function PioneerSchoolLetters({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-6">
-        <div className="bg-white p-6 rounded-none border border-gray-100 shadow-sm">
+        <div className="bg-gray-50 p-6 rounded-none border border-gray-200">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-emerald-50 text-emerald-700 px-4 py-2 rounded-none border border-emerald-100">
               <Mail size={20} />
@@ -961,38 +964,35 @@ export default function PioneerSchoolLetters({
             )}
           </div>
           
-          <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-4 pb-2 md:pb-0 custom-scrollbar">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
             {ESP_TEMPLATES.map(template => (
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`w-full text-left px-5 py-4 rounded-none text-[16px] font-black transition-all uppercase tracking-tight border-2 flex flex-col gap-2 relative group h-full justify-between ${
-                  selectedTemplate === template.id 
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xl scale-[1.02]' 
-                    : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50 hover:shadow-md'
+                className={`aspect-square flex flex-col items-center justify-center gap-4 p-8 transition-all border-2 rounded-none ${
+                   selectedTemplate === template.id
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xl scale-[1.02]'
+                    : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2 w-full">
-                  <span className="truncate">{template.name}</span>
-                  {templates[template.id] && (
-                    <CheckCircle2 size={18} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />
+                <div className={`p-4 rounded-none transition-colors ${selectedTemplate === template.id ? 'bg-white/20' : 'bg-emerald-50'}`}>
+                  <Mail size={40} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-600'} />
+                </div>
+                <div className="text-center space-y-1">
+                  <span className="block font-black uppercase tracking-tighter text-lg leading-none">{template.name}</span>
+                  {templates[template.id] ? (
+                    <div className="flex items-center justify-center gap-1.5 pt-1">
+                      <CheckCircle2 size={14} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${selectedTemplate === template.id ? 'text-white/80' : 'text-gray-400'}`}>
+                        {templates[template.id].isPrivate ? 'SEU MODELO' : 'GLOBAL'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-black uppercase tracking-widest text-red-500 pt-1">
+                      Não configurado
+                    </span>
                   )}
                 </div>
-                {templates[template.id] ? (
-                  <div className="flex items-center gap-1.5 mt-auto">
-                    <span className={`text-[9px] px-2 py-0.5 rounded-none font-bold shadow-sm ${
-                      templates[template.id].isPrivate 
-                        ? (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
-                        : (selectedTemplate === template.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700')
-                    }`}>
-                      {templates[template.id].isPrivate ? 'SEU MODELO' : 'GLOBAL PROGCIR'}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-[10px] font-bold text-red-400 mt-auto flex items-center gap-1">
-                    <AlertCircle size={10} /> NÃO CONFIGURADO
-                  </span>
-                )}
               </button>
             ))}
           </div>
@@ -1027,7 +1027,7 @@ export default function PioneerSchoolLetters({
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className={`w-full flex flex-col items-center justify-center p-6 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
+                  className={`w-full flex flex-col items-center justify-center p-6 rounded-none text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
                     file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
                   }`}
                 >
@@ -1040,7 +1040,7 @@ export default function PioneerSchoolLetters({
                 {file && (
                   <div className="space-y-3">
                     {missingTags.length > 0 ? (
-                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1">
+                      <div className="p-3 bg-red-50 border border-red-100 rounded-none space-y-1">
                         <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
                           <AlertCircle size={12} /> Marcadores Faltantes
                         </p>
@@ -1049,7 +1049,7 @@ export default function PioneerSchoolLetters({
                         </p>
                       </div>
                     ) : (
-                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1">
+                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-none space-y-1">
                         <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
                           <CheckCircle2 size={12} /> Status: OK
                         </p>
@@ -1060,7 +1060,7 @@ export default function PioneerSchoolLetters({
                     <button
                       onClick={saveTemplate}
                       disabled={isSaving}
-                      className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
+                      className={`w-full py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
                         saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
                       } disabled:opacity-50`}
                     >
@@ -1072,7 +1072,7 @@ export default function PioneerSchoolLetters({
                       <button
                         onClick={deletePrivateTemplate}
                         disabled={isSaving}
-                        className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                        className="w-full py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
                       >
                         {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <Trash2 size={14} />}
                         {isSaving ? 'EXCLUINDO...' : 'EXCLUIR MINHA VERSÃO'}
@@ -1085,7 +1085,7 @@ export default function PioneerSchoolLetters({
                   </div>
                 )}
                 {!file && (
-                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-xl border border-amber-50">
+                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-none border border-amber-50">
                     <p className="text-[9px] text-amber-600 font-black text-center uppercase tracking-widest leading-relaxed">
                       Selecione um arquivo .docx para atualizar o modelo <br/> deste documento no servidor.
                     </p>
@@ -1096,29 +1096,27 @@ export default function PioneerSchoolLetters({
           </div>
         )}
 
-        <div className="w-full space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+        {/* Preview Section */}
+        <div className="flex flex-col space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 border border-gray-100 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg shadow-emerald-200 text-white">
+              <div className="bg-emerald-600 p-3 rounded-none text-white">
                 <FileText size={24} />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between w-full pr-1">
-                  <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
-                </div>
-                <p className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-tight bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 w-fit">
+              <div>
+                <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
+                <p className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-tight bg-emerald-50 px-2 py-0.5 rounded-none border border-emerald-100 w-fit">
                   {ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
               {status === 'success' && !isProcessing && (
                 <>
                   <button
                     onClick={downloadAsDocx}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100"
-                    title="Baixar Original (.docx)"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-emerald-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-all font-sans"
                   >
                     <FileDown size={14} />
                     BAIXAR DOCX
@@ -1127,101 +1125,35 @@ export default function PioneerSchoolLetters({
                   <button
                     onClick={downloadAsPdf}
                     disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-[#3e5e66] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
-                    title="Baixar PDF"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all disabled:opacity-50"
                   >
-                    {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} className="text-[#facc15]" />}
+                    {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
                     BAIXAR PDF
                   </button>
                 </>
               )}
-              {needsProcessing && (
-                <button
-                  onClick={processAndPreview}
-                  disabled={isProcessing}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                  title="Gerar PDF/Prévia"
-                >
-                  {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  GERAR DOCUMENTO
-                </button>
-              )}
             </div>
           </div>
 
-          <div className="relative group">
-            <div 
-              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-none shadow-inner-lg overflow-hidden relative"
-            >
-              <div 
-                ref={previewRef} 
-                className="w-full h-full"
-                style={{ display: processedDocBuffer ? 'block' : 'block', visibility: processedDocBuffer ? 'visible' : 'hidden', position: processedDocBuffer ? 'relative' : 'absolute' }}
-              />
-
-              {!processedDocBuffer && !isProcessing && (
-                <div 
-                  className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center text-center p-8 text-gray-500 font-bold uppercase tracking-widest text-xs"
-                  dangerouslySetInnerHTML={{ __html: previewHtml || 'Selecione um template para visualizar' }}
-                />
-              )}
-            </div>
-            {isProcessing && (
-              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-none pointer-events-none">
-                <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
-              </div>
-            )}
-            {status === 'error' && (
-              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-none border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span className="text-[10px] font-bold uppercase">Erro no documento</span>
-              </div>
-            )}
-          </div>
-
-          <p className="text-[9px] text-gray-400 text-center italic">
-            * As substituições são baseadas nas Informações da Escola e Dados Pessoais. Use marcadores @DATA, @LOCAL, @INSTRUTORES, @HOJE, etc. no Word.
-          </p>
+          <div 
+            ref={previewRef} 
+            className="w-full bg-white border border-gray-200 rounded-none overflow-hidden"
+            style={{ height: '800px' }}
+          />
         </div>
       </div>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-          height: 4px;
+        .udoc-viewer-container {
+          border-radius: 0 !important;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #1A1B1E;
+        .udoc-pages {
+          background-color: #f3f4f6 !important;
+          padding: 2rem !important;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #2c2e33;
-          border-radius: 10px;
-        }
-        
-        /* DocMentis Modal Print Fix */
-        .udoc-modal-footer button {
-          position: relative;
-        }
-        .udoc-modal-footer button:after {
-          content: attr(title);
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #333;
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 10px;
-          white-space: nowrap;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.2s;
-          margin-bottom: 5px;
-          z-index: 9999;
-        }
-        .udoc-modal-footer button:hover:after {
-          opacity: 1;
+        .udoc-page {
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+          margin-bottom: 2rem !important;
         }
       `}</style>
     </div>

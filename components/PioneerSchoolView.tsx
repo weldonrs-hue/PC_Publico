@@ -1375,15 +1375,6 @@ export default function PioneerSchoolView({
                   {generating ? 'Gerando...' : 'Baixar PDF'}
                 </span>
               </button>
-              <button
-                onClick={() => window.print()}
-                disabled={generating}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#facc15] text-[#3e5e66] rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#eab308] transition-all"
-                title="Imprimir"
-              >
-                <Printer size={16} className="shrink-0" />
-                <span className="font-black">Imprimir</span>
-              </button>
             </div>
           )}
         </div>

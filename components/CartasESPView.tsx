@@ -74,7 +74,7 @@ export default function CartasESPView({ userId, isAdmin, canManage, onBack }: Ca
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-3 hover:bg-gray-100 rounded-none transition-all text-gray-500 hover:text-emerald-600 hover:scale-110 active:scale-95"
+            className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-500 hover:text-emerald-600 hover:scale-110 active:scale-95"
           >
             <ArrowLeft size={24} />
           </button>
@@ -82,21 +82,21 @@ export default function CartasESPView({ userId, isAdmin, canManage, onBack }: Ca
             <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
               Cartas ESP
             </h1>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-[12px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-none border border-emerald-100 w-fit mt-1">
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-[12px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100 w-fit mt-1">
               Escola de Pioneiros auxiliares
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-none px-2 py-1 shadow-sm">
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-2 py-1 shadow-sm">
             <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
             <div className="flex gap-1">
               {(['1', '2', '3'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setSelectedTurma(t)}
-                  className={`px-3 py-1 rounded-none text-xs font-bold transition-all ${
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                     selectedTurma === t 
                       ? 'bg-emerald-100 text-emerald-700 shadow-sm' 
                       : 'text-gray-400 hover:bg-gray-50'

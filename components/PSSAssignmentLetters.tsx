@@ -728,14 +728,15 @@ export default function PSSAssignmentLetters({
     try {
       const filename = `${selectedTemplate.replace('PSS assignment letter_', '')}_Turma${selectedTurma}.pdf`;
 
+      const viewer = viewerRef.current;
       // Optimized: Use internal viewer render engine if available for higher fidelity
-      if (viewerRef.current && typeof viewerRef.current.renderPage === 'function') {
+      if (viewer && typeof viewer.renderPage === 'function') {
         const { jsPDF } = await import('jspdf');
-        const pageCount = viewerRef.current.pageCount;
+        const pageCount = viewer.pageCount;
         
         if (pageCount > 0) {
           // Initialize PDF with the size of the first page to minimize white space
-          const firstPage = await viewerRef.current.getPageInfo(0);
+          const firstPage = await viewer.getPageInfo(0);
           const pdf = new jsPDF({
             orientation: firstPage.width > firstPage.height ? 'landscape' : 'portrait',
             unit: 'pt',
@@ -743,12 +744,12 @@ export default function PSSAssignmentLetters({
           });
 
           for (let i = 0; i < pageCount; i++) {
-            const pageInfo = await viewerRef.current.getPageInfo(i);
+            const pageInfo = await viewer.getPageInfo(i);
             if (i > 0) {
               pdf.addPage([pageInfo.width, pageInfo.height], pageInfo.width > pageInfo.height ? 'landscape' : 'portrait');
             }
 
-            const dataUrl = await viewerRef.current.renderPage(i, {
+            const dataUrl = await viewer.renderPage(i, {
               scale: 3, // High DPI capture for crisp text
               format: 'data-url',
               imageType: 'image/png'
@@ -1042,12 +1043,12 @@ export default function PSSAssignmentLetters({
             )}
           </div>
           
-          <div className="flex overflow-x-auto md:grid md:grid-cols-4 lg:grid-cols-6 gap-2 pb-2 md:pb-0 custom-scrollbar">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {TEMPLATE_NAMES.map(name => (
               <div key={name} className="relative group/card">
                 <button
                   onClick={() => setSelectedTemplate(name)}
-                  className={`w-full text-left px-3 py-2 rounded-none text-[14px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 ${
+                  className={`aspect-square w-full text-left px-3 py-4 rounded-none text-[14px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 justify-between ${
                     selectedTemplate === name 
                       ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                       : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
