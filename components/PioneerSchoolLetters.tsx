@@ -463,16 +463,20 @@ export default function PioneerSchoolLetters({
       // Pre-process all XML files in the zip (document, headers, footers)
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       
-      xmlFiles.forEach(file => {
-        let xmlContent = file.asText();
+      xmlFiles.forEach(xmlResource => {
+        let xmlContent = xmlResource.asText();
         
         // 1. Clean up common Word junk
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // Join split text nodes to improve tag detection (very common in Word)
-        xmlContent = xmlContent.replace(/<\/w:t><w:t[^>]*>/g, "");
-        xmlContent = xmlContent.replace(/<\/w:t><\/w:r><w:r[^>]*><w:t[^>]*>/g, "");
+        // Join split tags (more robust version from CongressLetters)
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        
+        // Final cleaning of common split patterns
+        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
 
         // Forceful layout fix for tables containing our form labels
         const labelCheck = /Dia:|Assinatura:|Unidade:|Instruções:|Cena:|Tempo:|Designação:|Participante\(s\):|Participan-te\(s\):/;
@@ -581,7 +585,7 @@ export default function PioneerSchoolLetters({
           return `${opening}${newText}${closing}`;
         });
 
-        zip.file(file.name, xmlContent);
+        zip.file(xmlResource.name, xmlContent);
       });
       
       // For preview, we want to show the signature text as well
