@@ -1756,10 +1756,10 @@ export default function PioneerSchoolView({
                                   <span className="flex-1 text-[12px] font-bold leading-tight">
                                     {scenario.text}
                                   </span>
-                                  <div className="shrink-0 p-0.5 print:hidden pdf-hidden">
+                                  <div className={`shrink-0 p-1.5 rounded-full shadow-sm transition-all print:hidden pdf-hidden border ${expandedScenario === scenario.id ? 'bg-[#3e5e66] text-white border-[#3e5e66]' : 'bg-white text-[#3e5e66] border-slate-200 group-hover/scenario:border-[#3e5e66]'}`}>
                                     <ChevronDown 
-                                      size={12} 
-                                      className={`transform transition-transform text-slate-400 group-hover/scenario:text-slate-600 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      size={14} 
+                                      className={`transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
                                     />
                                   </div>
                                 </div>
