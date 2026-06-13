@@ -964,31 +964,31 @@ export default function PioneerSchoolLetters({
             )}
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {ESP_TEMPLATES.map(template => (
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`aspect-square flex flex-col items-center justify-center gap-4 p-8 transition-all border-2 rounded-none ${
+                className={`flex items-center gap-4 p-4 transition-all border-2 rounded-none h-24 text-left ${
                    selectedTemplate === template.id
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-xl scale-[1.02]'
                     : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50'
                 }`}
               >
-                <div className={`p-4 rounded-none transition-colors ${selectedTemplate === template.id ? 'bg-white/20' : 'bg-emerald-50'}`}>
-                  <Mail size={40} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-600'} />
+                <div className={`p-3 rounded-none transition-colors shrink-0 ${selectedTemplate === template.id ? 'bg-white/20' : 'bg-emerald-50'}`}>
+                  <Mail size={24} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-600'} />
                 </div>
-                <div className="text-center space-y-1">
-                  <span className="block font-black uppercase tracking-tighter text-lg leading-none">{template.name}</span>
+                <div className="flex-1 space-y-1 overflow-hidden">
+                  <span className="block font-black uppercase tracking-tight text-sm leading-tight truncate">{template.name}</span>
                   {templates[template.id] ? (
-                    <div className="flex items-center justify-center gap-1.5 pt-1">
-                      <CheckCircle2 size={14} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />
-                      <span className={`text-[9px] font-black uppercase tracking-widest ${selectedTemplate === template.id ? 'text-white/80' : 'text-gray-400'}`}>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 size={12} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />
+                      <span className={`text-[8px] font-black uppercase tracking-widest ${selectedTemplate === template.id ? 'text-white/80' : 'text-gray-400'}`}>
                         {templates[template.id].isPrivate ? 'SEU MODELO' : 'GLOBAL'}
                       </span>
                     </div>
                   ) : (
-                    <span className="text-[10px] font-black uppercase tracking-widest text-red-500 pt-1">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-red-500">
                       Não configurado
                     </span>
                   )}

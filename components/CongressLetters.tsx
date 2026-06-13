@@ -60,6 +60,7 @@ export default function CongressLetters({
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
+  const [conventionDetails, setConventionDetails] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   
   // Management state
@@ -212,22 +213,30 @@ export default function CongressLetters({
     return () => unsubscribe();
   }, [userId]);
 
-  // Load personal data
+  // Load personal data and convention details
   useEffect(() => {
-    const fetchPersonalData = async () => {
+    const fetchData = async () => {
       if (!userId) return;
       try {
-        const docRef = doc(db, 'personal_data', userId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setPersonalData(docSnap.data());
+        // Fetch personal data
+        const personalDocRef = doc(db, 'personal_data', userId);
+        const personalSnap = await getDoc(personalDocRef);
+        if (personalSnap.exists()) {
+          setPersonalData(personalSnap.data());
+        }
+
+        // Fetch regional convention details
+        const convDocRef = doc(db, 'regional_convention_speakers', userId);
+        const convSnap = await getDoc(convDocRef);
+        if (convSnap.exists()) {
+          setConventionDetails(convSnap.data().details || null);
         }
       } catch (error) {
-        console.error('Error fetching personal data:', error);
+        console.error('Error fetching data:', error);
       }
     };
 
-    fetchPersonalData();
+    fetchData();
   }, [userId]);
 
   // Auto-load template when selectedTemplate or templates changes
@@ -240,7 +249,7 @@ export default function CongressLetters({
       setProcessedDocBuffer(null);
       setStatus('idle');
     }
-  }, [selectedTemplate, templates, localFileBuffer, personalData]);
+  }, [selectedTemplate, templates, localFileBuffer, personalData, conventionDetails]);
 
   const getReplacements = (signatureImage: string) => {
     const now = new Date();
@@ -252,30 +261,50 @@ export default function CongressLetters({
 
     const travelerName = personalData?.nome || '________________';
     const circuit = personalData?.circuito || '________________';
-    const signatureText = `${travelerName} (${circuit})`;
+    const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
+    const theme = conventionDetails?.conventionTheme || '________________';
+    const date = conventionDetails?.eventDate || '________________';
+    const location = conventionDetails?.eventLocation || '________________';
+    const trainingDate = conventionDetails?.trainingDate || '________________';
+    const trainingLocation = conventionDetails?.trainingLocation || '________________';
+
+    let initialDesignation = '________________';
+    if (selectedTemplate === 'cong_convite_oracao') {
+      initialDesignation = 'Oração';
+    } else if (selectedTemplate === 'cong_presidente_sessao') {
+      initialDesignation = 'Presidente de Sessão';
+    } else if (selectedTemplate === 'cong_aviso_treinamentos') {
+      initialDesignation = 'Aviso de Treinamentos';
+    }
 
     const replacements = {
+      'ANO': '2026',
+      'TEMA': theme,
+      'DATA': date,
+      'LOCAL': location,
       'data': hoje,
-      'DATA': hoje,
       'HOJE': hoje,
       'orador': '________________',
       'ORADOR': '________________',
       'congregacao': '________________',
       'CONGREGACAO': '________________',
-      'designacao': '________________',
-      'DESIGNAÇÃO': '________________',
-      'tema': '________________',
-      'TEMA': '________________',
-      'local': '________________',
-      'LOCAL': '________________',
+      'designacao': initialDesignation,
+      'DESIGNAÇÃO': initialDesignation,
+      'DESIGNACAO': initialDesignation,
+      'tema': theme,
+      'local': location,
       'viajante': travelerName,
       'VIAJANTE': travelerName,
       'NOME': travelerName,
       'circuito': circuit,
       'CIRCUITO': circuit,
-      'assinatura': signatureText,
-      'ASSINATURA': signatureText,
-      '%ASSINATURA': signatureImage && signatureImage.startsWith('data:image') ? signatureImage : '',
+      'FONE': telefoneCircuito,
+      'TELEFONE': telefoneCircuito,
+      'DATAHORA': trainingDate,
+      'LOCALTREINO': trainingLocation,
+      'assinatura': `${travelerName} (${circuit})`,
+      'ASSINATURA': signatureImage,
+      '%ASSINATURA': signatureImage,
     };
 
     return replacements;
@@ -305,24 +334,81 @@ export default function CongressLetters({
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       
       const signatureImage = personalData?.signatureImage || '';
+      const signatureName = personalData?.nome || '________________';
+      
+      const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
+      const zip = new PizZip(cleanedBuffer);
+
+      // Pre-process all XML files in the zip to handle Word-specific tag splitting and @TAG replacement
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      xmlFiles.forEach(xmlResource => {
+        let xmlContent = xmlResource.asText();
+        // Remove spell check tags that often split @TAGS
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        // Join split tags
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        
+        // Final cleaning of common split patterns
+        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
+
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          let newText = text;
+          // Handle @Assinatura specially as an image tag
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          // Generic @TAG replacement
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            return `${p1}[${p2.toUpperCase()}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        zip.file(xmlResource.name, xmlContent);
+      });
+
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
+      
+      if (isBase64Image) {
+        const img = new Image();
+        const promise = new Promise((resolve) => {
+          img.onload = resolve;
+          img.src = signatureImage;
+        });
+        await promise;
+        const aspectRatio = img.width / img.height;
+        sigHeight = 60;
+        sigWidth = sigHeight * aspectRatio;
+        if (sigWidth > 220) {
+          sigWidth = 220;
+          sigHeight = sigWidth / aspectRatio;
+        }
+      }
+
       const imgOpts: any = {
         centered: false,
         getImage: (tagValue: string) => {
-          if (!tagValue || !tagValue.startsWith('data:image')) return null;
-          const base64Data = tagValue.split(',')[1];
-          const binaryStringArray = window.atob(base64Data);
-          const len = binaryStringArray.length;
-          const bytesArray = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            const binaryStringArray = window.atob(base64Data);
+            const len = binaryStringArray.length;
+            const bytesArray = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding image:', e);
+            return null;
           }
-          return bytesArray.buffer;
         },
-        getSize: () => [150, 60],
+        getSize: () => [sigWidth, sigHeight],
       };
-
-      const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
-      const zip = new PizZip(cleanedBuffer);
       
       const replacements = getReplacements(signatureImage);
       
@@ -484,26 +570,26 @@ export default function CongressLetters({
             )}
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {CONGRESSO_TEMPLATES.map(t => (
               <button
                 key={t.id}
                 onClick={() => setSelectedTemplate(t.id)}
-                className={`aspect-square flex flex-col items-center justify-center gap-4 p-8 transition-all border-2 rounded-none ${
+                className={`flex items-center gap-4 p-4 transition-all border-2 rounded-none h-24 text-left ${
                    selectedTemplate === t.id
                     ? 'bg-violet-600 text-white border-violet-600 shadow-xl scale-[1.02]'
                     : 'bg-white text-gray-600 border-gray-100 hover:border-violet-200 hover:bg-violet-50'
                 }`}
               >
-                <div className={`p-4 rounded-none transition-colors ${selectedTemplate === t.id ? 'bg-white/20' : 'bg-violet-50'}`}>
-                  <Mail size={40} className={selectedTemplate === t.id ? 'text-white' : 'text-violet-600'} />
+                <div className={`p-3 rounded-none transition-colors shrink-0 ${selectedTemplate === t.id ? 'bg-white/20' : 'bg-violet-50'}`}>
+                  <Mail size={24} className={selectedTemplate === t.id ? 'text-white' : 'text-violet-600'} />
                 </div>
-                <div className="text-center space-y-1">
-                  <span className="block font-black uppercase tracking-tighter text-lg leading-none">{t.name}</span>
+                <div className="flex-1 space-y-1 overflow-hidden">
+                  <span className="block font-black uppercase tracking-tight text-sm leading-tight truncate">{t.name}</span>
                   {templates[t.id] && (
-                    <div className="flex items-center justify-center gap-1.5 pt-1">
-                      <CheckCircle2 size={14} className={selectedTemplate === t.id ? 'text-white' : 'text-emerald-500'} />
-                      <span className={`text-[9px] font-black uppercase tracking-widest ${selectedTemplate === t.id ? 'text-white/80' : 'text-gray-400'}`}>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 size={12} className={selectedTemplate === t.id ? 'text-white' : 'text-emerald-500'} />
+                      <span className={`text-[8px] font-black uppercase tracking-widest ${selectedTemplate === t.id ? 'text-white/80' : 'text-gray-400'}`}>
                         {templates[t.id].isPrivate ? 'SEU MODELO' : 'GLOBAL'}
                       </span>
                     </div>

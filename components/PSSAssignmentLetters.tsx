@@ -1043,30 +1043,35 @@ export default function PSSAssignmentLetters({
             )}
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {TEMPLATE_NAMES.map(name => (
               <div key={name} className="relative group/card">
                 <button
                   onClick={() => setSelectedTemplate(name)}
-                  className={`aspect-square w-full text-left px-3 py-4 rounded-none text-[14px] font-black transition-all uppercase tracking-tighter border-2 flex flex-col gap-1 justify-between ${
+                  className={`w-full text-left p-4 rounded-none h-20 transition-all border-2 flex items-center gap-3 ${
                     selectedTemplate === name 
                       ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                       : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1 w-full">
-                    <span className="truncate">{name.replace('PSS assignment letter_T_', 'WS ')}</span>
-                    {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
+                  <div className={`p-2 rounded-none transition-colors shrink-0 ${selectedTemplate === name ? 'bg-white/20' : 'bg-blue-50'}`}>
+                    <Mail size={20} className={selectedTemplate === name ? 'text-white' : 'text-blue-600'} />
                   </div>
-                  {templates[name] && (
-                    <span className={`text-[8px] px-1.5 py-0.5 rounded-none w-fit ${
-                      templates[name].isPrivate 
-                        ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
-                        : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
-                    }`}>
-                      {templates[name].isPrivate ? 'SEU MODELO' : 'GLOBAL PROGCIR'}
-                    </span>
-                  )}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center justify-between gap-1 w-full">
+                      <span className="truncate font-black uppercase tracking-tighter text-[13px]">{name.replace('PSS assignment letter_T_', 'WS ')}</span>
+                      {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
+                    </div>
+                    {templates[name] && (
+                      <span className={`text-[7px] px-1.5 py-0.5 rounded-none font-black uppercase tracking-widest leading-none ${
+                        templates[name].isPrivate 
+                          ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
+                          : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
+                      }`}>
+                        {templates[name].isPrivate ? 'SEU MODELO' : 'GLOBAL'}
+                      </span>
+                    )}
+                  </div>
                 </button>
 
                 {canManage && isAdmin && (
