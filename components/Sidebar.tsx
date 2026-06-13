@@ -183,7 +183,12 @@ export default function Sidebar({
           <div className="bg-white/10 backdrop-blur-md p-1.5 lg:p-2 rounded-2xl shadow-xl w-full relative h-14 lg:h-16 flex items-center justify-center lg:justify-start lg:px-4 border border-white/20 overflow-hidden group">
             <div className="relative">
               <div className="absolute inset-0 bg-[#C084FC] blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
-              <Logo iconSize={30} textSize="text-xl" className="relative z-10 lg:gap-3" showText={true} />
+              <Logo 
+                iconSize="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10" 
+                textSize="text-sm sm:text-base lg:text-xl" 
+                className="relative z-10 lg:gap-3" 
+                showText={true} 
+              />
             </div>
           </div>
         </div>

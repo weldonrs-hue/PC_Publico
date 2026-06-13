@@ -715,7 +715,7 @@ export default function Home() {
         
         {/* Mobile Header (Hidden in portrait mode as requested) */}
         {/* <div className="md:hidden portrait:flex fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-[#2E1065] to-[#4C1D95] z-[1000] items-center px-4 border-b border-white/10 shadow-lg landscape:hidden">
-          <Logo iconSize={32} textSize="text-xl" />
+          <Logo iconSize="w-8 h-8" textSize="text-xl" />
         </div> */}
 
         {/* Adjust spacing for mobile header - removed portrait padding */}
@@ -976,7 +976,7 @@ export default function Home() {
             <CartasESPView 
               userId={user.id}
               isAdmin={user.role === 'admin'}
-              canManage={user?.role === 'admin' || appConfig.allowESPUploadForAll}
+              canManage={true}
               initialMode={espInitialMode}
               onBack={() => changeView('cartas')}
             />
@@ -1029,7 +1029,7 @@ export default function Home() {
             <CartasCongressoView 
               userId={user.id}
               isAdmin={user.role === 'admin'}
-              canManage={user?.role === 'admin' || appConfig.allowCongressoUploadForAll}
+              canManage={true}
               initialMode={congressoInitialMode}
               onBack={() => changeView('cartas')}
             />

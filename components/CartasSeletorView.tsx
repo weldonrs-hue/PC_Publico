@@ -96,7 +96,7 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {options.map((option, index) => {
-          const canManage = isAdmin || (option.uploadKey && (appConfig as any)?.[option.uploadKey]);
+          const canManage = isAdmin || (option.uploadKey && (appConfig as any)?.[option.uploadKey]) || (option.id === 'esp' || option.id === 'congresso');
           
           return (
             <motion.div

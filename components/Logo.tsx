@@ -2,7 +2,7 @@
 
 interface LogoProps {
   className?: string;
-  iconSize?: number;
+  iconSize?: number | string;
   textSize?: string;
   showText?: boolean;
   forceShowText?: boolean;
@@ -19,12 +19,16 @@ export default function Logo({
   textColor = '#FFFFFF',
   outlineColor = '#FFFFFF'
 }: LogoProps) {
+  // Determine if iconSize is a number or a class string
+  const iconSizingClass = typeof iconSize === 'string' ? iconSize : '';
+  const iconInlineStyle = typeof iconSize === 'number' ? { width: iconSize, height: iconSize } : {};
+
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex items-center gap-2 md:gap-3 ${className}`}>
       {/* Brand Icon - Using the new ProgCir_Ico.svg */}
       <div 
-        className="relative flex-shrink-0 flex items-center justify-center" 
-        style={{ width: iconSize, height: iconSize }}
+        className={`relative flex-shrink-0 flex items-center justify-center ${iconSizingClass}`} 
+        style={iconInlineStyle}
       >
         <img 
           src="/ProgCir_Ico.svg" 
@@ -41,17 +45,17 @@ export default function Logo({
             <span 
               className="ml-[1px]" 
               style={{ 
-                WebkitTextStroke: `1.2px ${outlineColor}`, 
+                WebkitTextStroke: `calc(1px + 0.05em) ${outlineColor}`, 
                 color: 'transparent',
                 opacity: 0.95
               }}
             >
               Cir
             </span>
-            <span className={`${forceShowText ? 'inline' : 'hidden xl:inline'} ml-1.5`} style={{ color: textColor }}>Web</span>
+            <span className={`${forceShowText ? 'inline' : 'hidden xl:inline'} ml-1 md:ml-1.5`} style={{ color: textColor }}>Web</span>
           </div>
           <div 
-            className={`${forceShowText ? 'block' : 'hidden xl:block'} text-[#C084FC] font-black text-[10px] uppercase tracking-[0.2em] mt-0.5`}
+            className={`${forceShowText ? 'block' : 'hidden xl:block'} text-[#C084FC] font-black text-[8px] md:text-[10px] uppercase tracking-[0.15em] md:tracking-[0.2em] mt-0.5`}
             style={{ filter: 'drop-shadow(0 0 8px rgba(192, 132, 252, 0.3))' }}
           >
             Web Interface
@@ -62,7 +66,7 @@ export default function Logo({
       {/* Medium size text variant (ICO + ProgCir) - Visible on medium screens if not forced */}
       {showText && !forceShowText && (
         <div className="hidden sm:flex lg:hidden flex-col leading-none select-none">
-          <div className={`flex items-center font-bold tracking-tight text-lg font-sans`}>
+          <div className={`flex items-center font-bold tracking-tight text-base md:text-lg font-sans`}>
             <span style={{ color: textColor }}>Prog</span>
             <span 
               className="ml-[1px]" 

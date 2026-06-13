@@ -64,7 +64,7 @@ export default function CongressLetters({
   const [generating, setGenerating] = useState(false);
   
   // Management state
-  const [isManaging, setIsManaging] = useState(initialMode === 'manager' && isAdmin);
+  const [isManaging, setIsManaging] = useState(initialMode === 'manager' && (isAdmin || canManage));
   const [file, setFile] = useState<File | null>(null);
   const [localFileBuffer, setLocalFileBuffer] = useState<ArrayBuffer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -555,7 +555,7 @@ export default function CongressLetters({
               Selecione o Modelo de Carta
             </h3>
             
-            {canManage && isAdmin && (
+            {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${

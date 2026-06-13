@@ -132,7 +132,13 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
               animate={{ scale: 1 }}
               className="mb-4 flex justify-center"
             >
-              <Logo iconSize={48} textSize="text-3xl" textColor="#4C1D95" outlineColor="#4C1D95" forceShowText={true} />
+              <Logo 
+                iconSize="w-10 h-10 md:w-12 md:h-12" 
+                textSize="text-2xl md:text-3xl" 
+                textColor="#4C1D95" 
+                outlineColor="#4C1D95" 
+                forceShowText={true} 
+              />
             </motion.div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">Acesso ao Sistema ProgCir</h1>
             <p className="text-gray-500 text-xs mt-1.5">
