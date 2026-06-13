@@ -225,8 +225,26 @@ export default function FileViewer({ onBack }: FileViewerProps) {
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col bg-[#1A1B1E] text-white">
+    <div 
+      className="h-full flex flex-col bg-[#1A1B1E] text-white"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {/* Minimal Header */}
       <div className="bg-[#2C2E33] border-b border-[#373A40] px-4 py-2 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">
