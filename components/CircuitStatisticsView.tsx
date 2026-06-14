@@ -13,7 +13,8 @@ import {
   FileDown,
   Download,
   Activity,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  ChevronDown
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -84,6 +85,9 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   const [stats, setStats] = useState<any>(null);
   const [congCount, setCongCount] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [showCharts, setShowCharts] = useState(true);
+  const [showComposition, setShowComposition] = useState(true);
+  const [showAttendance, setShowAttendance] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -480,79 +484,123 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         </div>
 
         {/* Dynamic Charts Section - Hidden in Print */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
-          <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px]">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-sky-100 text-sky-600 rounded-xl">
-                <PieChartIcon size={20} />
-              </div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Composição do Circuito</h3>
-            </div>
-            <div className="flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: 'Publicadores', value: stats.ministério.publicadores.relatando },
-                      { name: 'Pio. Regulares', value: stats.ministério.pioneirosRegulares.relatando },
-                      { name: 'Pio. Especiais', value: stats.ministério.pioneirosEspeciais.relatando },
-                      { name: 'Pio. Auxiliares', value: stats.ministério.pioneirosAuxiliares.relatando },
-                    ]}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {[
-                      '#0EA5E9', // Sky
-                      '#8B5CF6', // Violet
-                      '#F59E0B', // Amber
-                      '#10B981', // Emerald
-                    ].map((color, index) => (
-                      <Cell key={`cell-${index}`} fill={color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-                  />
-                  <Legend verticalAlign="bottom" height={36}/>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+        <div className="space-y-4 print:hidden">
+          <button 
+            onClick={() => setShowCharts(!showCharts)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all text-xs font-bold uppercase tracking-widest text-gray-600 shadow-sm"
+          >
+            <BarChart3 size={16} className="text-sky-500" />
+            {showCharts ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}
+            <ChevronDown size={16} className={`transform transition-transform ${showCharts ? 'rotate-180' : ''}`} />
+          </button>
 
-          <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px]">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-violet-100 text-violet-600 rounded-xl">
-                <Activity size={20} />
-              </div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Assistência às Reuniões</h3>
-            </div>
-            <div className="flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={[
-                    { name: 'Meio de Semana', valor: Math.round(stats.reunioes.meioSemana) },
-                    { name: 'Fim de Semana', valor: Math.round(stats.reunioes.fimSemana) },
-                    { name: 'Não Publicadores', valor: Math.max(0, circuitDifferenceVal) },
-                  ]}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          {showCharts && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            >
+              <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px] relative">
+                <button 
+                  onClick={() => setShowComposition(!showComposition)}
+                  className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg transition-all text-gray-400 hover:text-gray-600"
+                  title={showComposition ? "Fechar" : "Abrir"}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
-                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
-                    <Cell fill="#8B5CF6" />
-                    <Cell fill="#3B82F6" />
-                    <Cell fill="#F59E0B" />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+                  <ChevronDown size={20} className={`transform transition-transform ${showComposition ? 'rotate-180' : ''}`} />
+                </button>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 bg-sky-100 text-sky-600 rounded-xl">
+                    <PieChartIcon size={20} />
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Composição do Circuito</h3>
+                </div>
+                {showComposition ? (
+                  <div className="flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Publicadores', value: stats.ministério.publicadores.relatando },
+                            { name: 'Pio. Regulares', value: stats.ministério.pioneirosRegulares.relatando },
+                            { name: 'Pio. Especiais', value: stats.ministério.pioneirosEspeciais.relatando },
+                            { name: 'Pio. Auxiliares', value: stats.ministério.pioneirosAuxiliares.relatando },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {[
+                            '#0EA5E9', // Sky
+                            '#8B5CF6', // Violet
+                            '#F59E0B', // Amber
+                            '#10B981', // Emerald
+                          ].map((color, index) => (
+                            <Cell key={`cell-${index}`} fill={color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                        />
+                        <Legend verticalAlign="bottom" height={36}/>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-gray-400 italic text-xs">
+                    Gráfico minimizado
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px] relative">
+                <button 
+                  onClick={() => setShowAttendance(!showAttendance)}
+                  className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg transition-all text-gray-400 hover:text-gray-600"
+                  title={showAttendance ? "Fechar" : "Abrir"}
+                >
+                  <ChevronDown size={20} className={`transform transition-transform ${showAttendance ? 'rotate-180' : ''}`} />
+                </button>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 bg-violet-100 text-violet-600 rounded-xl">
+                    <Activity size={20} />
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Assistência às Reuniões</h3>
+                </div>
+                {showAttendance ? (
+                  <div className="flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={[
+                          { name: 'Meio de Semana', valor: Math.round(stats.reunioes.meioSemana) },
+                          { name: 'Fim de Semana', valor: Math.round(stats.reunioes.fimSemana) },
+                          { name: 'Não Publicadores', valor: Math.max(0, circuitDifferenceVal) },
+                        ]}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                        <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                        <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
+                          <Cell fill="#8B5CF6" />
+                          <Cell fill="#3B82F6" />
+                          <Cell fill="#F59E0B" />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-gray-400 italic text-xs">
+                    Gráfico minimizado
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Section 1: Ministry Averages */}
