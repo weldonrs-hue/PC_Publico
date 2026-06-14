@@ -278,9 +278,10 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
   const avgFimSemana = calculateAverageReunioes(data.reunioes.fimSemana);
   const avgMeioSemana = calculateAverageReunioes(data.reunioes.meioSemana);
   const pubAtivosNum = parseInt(data.pubAtivos) || 0;
-  const difference = avgFimSemana - pubAtivosNum;
-  const percentageRaw = pubAtivosNum > 0 ? (difference / pubAtivosNum) * 100 : 0;
+  const differenceVal = avgFimSemana - pubAtivosNum;
+  const percentageRaw = pubAtivosNum > 0 ? (differenceVal / pubAtivosNum) * 100 : 0;
   const percentageFormatted = percentageRaw.toFixed(1).replace('.', ',');
+  const sign = differenceVal >= 0 ? '+' : '';
 
   // Calculate sum of studies automatically
   const totalEstudos = Object.values(data.ministério).reduce((acc, curr) => acc + (parseInt(curr.estudos) || 0), 0);
@@ -828,9 +829,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                     </div>
 
                     <div className="col-span-2 mt-4 bg-[#4f46e5] p-3 rounded-xl text-center text-white shadow-md shadow-indigo-100">
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1">Porcentagem sobre nº de Publicadores</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1">Diferença do número de publicadores</p>
                       <p className="font-[var(--font-manrope)] font-bold text-xl">
-                        {percentageRaw > 0 ? `+${percentageFormatted}%` : `${percentageFormatted}%`}
+                        {sign}{differenceVal} ({sign}{percentageFormatted}%)
                       </p>
                     </div>
                   </div>

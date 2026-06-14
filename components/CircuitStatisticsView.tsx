@@ -152,6 +152,8 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           reunioes: {
             meioSemana: 0,
             fimSemana: 0,
+            differenceSum: 0, // Sum of differences for congregations with attendance data
+            pubsWithAttendanceSum: 0, // Sum of publishers for congregations with attendance data
           },
           donativos: {
             congregacao: 0,
@@ -162,7 +164,8 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         congregations.forEach(cong => {
           if (!cong || !cong.congregacao) return;
           
-          totals.pubAtivos += parseInt(cong.pubAtivos) || 0;
+          const congPubs = parseInt(cong.pubAtivos) || 0;
+          totals.pubAtivos += congPubs;
           
           if (cong.ministério) {
             Object.keys(cong.ministério).forEach(key => {
@@ -182,8 +185,17 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
           }
 
           if (cong.reunioes) {
-            totals.reunioes.meioSemana += calculateAverage(cong.reunioes.meioSemana || []);
-            totals.reunioes.fimSemana += calculateAverage(cong.reunioes.fimSemana || []);
+            const avgMeio = calculateAverage(cong.reunioes.meioSemana || []);
+            const avgFim = calculateAverage(cong.reunioes.fimSemana || []);
+            
+            totals.reunioes.meioSemana += avgMeio;
+            totals.reunioes.fimSemana += avgFim;
+
+            // Only aggregate for difference if there is attendance data
+            if (avgFim > 0) {
+              totals.reunioes.differenceSum += (avgFim - congPubs);
+              totals.reunioes.pubsWithAttendanceSum += congPubs;
+            }
           }
 
           if (cong.donativos) {
@@ -259,6 +271,11 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       </div>
     );
   }
+
+  const circuitDifferenceVal = Math.round(stats.reunioes.differenceSum);
+  const circuitPercentageRaw = stats.reunioes.pubsWithAttendanceSum > 0 ? (circuitDifferenceVal / stats.reunioes.pubsWithAttendanceSum) * 100 : 0;
+  const circuitPercentageFormatted = circuitPercentageRaw.toFixed(1).replace('.', ',');
+  const circuitSign = circuitDifferenceVal >= 0 ? '+' : '';
 
   const crescimento = stats.estatisticas.novosPublicadores + stats.estatisticas.reativados + stats.estatisticas.readmitidos;
   const decrescimo = stats.estatisticas.inativos + stats.estatisticas.removidos;
@@ -519,7 +536,7 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
                   data={[
                     { name: 'Meio de Semana', valor: Math.round(stats.reunioes.meioSemana) },
                     { name: 'Fim de Semana', valor: Math.round(stats.reunioes.fimSemana) },
-                    { name: 'Não Publicadores', valor: Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos) },
+                    { name: 'Não Publicadores', valor: Math.max(0, circuitDifferenceVal) },
                   ]}
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 >
@@ -649,13 +666,10 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
               <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">FIM DE SEMANA</span></span>
               <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.fimSemana)}</div>
             </div>
-            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 bg-[#fdf5e6]">
+            <div className="grid grid-cols-[1fr_240px] items-center py-1.5 bg-[#fdf5e6]">
               <span className="font-normal text-gray-800 text-[20px] uppercase pl-1">Média dos que assistem a reunião e <span className="font-bold">NÃO SÃO</span> Publicadores:</span>
-              <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">
-                {Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos).toFixed(1).replace('.', ',')}
-              </div>
               <div className="text-center font-bold text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
-                {stats.pubAtivos > 0 ? (Math.max(0, Math.round(stats.reunioes.fimSemana) - stats.pubAtivos) / stats.pubAtivos * 100).toFixed(1).replace('.', ',') : '0,0'}%
+                {circuitSign}{circuitDifferenceVal} ({circuitSign}{circuitPercentageFormatted}%)
               </div>
             </div>
           </div>
