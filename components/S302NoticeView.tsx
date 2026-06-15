@@ -29,7 +29,7 @@ import { motion } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-import { toJpeg } from 'html-to-image';
+import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
 import SignaturePad from './SignaturePad';

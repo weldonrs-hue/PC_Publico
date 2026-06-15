@@ -225,14 +225,30 @@ export default function FileViewer({ onBack }: FileViewerProps) {
     }
   };
 
+  const [isDragging, setIsDragging] = useState(false);
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
@@ -241,10 +257,28 @@ export default function FileViewer({ onBack }: FileViewerProps) {
 
   return (
     <div 
-      className="h-full flex flex-col bg-[#1A1B1E] text-white"
+      className="h-full flex flex-col bg-[#1A1B1E] text-white relative"
       onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Drag Overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-blue-600/20 backdrop-blur-sm border-4 border-dashed border-blue-500 m-4 rounded-3xl flex flex-col items-center justify-center pointer-events-none"
+          >
+            <div className="bg-blue-600 p-6 rounded-full shadow-2xl text-white mb-4">
+              <Upload size={48} className="animate-bounce" />
+            </div>
+            <h3 className="text-2xl font-black uppercase tracking-tighter">Solte para abrir</h3>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Minimal Header */}
       <div className="bg-[#2C2E33] border-b border-[#373A40] px-4 py-2 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-3">

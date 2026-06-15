@@ -168,12 +168,10 @@ export default function DraggableSignature({
         <div className={`relative w-full h-full`}>
           {/* Signature Image */}
           <div className="w-full h-full relative">
-            <Image 
+            <img 
               src={image} 
               alt="Assinatura" 
-              fill 
-              className="object-contain" 
-              referrerPolicy="no-referrer"
+              className="w-full h-full object-contain" 
               draggable={false}
             />
           </div>

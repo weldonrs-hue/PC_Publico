@@ -35,6 +35,21 @@ interface MinistryActivity {
   estudos: string;
 }
 
+interface IndividualPioneer {
+  id: string;
+  nome: string;
+  horas: string[];
+  totalHoras: number;
+  metaTotal: number;
+  diferenca: number;
+  mensal: {
+    mes: number;
+    horas: number;
+    meta: number;
+    diferenca: number;
+  }[];
+}
+
 interface AnalysisData {
   congregacao: string;
   congregacaoId?: string;
@@ -46,6 +61,7 @@ interface AnalysisData {
     pioneirosRegulares: MinistryActivity;
     pioneirosEspeciais: MinistryActivity;
   };
+  pioneirosIndividuais?: IndividualPioneer[];
   estatisticas: {
     mediaEstudos: number;
     dirigemEstudos: number;
@@ -80,6 +96,7 @@ const defaultData: AnalysisData = {
     pioneirosRegulares: { relatando: '', estudos: '' },
     pioneirosEspeciais: { relatando: '', estudos: '' },
   },
+  pioneirosIndividuais: [],
   estatisticas: {
     mediaEstudos: 0,
     dirigemEstudos: 0,
@@ -120,7 +137,12 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
     field: keyof MinistryActivity;
     label: string;
   } | null>(null);
-  const [calcValues, setCalcValues] = useState<string[]>(['', '', '', '', '', '']);
+  const [showPioneerModal, setShowPioneerModal] = useState(false);
+  const [editingPioneer, setEditingPioneer] = useState<IndividualPioneer | null>(null);
+  const [pioneerName, setPioneerName] = useState('');
+  const [pioneerHours, setPioneerHours] = useState<string[]>(Array(12).fill(''));
+  const [calcValues, setCalcValues] = useState<string[]>(Array(12).fill(''));
+  const [showSavedPioneers, setShowSavedPioneers] = useState(false);
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -398,6 +420,75 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
     setCalcModal(null);
   };
 
+  const handleOpenPioneerCalculator = (pioneer?: IndividualPioneer) => {
+    if (pioneer) {
+      setEditingPioneer(pioneer);
+      setPioneerName(pioneer.nome);
+      setPioneerHours(pioneer.horas.length === 12 ? pioneer.horas : [...pioneer.horas, ...Array(12 - pioneer.horas.length).fill('')]);
+    } else {
+      setEditingPioneer(null);
+      setPioneerName('');
+      setPioneerHours(Array(12).fill(''));
+    }
+    setShowPioneerModal(true);
+  };
+
+  const handleSavePioneerRaw = () => {
+    if (!pioneerName.trim()) {
+      alert('Por favor, insira o nome do pioneiro.');
+      return;
+    }
+
+    const monthlyTarget = 50;
+    const activeMonthsIndices = pioneerHours.map((h, i) => h.trim() !== '' ? i : -1).filter(i => i !== -1);
+    const numActiveMonths = activeMonthsIndices.length;
+
+    if (numActiveMonths === 0) {
+      alert('Por favor, insira horas em pelo menos um mês.');
+      return;
+    }
+
+    const hours = pioneerHours.map(h => parseFloat(h) || 0);
+    const totalDone = hours.reduce((acc, curr) => acc + curr, 0);
+    const totalTarget = numActiveMonths * monthlyTarget;
+
+    const monthlyStats = pioneerHours.map((h, i) => ({
+      mes: i + 1,
+      horas: parseFloat(h) || 0,
+      meta: h.trim() !== '' ? monthlyTarget : 0,
+      diferenca: h.trim() !== '' ? (parseFloat(h) || 0) - monthlyTarget : 0
+    })).filter(stat => stat.meta > 0);
+
+    const newPioneer: IndividualPioneer = {
+      id: editingPioneer?.id || Date.now().toString(),
+      nome: pioneerName,
+      horas: pioneerHours,
+      totalHoras: totalDone,
+      metaTotal: totalTarget,
+      diferenca: totalDone - totalTarget,
+      mensal: monthlyStats
+    };
+
+    setIsDirty(true);
+    setData(prev => ({
+      ...prev,
+      pioneirosIndividuais: editingPioneer 
+        ? (prev.pioneirosIndividuais || []).map(p => p.id === editingPioneer.id ? newPioneer : p)
+        : [...(prev.pioneirosIndividuais || []), newPioneer]
+    }));
+    setShowPioneerModal(false);
+  };
+
+  const handleDeletePioneer = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta média individual?')) {
+      setIsDirty(true);
+      setData(prev => ({
+        ...prev,
+        pioneirosIndividuais: (prev.pioneirosIndividuais || []).filter(p => p.id !== id)
+      }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
@@ -609,7 +700,21 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
 
                           return (
                             <tr key={item.id} className={`border-b border-[#c7c4d8]/20 ${idx % 2 === 1 ? 'bg-[#f9f9ff]/50' : ''}`}>
-                              <td className="py-3 px-4 text-[#111c2d] font-semibold">{item.label}</td>
+                              <td className="py-3 px-4 text-[#111c2d] font-semibold">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{item.label}</span>
+                                  {item.id === 'pioneirosRegulares' && (
+                                    <button 
+                                      onClick={() => handleOpenPioneerCalculator()}
+                                      className="p-1 text-[#3525cd] hover:bg-[#3525cd] hover:text-white rounded-lg transition-all print:hidden flex items-center gap-1 text-[10px]"
+                                      title="Médias Individuais"
+                                    >
+                                      <Users size={14} />
+                                      <Plus size={10} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
                               <td className="py-2 px-2">
                                 <div className="relative flex items-center justify-center group">
                                   <input 
@@ -649,6 +754,71 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Individual Pioneer Records List - Only visible on screen */}
+                  {data.pioneirosIndividuais && data.pioneirosIndividuais.length > 0 && (
+                    <div className="mt-4 space-y-2 print:hidden">
+                      <button 
+                        onClick={() => setShowSavedPioneers(!showSavedPioneers)}
+                        className="w-full flex items-center justify-between px-4 py-2 bg-white border border-[#c7c4d8]/40 rounded-xl hover:bg-gray-50 transition-all group"
+                      >
+                        <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                          <Users size={14} className="text-[#3525cd]" /> Médias de Pioneiros Salvas
+                        </h3>
+                        <div className={`transition-transform duration-300 ${showSavedPioneers ? 'rotate-180' : ''}`}>
+                          <ChevronLeft className="-rotate-90" size={16} />
+                        </div>
+                      </button>
+                      
+                      <AnimatePresence>
+                        {showSavedPioneers && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                              {data.pioneirosIndividuais.map(p => (
+                                <div 
+                                  key={p.id} 
+                                  className="bg-white border border-[#c7c4d8]/40 rounded-xl p-3 flex items-center justify-between shadow-sm group hover:border-[#3525cd]/50 transition-all"
+                                >
+                                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenPioneerCalculator(p)}>
+                                    <p className="font-bold text-gray-800 text-xs truncate">{p.nome}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md font-bold">
+                                        {p.totalHoras}h / {p.metaTotal}h
+                                      </span>
+                                      <span className={`text-[10px] font-bold ${p.diferenca >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {p.diferenca >= 0 ? '+' : ''}{p.diferenca}h
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button 
+                                      onClick={() => handleOpenPioneerCalculator(p)}
+                                      className="p-1.5 text-gray-400 hover:text-[#3525cd] transition-all"
+                                      title="Editar"
+                                    >
+                                      <Calculator size={14} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeletePioneer(p.id)}
+                                      className="p-1.5 text-gray-400 hover:text-red-600 transition-all"
+                                      title="Excluir"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
                 </section>
 
                 {/* Estatísticas da Congregação Table */}
@@ -898,6 +1068,135 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                     Continuar Editando
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Individual Pioneer Calculator Modal */}
+      <AnimatePresence>
+        {showPioneerModal && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="bg-[#3525cd] p-4 text-white flex justify-between items-center shrink-0">
+                <h3 className="font-bold flex items-center gap-2">
+                  <Calculator size={24} /> Média de Pioneiro Individual
+                </h3>
+                <button onClick={() => setShowPioneerModal(false)} className="hover:bg-white/20 p-1 rounded-full">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-6">
+                {/* Identification */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block">Nome / Identificação</label>
+                  <input 
+                    type="text"
+                    value={pioneerName}
+                    onChange={(e) => setPioneerName(e.target.value)}
+                    placeholder="Ex: João Silva"
+                    className="w-full p-3 bg-gray-50 border border-[#c7c4d8]/40 rounded-xl font-bold text-gray-800 focus:border-[#3525cd] focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                {/* 12 Months Input */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Relatório Anual (12 Meses)</h4>
+                    <span className="text-[10px] bg-[#e2dfff] text-[#3525cd] px-2 py-1 rounded-md font-bold uppercase">Meta: 50h/mês</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                    {pioneerHours.map((val, idx) => {
+                      const hNum = parseFloat(val) || 0;
+                      const hasValue = val.trim() !== '';
+                      const diff = hasValue ? hNum - 50 : 0;
+                      return (
+                        <div key={idx} className={`p-3 rounded-2xl border transition-all flex flex-col gap-1 ${hasValue ? 'bg-white border-[#3525cd]/30 shadow-sm' : 'bg-gray-50 border-transparent opacity-60'}`}>
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center">Mês {idx + 1}</label>
+                          <input 
+                            type="number"
+                            value={val}
+                            onChange={(e) => {
+                              const newHours = [...pioneerHours];
+                              newHours[idx] = e.target.value;
+                              setPioneerHours(newHours);
+                            }}
+                            className="w-full p-1 bg-transparent rounded-lg text-center font-bold text-[#3525cd] outline-none text-sm"
+                            placeholder="0"
+                          />
+                          {hasValue && (
+                            <div className={`text-[9px] font-bold text-center ${diff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {diff >= 0 ? '+' : ''}{diff}h
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Totals Summary */}
+                <div className="bg-[#f0f3ff] p-5 rounded-2xl border border-[#3525cd]/10 flex flex-col sm:flex-row gap-6 sm:items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Acumulado</p>
+                    <div className="flex items-baseline gap-2">
+                       {(() => {
+                        const total = pioneerHours.map(h => parseFloat(h) || 0).reduce((a, b) => a + b, 0);
+                        const count = pioneerHours.filter(h => h.trim() !== '').length;
+                        const target = count * 50;
+                        return (
+                          <>
+                            <span className="text-3xl font-black text-[#3525cd]">{total}h</span>
+                            <span className="text-sm font-bold text-gray-400">/ {target}h ({count} meses)</span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  
+                  <div className="h-px sm:h-12 w-full sm:w-px bg-[#c7c4d8]/30"></div>
+                  
+                  <div className="text-right sm:text-right">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Diferença Total</p>
+                    {(() => {
+                      const total = pioneerHours.map(h => parseFloat(h) || 0).reduce((a, b) => a + b, 0);
+                      const count = pioneerHours.filter(h => h.trim() !== '').length;
+                      const diff = count > 0 ? total - (count * 50) : 0;
+                      return (
+                        <span className={`text-2xl font-black ${diff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {diff >= 0 ? '+' : ''}{diff}h
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-gray-400 italic text-center">
+                  * A meta anual é de 600 horas, o que equivale a 50 horas mensais para pioneiros regulares.
+                </p>
+              </div>
+
+              <div className="p-6 bg-gray-50 border-t border-[#c7c4d8]/20 flex gap-3 shrink-0">
+                <button 
+                  onClick={() => setShowPioneerModal(false)}
+                  className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all border border-transparent"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSavePioneerRaw}
+                  className="flex-[2] py-3 rounded-xl font-bold bg-[#3525cd] text-white hover:bg-[#2a1da3] transition-all flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Save size={18} /> {editingPioneer ? 'Salvar Alterações' : 'Salvar Média Individual'}
+                </button>
               </div>
             </motion.div>
           </div>

@@ -836,10 +836,9 @@ export default function PioneerSchoolView({
   };
 
   const handleDownloadPDF = async () => {
-    const headerElement = document.getElementById('pdf-header');
-    const contentElement = document.getElementById('pdf-content');
+    const element = document.getElementById('pioneer-school-report');
     
-    if (!headerElement || !contentElement) {
+    if (!element) {
       alert('Erro: Não foi possível localizar o conteúdo do relatório para gerar o PDF.');
       return;
     }
@@ -849,119 +848,56 @@ export default function PioneerSchoolView({
       const { toPng } = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
-      // Capture Header
-      headerElement.classList.add('pdf-capture-header');
-      const headerDataUrl = await toPng(headerElement, { 
-        pixelRatio: 3, 
-        backgroundColor: '#ffffff'
+      // Add capture class
+      element.classList.add('pdf-capture');
+
+      // Convert to PNG
+      const dataUrl = await toPng(element, { 
+        quality: 0.9,
+        pixelRatio: 1.5, 
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
       });
-      headerElement.classList.remove('pdf-capture-header');
-
-      // Capture the whole content
-      contentElement.classList.add('pdf-capture-content');
-      const contentDataUrl = await toPng(contentElement, { 
-        pixelRatio: 3, 
-        backgroundColor: '#ffffff'
-      });
-      contentElement.classList.remove('pdf-capture-content');
-
-      const headerImg = new Image();
-      headerImg.src = headerDataUrl;
-      await new Promise((resolve) => { headerImg.onload = resolve; });
-
-      const contentImg = new Image();
-      contentImg.src = contentDataUrl;
-      await new Promise((resolve) => { contentImg.onload = resolve; });
-
-      const pdfWidth = 210;
-      const pdfPageHeight = 297; 
-      const xMargin = 10;
-      const topMargin = 10;
-      const bottomMargin = 10;
-      const headerToTableGap = 5;
       
-      const innerWidth = pdfWidth - (2 * xMargin);
-      const headerHeight = (headerImg.height * innerWidth) / headerImg.width;
-      const totalContentHeightInPdf = (contentImg.height * innerWidth) / contentImg.width;
+      element.classList.remove('pdf-capture');
+
+      // Create PDF with dynamic height
+      const tempPdf = new jsPDF();
+      const imgProps = tempPdf.getImageProperties(dataUrl);
+      const pdfWidth = 210; // A4 width in mm
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4',
+        format: [pdfWidth, pdfHeight],
         compress: true
       });
 
-      const pageAvailableHeight = pdfPageHeight - topMargin - headerHeight - headerToTableGap - bottomMargin;
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       
-      // Calculate scaling factor to fit in one page
-      // Use percentage-based scaling to force single page fit if within reasonable limits (>= 35%)
-      const scaleToFitFactor = pageAvailableHeight / totalContentHeightInPdf;
-      const canFitOnOnePage = scaleToFitFactor >= 0.35;
+      const sessionTitle = activeTab === 'students' ? 'Lista de Alunos' : `Sessão de Treino - Turma ${selectedTurma}`;
+      const filename = `Escola de Pioneiro - ${sessionTitle}.pdf`;
 
-      if (canFitOnOnePage) {
-        // Force fit to 1 page by scaling down
-        const finalScale = Math.min(1, scaleToFitFactor);
-        const scaledWidth = innerWidth * finalScale;
-        const scaledHeight = totalContentHeightInPdf * finalScale;
-        
-        // Center horizontally
-        const xOffset = xMargin + (innerWidth - scaledWidth) / 2;
-
-        pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
-        pdf.addImage(contentDataUrl, 'PNG', xOffset, topMargin + headerHeight + headerToTableGap, scaledWidth, scaledHeight, undefined, 'FAST');
-      } else {
-        // Multi-page logic with smart slicing
-        const tableRows = Array.from(contentElement.querySelectorAll('tr'));
-        const domContentHeight = contentElement.offsetHeight;
-        const scaleToPdf = totalContentHeightInPdf / domContentHeight;
-        
-        let pages: { startInPdf: number; heightInPdf: number }[] = [];
-        let currentPageRows: { top: number; height: number }[] = [];
-        let currentHeightInPdf = 0;
-
-        tableRows.forEach((row, index) => {
-          const rowRect = (row as HTMLElement).getBoundingClientRect();
-          const contentRect = contentElement.getBoundingClientRect();
-          const rowTopInContent = rowRect.top - contentRect.top;
-          const rowHeightInPdf = rowRect.height * scaleToPdf;
-
-          if (currentHeightInPdf + rowHeightInPdf > pageAvailableHeight && currentPageRows.length > 0) {
-            pages.push({
-              startInPdf: currentPageRows[0].top,
-              heightInPdf: currentHeightInPdf
-            });
-            currentPageRows = [];
-            currentHeightInPdf = 0;
-          }
-
-          currentPageRows.push({ top: rowTopInContent * scaleToPdf, height: rowHeightInPdf });
-          currentHeightInPdf += rowHeightInPdf;
-
-          if (index === tableRows.length - 1) {
-            pages.push({
-              startInPdf: currentPageRows[0].top,
-              heightInPdf: currentHeightInPdf
-            });
-          }
-        });
-
-        pages.forEach((page, index) => {
-          if (index > 0) pdf.addPage();
-          pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
-          const sliceY = headerHeight + topMargin + headerToTableGap;
-          pdf.addImage(contentDataUrl, 'PNG', xMargin, sliceY - page.startInPdf, innerWidth, totalContentHeightInPdf, undefined, 'FAST');
-          pdf.setFillColor(255, 255, 255);
-          pdf.rect(0, sliceY + page.heightInPdf, pdfWidth, pdfPageHeight - (sliceY + page.heightInPdf), 'F');
-          pdf.rect(0, 0, pdfWidth, sliceY, 'F');
-          pdf.addImage(headerDataUrl, 'PNG', xMargin, topMargin, innerWidth, headerHeight, undefined, 'FAST');
-        });
+      // Download
+      const pdfBlob = pdf.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
       }
-
-      const title = activeTab === 'students' ? 'Escola do Servico de Pioneiro - Lista de Alunos' : `Escola do Servico de Pioneiro - Sessao de Treino - Turma ${selectedTurma}`;
-      pdf.save(`${title}.pdf`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
-      alert('Erro ao gerar PDF. Verifique se há muito conteúdo ou tente novamente.');
+      alert(`Ocorreu um erro ao gerar o PDF: ${error?.message || 'Erro desconhecido'}.`);
     } finally {
       setGenerating(false);
     }
@@ -1415,17 +1351,23 @@ export default function PioneerSchoolView({
 
       <style jsx global>{`
         @media print {
-          body { visibility: hidden; background-color: white !important; }
-          #pioneer-school-report, #pioneer-school-report * { visibility: visible; }
+          body { 
+            visibility: hidden; 
+            background-color: white !important; 
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          #pioneer-school-report, #pioneer-school-report * { 
+            visibility: visible; 
+          }
           #pioneer-school-report { 
             position: absolute; 
             left: 0; 
             top: 0; 
             width: 100%; 
-            visibility: visible !important;
             border: none !important; 
             box-shadow: none !important; 
-            padding: 0 !important; 
+            padding: 8mm !important; 
             margin: 0 !important; 
             background-color: white !important;
           }
@@ -1436,142 +1378,98 @@ export default function PioneerSchoolView({
           table { 
             width: 100% !important; 
             border-collapse: collapse !important; 
-            border: 1px solid #666 !important; 
+            border: 1px solid #000 !important; 
             font-size: 10pt !important; 
-            table-layout: auto !important;
           }
           th, td { 
-            border: 1px solid #999 !important; 
-            padding: 5pt 7pt !important; 
-            word-wrap: break-word !important;
+            border: 1px solid #ccc !important; 
+            padding: 4pt 6pt !important; 
           }
           th { 
             background-color: #37616b !important; 
             color: white !important; 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important;
-            font-size: 9pt !important; 
           }
           thead { display: table-header-group !important; }
-          
-          /* Workshop specific print adjustments */
-          .sessions-table {
-            border: 2px solid #3e5e66 !important;
-          }
-          .sessions-table th { 
-            background-color: #3e5e66 !important; 
-            color: white !important;
-            padding: 10pt !important;
-            font-size: 11pt !important;
-          }
-          .sessions-table td {
-            padding: 10pt !important;
-            font-size: 11pt !important;
-            border: 1px solid #ccc !important;
-            color: black !important;
-          }
-          .bg-\[\#e8f1f3\] { background-color: #e8f1f3 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .bg-\[\#5d7c85\] { background-color: #5d7c85 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          
-          /* Remove layout borders for clean print */
-          .bg-white.rounded-2xl { 
-            border: none !important; 
-            box-shadow: none !important; 
-            border-radius: 0 !important;
-          }
-          
-          input[type="checkbox"], .actions-column, .select-turma-ui, .workshop-select-ui { display: none !important; }
-          .turma-text { display: block !important; font-weight: bold !important; text-align: center !important; }
-          .workshop-participant-text { 
-            display: block !important; 
-            min-height: 24px !important; 
-            color: #000 !important;
-            font-weight: 600 !important;
-          }
         }
 
-        /* Specialized PDF capture overrides - Optimized for clarity and proportion */
-        .pdf-capture-header {
-          display: block !important;
-          background-color: white !important;
-          visibility: visible !important;
-          width: 1200px !important;
-          margin: 0 !important;
-          padding: 20px !important;
-          text-align: center !important;
-        }
-        .pdf-capture-content {
-          display: block !important;
-          background-color: white !important;
-          visibility: visible !important;
-          width: 1200px !important; /* Standardized width for reliable capture */
-          margin: 0 !important;
-          padding: 0 !important;
-          font-size: 16px !important;
-        }
-        .pdf-capture-content th {
-          font-size: 14px !important;
-          padding: 12px 10px !important;
-          border: 1px solid #444 !important;
-          background-color: #3e5e66 !important;
-          color: white !important;
-          font-weight: bold !important;
-          text-transform: uppercase !important;
-        }
-        .pdf-capture-content td {
-          font-size: 15px !important;
-          padding: 12px 15px !important;
-          border: 1px solid #ccc !important;
+        /* Support for PDF capture styles - Aligned with Circuit Statistics view */
+        .pdf-capture {
           background-color: #ffffff !important;
-          color: #000000 !important;
-          line-height: 1.4 !important;
+          color: #1a1a1a !important;
+          padding: 10mm !important;
+          width: 1200px !important;
+          min-height: auto !important;
         }
-        
-        .pdf-capture-content .sessions-table th { background-color: #3e5e66 !important; }
-        .pdf-capture-content .bg-\[\#e8f1f3\] { background-color: #e8f1f3 !important; }
-        .pdf-capture-content .bg-\[\#5d7c85\] { background-color: #5d7c85 !important; }
-        
-        .pdf-capture-content table {
-          border-collapse: collapse !important;
+
+        .pdf-capture * {
+          border-color: #e5e7eb !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .pdf-capture .overflow-x-auto {
+          overflow: visible !important;
           width: 100% !important;
-          border: 2px solid #3e5e66 !important;
         }
-        .pdf-capture-content input[type="checkbox"],
-        .pdf-capture-content .pdf-hidden,
-        .pdf-capture-content .print\:hidden,
-        .pdf-capture-content .workshop-select-ui,
-        .pdf-capture-content .select-turma-ui {
+
+        .pdf-capture .hidden.print\:block {
+          display: block !important;
+        }
+
+        .pdf-capture .pdf-hidden,
+        .pdf-capture .print\:hidden,
+        .pdf-capture .workshop-select-ui,
+        .pdf-capture .select-turma-ui {
           display: none !important;
         }
-        .pdf-capture-content .workshop-participant-text {
+
+        .pdf-capture .workshop-participant-text {
           display: block !important;
           font-weight: 700 !important;
           color: #000 !important;
           font-size: 15px !important;
         }
-        .pdf-capture-content .turma-text {
+
+        .pdf-capture .turma-text {
           display: block !important;
-          font-size: 24px !important;
-          color: #facc15 !important;
-          margin-bottom: 20px !important;
+          font-size: 12px !important;
+          text-align: center !important;
+          font-weight: bold !important;
         }
-        .pdf-capture-content .bg-white.rounded-2xl { 
-          border: none !important; 
-          box-shadow: none !important; 
-          border-radius: 0 !important;
+
+        .pdf-capture table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          border: 1px solid #e5e7eb !important;
         }
-        .pdf-capture .pdf-only-element { display: block !important; }
+
+        .pdf-capture th {
+          background-color: #37616b !important;
+          color: #ffffff !important;
+          font-weight: bold !important;
+        }
+
+        .pdf-capture .sessions-table th {
+          background-color: #3e5e66 !important;
+        }
+
+        .pdf-capture .bg-\[\#e8f1f3\] {
+          background-color: #e8f1f3 !important;
+        }
+
+        .pdf-capture .bg-\[\#5d7c85\] {
+          background-color: #5d7c85 !important;
+        }
       `}</style>
 
-      <div id="pioneer-school-report" className="space-y-6 print:space-y-0 pdf-capture:space-y-0">
-        {/* Document Header - Visible only in Print/PDF */}
-        {/* Document Header - Visible only in Print/PDF - Matched to Screenshot */}
-        <div id="pdf-header" className="hidden pdf-only-element text-center pt-2 mb-[5mm] pdf-capture:mb-0">
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
-            Escola do Serviço de Pioneiro
-          </h1>
-          <p className="text-gray-400 uppercase tracking-[0.3em] text-[10px] font-medium">
-            {activeTab === 'students' ? 'LISTA DE ALUNOS' : `SESSÃO DE TREINO - TURMA ${selectedTurma}`}
+      <div id="pioneer-school-report" className="space-y-6 print:space-y-4 bg-white">
+        {/* Document Header - Visible only in Print/PDF - Matched to Circuit Stats style */}
+        <div className="hidden print:block text-center pt-2 pb-4">
+          <h1 className="text-4xl font-bold tracking-tight text-[#37616b]">Escola do Serviço de Pioneiro</h1>
+          <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mt-2">
+            {activeTab === 'students' ? 'Lista de Alunos' : `Sessão de Treino - Turma ${selectedTurma}`}
           </p>
         </div>
 
@@ -1756,10 +1654,10 @@ export default function PioneerSchoolView({
                                   <span className="flex-1 text-[12px] font-bold leading-tight">
                                     {scenario.text}
                                   </span>
-                                  <div className={`shrink-0 p-1.5 rounded-full shadow-sm transition-all print:hidden pdf-hidden border ${expandedScenario === scenario.id ? 'bg-[#3e5e66] text-white border-[#3e5e66]' : 'bg-white text-[#3e5e66] border-slate-200 group-hover/scenario:border-[#3e5e66]'}`}>
+                                  <div className={`shrink-0 p-2 rounded-full shadow-md transition-all print:hidden pdf-hidden border-2 ${expandedScenario === scenario.id ? 'bg-[#3e5e66] text-white border-[#3e5e66]' : 'bg-white text-[#3e5e66] border-[#3e5e66] hover:bg-[#3e5e66] hover:text-white'}`}>
                                     <ChevronDown 
-                                      size={14} 
-                                      className={`transform transition-transform ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      size={18} 
+                                      className={`transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
                                     />
                                   </div>
                                 </div>
