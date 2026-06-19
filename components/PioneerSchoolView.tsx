@@ -422,9 +422,14 @@ export default function PioneerSchoolView({
     fetchPersonalData();
   }, [userId]);
 
+  const isEqualInfo = (info1: SchoolInfo, info2: SchoolInfo) => {
+    const keys = Object.keys(defaultSchoolInfo) as (keyof SchoolInfo)[];
+    return keys.every(key => (info1[key] || '') === (info2[key] || ''));
+  };
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (JSON.stringify(schoolInfo) !== JSON.stringify(originalSchoolInfo)) {
+      if (!isEqualInfo(schoolInfo, originalSchoolInfo)) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -433,7 +438,7 @@ export default function PioneerSchoolView({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [schoolInfo, originalSchoolInfo]);
 
-  const hasInfoChanges = JSON.stringify(schoolInfo) !== JSON.stringify(originalSchoolInfo);
+  const hasInfoChanges = !isEqualInfo(schoolInfo, originalSchoolInfo);
 
   const handleTabChange = (tab: 'students' | 'workshops' | 'info' | 'templates_pss') => {
     if (activeTab === 'info' && hasInfoChanges) {
@@ -466,25 +471,25 @@ export default function PioneerSchoolView({
     setIsSavingInfo(true);
     const infoDocId = `${userId}_turma${selectedTurma}`;
     try {
+      const { updatedAt, ...cleanData } = schoolInfo as any;
       await updateDoc(doc(db, 'pioneer_school_info', infoDocId), {
-        ...schoolInfo,
+        ...cleanData,
         updatedAt: new Date()
       });
-      setOriginalSchoolInfo(schoolInfo);
-      alert('Informações salvas com sucesso!');
+      setOriginalSchoolInfo({ ...schoolInfo });
     } catch (error: any) {
       // If document doesn't exist, try setting it
       if (error.code === 'not-found') {
         try {
           const { setDoc } = await import('firebase/firestore');
+          const { updatedAt, ...cleanData } = schoolInfo as any;
           await setDoc(doc(db, 'pioneer_school_info', infoDocId), {
-            ...schoolInfo,
+            ...cleanData,
             userId,
             turma: selectedTurma,
             updatedAt: new Date()
           });
-          setOriginalSchoolInfo(schoolInfo);
-          alert('Informações salvas com sucesso!');
+          setOriginalSchoolInfo({ ...schoolInfo });
         } catch (innerError) {
           handleFirestoreError(innerError, OperationType.UPDATE, 'pioneer_school_info');
         }
