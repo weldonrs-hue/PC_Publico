@@ -1885,6 +1885,33 @@ export default function PioneerSchoolView({
                   <Users size={16} />
                   Confirmação de Frequência
                 </h4>
+
+                <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+                  <div className="flex items-center gap-2 text-[#37616b] shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                      <Info size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-widest leading-none">Atribuição Automática</p>
+                      <p className="text-[10px] text-gray-500 font-medium">Baseada nos workshops</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-4 md:gap-8">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Workshops <span className="font-bold text-amber-700">1 e 4</span> confirmam com <span className="font-bold">Instrutor B</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-600" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Workshops <span className="font-bold text-blue-700">2 e 3</span> confirmam com <span className="font-bold">Instrutor A</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-1">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
@@ -2056,31 +2083,6 @@ export default function PioneerSchoolView({
                     <option value="2">Turma 2</option>
                     <option value="3">Turma 3</option>
                   </select>
-                </div>
-
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-[#37616b] mb-1">
-                    <Users size={16} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Confirmação de Presença</span>
-                  </div>
-                  <p className="text-[11px] text-gray-600 leading-relaxed font-medium">
-                    A atribuição do instrutor é <strong>automática</strong> baseada nos workshops:
-                  </p>
-                  <ul className="text-[10px] text-gray-500 space-y-1 pl-1">
-                    <li className="flex items-center gap-1.5 ">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      <span>Workshops 1 e 4: <strong>Instrutor B</strong></span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      <span>Workshops 2 e 3: <strong>Instrutor A</strong></span>
-                    </li>
-                  </ul>
-                  {!(schoolInfo.confirmacaoEmailB || schoolInfo.confirmacaoWhatsappB) && (
-                    <p className="text-[9px] text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100 mt-1">
-                      Nota: Como o Instrutor B não possui contatos configurados, todos confirmarão com o Instrutor A.
-                    </p>
-                  )}
                 </div>
 
                 <div className="pt-4 flex gap-3">
