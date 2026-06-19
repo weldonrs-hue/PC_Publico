@@ -1715,7 +1715,7 @@ export default function PioneerSchoolView({
                                       exit={{ height: 0, opacity: 0 }}
                                       className="overflow-hidden"
                                     >
-                                      <div className="mt-3 p-3 bg-white/80 border-l-[3px] border-[#3e5e66] rounded-sm text-[13px] text-slate-900 font-medium leading-relaxed">
+                                      <div className="mt-3 p-4 bg-white border border-slate-200 border-l-[4px] border-[#3e5e66] rounded-md shadow-sm text-[13.5px] text-slate-950 font-bold leading-relaxed">
                                         {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
                                       </div>
                                     </motion.div>

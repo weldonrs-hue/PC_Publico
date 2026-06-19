@@ -180,7 +180,7 @@ export default function Sidebar({
       {/* Logo Section */}
       <div className="p-2 lg:p-6 landscape:block portrait:hidden">
         <div className="flex items-center justify-center mb-2 lg:mb-8">
-          <div className="bg-white/10 backdrop-blur-md p-1.5 lg:p-2 rounded-2xl shadow-xl w-full relative h-14 lg:h-16 flex items-center justify-center lg:justify-start lg:px-4 border border-white/20 overflow-hidden group">
+          <div className="bg-white/10 backdrop-blur-md p-1.5 lg:p-2 rounded-2xl shadow-xl w-full relative h-14 lg:h-16 flex items-center justify-center lg:justify-start lg:px-4 border border-white/20 group">
             <div className="relative">
               <div className="absolute inset-0 bg-[#C084FC] blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
               <Logo 

@@ -24,60 +24,40 @@ export default function Logo({
   const iconInlineStyle = typeof iconSize === 'number' ? { width: iconSize, height: iconSize } : {};
 
   return (
-    <div className={`flex items-center gap-2 md:gap-3 ${className}`}>
+    <div className={`inline-flex items-center gap-1.5 md:gap-2.5 ${className}`}>
       {/* Brand Icon - Using the new ProgCir_Ico.svg */}
       <div 
-        className={`relative flex-shrink-0 flex items-center justify-center ${iconSizingClass}`} 
+        className={`relative flex-shrink-0 flex items-center justify-center transition-all duration-300 ${iconSizingClass}`} 
         style={iconInlineStyle}
       >
         <img 
           src="/ProgCir_Ico.svg" 
           alt="ProgCir Logo"
-          className="w-full h-full object-contain drop-shadow-md"
+          className="w-full h-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform"
         />
       </div>
 
       {/* Text Component with the specific Prog/Cir/Web style */}
       {showText && (
-        <div className={`${forceShowText ? 'flex' : 'hidden lg:flex'} flex-col leading-none select-none`}>
-          <div className={`flex items-center font-bold tracking-tight ${textSize} font-sans`}>
+        <div className={`${forceShowText ? 'flex' : 'hidden lg:flex'} flex-col leading-none select-none overflow-visible whitespace-nowrap antialiased`}>
+          <div className={`flex items-baseline font-black tracking-tight ${textSize} font-sans`}>
             <span style={{ color: textColor }}>Prog</span>
             <span 
-              className="ml-[1px]" 
+              className="ml-[0.5px]" 
               style={{ 
-                WebkitTextStroke: `calc(1px + 0.05em) ${outlineColor}`, 
+                WebkitTextStroke: `calc(1px + 0.02em) ${outlineColor}`, 
                 color: 'transparent',
-                opacity: 0.95
+                opacity: 0.95,
+                paintOrder: 'stroke fill'
               }}
             >
               Cir
             </span>
-            <span className={`${forceShowText ? 'inline' : 'hidden xl:inline'} ml-1 md:ml-1.5`} style={{ color: textColor }}>Web</span>
           </div>
           <div 
-            className={`${forceShowText ? 'block' : 'hidden xl:block'} text-[#C084FC] font-black text-[8px] md:text-[10px] uppercase tracking-[0.15em] md:tracking-[0.2em] mt-0.5`}
-            style={{ filter: 'drop-shadow(0 0 8px rgba(192, 132, 252, 0.3))' }}
+            className={`${forceShowText ? 'block' : 'hidden lg:block'} text-[#C084FC] font-black text-[7px] md:text-[8px] uppercase tracking-[0.2em] md:tracking-[0.25em] -mt-0.5 opacity-90`}
           >
             Web Interface
-          </div>
-        </div>
-      )}
-
-      {/* Medium size text variant (ICO + ProgCir) - Visible on medium screens if not forced */}
-      {showText && !forceShowText && (
-        <div className="hidden sm:flex lg:hidden flex-col leading-none select-none">
-          <div className={`flex items-center font-bold tracking-tight text-base md:text-lg font-sans`}>
-            <span style={{ color: textColor }}>Prog</span>
-            <span 
-              className="ml-[1px]" 
-              style={{ 
-                WebkitTextStroke: `1px ${outlineColor}`, 
-                color: 'transparent',
-                opacity: 0.95
-              }}
-            >
-              Cir
-            </span>
           </div>
         </div>
       )}
