@@ -42,6 +42,8 @@ interface PioneerSchoolLettersProps {
     confirmacaoDataLimite: string;
     confirmacaoEmail: string;
     confirmacaoWhatsapp: string;
+    confirmacaoEmailB: string;
+    confirmacaoWhatsappB: string;
   };
 }
 
@@ -371,6 +373,12 @@ export default function PioneerSchoolLetters({
     const email = schoolInfo.confirmacaoEmail || '________________';
     const contato = schoolInfo.confirmacaoWhatsapp || '________________';
     
+    // Contatos Instructor A e B
+    const emailA = schoolInfo.confirmacaoEmail || '________________';
+    const contatoA = schoolInfo.confirmacaoWhatsapp || '________________';
+    const emailB = schoolInfo.confirmacaoEmailB || emailA; 
+    const contatoB = schoolInfo.confirmacaoWhatsappB || contatoA;
+
       const signatureName = personalData?.nome || '________________';
       const circuito = personalData?.circuito || '________________';
       const signatureText = `${signatureName} (${circuito})`;
@@ -406,6 +414,14 @@ export default function PioneerSchoolLetters({
         'EMAIL': email,
         'CONTATO': contato,
         'WHATSAPP': contato,
+        'EMAIL_A': emailA,
+        'EMAILA': emailA,
+        'CONTATO_A': contatoA,
+        'CONTATOA': contatoA,
+        'EMAIL_B': emailB,
+        'EMAILB': emailB,
+        'CONTATO_B': contatoB,
+        'CONTATOB': contatoB,
         'DATAHORA': schoolInfo.entregaLivroDataHora || '________________',
         'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
         'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',

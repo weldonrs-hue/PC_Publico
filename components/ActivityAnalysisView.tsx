@@ -174,7 +174,27 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setData(docSnap.data() as AnalysisData);
+          const fetchedData = docSnap.data();
+          setData({
+            ...defaultData,
+            ...fetchedData,
+            ministério: {
+              ...defaultData.ministério,
+              ...(fetchedData.ministério || {})
+            },
+            estatisticas: {
+              ...defaultData.estatisticas,
+              ...(fetchedData.estatisticas || {})
+            },
+            donativos: {
+              ...defaultData.donativos,
+              ...(fetchedData.donativos || {})
+            },
+            reunioes: {
+              ...defaultData.reunioes,
+              ...(fetchedData.reunioes || {})
+            }
+          } as AnalysisData);
         } else if (congregationId) {
           // Fallback to name for older data
           const oldDocId = `${userId}_${congregationName}_${visitDate.replace(/\//g, '-')}`;
@@ -182,11 +202,28 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
           const oldDocSnap = await getDoc(oldDocRef);
           
           if (oldDocSnap.exists()) {
-            const oldData = oldDocSnap.data() as AnalysisData;
+            const fetchedOldData = oldDocSnap.data();
             setData({
-              ...oldData,
-              congregacaoId: congregationId
-            });
+              ...defaultData,
+              ...fetchedOldData,
+              congregacaoId: congregationId,
+              ministério: {
+                ...defaultData.ministério,
+                ...(fetchedOldData.ministério || {})
+              },
+              estatisticas: {
+                ...defaultData.estatisticas,
+                ...(fetchedOldData.estatisticas || {})
+              },
+              donativos: {
+                ...defaultData.donativos,
+                ...(fetchedOldData.donativos || {})
+              },
+              reunioes: {
+                ...defaultData.reunioes,
+                ...(fetchedOldData.reunioes || {})
+              }
+            } as AnalysisData);
             setIsDirty(true);
           }
         }

@@ -69,6 +69,8 @@ interface SchoolInfo {
   confirmacaoDataLimite: string;
   confirmacaoEmail: string;
   confirmacaoWhatsapp: string;
+  confirmacaoEmailB: string;
+  confirmacaoWhatsappB: string;
 }
 
 const defaultSchoolInfo: SchoolInfo = {
@@ -82,6 +84,8 @@ const defaultSchoolInfo: SchoolInfo = {
   confirmacaoDataLimite: '',
   confirmacaoEmail: '',
   confirmacaoWhatsapp: '',
+  confirmacaoEmailB: '',
+  confirmacaoWhatsappB: '',
 };
 
 interface WorkshopAssignment {
@@ -380,11 +384,12 @@ export default function PioneerSchoolView({
     if (activeTab === 'students') return;
 
     const infoDocId = `${userId}_turma${selectedTurma}`;
-    const unsubscribeInfo = onSnapshot(doc(db, 'pioneer_school_info', infoDocId), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data() as SchoolInfo;
-        setSchoolInfo(data);
-        setOriginalSchoolInfo(data);
+    const unsubscribeInfo = onSnapshot(doc(db, 'pioneer_school_info', infoDocId), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as SchoolInfo;
+        const mergedData = { ...defaultSchoolInfo, ...data };
+        setSchoolInfo(mergedData);
+        setOriginalSchoolInfo(mergedData);
       } else {
         setSchoolInfo(defaultSchoolInfo);
         setOriginalSchoolInfo(defaultSchoolInfo);
@@ -598,9 +603,9 @@ export default function PioneerSchoolView({
     if (student) {
       setEditingStudent(student);
       setFormData({
-        nome: student.nome,
-        congregacao: student.congregacao,
-        circuito: student.circuito,
+        nome: student.nome || '',
+        congregacao: student.congregacao || '',
+        circuito: student.circuito || '',
         turma: student.turma || ''
       });
     } else {
@@ -1035,6 +1040,33 @@ export default function PioneerSchoolView({
         });
 
         // 3. Replacements
+        let instructorChoice = 'A';
+        const hasInstructorBData = !!(schoolInfo.confirmacaoEmailB?.trim() || schoolInfo.confirmacaoWhatsappB?.trim());
+        
+        if (hasInstructorBData) {
+          // Look for this student in workshop assignments
+          for (const [scenarioIdStr, assignment] of Object.entries(workshopAssignments)) {
+            const scenarioId = parseInt(scenarioIdStr);
+            const participants = assignment.participants?.split('|').map(p => p.trim()) || [];
+            if (participants.includes(student.nome.trim())) {
+              // Found the student's workshop
+              // Workshop 1 (1-3) and 4 (15-18) are for Instructor B
+              if ((scenarioId >= 1 && scenarioId <= 3) || (scenarioId >= 15 && scenarioId <= 18)) {
+                instructorChoice = 'B';
+              }
+              break;
+            }
+          }
+        }
+
+        const emailA = schoolInfo.confirmacaoEmail || '________________';
+        const contatoA = schoolInfo.confirmacaoWhatsapp || '________________';
+        const emailB = (schoolInfo.confirmacaoEmailB || schoolInfo.confirmacaoWhatsappB) ? (schoolInfo.confirmacaoEmailB || '________________') : emailA;
+        const contatoB = (schoolInfo.confirmacaoEmailB || schoolInfo.confirmacaoWhatsappB) ? (schoolInfo.confirmacaoWhatsappB || '________________') : contatoA;
+        
+        const finalEmail = instructorChoice === 'A' ? emailA : emailB;
+        const finalContato = instructorChoice === 'A' ? contatoA : contatoB;
+
         const replacements: any = {
           'ALUNO': student.nome,
           'NOME': student.nome,
@@ -1059,9 +1091,17 @@ export default function PioneerSchoolView({
           'DATAENTREGA': schoolInfo.entregaLivroDataHora || '________________',
           'DATACONFIRMAÇÃO': schoolInfo.confirmacaoDataLimite || '________________',
           'DATACONFIRMACAO': schoolInfo.confirmacaoDataLimite || '________________',
-          'EMAIL': schoolInfo.confirmacaoEmail || '________________',
-          'CONTATO': schoolInfo.confirmacaoWhatsapp || '________________',
-          'WHATSAPP': schoolInfo.confirmacaoWhatsapp || '________________',
+          'EMAIL': finalEmail,
+          'CONTATO': finalContato,
+          'WHATSAPP': finalContato,
+          'EMAIL_A': emailA,
+          'EMAILA': emailA,
+          'CONTATO_A': contatoA,
+          'CONTATOA': contatoA,
+          'EMAIL_B': emailB,
+          'EMAILB': emailB,
+          'CONTATO_B': contatoB,
+          'CONTATOB': contatoB,
           'ASSINATURA': signatureImage,
           '%ASSINATURA': signatureImage,
           'ASSINATURA_GLOBAL': signatureImage,
@@ -1840,8 +1880,8 @@ export default function PioneerSchoolView({
                   <Users size={16} />
                   Confirmação de Frequência
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-1">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
                     <input
                       type="text"
@@ -1851,25 +1891,65 @@ export default function PioneerSchoolView({
                       className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">E-mail</label>
-                    <input
-                      type="email"
-                      value={schoolInfo.confirmacaoEmail}
-                      onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
-                      placeholder="e-mail@exemplo.com"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
-                    />
+                  
+                  {/* Instrutor A */}
+                  <div className="space-y-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                    <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                       <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">A</span>
+                       Instrutor A
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">E-mail</label>
+                        <input
+                          type="email"
+                          value={schoolInfo.confirmacaoEmail}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
+                          placeholder="e-mail@exemplo.com"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
+                        <input
+                          type="text"
+                          value={schoolInfo.confirmacaoWhatsapp}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
+                          placeholder="(00) 00000-0000"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
-                    <input
-                      type="text"
-                      value={schoolInfo.confirmacaoWhatsapp}
-                      onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
-                      placeholder="(00) 00000-0000"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
-                    />
+
+                  {/* Instrutor B */}
+                  <div className="space-y-4 p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+                    <h5 className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                       <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-bold">B</span>
+                       Instrutor B (Opcional)
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">E-mail</label>
+                        <input
+                          type="email"
+                          value={schoolInfo.confirmacaoEmailB}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmailB: e.target.value })}
+                          placeholder="e-mail.b@exemplo.com"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
+                        <input
+                          type="text"
+                          value={schoolInfo.confirmacaoWhatsappB}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsappB: e.target.value })}
+                          placeholder="(00) 00000-0000"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1964,13 +2044,38 @@ export default function PioneerSchoolView({
                   <select
                     value={formData.turma}
                     onChange={(e) => setFormData({ ...formData, turma: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white font-bold"
                   >
                     <option value="">Nenhuma turma</option>
                     <option value="1">Turma 1</option>
                     <option value="2">Turma 2</option>
                     <option value="3">Turma 3</option>
                   </select>
+                </div>
+
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-[#37616b] mb-1">
+                    <Users size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Confirmação de Presença</span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 leading-relaxed font-medium">
+                    A atribuição do instrutor é <strong>automática</strong> baseada nos workshops:
+                  </p>
+                  <ul className="text-[10px] text-gray-500 space-y-1 pl-1">
+                    <li className="flex items-center gap-1.5 ">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      <span>Workshops 1 e 4: <strong>Instrutor B</strong></span>
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <span>Workshops 2 e 3: <strong>Instrutor A</strong></span>
+                    </li>
+                  </ul>
+                  {!(schoolInfo.confirmacaoEmailB || schoolInfo.confirmacaoWhatsappB) && (
+                    <p className="text-[9px] text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100 mt-1">
+                      Nota: Como o Instrutor B não possui contatos configurados, todos confirmarão com o Instrutor A.
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-4 flex gap-3">

@@ -51,6 +51,8 @@ interface PSSAssignmentLettersProps {
     instrutorB: string;
     confirmacaoEmail: string;
     confirmacaoWhatsapp: string;
+    confirmacaoEmailB: string;
+    confirmacaoWhatsappB: string;
     entregaLivroEndereco?: string;
     entregaLivroDataHora?: string;
   };
@@ -426,35 +428,59 @@ export default function PSSAssignmentLetters({
     }).format(now);
 
     const dataValue = schoolInfo.dataTurma || hoje;
-    const emailValue = schoolInfo.confirmacaoEmail || '________________';
-    const telefoneValue = schoolInfo.confirmacaoWhatsapp || '________________';
+    
+    // Contatos Instructor A e B
+    const emailA = schoolInfo.confirmacaoEmail || '________________';
+    const contatoA = schoolInfo.confirmacaoWhatsapp || '________________';
+    const emailB = schoolInfo.confirmacaoEmailB || emailA; 
+    const contatoB = schoolInfo.confirmacaoWhatsappB || contatoA;
+
+    const hasInstructorBData = !!(schoolInfo.confirmacaoEmailB?.trim() || schoolInfo.confirmacaoWhatsappB?.trim());
+
+    let finalEmail = emailA;
+    let finalTelefone = contatoA;
+    let instructorName = schoolInfo.instrutorA || '________________';
+
+    if (hasInstructorBData) {
+      if ((scenarioId >= 1 && scenarioId <= 3) || (scenarioId >= 15 && scenarioId <= 18)) {
+        instructorName = schoolInfo.instrutorB || '________________';
+        finalEmail = emailB;
+        finalTelefone = contatoB;
+      } else if (scenarioId >= 4 && scenarioId <= 14) {
+        instructorName = schoolInfo.instrutorA || '________________';
+        finalEmail = emailA;
+        finalTelefone = contatoA;
+      }
+    }
+
     const travelerName = personalData?.nome || '________________';
     const circuit = personalData?.circuito || '________________';
     const signatureText = `${travelerName} (${circuit})`;
-
-    let instructorName = '________________';
-    if ((scenarioId >= 1 && scenarioId <= 3) || (scenarioId >= 15 && scenarioId <= 18)) {
-      instructorName = schoolInfo.instrutorB || '________________';
-    } else if (scenarioId >= 4 && scenarioId <= 14) {
-      instructorName = schoolInfo.instrutorA || '________________';
-    }
     
     const res: any = {
       'data': dataValue,
       'DATA': dataValue,
       'nomes': nomes,
       'NOMES': nomes,
-      'e mail': emailValue,
-      'E MAIL': emailValue,
-      'e-mail': emailValue,
-      'E-mail': emailValue,
-      'E-MAIL': emailValue,
-      'email': emailValue,
-      'EMAIL': emailValue,
-      'telefone': telefoneValue,
-      'TELEFONE': telefoneValue,
-      'whatsapp': telefoneValue,
-      'WHATSAPP': telefoneValue,
+      'e mail': finalEmail,
+      'E MAIL': finalEmail,
+      'e-mail': finalEmail,
+      'E-mail': finalEmail,
+      'E-MAIL': finalEmail,
+      'email': finalEmail,
+      'EMAIL': finalEmail,
+      'telefone': finalTelefone,
+      'TELEFONE': finalTelefone,
+      'whatsapp': finalTelefone,
+      'WHATSAPP': finalTelefone,
+      'EMAIL_A': emailA,
+      'EMAILA': emailA,
+      'CONTATO_A': contatoA,
+      'CONTATOA': contatoA,
+      'EMAIL_B': emailB,
+      'EMAILB': emailB,
+      'CONTATO_B': contatoB,
+      'CONTATOB': contatoB,
       'DATAHORA': schoolInfo.entregaLivroDataHora || '________________',
       'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
       'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
