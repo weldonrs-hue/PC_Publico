@@ -31,6 +31,7 @@ const MiscView = dynamic(() => import('@/components/MiscView'), {
   )
 });
 const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
+const WeeklyExpensesReceipt = dynamic(() => import('@/components/WeeklyExpensesReceipt'), { ssr: false });
 const FileViewer = dynamic(() => import('@/components/FileViewer'), { ssr: false });
 const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
 const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
@@ -268,7 +269,7 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
-    } else if (['misc', 'field_service_report', 'file_viewer'].includes(currentView)) {
+    } else if (['misc', 'field_service_report', 'file_viewer', 'weekly_expenses'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
     } else if (['cartas', 'cartas_esp', 'cartas_emr', 'cartas_congresso', 'cartas_assembleias', 'cartas_programacoes'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, cartas: currentView }));
@@ -959,6 +960,12 @@ export default function Home() {
 
           {currentView === 'file_viewer' && (
             <FileViewer 
+              onBack={() => changeView('misc')}
+            />
+          )}
+
+          {currentView === 'weekly_expenses' && (
+            <WeeklyExpensesReceipt 
               onBack={() => changeView('misc')}
             />
           )}

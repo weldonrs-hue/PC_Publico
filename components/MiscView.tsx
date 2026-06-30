@@ -1,6 +1,6 @@
 'use client';
 // Force rebuild - 2026-05-02
-import { FileText, Shapes, Calendar, Mail } from 'lucide-react';
+import { FileText, Shapes, Calendar, Receipt } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface MiscViewProps {
@@ -27,6 +27,14 @@ const miscItems = [
     color: '#D81B60', // Magenta
     gradient: 'from-pink-500 to-rose-600',
     icon: Calendar,
+  },
+  {
+    id: 'weekly_expenses',
+    title: 'DESPESAS DA SEMANA',
+    subtitle: 'RECIBO E CONTROLE FINANCEIRO',
+    color: '#10B981', // Emerald
+    gradient: 'from-emerald-500 to-teal-600',
+    icon: Receipt,
   },
 ];
 
