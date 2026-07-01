@@ -300,12 +300,46 @@
         "channel": { "type": "string", "description": "Channel ID, 'general' by default" }
       },
       "required": ["senderId", "senderName", "text", "timestamp", "channel"]
+    },
+    "weekly_expense_receipt": {
+      "title": "Weekly Expense Receipt",
+      "description": "A financial receipt for weekly expenses",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "value": { "type": "string" }
+            }
+          }
+        },
+        "types": {
+          "type": "object",
+          "properties": {
+            "donativo": { "type": "boolean" },
+            "pagamento": { "type": "boolean" }
+          }
+        },
+        "total": { "type": "string" },
+        "checkedBy": { "type": "string", "description": "Name of the person who checked the expenses" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "items", "total", "createdAt"]
     }
   },
   "firestore": {
     "/chat_messages/{msgId}": {
       "schema": "chat_message",
       "description": "Collection of messages for real-time chat between users"
+    },
+    "/weekly_expenses/{receiptId}": {
+      "schema": "weekly_expense_receipt",
+      "description": "Collection of weekly expense receipts"
     },
     "/personal_data/{dataId}": {
       "schema": "personal_data",

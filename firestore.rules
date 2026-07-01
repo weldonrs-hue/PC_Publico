@@ -74,6 +74,14 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.senderId == request.auth.uid);
     }
 
+    match /weekly_expenses/{id} {
+      allow read, write: if isSignedIn() && (
+        isAdmin() || 
+        (resource.data.userId == request.auth.uid) || 
+        (request.resource.data.userId == request.auth.uid)
+      );
+    }
+
     // Fallback para outras coleções menores
     match /{document=**} {
       allow read, write: if isSignedIn();

@@ -166,9 +166,6 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
         
         setLastMessages(lastMsgs);
         setUnreadCounts(unreads);
-        
-        const totalUnread = Object.values(unreads).reduce((a, b) => a + b, 0);
-        window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
       } catch (error: any) {
         if (error.message?.includes('quota')) setQuotaExceededGlobal();
       }
@@ -180,6 +177,12 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
     return () => clearInterval(interval);
   }, [auth.currentUser, activeChannel, lastReadTimestamps]);
 
+  // Sync unread count to sidebar
+  useEffect(() => {
+    const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+    window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
+  }, [unreadCounts]);
+
   // Mark channel as read when opened
   useEffect(() => {
     if (activeChannel && auth.currentUser) {
@@ -189,19 +192,13 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
         localStorage.setItem(`chat_last_read_${auth.currentUser!.uid}`, JSON.stringify(next));
         return next;
       });
-      // Clear unread count for this channel immediately and notify sidebar
+      // Clear unread count for this channel immediately
       setUnreadCounts(prev => {
+        if (!prev[activeChannel]) return prev;
         const next = { ...prev };
         delete next[activeChannel];
         return next;
       });
-      setTimeout(() => {
-        setUnreadCounts(current => {
-          const totalUnread = Object.values(current).reduce((a, b) => a + b, 0);
-          window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
-          return current;
-        });
-      }, 0);
     }
   }, [activeChannel, auth.currentUser]);
 
@@ -310,17 +307,11 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
           return next;
         });
         setUnreadCounts(prev => {
+          if (!prev[activeChannel]) return prev;
           const next = { ...prev };
           delete next[activeChannel];
           return next;
         });
-        setTimeout(() => {
-          setUnreadCounts(current => {
-            const totalUnread = Object.values(current).reduce((a, b) => a + b, 0);
-            window.dispatchEvent(new CustomEvent('chat_unread_update', { detail: { count: totalUnread } }));
-            return current;
-          });
-        }, 0);
       }
     }, (error) => {
       console.error('Error listening to messages:', error);

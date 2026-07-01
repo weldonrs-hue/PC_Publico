@@ -1,21 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { ArrowLeft, Printer, History, Home, PlusSquare, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, Printer, History, Home, PlusSquare, Settings, Save, Trash2, Loader2, Search } from 'lucide-react';
+import { db, auth } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc } from 'firebase/firestore';
 
 interface WeeklyExpensesReceiptProps {
   onBack: () => void;
 }
 
+interface ReceiptRecord {
+  id: string;
+  date: string;
+  items: { label: string; value: string }[];
+  types: { donativo: boolean; pagamento: boolean };
+  total: string;
+  createdAt: any;
+}
+
 export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptProps) {
-  const [items, setItems] = useState([
+  const [view, setView] = useState<'form' | 'history'>('form');
+  const [history, setHistory] = useState<ReceiptRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [checkedBy, setCheckedBy] = useState('');
+  const [personalData, setPersonalData] = useState<any>(null);
+
+  const initialItems = [
     { label: 'Mercado da Semana', value: '' },
     { label: 'Feira Livre', value: '' },
     { label: 'Carnes e Peixes', value: '' },
     { label: '', value: '' },
     { label: '', value: '' },
-  ]);
+  ];
+
+  const [items, setItems] = useState(initialItems);
 
   const calculateTotal = (currentItems: { label: string, value: string }[]) => {
     const sum = currentItems.reduce((acc, item) => {
@@ -40,6 +61,108 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     pagamento: false,
   });
 
+  useEffect(() => {
+    if (view === 'history') {
+      loadHistory();
+    }
+  }, [view]);
+
+  useEffect(() => {
+    const fetchPersonalData = async () => {
+      if (!auth.currentUser) return;
+      try {
+        const pdDoc = await getDoc(doc(db, 'personal_data', auth.currentUser.uid));
+        if (pdDoc.exists()) {
+          setPersonalData(pdDoc.data());
+        }
+      } catch (error) {
+        console.error('Error fetching personal data:', error);
+      }
+    };
+    fetchPersonalData();
+  }, []);
+
+  const loadHistory = async () => {
+    if (!auth.currentUser) return;
+    setLoading(true);
+    try {
+      const q = query(
+        collection(db, 'weekly_expenses'),
+        where('userId', '==', auth.currentUser.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const records: ReceiptRecord[] = [];
+      querySnapshot.forEach((doc) => {
+        records.push({ id: doc.id, ...doc.data() } as ReceiptRecord);
+      });
+      setHistory(records);
+    } catch (error) {
+      console.error('Error loading history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveReceipt = async () => {
+    if (!auth.currentUser) return;
+    if (total === '0,00') {
+      alert('O total deve ser maior que zero para salvar.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await addDoc(collection(db, 'weekly_expenses'), {
+        userId: auth.currentUser.uid,
+        date,
+        items,
+        types,
+        total,
+        checkedBy,
+        createdAt: serverTimestamp(),
+      });
+      alert('Recibo salvo com sucesso!');
+      setView('history');
+    } catch (error) {
+      console.error('Error saving receipt:', error);
+      alert('Erro ao salvar recibo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteReceipt = async (id: string) => {
+    if (!confirm('Deseja excluir este recibo?')) return;
+    try {
+      await deleteDoc(doc(db, 'weekly_expenses', id));
+      setHistory(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Error deleting receipt:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setItems(initialItems);
+    setTypes({ donativo: false, pagamento: false });
+    setDate(new Date().toLocaleDateString('pt-BR'));
+    setCheckedBy('');
+    setView('form');
+  };
+
+  const loadReceiptToForm = (record: ReceiptRecord) => {
+    setItems(record.items);
+    setTypes(record.types);
+    setDate(record.date);
+    setCheckedBy(record.checkedBy || '');
+    setView('form');
+  };
+
+  const filteredHistory = history.filter(h => 
+    h.date.includes(searchTerm) || 
+    h.items.some(i => i.label.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   const handlePrint = () => {
     window.print();
   };
@@ -54,23 +177,41 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 className="font-serif text-lg font-bold uppercase tracking-widest text-black">RECIBO</h1>
-        <button 
-          onClick={handlePrint}
-          className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded"
-        >
-          <Printer size={24} />
-        </button>
+        <h1 className="font-serif text-lg font-bold uppercase tracking-widest text-black">
+          {view === 'form' ? 'RECIBO' : 'HISTÓRICO'}
+        </h1>
+        <div className="flex items-center gap-2">
+          {view === 'form' && (
+            <button 
+              onClick={saveReceipt}
+              disabled={isSaving}
+              className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded disabled:opacity-50"
+              title="Salvar"
+            >
+              {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
+            </button>
+          )}
+          <button 
+            onClick={handlePrint}
+            className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded"
+            title="Imprimir"
+          >
+            <Printer size={24} />
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
       <main className="flex-grow flex justify-center py-6 px-4 md:px-8 pb-32">
-        {/* Receipt Canvas */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0"
-        >
+        <AnimatePresence mode="wait">
+          {view === 'form' ? (
+            <motion.div 
+              key="form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0"
+            >
           {/* Header Row */}
           <div className="text-center mb-10">
             <h2 className="font-serif text-2xl md:text-3xl font-bold tracking-[0.3em] uppercase underline underline-offset-8">RECIBO</h2>
@@ -103,7 +244,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 placeholder="___/___/___"
-                className="w-40 border-b-2 border-gray-200 focus:border-black bg-transparent outline-none text-center font-medium py-1 transition-colors"
+                className="w-40 border-b-2 border-gray-200 focus:border-black bg-transparent outline-none text-center font-bold py-1 transition-colors"
               />
             </div>
           </div>
@@ -157,36 +298,116 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Signatures */}
-          <div className="grid grid-cols-2 gap-12 md:gap-16 mt-16 md:mt-24">
-            <div className="text-center">
+          <div className="grid grid-cols-2 gap-12 md:gap-16 mt-20 md:mt-32 items-end">
+            <div className="text-center flex flex-col items-center">
+              {personalData?.signatureImage ? (
+                <img 
+                  src={personalData.signatureImage} 
+                  alt="Signature" 
+                  className="h-16 mb-[-10px] object-contain print:h-20" 
+                />
+              ) : (
+                <div className="mb-2 text-sm md:text-base font-medium italic text-slate-700 font-serif">
+                  {personalData?.nome || 'Viajante'}
+                </div>
+              )}
               <div className="border-t border-[#7e7576] w-full mb-1"></div>
-              <span className="text-[10px] md:text-xs uppercase text-gray-500">(Preenchido por)</span>
+              <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Assinatura do Viajante)</span>
             </div>
-            <div className="text-center">
+            <div className="text-center flex flex-col items-center">
+              <input 
+                type="text"
+                value={checkedBy}
+                onChange={(e) => setCheckedBy(e.target.value)}
+                placeholder="Nome de quem conferiu"
+                className="w-full text-center border-b border-transparent focus:border-gray-200 outline-none text-sm font-medium mb-1 bg-transparent no-print-placeholder"
+              />
               <div className="border-t border-[#7e7576] w-full mb-1"></div>
-              <span className="text-[10px] md:text-xs uppercase text-gray-500">(Conferido por)</span>
+              <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Conferido por)</span>
             </div>
-          </div>
-
-          {/* Metadata */}
-          <div className="absolute bottom-4 left-8 text-[10px] text-gray-400">
-            S-24-T &nbsp; 05/21
           </div>
         </motion.div>
+          ) : (
+            <motion.div 
+              key="history"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-6 md:p-8 relative border border-[#cfc4c5] flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-serif text-2xl font-bold uppercase tracking-wider text-slate-800">Histórico de Gastos</h2>
+                <div className="relative">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text"
+                    placeholder="Buscar data ou item..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 border rounded-full text-sm outline-none focus:ring-2 focus:ring-[#10B981] transition-all"
+                  />
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="flex-grow flex items-center justify-center py-20">
+                  <Loader2 size={40} className="animate-spin text-[#10B981]" />
+                </div>
+              ) : filteredHistory.length === 0 ? (
+                <div className="flex-grow flex flex-col items-center justify-center py-20 text-gray-400">
+                  <History size={48} className="mb-4 opacity-20" />
+                  <p>Nenhum recibo encontrado.</p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  {filteredHistory.map((rec) => (
+                    <div 
+                      key={rec.id}
+                      className="p-4 border rounded-xl hover:bg-slate-50 transition-colors group relative"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="cursor-pointer flex-grow" onClick={() => loadReceiptToForm(rec)}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-slate-900">{rec.date}</span>
+                            <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded uppercase text-slate-500">
+                              {rec.types.donativo ? 'Donativo' : rec.types.pagamento ? 'Pagamento' : 'Recibo'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 line-clamp-1">
+                            {rec.items.filter(i => i.label && i.value).map(i => i.label).join(', ')}
+                          </p>
+                          <div className="mt-2 font-black text-[#059669]">R$ {rec.total}</div>
+                        </div>
+                        <button 
+                          onClick={() => deleteReceipt(rec.id)}
+                          className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Bottom Nav - No Print */}
       <nav className="fixed bottom-0 w-full z-50 bg-white border-t border-[#7e7576] flex justify-around items-center h-16 pb-safe no-print">
-        <button onClick={onBack} className="flex flex-col items-center justify-center text-gray-500 hover:text-black transition-colors">
-          <Home size={20} />
-          <span className="text-[10px] mt-1 uppercase font-bold">Início</span>
-        </button>
-        <button className="flex flex-col items-center justify-center text-gray-500 hover:text-black transition-colors">
+        <button 
+          onClick={() => setView('history')}
+          className={`flex flex-col items-center justify-center transition-colors ${view === 'history' ? 'text-black' : 'text-gray-500 hover:text-black'}`}
+        >
           <History size={20} />
           <span className="text-[10px] mt-1 uppercase font-bold">Histórico</span>
         </button>
-        <button className="flex flex-col items-center justify-center text-black font-bold">
-          <PlusSquare size={24} className="text-black" />
+        <button 
+          onClick={resetForm}
+          className={`flex flex-col items-center justify-center transition-colors ${view === 'form' ? 'text-black' : 'text-gray-500 hover:text-black'}`}
+        >
+          <PlusSquare size={24} className={view === 'form' ? 'text-black' : 'text-gray-500'} />
           <span className="text-[10px] mt-1 uppercase font-bold">Novo</span>
         </button>
         <button className="flex flex-col items-center justify-center text-gray-500 hover:text-black transition-colors">
@@ -198,6 +419,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       <style jsx global>{`
         @media print {
           .no-print { display: none !important; }
+          .no-print-placeholder::placeholder { color: transparent; }
           body { background: white !important; padding: 0 !important; margin: 0 !important; }
           .min-h-screen { min-height: auto !important; }
           main { padding: 0 !important; }
