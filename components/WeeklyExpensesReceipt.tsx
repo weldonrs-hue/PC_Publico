@@ -18,12 +18,16 @@ interface ReceiptRecord {
   items: { label: string; value: string }[];
   types: { donativo: boolean; pagamento: boolean };
   total: string;
+  checkedBy?: string;
+  congregation?: string;
   createdAt: any;
 }
 
 export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptProps) {
   const [view, setView] = useState<'form' | 'history'>('form');
   const [history, setHistory] = useState<ReceiptRecord[]>([]);
+  const [congregations, setCongregations] = useState<{ id: string; nome: string }[]>([]);
+  const [selectedCongregation, setSelectedCongregation] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,7 +87,28 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         console.error('Error fetching personal data:', error);
       }
     };
+
+    const fetchCongregations = async () => {
+      if (!auth.currentUser) return;
+      try {
+        const q = query(
+          collection(db, 'congregations'),
+          where('userId', '==', auth.currentUser.uid),
+          orderBy('nome', 'asc')
+        );
+        const querySnapshot = await getDocs(q);
+        const list: { id: string; nome: string }[] = [];
+        querySnapshot.forEach((doc) => {
+          list.push({ id: doc.id, nome: doc.data().nome });
+        });
+        setCongregations(list);
+      } catch (error) {
+        console.error('Error fetching congregations:', error);
+      }
+    };
+
     fetchPersonalData();
+    fetchCongregations();
   }, []);
 
   const loadHistory = async () => {
@@ -124,6 +149,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         types,
         total,
         checkedBy,
+        congregation: selectedCongregation,
         createdAt: serverTimestamp(),
       });
       alert('Recibo salvo com sucesso!');
@@ -151,6 +177,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     setTypes({ donativo: false, pagamento: false });
     setDate(new Date().toLocaleDateString('pt-BR'));
     setCheckedBy('');
+    setSelectedCongregation('');
     setView('form');
   };
 
@@ -159,6 +186,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     setTypes(record.types);
     setDate(record.date);
     setCheckedBy(record.checkedBy || '');
+    setSelectedCongregation(record.congregation || '');
     setView('form');
   };
 
@@ -265,9 +293,22 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Selection Section & Date */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 items-end no-print">
             <div>
-              <h3 className="font-bold text-sm mb-4 uppercase tracking-wider text-gray-600">Escolha o tipo:</h3>
+              <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Congregação:</h3>
+              <select
+                value={selectedCongregation}
+                onChange={(e) => setSelectedCongregation(e.target.value)}
+                className="w-full border-b-2 border-gray-200 focus:border-black bg-transparent outline-none py-1 transition-colors"
+              >
+                <option value="">Selecione...</option>
+                {congregations.map(c => (
+                  <option key={c.id} value={c.nome}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Escolha o tipo:</h3>
               <div className="flex gap-8">
                 {Object.entries(types).map(([key, value]) => (
                   <label key={key} className="flex items-center cursor-pointer group select-none">
@@ -284,16 +325,17 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                 ))}
               </div>
             </div>
-            <div className="flex items-baseline md:justify-end">
-              <span className="font-bold text-sm mr-2 uppercase tracking-wider text-gray-600">Data:</span>
-              <input 
-                type="text" 
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                placeholder="___/___/___"
-                className="w-40 border-b-2 border-gray-200 focus:border-black bg-transparent outline-none text-center font-bold py-1 transition-colors"
-              />
-            </div>
+          </div>
+
+          <div className="flex items-baseline mb-12">
+            <span className="font-bold text-sm mr-2 uppercase tracking-wider text-gray-600">Data:</span>
+            <input 
+              type="text" 
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              placeholder="___/___/___"
+              className="w-40 border-b-2 border-gray-200 focus:border-black bg-transparent outline-none text-center font-bold py-1 transition-colors"
+            />
           </div>
 
           {/* Financial Items */}
@@ -465,42 +507,71 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          .no-print { display: none !important; }
-          .no-print-placeholder::placeholder { color: transparent; }
+          /* Reset everything */
+          * {
+            visibility: hidden !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
           
-          body { background: white !important; padding: 0 !important; margin: 0 !important; }
-          
-          /* Force visibility and clear floats/overflows for the path to our receipt */
-          html, body, #__next, [data-nextjs-scroll-focus-boundary], main, .min-h-screen {
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            display: block !important;
+          /* Only the receipt content should be visible */
+          #receipt-content, 
+          #receipt-content * {
+            visibility: visible !important;
           }
 
-          main { padding: 0 !important; margin: 0 !important; }
+          /* Reset page margins */
+          @page {
+            size: auto;
+            margin: 0;
+          }
 
+          body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
+
+          /* Position the receipt at the top left of the page */
           #receipt-content {
-            width: 80mm !important; /* Small slip width */
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
             max-width: 80mm !important;
-            margin: 0 auto !important;
+            height: auto !important;
             padding: 10mm !important;
-            border: 1px solid #eee !important;
-            box-shadow: none !important;
-            visibility: visible !important;
+            border: 1px solid #ccc !important;
+            margin: 0 !important;
             display: block !important;
-            position: relative !important;
+            background: white !important;
+            transform: none !important;
+            opacity: 1 !important;
+          }
+
+          .no-print {
+            display: none !important;
+          }
+
+          .no-print-placeholder::placeholder {
+            color: transparent !important;
           }
 
           /* Adjust font sizes for slip look */
-          #receipt-content h2 { font-size: 1.25rem !important; margin-bottom: 1.5rem !important; }
-          #receipt-content .text-base { font-size: 0.875rem !important; }
-          #receipt-content .text-lg { font-size: 1rem !important; }
-          #receipt-content .text-2xl { font-size: 1.25rem !important; }
-          #receipt-content .text-4xl { font-size: 1.5rem !important; }
+          #receipt-content h2 { font-size: 1.1rem !important; margin-bottom: 1rem !important; }
+          #receipt-content .text-base { font-size: 0.8rem !important; }
+          #receipt-content .text-lg { font-size: 0.9rem !important; }
+          #receipt-content .text-xl { font-size: 1rem !important; }
+          #receipt-content .text-2xl { font-size: 1.1rem !important; }
+          #receipt-content .text-4xl { font-size: 1.3rem !important; }
           
-          /* Hide empty items or placeholders during print */
-          .no-print-placeholder { border: none !important; }
+          /* Ensure checkboxes look like checkboxes if possible, otherwise hide labels of unchecked ones or just show checked ones */
+          input[type="checkbox"] {
+            visibility: visible !important;
+            -webkit-appearance: checkbox !important;
+            appearance: checkbox !important;
+          }
         }
       `}</style>
     </div>

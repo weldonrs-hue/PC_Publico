@@ -327,6 +327,7 @@
         },
         "total": { "type": "string" },
         "checkedBy": { "type": "string", "description": "Name of the person who checked the expenses" },
+        "congregation": { "type": "string", "description": "Name of the congregation associated with the receipt" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "date", "items", "total", "createdAt"]
