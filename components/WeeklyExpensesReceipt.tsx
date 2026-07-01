@@ -566,44 +566,63 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          .no-print { display: none !important; }
-          .no-print-placeholder::placeholder { color: transparent !important; }
+          /* Hide everything by default */
+          body * {
+            visibility: hidden !important;
+          }
           
-          body { 
-            background: white !important; 
-            margin: 0 !important; 
-            padding: 0 !important;
+          /* Only show the receipt content */
+          #receipt-content,
+          #receipt-content * {
+            visibility: visible !important;
           }
 
-          /* Force visibility for printing */
-          html, body, #__next, main, .min-h-screen {
+          /* Force parents to show and allow the receipt to be positioned */
+          html, body, main, div#__next, [data-nextjs-scroll-focus-boundary] {
+            visibility: visible !important;
             height: auto !important;
             min-height: auto !important;
             overflow: visible !important;
             display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
           }
 
           #receipt-content {
-            display: block !important;
-            visibility: visible !important;
-            position: static !important;
-            margin: 0 auto !important;
+            position: absolute !important;
+            left: 50% !important;
+            top: 0 !important;
+            transform: translateX(-50%) !important;
             width: 100mm !important;
             max-width: 100mm !important;
-            border: 1px solid #eee !important;
-            box-shadow: none !important;
             padding: 10mm !important;
-            transform: none !important;
-            opacity: 1 !important;
+            border: 1px solid #000 !important;
+            background: white !important;
+            box-shadow: none !important;
+            display: block !important;
           }
 
-          header, nav, .fixed { display: none !important; }
+          /* Hide UI elements explicitly */
+          header, nav, .no-print, button, .fixed, .absolute.bottom-4 {
+            display: none !important;
+          }
+
+          .no-print-placeholder::placeholder {
+            color: transparent !important;
+          }
+
+          @page {
+            size: auto;
+            margin: 10mm 0;
+          }
           
-          /* Show checked boxes */
+          /* Fix checkboxes for print */
           input[type="checkbox"] {
             visibility: visible !important;
             -webkit-appearance: checkbox !important;
             appearance: checkbox !important;
+            border: 1px solid black !important;
           }
         }
       `}</style>
