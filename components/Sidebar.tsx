@@ -110,7 +110,7 @@ export default function Sidebar({
       return ['events', 'regional_convention_program'].includes(currentView);
     }
     if (itemView === 'misc') {
-      const miscViews = ['misc', 'field_service_report', 'file_viewer'];
+      const miscViews = ['misc', 'field_service_report', 'file_viewer', 'weekly_expenses'];
       return miscViews.includes(currentView);
     }
     if (itemView === 'cartas') {

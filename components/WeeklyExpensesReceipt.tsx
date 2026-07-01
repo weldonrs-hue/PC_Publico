@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Printer, History, Home, PlusSquare, Settings, Save, Trash2, Loader2, Search, Download } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
@@ -30,6 +30,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   const [selectedCongregation, setSelectedCongregation] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null); // ID do recibo sendo editado
   const [searchTerm, setSearchTerm] = useState('');
   const [checkedBy, setCheckedBy] = useState('');
   const [personalData, setPersonalData] = useState<any>(null);
@@ -48,9 +49,10 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
   const [items, setItems] = useState(initialItems);
 
+  // Calcula o total dos itens formatado em pt-BR
   const calculateTotal = (currentItems: { label: string, value: string }[]) => {
     const sum = currentItems.reduce((acc, item) => {
-      // Remove thousands separator (dot) and replace decimal separator (comma) with dot
+      // Remove o separador de milhar (.) e substitui a vírgula por ponto para o cálculo
       const cleanValue = item.value.replace(/\./g, '').replace(',', '.');
       const val = parseFloat(cleanValue) || 0;
       return acc + val;
@@ -58,12 +60,13 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     return sum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  // Manipula a alteração de valores monetários com máscara 0,00
   const handleValueChange = (idx: number, newValue: string) => {
     const newItems = [...items];
-    // Remove non-numeric characters
+    // Remove caracteres não numéricos
     let value = newValue.replace(/\D/g, '');
     
-    // Convert to number and format as 0,00
+    // Converte para número e formata como 0,00
     if (value === '') {
       newItems[idx].value = '';
     } else {
@@ -148,6 +151,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     }
   };
 
+  // Salva ou atualiza o recibo no Firebase
   const saveReceipt = async () => {
     if (!auth.currentUser) return;
     if (total === '0,00') {
@@ -157,7 +161,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
     setIsSaving(true);
     try {
-      await addDoc(collection(db, 'weekly_expenses'), {
+      const receiptData = {
         userId: auth.currentUser.uid,
         date,
         items,
@@ -165,9 +169,23 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         total,
         checkedBy,
         congregation: selectedCongregation,
-        createdAt: serverTimestamp(),
-      });
-      alert('Recibo salvo com sucesso!');
+        updatedAt: serverTimestamp(),
+      };
+
+      if (editingId) {
+        // Atualiza o recibo existente
+        await updateDoc(doc(db, 'weekly_expenses', editingId), receiptData);
+        alert('Recibo atualizado com sucesso!');
+      } else {
+        // Salva um novo recibo
+        await addDoc(collection(db, 'weekly_expenses'), {
+          ...receiptData,
+          createdAt: serverTimestamp(),
+        });
+        alert('Recibo salvo com sucesso!');
+      }
+      
+      resetForm();
       setView('history');
     } catch (error) {
       console.error('Error saving receipt:', error);
@@ -195,21 +213,25 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     }
   };
 
+  // Limpa o formulário e reseta o ID de edição
   const resetForm = () => {
     setItems(initialItems);
     setTypes({ donativo: false, pagamento: false });
     setDate(new Date().toLocaleDateString('pt-BR'));
     setCheckedBy('');
     setSelectedCongregation('');
+    setEditingId(null);
     setView('form');
   };
 
+  // Carrega os dados de um recibo no formulário para edição
   const loadReceiptToForm = (record: ReceiptRecord) => {
     setItems(record.items);
     setTypes(record.types);
     setDate(record.date);
     setCheckedBy(record.checkedBy || '');
     setSelectedCongregation(record.congregation || '');
+    setEditingId(record.id);
     setView('form');
   };
 
@@ -298,19 +320,23 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-grow flex justify-center py-6 px-4 md:px-8 pb-32">
+      {/* Área de Conteúdo Principal - Permite rolagem horizontal em telas pequenas */}
+      <main className="flex-grow flex flex-col p-0 md:p-8 overflow-hidden">
         <AnimatePresence mode="wait">
           {view === 'form' ? (
-            <motion.div 
-              key="form"
-              id="receipt-content"
-              ref={receiptRef}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0"
-            >
+            <div className="w-full overflow-x-auto pb-20 pt-4 md:pt-0">
+              {/* min-w-max garante que o container interno tenha pelo menos a largura do recibo (800px) */}
+              <div className="min-w-max px-4">
+                <motion.div 
+                  key="form"
+                  id="receipt-content"
+                  ref={receiptRef}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  /* mx-auto centraliza o recibo quando a tela é maior que 800px */
+                  className="bg-white w-[800px] mx-auto shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0 print:m-0"
+                >
           {/* Header Row */}
           <div className="text-center mb-10">
             <h2 className="font-serif text-2xl md:text-3xl font-bold tracking-[0.3em] uppercase underline underline-offset-8">RECIBO</h2>
@@ -443,18 +469,22 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
               <div className="border-t border-[#7e7576] w-full mb-1"></div>
               <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Conferido por)</span>
             </div>
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
           ) : (
             <motion.div 
               key="history"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-6 md:p-8 relative border border-[#cfc4c5] flex flex-col"
+              /* Centraliza o histórico na tela */
+              className="bg-white w-full max-w-[800px] mx-auto shadow-lg md:shadow-xl p-6 md:p-8 relative border border-[#cfc4c5] flex flex-col"
             >
+              {/* Histórico de Recibos */}
               <div className="flex justify-between items-center mb-6">
-                <h2 className="font-serif text-2xl font-bold uppercase tracking-wider text-slate-800">Histórico de Gastos</h2>
+                <h2 className="font-serif text-2xl font-bold uppercase tracking-wider text-slate-800">Histórico</h2>
                 <div className="relative">
                   <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input 
@@ -584,7 +614,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          /* Reset everything */
+          /* Reseta o ambiente para impressão limpa */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
@@ -594,50 +624,48 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             overflow: visible !important;
           }
 
-          /* Hide UI elements */
-          header, nav, .no-print, button, .fixed, .absolute.bottom-4 {
-            display: none !important;
-            height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-
-          /* Reset all potential wrappers */
-          #__next, [data-nextjs-scroll-focus-boundary], main, .min-h-screen {
-            display: block !important;
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          /* Only show the receipt content */
+          /* Esconde tudo por padrão */
           body * {
             visibility: hidden !important;
           }
           
+          /* Mostra apenas o conteúdo do recibo */
           #receipt-content,
           #receipt-content * {
             visibility: visible !important;
           }
 
+          /* Força os pais a serem visíveis */
+          html, body, main, div#__next, [data-nextjs-scroll-focus-boundary] {
+            visibility: visible !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+          }
+
           #receipt-content {
             visibility: visible !important;
-            position: relative !important;
-            margin: 0 auto !important;
-            width: 100mm !important;
-            max-width: 100mm !important;
+            position: absolute !important;
+            left: 50% !important;
+            top: 0 !important;
+            transform: translateX(-50%) !important;
+            width: 120mm !important;
+            max-width: 120mm !important;
             padding: 10mm !important;
             border: 1px solid #000 !important;
             background: white !important;
             box-shadow: none !important;
             display: block !important;
             page-break-inside: avoid !important;
-            break-inside: avoid !important;
-            left: 0 !important;
-            top: 0 !important;
-            transform: none !important;
+          }
+
+          /* Esconde elementos UI */
+          header, nav, .no-print, button, .fixed, .absolute.bottom-4 {
+            display: none !important;
           }
 
           .no-print-placeholder::placeholder {
@@ -646,10 +674,10 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
           @page {
             size: auto;
-            margin: 0;
+            margin: 10mm 0;
           }
           
-          /* Fix checkboxes for print */
+          /* Checkboxes na impressão */
           input[type="checkbox"] {
             visibility: visible !important;
             -webkit-appearance: checkbox !important;
