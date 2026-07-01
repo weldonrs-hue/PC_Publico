@@ -175,16 +175,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     if (!receiptRef.current) return;
     setGenerating(true);
     try {
+      // Use toJpeg for better rendering of signatures/images in PDF
       const dataUrl = await toJpeg(receiptRef.current, {
         quality: 0.95,
         pixelRatio: 3,
         backgroundColor: '#ffffff',
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left',
-          margin: '0',
-          padding: '40px', // Add some padding for the PDF
-        }
       });
 
       const pdf = new jsPDF({
@@ -194,11 +189,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       });
 
       const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfWidth = 100; // Slip width in PDF
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Recibo_Gastos_${date.replace(/\//g, '-')}.pdf`);
+      pdf.addImage(dataUrl, 'JPEG', 10, 10, pdfWidth, pdfHeight);
+      pdf.save(`Recibo_${date.replace(/\//g, '-')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Erro ao gerar PDF.');
@@ -257,12 +252,12 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           {view === 'form' ? (
             <motion.div 
               key="form"
-              id="receipt-print-container"
+              id="receipt-content"
               ref={receiptRef}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0 print:m-0"
+              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0"
             >
           {/* Header Row */}
           <div className="text-center mb-10">
@@ -470,31 +465,42 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          @page {
-            size: A4 portrait;
-            margin: 10mm;
-          }
           .no-print { display: none !important; }
           .no-print-placeholder::placeholder { color: transparent; }
+          
           body { background: white !important; padding: 0 !important; margin: 0 !important; }
-          .min-h-screen { min-height: auto !important; height: auto !important; overflow: visible !important; }
-          main { padding: 0 !important; margin: 0 !important; display: block !important; }
-          #receipt-print-container {
-            position: relative !important;
-            width: 100% !important;
-            max-width: none !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            display: block !important;
-            visibility: visible !important;
-          }
-          /* Ensure all parent containers don't break printing */
-          div, section, nav, header {
-            overflow: visible !important;
+          
+          /* Force visibility and clear floats/overflows for the path to our receipt */
+          html, body, #__next, [data-nextjs-scroll-focus-boundary], main, .min-h-screen {
             height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            display: block !important;
           }
+
+          main { padding: 0 !important; margin: 0 !important; }
+
+          #receipt-content {
+            width: 80mm !important; /* Small slip width */
+            max-width: 80mm !important;
+            margin: 0 auto !important;
+            padding: 10mm !important;
+            border: 1px solid #eee !important;
+            box-shadow: none !important;
+            visibility: visible !important;
+            display: block !important;
+            position: relative !important;
+          }
+
+          /* Adjust font sizes for slip look */
+          #receipt-content h2 { font-size: 1.25rem !important; margin-bottom: 1.5rem !important; }
+          #receipt-content .text-base { font-size: 0.875rem !important; }
+          #receipt-content .text-lg { font-size: 1rem !important; }
+          #receipt-content .text-2xl { font-size: 1.25rem !important; }
+          #receipt-content .text-4xl { font-size: 1.5rem !important; }
+          
+          /* Hide empty items or placeholders during print */
+          .no-print-placeholder { border: none !important; }
         }
       `}</style>
     </div>
