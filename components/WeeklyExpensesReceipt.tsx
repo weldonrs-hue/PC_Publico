@@ -34,6 +34,8 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   const [checkedBy, setCheckedBy] = useState('');
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [receiptToDelete, setReceiptToDelete] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const initialItems = [
@@ -162,13 +164,18 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     }
   };
 
-  const deleteReceipt = async (id: string) => {
-    // Avoid using confirm() directly if possible, but if needed, use window.confirm
-    if (typeof window !== 'undefined' && !window.confirm('Deseja excluir este recibo?')) return;
-    
+  const deleteReceipt = (id: string) => {
+    setReceiptToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!receiptToDelete) return;
     try {
-      await deleteDoc(doc(db, 'weekly_expenses', id));
-      setHistory(prev => prev.filter(item => item.id !== id));
+      await deleteDoc(doc(db, 'weekly_expenses', receiptToDelete));
+      setHistory(prev => prev.filter(item => item.id !== receiptToDelete));
+      setShowDeleteModal(false);
+      setReceiptToDelete(null);
     } catch (error) {
       console.error('Error deleting receipt:', error);
       alert('Erro ao excluir recibo.');
@@ -195,6 +202,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
   const filteredHistory = history.filter(h => 
     h.date.includes(searchTerm) || 
+    (h.congregation && h.congregation.toLowerCase().includes(searchTerm.toLowerCase())) ||
     h.items.some(i => i.label.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -293,6 +301,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           {/* Header Row */}
           <div className="text-center mb-10">
             <h2 className="font-serif text-2xl md:text-3xl font-bold tracking-[0.3em] uppercase underline underline-offset-8">RECIBO</h2>
+            {selectedCongregation && (
+              <p className="mt-4 font-bold text-slate-700 uppercase tracking-widest text-sm">
+                Congregação {selectedCongregation}
+              </p>
+            )}
           </div>
 
           {/* Selection Section & Date */}
@@ -486,6 +499,49 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         </AnimatePresence>
       </main>
 
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center"
+            >
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Excluir Recibo?</h3>
+              <p className="text-slate-500 mb-6 text-sm">
+                Esta ação não pode ser desfeita. O registro será removido permanentemente do histórico.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setShowDeleteModal(false)}
+                  className="py-3 px-4 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleConfirmDelete}
+                  className="py-3 px-4 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-200"
+                >
+                  Excluir
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Bottom Nav - No Print */}
       <nav className="fixed bottom-0 w-full z-50 bg-white border-t border-[#7e7576] flex justify-around items-center h-16 pb-safe no-print">
         <button 
@@ -519,22 +575,20 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             padding: 0 !important;
           }
 
-          /* Reset all parent containers for printing */
-          html, body, #__next, [data-nextjs-scroll-focus-boundary], main, .min-h-screen {
+          /* Force visibility for printing */
+          html, body, #__next, main, .min-h-screen {
             height: auto !important;
             min-height: auto !important;
             overflow: visible !important;
             display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
           }
 
           #receipt-content {
             display: block !important;
             visibility: visible !important;
-            position: relative !important;
+            position: static !important;
             margin: 0 auto !important;
-            width: 100mm !important; /* Slightly wider slip */
+            width: 100mm !important;
             max-width: 100mm !important;
             border: 1px solid #eee !important;
             box-shadow: none !important;
@@ -543,17 +597,9 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             opacity: 1 !important;
           }
 
-          /* Hide other elements explicitly if needed */
-          header, nav { display: none !important; }
-
-          /* Adjust font sizes for slip look */
-          #receipt-content h2 { font-size: 1.1rem !important; margin-bottom: 1rem !important; }
-          #receipt-content .text-base { font-size: 0.8rem !important; }
-          #receipt-content .text-lg { font-size: 0.9rem !important; }
-          #receipt-content .text-xl { font-size: 1rem !important; }
-          #receipt-content .text-2xl { font-size: 1.1rem !important; }
-          #receipt-content .text-4xl { font-size: 1.3rem !important; }
+          header, nav, .fixed { display: none !important; }
           
+          /* Show checked boxes */
           input[type="checkbox"] {
             visibility: visible !important;
             -webkit-appearance: checkbox !important;
