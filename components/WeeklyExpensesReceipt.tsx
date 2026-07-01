@@ -50,7 +50,9 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
   const calculateTotal = (currentItems: { label: string, value: string }[]) => {
     const sum = currentItems.reduce((acc, item) => {
-      const val = parseFloat(item.value.replace(',', '.')) || 0;
+      // Remove thousands separator (dot) and replace decimal separator (comma) with dot
+      const cleanValue = item.value.replace(/\./g, '').replace(',', '.');
+      const val = parseFloat(cleanValue) || 0;
       return acc + val;
     }, 0);
     return sum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -58,9 +60,20 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
   const handleValueChange = (idx: number, newValue: string) => {
     const newItems = [...items];
-    // Allow only numbers and comma
-    const sanitized = newValue.replace(/[^0-9,]/g, '');
-    newItems[idx].value = sanitized;
+    // Remove non-numeric characters
+    let value = newValue.replace(/\D/g, '');
+    
+    // Convert to number and format as 0,00
+    if (value === '') {
+      newItems[idx].value = '';
+    } else {
+      const numberValue = parseInt(value) / 100;
+      newItems[idx].value = numberValue.toLocaleString('pt-BR', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      });
+    }
+    
     setItems(newItems);
   };
 
@@ -359,7 +372,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             {items.map((item, idx) => (
               <div key={idx} className="flex items-end gap-4 h-10">
                 <div className="flex-grow flex items-end">
-                  {item.label ? (
+                  {idx < 3 ? (
                     <span className="text-base md:text-lg font-medium">{item.label}</span>
                   ) : (
                     <input 
@@ -474,6 +487,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                         <div className="cursor-pointer flex-grow" onClick={() => loadReceiptToForm(rec)}>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-slate-900">{rec.date}</span>
+                            {rec.congregation && (
+                              <span className="text-[10px] bg-emerald-50 px-2 py-0.5 rounded uppercase text-emerald-700 font-bold">
+                                {rec.congregation}
+                              </span>
+                            )}
                             <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded uppercase text-slate-500">
                               {rec.types.donativo ? 'Donativo' : rec.types.pagamento ? 'Pagamento' : 'Recibo'}
                             </span>
@@ -566,34 +584,48 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          /* Hide everything by default */
+          /* Reset everything */
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+          }
+
+          /* Hide UI elements */
+          header, nav, .no-print, button, .fixed, .absolute.bottom-4 {
+            display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Reset all potential wrappers */
+          #__next, [data-nextjs-scroll-focus-boundary], main, .min-h-screen {
+            display: block !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          /* Only show the receipt content */
           body * {
             visibility: hidden !important;
           }
           
-          /* Only show the receipt content */
           #receipt-content,
           #receipt-content * {
             visibility: visible !important;
           }
 
-          /* Force parents to show and allow the receipt to be positioned */
-          html, body, main, div#__next, [data-nextjs-scroll-focus-boundary] {
-            visibility: visible !important;
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-          }
-
           #receipt-content {
-            position: absolute !important;
-            left: 50% !important;
-            top: 0 !important;
-            transform: translateX(-50%) !important;
+            visibility: visible !important;
+            position: relative !important;
+            margin: 0 auto !important;
             width: 100mm !important;
             max-width: 100mm !important;
             padding: 10mm !important;
@@ -601,11 +633,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             background: white !important;
             box-shadow: none !important;
             display: block !important;
-          }
-
-          /* Hide UI elements explicitly */
-          header, nav, .no-print, button, .fixed, .absolute.bottom-4 {
-            display: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            left: 0 !important;
+            top: 0 !important;
+            transform: none !important;
           }
 
           .no-print-placeholder::placeholder {
@@ -614,7 +646,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
           @page {
             size: auto;
-            margin: 10mm 0;
+            margin: 0;
           }
           
           /* Fix checkboxes for print */
