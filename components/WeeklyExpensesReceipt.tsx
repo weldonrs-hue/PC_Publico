@@ -163,12 +163,15 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   };
 
   const deleteReceipt = async (id: string) => {
-    if (!confirm('Deseja excluir este recibo?')) return;
+    // Avoid using confirm() directly if possible, but if needed, use window.confirm
+    if (typeof window !== 'undefined' && !window.confirm('Deseja excluir este recibo?')) return;
+    
     try {
       await deleteDoc(doc(db, 'weekly_expenses', id));
       setHistory(prev => prev.filter(item => item.id !== id));
     } catch (error) {
       console.error('Error deleting receipt:', error);
+      alert('Erro ao excluir recibo.');
     }
   };
 
@@ -469,7 +472,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                         </div>
                         <button 
                           onClick={() => deleteReceipt(rec.id)}
-                          className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors md:opacity-0 md:group-hover:opacity-100 active:text-red-600"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -507,56 +510,41 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          /* Reset everything */
-          * {
-            visibility: hidden !important;
-            box-shadow: none !important;
-            text-shadow: none !important;
-          }
+          .no-print { display: none !important; }
+          .no-print-placeholder::placeholder { color: transparent !important; }
           
-          /* Only the receipt content should be visible */
-          #receipt-content, 
-          #receipt-content * {
-            visibility: visible !important;
+          body { 
+            background: white !important; 
+            margin: 0 !important; 
+            padding: 0 !important;
           }
 
-          /* Reset page margins */
-          @page {
-            size: auto;
-            margin: 0;
-          }
-
-          body {
-            background: white !important;
+          /* Reset all parent containers for printing */
+          html, body, #__next, [data-nextjs-scroll-focus-boundary], main, .min-h-screen {
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            display: block !important;
             margin: 0 !important;
             padding: 0 !important;
-            width: 100% !important;
           }
 
-          /* Position the receipt at the top left of the page */
           #receipt-content {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 80mm !important;
-            max-width: 80mm !important;
-            height: auto !important;
-            padding: 10mm !important;
-            border: 1px solid #ccc !important;
-            margin: 0 !important;
             display: block !important;
-            background: white !important;
+            visibility: visible !important;
+            position: relative !important;
+            margin: 0 auto !important;
+            width: 100mm !important; /* Slightly wider slip */
+            max-width: 100mm !important;
+            border: 1px solid #eee !important;
+            box-shadow: none !important;
+            padding: 10mm !important;
             transform: none !important;
             opacity: 1 !important;
           }
 
-          .no-print {
-            display: none !important;
-          }
-
-          .no-print-placeholder::placeholder {
-            color: transparent !important;
-          }
+          /* Hide other elements explicitly if needed */
+          header, nav { display: none !important; }
 
           /* Adjust font sizes for slip look */
           #receipt-content h2 { font-size: 1.1rem !important; margin-bottom: 1rem !important; }
@@ -566,7 +554,6 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           #receipt-content .text-2xl { font-size: 1.1rem !important; }
           #receipt-content .text-4xl { font-size: 1.3rem !important; }
           
-          /* Ensure checkboxes look like checkboxes if possible, otherwise hide labels of unchecked ones or just show checked ones */
           input[type="checkbox"] {
             visibility: visible !important;
             -webkit-appearance: checkbox !important;
