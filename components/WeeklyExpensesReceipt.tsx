@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Printer, History, Home, PlusSquare, Settings, Save, Trash2, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Printer, History, Home, PlusSquare, Settings, Save, Trash2, Loader2, Search, Download } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { toJpeg } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 
 interface WeeklyExpensesReceiptProps {
   onBack: () => void;
@@ -27,6 +29,8 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   const [searchTerm, setSearchTerm] = useState('');
   const [checkedBy, setCheckedBy] = useState('');
   const [personalData, setPersonalData] = useState<any>(null);
+  const [generating, setGenerating] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const initialItems = [
     { label: 'Mercado da Semana', value: '' },
@@ -167,6 +171,42 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     window.print();
   };
 
+  const handleDownloadPDF = async () => {
+    if (!receiptRef.current) return;
+    setGenerating(true);
+    try {
+      const dataUrl = await toJpeg(receiptRef.current, {
+        quality: 0.95,
+        pixelRatio: 3,
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          margin: '0',
+          padding: '40px', // Add some padding for the PDF
+        }
+      });
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Recibo_Gastos_${date.replace(/\//g, '-')}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Erro ao gerar PDF.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f9f9f9] text-[#1a1c1c] font-sans flex flex-col print:bg-white">
       {/* Header - No Print */}
@@ -182,14 +222,24 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         </h1>
         <div className="flex items-center gap-2">
           {view === 'form' && (
-            <button 
-              onClick={saveReceipt}
-              disabled={isSaving}
-              className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded disabled:opacity-50"
-              title="Salvar"
-            >
-              {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
-            </button>
+            <>
+              <button 
+                onClick={handleDownloadPDF}
+                disabled={generating || isSaving}
+                className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded disabled:opacity-50"
+                title="Baixar PDF"
+              >
+                {generating ? <Loader2 size={24} className="animate-spin" /> : <Download size={24} />}
+              </button>
+              <button 
+                onClick={saveReceipt}
+                disabled={isSaving}
+                className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded disabled:opacity-50"
+                title="Salvar"
+              >
+                {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
+              </button>
+            </>
           )}
           <button 
             onClick={handlePrint}
@@ -207,10 +257,12 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           {view === 'form' ? (
             <motion.div 
               key="form"
+              id="receipt-print-container"
+              ref={receiptRef}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0"
+              className="bg-white w-full max-w-[800px] shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0 print:m-0"
             >
           {/* Header Row */}
           <div className="text-center mb-10">
@@ -418,11 +470,31 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
           .no-print { display: none !important; }
           .no-print-placeholder::placeholder { color: transparent; }
           body { background: white !important; padding: 0 !important; margin: 0 !important; }
-          .min-h-screen { min-height: auto !important; }
-          main { padding: 0 !important; }
+          .min-h-screen { min-height: auto !important; height: auto !important; overflow: visible !important; }
+          main { padding: 0 !important; margin: 0 !important; display: block !important; }
+          #receipt-print-container {
+            position: relative !important;
+            width: 100% !important;
+            max-width: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            visibility: visible !important;
+          }
+          /* Ensure all parent containers don't break printing */
+          div, section, nav, header {
+            overflow: visible !important;
+            height: auto !important;
+          }
         }
       `}</style>
     </div>
