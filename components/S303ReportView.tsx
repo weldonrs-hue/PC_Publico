@@ -829,6 +829,12 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
             margin: 0;
             size: A4 landscape;
           }
+          body * {
+            visibility: hidden;
+          }
+          #s303-report-container, #s303-report-container * {
+            visibility: visible !important;
+          }
           html, body {
             margin: 0 !important;
             padding: 0 !important;

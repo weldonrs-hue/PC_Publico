@@ -316,15 +316,6 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         quality: 0.95,
         pixelRatio: 3, // High resolution for text clarity
         backgroundColor: '#ffffff',
-        width: 793.7, // 210mm at 96dpi is ~793.7px
-        height: 521.6, // 138mm at 96dpi is ~521.6px
-        style: {
-          margin: '0',
-          boxShadow: 'none',
-          borderRadius: '0',
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
-        }
       });
 
       const pdf = new jsPDF({
@@ -334,15 +325,18 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         compress: true
       });
 
-      // Calculate 20% reduction dimensions (scale 0.8)
-      const scale = 0.8;
-      const imgWidth = 210 * scale;
-      const imgHeight = 138 * scale;
-      const xOffset = (210 - imgWidth) / 2;
-      const yOffset = 20; // Match the top: 20mm from print CSS
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = 210; // A4 width is 210mm
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       // Fit the image to A4 with the specified scale and position
-      pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgHeight, undefined, 'FAST');
+      const scale = 0.85;
+      const imgWidth = pdfWidth * scale;
+      const imgScaledHeight = pdfHeight * scale;
+      const xOffset = (pdfWidth - imgWidth) / 2;
+      const yOffset = 20; // 20mm from top
+
+      pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgScaledHeight, undefined, 'FAST');
       
       const filename = `S-302_${congregacao.nome.replace(/\s+/g, '_')}.pdf`;
       pdf.save(filename);
@@ -380,6 +374,12 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             size: A4 portrait;
             margin: 0;
           }
+          body * {
+            visibility: hidden;
+          }
+          #s302-print-container, #s302-print-container * {
+            visibility: visible !important;
+          }
           body {
             background: white !important;
             -webkit-print-color-adjust: exact !important;
@@ -387,12 +387,8 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             margin: 0 !important;
             padding: 0 !important;
           }
-          .no-print {
-            display: none !important;
-          }
           #s302-print-container {
             display: block !important;
-            visibility: visible !important;
             position: absolute !important;
             top: 20mm !important;
             left: 0 !important;
@@ -406,11 +402,8 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             overflow: hidden !important;
             z-index: 9999 !important;
             background: white !important;
-            transform: scale(0.8) !important;
+            transform: scale(0.85) !important;
             transform-origin: top center !important;
-          }
-          #s302-print-container * {
-            visibility: visible !important;
           }
         }
       `}} />

@@ -15,7 +15,8 @@ import {
   Settings2,
   X,
   FileUp,
-  AlertCircle
+  AlertCircle,
+  Printer
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { 
@@ -250,6 +251,78 @@ export default function CongressLetters({
       setStatus('idle');
     }
   }, [selectedTemplate, templates, localFileBuffer, personalData, conventionDetails]);
+
+  // Fix DocMentis printer choice in Modal
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) {
+            const modal = node.classList.contains('udoc-modal') ? node : node.querySelector('.udoc-modal');
+            if (modal) {
+              const titleNode = modal.querySelector('.udoc-modal-title');
+              if (titleNode && (titleNode.textContent?.toLowerCase().includes('imprimir') || titleNode.textContent?.toLowerCase().includes('print'))) {
+                // We found the print modal. Now inject the printer selection field.
+                const body = modal.querySelector('.udoc-modal-body') || modal.querySelector('[class*="body"]');
+                if (body && !body.querySelector('.custom-printer-selector')) {
+                  const selectorDiv = document.createElement('div');
+                  selectorDiv.className = 'custom-printer-selector mt-4 pt-4 border-t border-gray-100';
+                  selectorDiv.innerHTML = `
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Destino / Impressora</label>
+                    <div class="relative group">
+                      <select id="modal-printer-choice" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-[11px] font-bold text-gray-700 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer">
+                        <option value="system">Impressora Física (Sistema)</option>
+                        <option value="pdf">Salvar como PDF (Alta Definição)</option>
+                      </select>
+                      <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-blue-500 transition-colors">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      </div>
+                    </div>
+                    <p class="text-[9px] text-gray-400 font-medium mt-2 leading-tight">
+                      * A escolha da impressora física específica será confirmada no próximo passo.
+                    </p>
+                  `;
+                  body.appendChild(selectorDiv);
+
+                  // Now intercept the final "Imprimir" button in the footer
+                  const footer = modal.querySelector('.udoc-modal-footer') || modal.querySelector('[class*="footer"]');
+                  if (footer) {
+                    const buttons = footer.querySelectorAll('button');
+                    buttons.forEach(btn => {
+                      const btnText = btn.textContent?.toLowerCase() || '';
+                      if (btnText.includes('imprimir') || btnText.includes('print')) {
+                        if (!btn.hasAttribute('data-enhanced-print-v2')) {
+                          btn.setAttribute('data-enhanced-print-v2', 'true');
+                          
+                          // Attach high-priority click listener to check selector value
+                          btn.addEventListener('click', (e) => {
+                            const choice = (document.getElementById('modal-printer-choice') as HTMLSelectElement)?.value;
+                            if (choice === 'pdf') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              // Close modal
+                              const closeBtn = modal.querySelector('.udoc-modal-close') as HTMLElement;
+                              if (closeBtn) closeBtn.click();
+                              // Trigger our PDF download
+                              downloadAsPdf();
+                            }
+                            // If 'system', let it continue to DocMentis's print handler
+                          }, true);
+                        }
+                      }
+                    });
+                  }
+                }
+              }
+            }
+          }
+        });
+      });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   const getReplacements = (signatureImage: string) => {
     const now = new Date();
@@ -692,10 +765,18 @@ export default function CongressLetters({
                   <button
                     onClick={downloadAsPdf}
                     disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-violet-700 transition-all disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-violet-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-violet-100 hover:bg-violet-100 transition-all font-sans"
                   >
                     {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
                     BAIXAR PDF
+                  </button>
+
+                  <button
+                    onClick={() => viewerRef.current?.print()}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-violet-700 transition-all"
+                  >
+                    <Printer size={14} />
+                    IMPRIMIR
                   </button>
                 </>
               )}

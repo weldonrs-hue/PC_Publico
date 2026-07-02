@@ -150,7 +150,7 @@ export default function DraggableSignature({
   const currentWidth = baseHeight * aspectRatio * scale;
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden print:hidden">
+    <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
       <motion.div
         ref={nodeRef}
         drag={!isResizing}
@@ -177,31 +177,31 @@ export default function DraggableSignature({
           </div>
 
           {/* Selection Border - Always visible if selected */}
-          <div className={`absolute -inset-0.5 border border-blue-400/30 rounded-sm transition-opacity pointer-events-none ${isSelected || isDragging || isResizing ? 'opacity-100 border-blue-500/50' : 'opacity-0 group-hover:opacity-100'}`} />
+          <div className={`absolute -inset-0.5 border border-blue-400/30 rounded-sm transition-opacity pointer-events-none ${isSelected || isDragging || isResizing ? 'opacity-100 border-blue-500/50' : 'opacity-0 group-hover:opacity-100'} print:hidden`} />
 
           {/* Resize Handles - Visible if selected */}
           <div 
-            className={`absolute -top-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            className={`absolute -top-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} print:hidden`}
             onPointerDown={(e) => handleResize(e as any, 'nw')}
           />
 
           <div 
-            className={`absolute -top-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            className={`absolute -top-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} print:hidden`}
             onPointerDown={(e) => handleResize(e as any, 'ne')}
           />
 
           <div 
-            className={`absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            className={`absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-blue-600 cursor-nesw-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} print:hidden`}
             onPointerDown={(e) => handleResize(e as any, 'sw')}
           />
 
           <div 
-            className={`absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            className={`absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-blue-600 cursor-nwse-resize shadow-sm hover:scale-125 transition-all pointer-events-auto z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} print:hidden`}
             onPointerDown={(e) => handleResize(e as any, 'se')}
           />
 
           {/* Top Controls Overlay - Visible if selected */}
-          <div className={`absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm shadow-md border border-gray-100 rounded p-0.5 transition-all whitespace-nowrap ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+          <div className={`absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white/90 backdrop-blur-sm shadow-md border border-gray-100 rounded p-0.5 transition-all whitespace-nowrap ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} print:hidden`}>
             <button 
               onClick={() => {
                 setPosition({ x: initialX, y: initialY });
