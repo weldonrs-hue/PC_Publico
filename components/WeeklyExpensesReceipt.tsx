@@ -652,20 +652,21 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           /* Ajusta o container do recibo para proporções de uma folha A4 (210mm) */
           #receipt-content {
             visibility: visible !important;
-            position: relative !important;
-            margin: 0 auto !important;
+            position: absolute !important;
+            top: 10mm !important;
+            left: 50% !important;
+            transform: translateX(-50%) scale(0.5) !important;
+            transform-origin: top center !important;
+            margin: 0 !important;
             width: 210mm !important;
             max-width: 210mm !important;
-            min-height: 297mm !important; /* Altura de uma página A4 */
+            min-height: auto !important;
             padding: 20mm !important;
             border: 1px solid #cfc4c5 !important;
             background: white !important;
             box-shadow: none !important;
             display: block !important;
             page-break-inside: avoid !important;
-            top: 0 !important;
-            left: 0 !important;
-            transform: none !important;
           }
 
           /* Remove explicitamente botões e navegação */
