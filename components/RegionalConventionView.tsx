@@ -630,111 +630,130 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
   }
 
   return (
-    <div className="space-y-8 pb-12 print:p-0 print:space-y-4">
+    <div id="regional-convention-print-content" className="space-y-8 pb-12 print:p-0 print:space-y-4">
       {/* Print Styles */}
       <style jsx global>{`
-        /* Hide print elements on screen */
-        .print-hero, .print-day-title, .print-theme-text, .print-session-header, .print-item-row, .print-subitem-row {
-          display: none !important;
+        @media screen {
+          .print-hero, .print-day-title, .print-theme-text, .print-session-header, .print-item-row, .print-subitem-row, .print-day-title-container {
+            display: none !important;
+          }
         }
 
         @media print {
           @page {
-            size: A4;
-            margin: 10mm;
+            size: A4 portrait;
+            margin: 15mm;
           }
+          body * {
+            visibility: hidden;
+          }
+          #regional-convention-print-content, #regional-convention-print-content * {
+            visibility: visible !important;
+          }
+          #regional-convention-print-content {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            display: block !important;
+          }
+          .no-print, .no-print * {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          
           body {
             background: white !important;
             color: black !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .no-print {
-            display: none !important;
-          }
           
-          .print-container {
-            display: block !important;
-            width: 100% !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-            transform: none !important;
-          }
-
           .print-hero {
             display: block !important;
             width: 100% !important;
-            height: auto !important;
-            max-height: 150px !important;
+            height: 180px !important;
             object-fit: cover !important;
             object-position: center 33% !important;
-            margin-bottom: 1rem !important;
+            margin-bottom: 2rem !important;
+            border-radius: 8px !important;
+          }
+
+          .print-day-title-container {
+            display: block !important;
+            margin-bottom: 1.5rem !important;
           }
 
           .print-day-title {
             display: block !important;
-            font-size: 24pt !important;
-            font-weight: 700 !important;
-            margin-bottom: 0.2rem !important;
+            font-size: 28pt !important;
+            font-weight: 800 !important;
+            margin-bottom: 0.5rem !important;
             line-height: 1 !important;
+            text-transform: uppercase !important;
+            letter-spacing: -0.02em !important;
           }
 
           .print-theme-text {
             display: block !important;
-            font-size: 11pt !important;
+            font-size: 12pt !important;
             font-style: italic !important;
-            color: #4b5563 !important;
-            margin-bottom: 1rem !important;
+            color: #374151 !important;
+            line-height: 1.4 !important;
           }
 
           .print-session-header {
             display: block !important;
-            font-size: 14pt !important;
+            font-size: 16pt !important;
             font-weight: 800 !important;
-            margin-top: 1rem !important;
-            margin-bottom: 0.5rem !important;
+            margin-top: 2rem !important;
+            margin-bottom: 1rem !important;
             text-transform: uppercase !important;
             border-bottom: 2px solid !important;
-            padding-bottom: 2pt !important;
+            padding-bottom: 4pt !important;
+            letter-spacing: 0.05em !important;
           }
 
           .print-table {
             width: 100% !important;
-            border-collapse: collapse !important;
-            border: 0.5pt solid #ccc !important;
+            border: 1pt solid #e5e7eb !important;
           }
 
           .print-row {
             display: flex !important;
-            border-bottom: 0.5pt solid #eee !important;
+            border-bottom: 0.5pt solid #e5e7eb !important;
             break-inside: avoid !important;
-            min-height: 22pt !important;
+            min-height: 32pt !important;
             align-items: center !important;
           }
 
           .print-cell-time {
-            width: 45pt !important;
-            padding: 4pt !important;
+            width: 50pt !important;
+            padding: 6pt !important;
             font-size: 10pt !important;
-            border-right: 0.5pt solid #eee !important;
+            font-weight: 600 !important;
+            border-right: 0.5pt solid #e5e7eb !important;
             flex-shrink: 0 !important;
             text-align: center !important;
+            color: #4b5563 !important;
           }
 
           .print-cell-content {
             flex-grow: 1 !important;
-            padding: 4pt 8pt !important;
+            padding: 6pt 12pt !important;
             font-size: 10pt !important;
+            line-height: 1.3 !important;
           }
 
           .print-cell-speaker {
-            width: 160pt !important;
-            padding: 4pt 8pt !important;
+            width: 180pt !important;
+            padding: 6pt 12pt !important;
             font-size: 10pt !important;
             font-weight: 700 !important;
             text-align: left !important;
             flex-shrink: 0 !important;
-            border-right: 0.5pt solid #eee !important;
+            border-right: 0.5pt solid #e5e7eb !important;
+            background-color: #f9fafb !important;
           }
 
           .print-title-bold {
@@ -745,11 +764,19 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
             font-size: 8pt !important;
             font-weight: 800 !important;
             text-transform: uppercase !important;
-            margin-right: 4pt !important;
+            margin-right: 6pt !important;
+            letter-spacing: 0.025em !important;
           }
 
           .print-subitem-row {
             background-color: #fafafa !important;
+            padding-left: 20pt !important;
+          }
+          
+          .print-container {
+            display: block !important;
+            width: 100% !important;
+            opacity: 1 !important;
           }
         }
       `}</style>
