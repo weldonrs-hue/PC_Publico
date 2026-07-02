@@ -614,7 +614,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          /* Reseta o ambiente para impressão limpa */
+          /* Reseta o ambiente para impressão limpa e sem fundos cinzas */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
@@ -622,20 +622,22 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             height: auto !important;
             min-height: auto !important;
             overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
-          /* Esconde tudo por padrão */
+          /* Esconde absolutamente tudo por padrão para evitar elementos fantasmas */
           body * {
             visibility: hidden !important;
           }
           
-          /* Mostra apenas o conteúdo do recibo */
+          /* Mostra apenas o conteúdo do recibo e garante que seus filhos sejam visíveis */
           #receipt-content,
           #receipt-content * {
             visibility: visible !important;
           }
 
-          /* Força os pais a serem visíveis */
+          /* Força os elementos pai a permitirem a visualização do recibo */
           html, body, main, div#__next, [data-nextjs-scroll-focus-boundary] {
             visibility: visible !important;
             height: auto !important;
@@ -647,42 +649,55 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             border: none !important;
           }
 
+          /* Ajusta o container do recibo para proporções de uma folha A4 (210mm) */
           #receipt-content {
             visibility: visible !important;
-            position: absolute !important;
-            left: 50% !important;
-            top: 0 !important;
-            transform: translateX(-50%) !important;
-            width: 120mm !important;
-            max-width: 120mm !important;
-            padding: 10mm !important;
-            border: 1px solid #000 !important;
+            position: relative !important;
+            margin: 0 auto !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            min-height: 297mm !important; /* Altura de uma página A4 */
+            padding: 20mm !important;
+            border: 1px solid #cfc4c5 !important;
             background: white !important;
             box-shadow: none !important;
             display: block !important;
             page-break-inside: avoid !important;
+            top: 0 !important;
+            left: 0 !important;
+            transform: none !important;
           }
 
-          /* Esconde elementos UI */
-          header, nav, .no-print, button, .fixed, .absolute.bottom-4 {
+          /* Remove explicitamente botões e navegação */
+          header, nav, .no-print, button, .fixed, .absolute.bottom-4, .cursor-pointer {
             display: none !important;
           }
 
+          /* Esconde o placeholder nos campos de "Outro item" na impressão */
           .no-print-placeholder::placeholder {
             color: transparent !important;
           }
 
+          /* Configurações da página para remover cabeçalhos/rodapés do navegador */
           @page {
-            size: auto;
-            margin: 10mm 0;
+            size: A4;
+            margin: 0;
           }
           
-          /* Checkboxes na impressão */
+          /* Garante que os checkboxes apareçam corretamente na impressão */
           input[type="checkbox"] {
             visibility: visible !important;
             -webkit-appearance: checkbox !important;
             appearance: checkbox !important;
-            border: 1px solid black !important;
+            border: 1.5px solid black !important;
+            width: 16px !important;
+            height: 16px !important;
+          }
+
+          /* Ajuste de tipografia para garantir nitidez */
+          #receipt-content h2 {
+            font-size: 2rem !important;
+            letter-spacing: 0.3em !important;
           }
         }
       `}</style>
