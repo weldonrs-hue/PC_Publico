@@ -29,7 +29,7 @@ import { motion } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-import { toPng } from 'html-to-image';
+import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
 import SignaturePad from './SignaturePad';
@@ -392,6 +392,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
           }
           #s302-print-container {
             display: block !important;
+            visibility: visible !important;
             position: absolute !important;
             top: 20mm !important;
             left: 0 !important;
@@ -407,6 +408,9 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
             background: white !important;
             transform: scale(0.8) !important;
             transform-origin: top center !important;
+          }
+          #s302-print-container * {
+            visibility: visible !important;
           }
         }
       `}} />

@@ -838,6 +838,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
             background: white !important;
           }
           #s303-report-container {
+            visibility: visible !important;
             width: 297mm !important;
             height: 210mm !important;
             margin: 0 !important;
@@ -850,6 +851,9 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
             /* Apply 95% scale to match user's preferred print setting */
             transform: scale(0.95) !important;
             transform-origin: top center !important;
+          }
+          #s303-report-container * {
+            visibility: visible !important;
           }
           /* Ensure content fits within the landscape A4 */
           .report-content-wrapper {
