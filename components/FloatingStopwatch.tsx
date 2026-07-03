@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, RotateCcw, X, GripHorizontal, ChevronUp, ChevronDown, Clock, Settings } from 'lucide-react';
 
 export default function FloatingStopwatch() {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [time, setTime] = useState(0); // seconds
   const [isRunning, setIsRunning] = useState(false);

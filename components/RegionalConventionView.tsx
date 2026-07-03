@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Landmark, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download, CheckCircle2, Circle } from 'lucide-react';
+import { Landmark, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download, CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
@@ -22,6 +22,7 @@ interface ConventionDetails {
   trainingDate: string;
   trainingLocation: string;
   congressAssistant: string;
+  congressAssistants?: string[];
 }
 
 const regionalConventionProgram = [
@@ -258,6 +259,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
     trainingDate: '',
     trainingLocation: '',
     congressAssistant: '',
+    congressAssistants: [],
   });
   const [initialDetails, setInitialDetails] = useState<ConventionDetails>({
     eventDate: '',
@@ -266,6 +268,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
     trainingDate: '',
     trainingLocation: '',
     congressAssistant: '',
+    congressAssistants: [],
   });
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -311,13 +314,14 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
         
         let loadedSpeakers = {};
         let loadedConfirmations = {};
-        let loadedDetails = {
+        let loadedDetails: ConventionDetails = {
           eventDate: '',
           eventLocation: '',
           conventionTheme: '',
           trainingDate: '',
           trainingLocation: '',
           congressAssistant: '',
+          congressAssistants: [],
         };
 
         if (docSnap.exists()) {
@@ -331,6 +335,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
             trainingDate: data.details?.trainingDate || '',
             trainingLocation: data.details?.trainingLocation || '',
             congressAssistant: data.details?.congressAssistant || '',
+            congressAssistants: data.details?.congressAssistants || (data.details?.congressAssistant ? [data.details.congressAssistant] : []),
           };
         } else {
           // 2. Fallback to localStorage
@@ -344,7 +349,11 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
           }
           const localDetails = localStorage.getItem(`convention_details_${userId}`);
           if (localDetails) {
-            loadedDetails = JSON.parse(localDetails);
+            const parsed = JSON.parse(localDetails);
+            loadedDetails = {
+              ...parsed,
+              congressAssistants: parsed.congressAssistants || (parsed.congressAssistant ? [parsed.congressAssistant] : []),
+            };
           }
         }
         
@@ -365,7 +374,11 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
         }
         const localDetails = localStorage.getItem(`convention_details_${userId}`);
         if (localDetails) {
-          setDetails(JSON.parse(localDetails));
+          const parsed = JSON.parse(localDetails);
+          setDetails({
+            ...parsed,
+            congressAssistants: parsed.congressAssistants || (parsed.congressAssistant ? [parsed.congressAssistant] : []),
+          });
         }
       } finally {
         setIsLoading(false);
@@ -960,16 +973,88 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Assistente do Presidente do congresso</label>
-                    <input 
-                      type="text" 
-                      placeholder="Nome do Assistente"
-                      value={details.congressAssistant}
-                      disabled={isGuest}
-                      onChange={(e) => setDetails(prev => ({ ...prev, congressAssistant: e.target.value }))}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
-                    />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Assistente(s) do Presidente do congresso</label>
+                    <div className="space-y-2">
+                      {((details.congressAssistants && details.congressAssistants.length > 0) ? details.congressAssistants : [details.congressAssistant || '']).map((asst, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <input 
+                            type="text" 
+                            placeholder={`Nome do Assistente ${index + 1}`}
+                            value={asst}
+                            disabled={isGuest}
+                            onChange={(e) => {
+                              const currentList = [...((details.congressAssistants && details.congressAssistants.length > 0) ? details.congressAssistants : [details.congressAssistant || ''])];
+                              currentList[index] = e.target.value;
+                              
+                              const filteredList = currentList.filter(n => n.trim() !== '');
+                              let formattedString = '';
+                              if (filteredList.length === 1) formattedString = filteredList[0];
+                              else if (filteredList.length > 1) {
+                                const allButLast = filteredList.slice(0, -1).join(', ');
+                                formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                              }
+
+                              setDetails(prev => ({
+                                ...prev,
+                                congressAssistants: currentList,
+                                congressAssistant: formattedString
+                              }));
+                            }}
+                            className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
+                          />
+                          {!isGuest && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentList = [...((details.congressAssistants && details.congressAssistants.length > 0) ? details.congressAssistants : [details.congressAssistant || ''])];
+                                if (currentList.length <= 1) {
+                                  setDetails(prev => ({
+                                    ...prev,
+                                    congressAssistants: [''],
+                                    congressAssistant: ''
+                                  }));
+                                } else {
+                                  const newList = currentList.filter((_, i) => i !== index);
+                                  const filteredList = newList.filter(n => n.trim() !== '');
+                                  let formattedString = '';
+                                  if (filteredList.length === 1) formattedString = filteredList[0];
+                                  else if (filteredList.length > 1) {
+                                    const allButLast = filteredList.slice(0, -1).join(', ');
+                                    formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                                  }
+                                  setDetails(prev => ({
+                                    ...prev,
+                                    congressAssistants: newList,
+                                    congressAssistant: formattedString
+                                  }));
+                                }
+                              }}
+                              className="p-3 bg-red-50 text-red-500 hover:bg-red-100 rounded-2xl transition-all"
+                              title="Remover"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {!isGuest && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentList = [...((details.congressAssistants && details.congressAssistants.length > 0) ? details.congressAssistants : [details.congressAssistant || ''])];
+                            setDetails(prev => ({
+                              ...prev,
+                              congressAssistants: [...currentList, '']
+                            }));
+                          }}
+                          className="w-full py-2.5 bg-[#512da8]/5 text-[#512da8] hover:bg-[#512da8]/10 text-xs font-black uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2 border border-dashed border-[#512da8]/20"
+                        >
+                          <Plus size={14} />
+                          Adicionar Novo Assistente
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
