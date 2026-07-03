@@ -264,10 +264,10 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pdfWidth = 160; // Standard safe width for A4
+      const pdfWidth = 147; // 70% of A4 (210mm)
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      pdf.addImage(dataUrl, 'JPEG', (pageWidth - pdfWidth) / 2, 15, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'JPEG', (pageWidth - pdfWidth) / 2, 10, pdfWidth, pdfHeight);
       pdf.save(`Recibo_${date.replace(/\//g, '-')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -617,7 +617,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         @media print {
           @page {
             size: A4;
-            margin: 5mm;
+            margin: 0;
           }
 
           /* Reseta o ambiente para impressão limpa */
@@ -652,17 +652,17 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           #receipt-content {
             visibility: visible !important;
             position: relative !important;
-            width: 170mm !important;
-            max-width: 170mm !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
             margin: 0 auto !important;
-            padding: 10mm !important;
-            border: 1px solid #eee !important;
+            padding: 15mm !important;
+            border: none !important;
             box-shadow: none !important;
             background: white !important;
             page-break-inside: avoid !important;
             left: 0 !important;
             top: 0 !important;
-            transform: scale(0.95) !important;
+            transform: scale(0.7) !important;
             transform-origin: top center !important;
           }
 
