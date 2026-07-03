@@ -249,9 +249,9 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     if (!receiptRef.current) return;
     setGenerating(true);
     try {
-      // Use toJpeg for better rendering
+      // Capture with high quality
       const dataUrl = await toJpeg(receiptRef.current, {
-        quality: 1.0,
+        quality: 0.95,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
       });
@@ -264,10 +264,24 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pdfWidth = 147; // 70% of A4 (210mm)
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Margins for safety
+      const margin = 10;
+      const maxWidth = pageWidth - (margin * 2);
+      const maxHeight = pageHeight - (margin * 2);
 
-      pdf.addImage(dataUrl, 'JPEG', (pageWidth - pdfWidth) / 2, 10, pdfWidth, pdfHeight);
+      // Initial scaling based on width
+      let finalWidth = maxWidth;
+      let finalHeight = (imgProps.height * finalWidth) / imgProps.width;
+
+      // If still too tall, scale based on height
+      if (finalHeight > maxHeight) {
+        finalHeight = maxHeight;
+        finalWidth = (imgProps.width * finalHeight) / imgProps.height;
+      }
+
+      pdf.addImage(dataUrl, 'JPEG', (pageWidth - finalWidth) / 2, margin, finalWidth, finalHeight);
       pdf.save(`Recibo_${date.replace(/\//g, '-')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -652,18 +666,17 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           #receipt-content {
             visibility: visible !important;
             position: relative !important;
-            width: 210mm !important;
-            max-width: 210mm !important;
+            width: 190mm !important;
+            max-width: 190mm !important;
             margin: 0 auto !important;
-            padding: 15mm !important;
+            padding: 10mm !important;
             border: none !important;
             box-shadow: none !important;
             background: white !important;
             page-break-inside: avoid !important;
             left: 0 !important;
             top: 0 !important;
-            transform: scale(0.7) !important;
-            transform-origin: top center !important;
+            transform: none !important;
           }
 
           /* Remove navegação e botões */
