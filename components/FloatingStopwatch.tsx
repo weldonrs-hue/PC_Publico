@@ -73,7 +73,7 @@ export default function FloatingStopwatch() {
   if (!isOpen) return (
     <button 
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-6 right-6 bg-violet-600 text-white p-4 rounded-full shadow-2xl hover:bg-violet-700 transition-all hover:scale-110 active:scale-95 z-50 flex items-center justify-center"
+      className="fixed bottom-6 portrait:bottom-20 right-6 bg-violet-600 text-white p-4 rounded-full shadow-2xl hover:bg-violet-700 transition-all hover:scale-110 active:scale-95 z-50 flex items-center justify-center"
       title="Abrir Cronômetro"
     >
       <Clock size={24} />
@@ -85,7 +85,7 @@ export default function FloatingStopwatch() {
       drag
       dragMomentum={false}
       initial={{ x: 0, y: 0 }}
-      className="fixed bottom-6 right-6 z-50 select-none"
+      className="fixed bottom-6 portrait:bottom-20 right-6 z-50 select-none"
     >
       <div className={`bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-gray-100 overflow-hidden transition-all duration-300 ${isMinimized ? 'w-48' : 'w-72'}`}>
         {/* Header/Handle */}
