@@ -252,10 +252,8 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       // Use toJpeg for better rendering
       const dataUrl = await toJpeg(receiptRef.current, {
         quality: 1.0,
-        pixelRatio: 2,
+        pixelRatio: 3,
         backgroundColor: '#ffffff',
-        // Ensure the full width is captured
-        width: 800,
       });
 
       const pdf = new jsPDF({
@@ -266,10 +264,10 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       const imgProps = pdf.getImageProperties(dataUrl);
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pdfWidth = pageWidth - 20; // 10mm margins on each side
+      const pdfWidth = 160; // Better width to fit within A4 margins
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      pdf.addImage(dataUrl, 'JPEG', 10, 10, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'JPEG', (pageWidth - pdfWidth) / 2, 15, pdfWidth, pdfHeight);
       pdf.save(`Recibo_${date.replace(/\//g, '-')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -655,17 +653,18 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           #receipt-content {
             visibility: visible !important;
             position: relative !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 10mm !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            margin: 0 auto !important;
+            padding: 15mm !important;
             border: 1px solid #eee !important;
             box-shadow: none !important;
             background: white !important;
             page-break-inside: avoid !important;
             left: 0 !important;
             top: 0 !important;
-            transform: none !important;
+            transform: scale(0.85) !important;
+            transform-origin: top center !important;
           }
 
           /* Remove navegação e botões */
