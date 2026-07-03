@@ -68,6 +68,7 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
+  const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -152,8 +153,12 @@ export default function Home() {
     if (typeof view === 'string' && view.startsWith('pioneer_school_guest:')) {
       const [, ownerId, turma] = view.split(':');
       setGuestPioneerData({ ownerId, turma });
+    } else if (typeof view === 'string' && view.startsWith('regional_convention_guest:')) {
+      const [, ownerId] = view.split(':');
+      setGuestCongressData({ ownerId });
     } else {
       setGuestPioneerData(null);
+      setGuestCongressData(null);
     }
 
     setCurrentView(view);
@@ -205,6 +210,7 @@ export default function Home() {
     chatEnabledForAll: false
   });
   const [hasGuestInvites, setHasGuestInvites] = useState(false);
+  const [hasPendingInvites, setHasPendingInvites] = useState(false);
 
   const [espInitialMode, setEspInitialMode] = useState<'geracao' | 'manager'>('geracao');
   const [congressoInitialMode, setCongressoInitialMode] = useState<'geracao' | 'manager'>('geracao');
@@ -235,6 +241,18 @@ export default function Home() {
         where('collaboratorId', '==', user.id),
         where('status', '==', 'accepted')
       );
+
+      const qPendingPioneer = query(
+        collection(db, 'pioneer_school_invitations'),
+        where('collaboratorId', '==', user.id),
+        where('status', '==', 'pending')
+      );
+
+      const qPendingCongress = query(
+        collection(db, 'regional_convention_invitations'),
+        where('collaboratorId', '==', user.id),
+        where('status', '==', 'pending')
+      );
       
       unsubByNumber = onSnapshot(qByNumber, (snap) => {
         if (!snap.empty) setHasGuestInvites(true);
@@ -249,14 +267,23 @@ export default function Home() {
         console.warn('Home: Error listening to pioneer invites by ID:', error);
         if (error.message?.includes('quota')) setQuotaExceededGlobal();
       });
+
+      const unsubPendingPioneer = onSnapshot(qPendingPioneer, (snap) => {
+        const hasPending = !snap.empty;
+        const qPendingCongressSnap = onSnapshot(qPendingCongress, (congressSnap) => {
+          setHasPendingInvites(hasPending || !congressSnap.empty);
+        });
+        return () => qPendingCongressSnap();
+      });
+
+      return () => {
+        unsubByNumber();
+        unsubById();
+        unsubPendingPioneer();
+      };
     } catch (e) {
       console.error('Error setting up invites listener:', e);
     }
-
-    return () => {
-      unsubByNumber();
-      unsubById();
-    };
   }, [user?.id, personalData?.numeroPessoal, quotaExceeded]);
 
   // Track last sub-views for navigation persistence
@@ -648,6 +675,7 @@ export default function Home() {
           currentView={currentView}
           espInitialMode={espInitialMode}
           hasGuestInvites={hasGuestInvites}
+          hasPendingInvites={hasPendingInvites}
           onBack={() => changeView('dashboard')}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
           isChatOpen={isChatOpen}
@@ -798,6 +826,7 @@ export default function Home() {
                 user={user}
                 personalData={personalData}
                 hasGuestInvites={hasGuestInvites}
+                hasPendingInvites={hasPendingInvites}
               />
 
               {/* Statistics Summary Bar */}
@@ -940,6 +969,14 @@ export default function Home() {
             <RegionalConventionView 
               userId={user.id}
               onBack={() => changeView('events')}
+            />
+          )}
+
+          {typeof currentView === 'string' && currentView.startsWith('regional_convention_guest') && guestCongressData && (
+            <RegionalConventionView 
+              userId={guestCongressData.ownerId}
+              isGuest={true}
+              onBack={() => changeView('settings')}
             />
           )}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Contact, Store, UserRound, Map, BarChart3, ClipboardList } from 'lucide-react';
+import { Contact, Store, UserRound, Map, BarChart3, ClipboardList, Mail, UserCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const cards = [
@@ -52,6 +52,7 @@ interface DashboardCardsProps {
   user?: any;
   personalData?: any;
   hasGuestInvites?: boolean;
+  hasPendingInvites?: boolean;
 }
 
 export default function DashboardCards({ 
@@ -63,7 +64,8 @@ export default function DashboardCards({
   currentEvent = '',
   user,
   personalData,
-  hasGuestInvites = false
+  hasGuestInvites = false,
+  hasPendingInvites = false
 }: DashboardCardsProps) {
   const role = personalData?.role || 'viajante';
   const isPioneer = role === 'pioneiro_especial' || role === 'pioneiro_regular';
@@ -78,7 +80,32 @@ export default function DashboardCards({
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div className="flex flex-col gap-6">
+      {hasPendingInvites && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          onClick={() => onCardClick?.('Ajustes')}
+          className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[2rem] p-6 text-white shadow-xl shadow-emerald-500/20 cursor-pointer flex items-center justify-between group overflow-hidden relative"
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+             <UserCheck size={120} />
+          </div>
+          <div className="relative z-10 flex items-center gap-6">
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center animate-pulse">
+              <Mail size={32} />
+            </div>
+            <div>
+              <h3 className="font-black text-lg uppercase tracking-tight">Convite Pendente!</h3>
+              <p className="text-white/80 text-xs font-bold uppercase tracking-widest">Você recebeu um novo acesso. Clique para aceitar.</p>
+            </div>
+          </div>
+          <div className="relative z-10 bg-white text-emerald-600 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+            Ver Agora
+          </div>
+        </motion.div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
       {filteredCards.map((card, index) => (
         <motion.div
           key={card.title}
@@ -147,6 +174,7 @@ export default function DashboardCards({
           </div>
         </motion.div>
       ))}
+      </div>
     </div>
   );
 }

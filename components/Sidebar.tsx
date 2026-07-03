@@ -29,6 +29,7 @@ interface SidebarProps {
   onBack: () => void;
   onViewChange: (view: any) => void;
   hasGuestInvites?: boolean;
+  hasPendingInvites?: boolean;
   onToggleChat?: () => void;
   isChatOpen?: boolean;
   chatEnabled?: boolean;
@@ -45,6 +46,7 @@ export default function Sidebar({
   onBack, 
   onViewChange,
   hasGuestInvites = false,
+  hasPendingInvites = false,
   onToggleChat,
   isChatOpen = false,
   chatEnabled = false
@@ -107,7 +109,7 @@ export default function Sidebar({
       return ['schools', 'pioneer_school'].includes(currentView) || currentView.startsWith('pioneer_school_guest');
     }
     if (itemView === 'events') {
-      return ['events', 'regional_convention_program'].includes(currentView);
+      return ['events', 'regional_convention_program'].includes(currentView) || currentView.startsWith('regional_convention_guest');
     }
     if (itemView === 'misc') {
       const miscViews = ['misc', 'field_service_report', 'file_viewer', 'weekly_expenses'];
@@ -253,6 +255,9 @@ export default function Sidebar({
                   <span className="absolute landscape:right-4 landscape:top-3 portrait:right-2 portrait:top-2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#4C1D95] animate-pulse">
                     {totalUnreadChatCount > 99 ? '99+' : totalUnreadChatCount}
                   </span>
+                )}
+                {item.view === 'settings' && hasPendingInvites && (
+                  <span className="absolute landscape:right-4 landscape:top-3 portrait:right-2 portrait:top-2 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#4C1D95] animate-bounce" />
                 )}
                 <span className="font-sans landscape:block lg:block hidden text-[10px] lg:text-base">
                   {item.label}

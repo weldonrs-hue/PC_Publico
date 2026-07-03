@@ -11,6 +11,7 @@ import Docxtemplater from 'docxtemplater';
 
 interface RegionalConventionViewProps {
   userId: string;
+  isGuest?: boolean;
   onBack: () => void;
 }
 
@@ -20,6 +21,7 @@ interface ConventionDetails {
   conventionTheme: string;
   trainingDate: string;
   trainingLocation: string;
+  congressAssistant: string;
 }
 
 const regionalConventionProgram = [
@@ -242,7 +244,7 @@ const regionalConventionProgram = [
   }
 ];
 
-export default function RegionalConventionView({ userId, onBack }: RegionalConventionViewProps) {
+export default function RegionalConventionView({ userId, isGuest = false, onBack }: RegionalConventionViewProps) {
   const [speakers, setSpeakers] = useState<Record<string, string>>({});
   const [initialSpeakers, setInitialSpeakers] = useState<Record<string, string>>({});
   const [confirmedSpeakers, setConfirmedSpeakers] = useState<Record<string, boolean>>({});
@@ -255,6 +257,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
     conventionTheme: '',
     trainingDate: '',
     trainingLocation: '',
+    congressAssistant: '',
   });
   const [initialDetails, setInitialDetails] = useState<ConventionDetails>({
     eventDate: '',
@@ -262,6 +265,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
     conventionTheme: '',
     trainingDate: '',
     trainingLocation: '',
+    congressAssistant: '',
   });
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -313,6 +317,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           conventionTheme: '',
           trainingDate: '',
           trainingLocation: '',
+          congressAssistant: '',
         };
 
         if (docSnap.exists()) {
@@ -325,6 +330,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
             conventionTheme: data.details?.conventionTheme || '',
             trainingDate: data.details?.trainingDate || '',
             trainingLocation: data.details?.trainingLocation || '',
+            congressAssistant: data.details?.congressAssistant || '',
           };
         } else {
           // 2. Fallback to localStorage
@@ -538,6 +544,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         'TELEFONE': telefoneCircuito,
         'DATAHORA': details.trainingDate || '________________',
         'LOCALTREINO': details.trainingLocation || '________________',
+        'ASSISTENTE': details.congressAssistant || '________________',
       };
 
       // Set up Image Module
@@ -793,7 +800,7 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
           </button>
           <div className="min-w-0">
             <h2 className="text-2xl font-bold text-gray-800">
-              Congresso Regional 2026
+              Congresso Regional 2026 {isGuest && <span className="text-violet-500 text-sm font-black ml-2 bg-violet-50 px-3 py-1 rounded-full uppercase">Modo Assistente</span>}
             </h2>
             <div className="flex items-center gap-4 mt-1 overflow-x-auto scrollbar-hide pb-1">
               {regionalConventionProgram.map((day, idx) => (
@@ -815,6 +822,23 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
         </div>
 
         <div className="flex items-center gap-4 self-start sm:self-center">
+          {hasChanges && !isGuest && (
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 overflow-hidden whitespace-nowrap pl-[7px] hover:pl-4 disabled:opacity-50"
+              title="Salvar Alterações"
+            >
+              {isSaving ? <Loader2 size={24} className="animate-spin shrink-0" /> : <Save size={24} className="shrink-0" />}
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Salvar</span>
+            </button>
+          )}
+          {hasChanges && isGuest && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100 shadow-sm">
+              <AlertTriangle size={14} />
+              Apenas Visualização
+            </div>
+          )}
           <button
             onClick={handlePrint}
             className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-white text-gray-600 shadow-md border border-gray-200 overflow-hidden whitespace-nowrap pl-[7px] hover:pl-4"
@@ -909,8 +933,9 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                       type="text" 
                       placeholder="Ex: 'Felicidade Eterna'"
                       value={details.conventionTheme}
+                      disabled={isGuest}
                       onChange={(e) => setDetails(prev => ({ ...prev, conventionTheme: e.target.value }))}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
                     />
                   </div>
                   <div className="space-y-1">
@@ -919,8 +944,9 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                       type="text" 
                       placeholder="Ex: 12-14 de Junho, 2026"
                       value={details.eventDate}
+                      disabled={isGuest}
                       onChange={(e) => setDetails(prev => ({ ...prev, eventDate: e.target.value }))}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
                     />
                   </div>
                   <div className="space-y-1">
@@ -929,8 +955,20 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                       type="text" 
                       placeholder="Ex: Ginásio do Ibirapuera, São Paulo"
                       value={details.eventLocation}
+                      disabled={isGuest}
                       onChange={(e) => setDetails(prev => ({ ...prev, eventLocation: e.target.value }))}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Assistente do Presidente do congresso</label>
+                    <input 
+                      type="text" 
+                      placeholder="Nome do Assistente"
+                      value={details.congressAssistant}
+                      disabled={isGuest}
+                      onChange={(e) => setDetails(prev => ({ ...prev, congressAssistant: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -948,8 +986,9 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                       type="text" 
                       placeholder="Ex: 15 de Maio, 2026"
                       value={details.trainingDate}
+                      disabled={isGuest}
                       onChange={(e) => setDetails(prev => ({ ...prev, trainingDate: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white border border-violet-100 rounded-2xl text-sm font-bold focus:bg-violet-50 outline-none transition-all placeholder:text-violet-200"
+                      className="w-full px-4 py-3 bg-white border border-violet-100 rounded-2xl text-sm font-bold focus:bg-violet-50 outline-none transition-all placeholder:text-violet-200 disabled:opacity-60"
                     />
                   </div>
                   <div className="space-y-1">
@@ -958,8 +997,9 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                       type="text" 
                       placeholder="Ex: Salão do Reino Central"
                       value={details.trainingLocation}
+                      disabled={isGuest}
                       onChange={(e) => setDetails(prev => ({ ...prev, trainingLocation: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white border border-violet-100 rounded-2xl text-sm font-bold focus:bg-violet-50 outline-none transition-all placeholder:text-violet-200"
+                      className="w-full px-4 py-3 bg-white border border-violet-100 rounded-2xl text-sm font-bold focus:bg-violet-50 outline-none transition-all placeholder:text-violet-200 disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -1045,8 +1085,9 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                             <>
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => handleConfirmationToggle(item.id)}
-                                  className={`shrink-0 transition-all ${confirmedSpeakers[item.id] ? 'text-emerald-500 scale-110' : 'text-gray-300 hover:text-gray-400'}`}
+                                  onClick={() => !isGuest && handleConfirmationToggle(item.id)}
+                                  disabled={isGuest}
+                                  className={`shrink-0 transition-all ${confirmedSpeakers[item.id] ? 'text-emerald-500 scale-110' : 'text-gray-300 hover:text-gray-400'} disabled:opacity-60 disabled:cursor-not-allowed`}
                                   title={confirmedSpeakers[item.id] ? "Confirmado" : "Confirmar designação"}
                                 >
                                   {confirmedSpeakers[item.id] ? (
@@ -1060,8 +1101,9 @@ export default function RegionalConventionView({ userId, onBack }: RegionalConve
                                     type="text"
                                     placeholder="Orador..."
                                     value={speakers[item.id] || ''}
+                                    disabled={isGuest}
                                     onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right"
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white outline-none transition-all placeholder:text-gray-300 text-right disabled:opacity-60"
                                     style={{ 
                                       borderColor: speakers[item.id] ? (confirmedSpeakers[item.id] ? '#10b981' : currentDay.color) : undefined,
                                       borderWidth: speakers[item.id] ? '2px' : '1px'

@@ -21,7 +21,8 @@ import {
   ExternalLink,
   UserPlus,
   Mail,
-  UserCheck
+  UserCheck,
+  Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -77,6 +78,14 @@ const settingsButtons = [
     subtitle: 'ACESSO ESCOLA PIONEIROS',
     color: '#37616b',
     gradient: 'from-[#37616b] to-[#2c4d55]'
+  },
+  {
+    id: 'congress_access',
+    icon: UserCheck,
+    title: 'ASSISTENTE DO CONGRESSO',
+    subtitle: 'ACESSO AO CONGRESSO',
+    color: '#512da8',
+    gradient: 'from-[#512da8] to-[#4527a0]'
   },
   {
     id: 'pastas',
@@ -143,12 +152,17 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
   const [isShowingPrivacy, setIsShowingPrivacy] = useState(false);
   const [isManagingPioneerAccess, setIsManagingPioneerAccess] = useState(false);
+  const [isManagingCongressAccess, setIsManagingCongressAccess] = useState(false);
   const [pioneerInvites, setPioneerInvites] = useState<any[]>([]);
   const [receivedPioneerInvites, setReceivedPioneerInvites] = useState<any[]>([]);
+  const [congressInvites, setCongressInvites] = useState<any[]>([]);
+  const [receivedCongressInvites, setReceivedCongressInvites] = useState<any[]>([]);
   const [personalData, setPersonalData] = useState<any>(null);
   const [inviteNumber, setInviteNumber] = useState('');
+  const [inviteCongressNumber, setInviteCongressNumber] = useState('');
   const [inviteTurma, setInviteTurma] = useState<'1' | '2' | '3' | 'all'>('1');
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteCongressLoading, setInviteCongressLoading] = useState(false);
   const [formatStep, setFormatStep] = useState<'confirm' | 'formatting' | 'success'>('confirm');
   const [formatPassword, setFormatPassword] = useState('');
   const [formatError, setFormatError] = useState<string | null>(null);
@@ -242,10 +256,27 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       console.warn('Settings: Error listening to received invites:', error);
     });
 
+    // Congress Invitations
+    const qCongressSent = query(collection(db, 'regional_convention_invitations'), where('ownerId', '==', userId));
+    const unsubscribeCongressSent = onSnapshot(qCongressSent, (snap) => {
+      setCongressInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to sent congress invites:', error);
+    });
+
+    const qCongressReceived = query(collection(db, 'regional_convention_invitations'), where('collaboratorId', '==', userId));
+    const unsubscribeCongressReceived = onSnapshot(qCongressReceived, (snap) => {
+      setReceivedCongressInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to received congress invites:', error);
+    });
+
     return () => {
       window.removeEventListener('resize', checkDesktop);
       unsubscribeSent();
       unsubscribeReceived();
+      unsubscribeCongressSent();
+      unsubscribeCongressReceived();
     };
   }, [userId]);
 
@@ -312,6 +343,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       setIsChangingPassword(true);
     } else if (id === 'pioneer_access') {
       setIsManagingPioneerAccess(true);
+    } else if (id === 'congress_access') {
+      setIsManagingCongressAccess(true);
     } else if (id === 'formatar') {
       setIsFormattingAccount(true);
       setFormatStep('confirm');
@@ -494,6 +527,92 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
     }
   };
 
+  const handleInviteCongressAssistant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteCongressNumber.trim() || inviteCongressLoading) return;
+
+    if (personalData?.role !== 'viajante' && !isAdmin) {
+      alert('Apenas viajantes podem enviar convites para Assistente de Congresso.');
+      return;
+    }
+    
+    setInviteCongressLoading(true);
+    try {
+      const q = query(collection(db, 'personal_data'), where('numeroPessoal', '==', inviteCongressNumber.trim()), limit(1));
+      const snap = await getDocs(q);
+      
+      if (snap.empty) {
+        alert('Usuário não encontrado com este número pessoal.');
+        setInviteCongressLoading(false);
+        return;
+      }
+      
+      const assistantData = snap.docs[0].data();
+      const assistantId = assistantData.userId;
+      
+      if (assistantId === auth.currentUser?.uid) {
+        alert('Você não pode convidar a si mesmo.');
+        setInviteCongressLoading(false);
+        return;
+      }
+
+      const existing = congressInvites.find(inv => inv.collaboratorId === assistantId);
+      if (existing) {
+        alert('Este usuário já possui um convite pendente ou ativo para o congresso.');
+        setInviteCongressLoading(false);
+        return;
+      }
+
+      await addDoc(collection(db, 'regional_convention_invitations'), {
+        ownerId: auth.currentUser?.uid,
+        ownerName: personalData?.nome || 'Viajante',
+        collaboratorId: assistantId,
+        collaboratorNumber: inviteCongressNumber.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      setInviteCongressNumber('');
+      alert('Convite enviado com sucesso!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'regional_convention_invitations');
+    } finally {
+      setInviteCongressLoading(false);
+    }
+  };
+
+  const handleAcceptCongressInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'regional_convention_invitations', inviteId), {
+        status: 'accepted',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'regional_convention_invitations');
+    }
+  };
+
+  const handleRejectCongressInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'regional_convention_invitations', inviteId), {
+        status: 'rejected',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'regional_convention_invitations');
+    }
+  };
+
+  const handleRemoveCongressInvite = async (inviteId: string) => {
+    if (!confirm('Tem certeza que deseja remover este acesso/convite?')) return;
+    try {
+      await deleteDoc(doc(db, 'regional_convention_invitations', inviteId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'regional_convention_invitations');
+    }
+  };
+
   const handleRemoveInvite = async (inviteId: string) => {
     if (!confirm('Tem certeza que deseja remover este acesso/convite?')) return;
     try {
@@ -590,9 +709,15 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               
               const role = personalData?.role || 'viajante';
               const hasInvites = (receivedPioneerInvites?.length || 0) > 0 || (pioneerInvites?.length || 0) > 0;
+              const hasCongressInvites = (receivedCongressInvites?.length || 0) > 0 || (congressInvites?.length || 0) > 0;
 
               // Mostrar "Instrutor B (ESP)" para viajantes, admins ou quem tem convites
               if (btn.id === 'pioneer_access' && role !== 'viajante' && !isAdmin && !hasInvites) {
+                return false;
+              }
+
+              // Mostrar "Assistente do Congresso" para viajantes, admins ou quem tem convites
+              if (btn.id === 'congress_access' && role !== 'viajante' && !isAdmin && !hasCongressInvites) {
                 return false;
               }
 
@@ -897,6 +1022,207 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                             <div className="flex items-center gap-2">
                                <button 
                                  onClick={() => handleRemoveInvite(inv.id)}
+                                 className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                 title="Remover Acesso"
+                               >
+                                 <Trash2 size={20} />
+                               </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                   </section>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Congress Assistant Access Management Modal */}
+      <AnimatePresence>
+        {isManagingCongressAccess && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-gray-50 rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col md:flex-row overflow-hidden min-h-[500px] max-h-[95vh]"
+            >
+              {/* Left Sidebar: Form to Invite */}
+              <div className="w-full md:w-80 bg-white p-8 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col items-center">
+                <div className="w-16 h-16 bg-[#512da8]/10 rounded-2xl flex items-center justify-center mb-6">
+                  <UserPlus className="text-[#512da8]" size={32} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2 text-center uppercase tracking-tight">ASSISTENTE DO CONGRESSO</h3>
+                
+                {(personalData?.role === 'viajante' || isAdmin) ? (
+                  <>
+                    <p className="text-[10px] text-gray-500 mb-8 text-center leading-relaxed">
+                      Conceda acesso ao Assistente do Presidente do Congresso Regional. <br/>
+                      <span className="font-bold text-[#512da8]">Importante:</span> O convidado deve primeiro cadastrar seu <span className="font-bold">Número Pessoal</span> na seção "Dados Pessoais" para ser encontrado.
+                    </p>
+
+                    <form onSubmit={handleInviteCongressAssistant} className="w-full space-y-6">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Código de Usuário (Assistente)</label>
+                        <input 
+                          type="text"
+                          required
+                          value={inviteCongressNumber}
+                          onChange={(e) => setInviteCongressNumber(e.target.value)}
+                          placeholder="Ex: 2283701"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-[#512da8] focus:ring-2 focus:ring-[#512da8]/10 outline-none transition-all text-sm font-bold"
+                        />
+                      </div>
+
+                      <button 
+                        type="submit"
+                        disabled={inviteCongressLoading || !inviteCongressNumber.trim()}
+                        className="w-full py-4 bg-[#512da8] text-white font-black rounded-2xl hover:bg-[#4527a0] transition-all shadow-xl shadow-[#512da8]/20 flex items-center justify-center gap-2 disabled:opacity-50 text-xs uppercase tracking-widest"
+                      >
+                        {inviteCongressLoading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                        Enviar Convite
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <p className="text-[10px] text-gray-500 mb-8 text-center leading-relaxed">
+                    Você pode gerenciar os convites que recebeu para atuar como Assistente do Congresso Regional.
+                  </p>
+                )}
+
+                <button 
+                  onClick={() => setIsManagingCongressAccess(false)}
+                  className="mt-6 w-full py-3 text-gray-400 font-bold text-xs uppercase tracking-widest hover:text-gray-600 transition-colors"
+                >
+                   Voltar
+                </button>
+              </div>
+
+              {/* Right Content: Lists of Invites */}
+              <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+                <div className="space-y-10">
+                   {/* Received Invites Section */}
+                   <section>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600">
+                        <UserCheck size={20} />
+                      </div>
+                      <h4 className="font-black text-sm text-gray-800 uppercase tracking-widest">Convites Recebidos</h4>
+                    </div>
+
+                    {receivedCongressInvites.length === 0 ? (
+                      <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center text-gray-400 border-dashed">
+                        <Mail size={32} className="mx-auto mb-3 opacity-20" />
+                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum convite recebido</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {receivedCongressInvites.map((inv) => (
+                          <div key={inv.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:border-[#512da8] transition-all">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center font-black text-[#512da8]">
+                                <Landmark size={20} />
+                              </div>
+                              <div>
+                                <div className="text-sm font-black text-gray-800">Viajante {inv.ownerName}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    inv.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' : 
+                                    inv.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                                  }`}>
+                                    {inv.status === 'accepted' ? 'Aceito' : inv.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                               {inv.status === 'pending' && (
+                                 <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+                                   <button 
+                                     onClick={() => handleAcceptCongressInvite(inv.id)}
+                                     className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                                   >
+                                     Aceitar
+                                   </button>
+                                   <button 
+                                     onClick={() => handleRejectCongressInvite(inv.id)}
+                                     className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+                                   >
+                                     Recusar
+                                   </button>
+                                 </div>
+                               )}
+                               {inv.status === 'accepted' && (
+                                 <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                                   <button 
+                                      onClick={() => onViewChange(`regional_convention_guest:${inv.ownerId}`)}
+                                      className="flex-1 sm:flex-none px-4 py-2 bg-[#512da8] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#4527a0] transition-all"
+                                   >
+                                      Acessar Congresso
+                                   </button>
+                                   <button 
+                                     onClick={() => handleRemoveCongressInvite(inv.id)}
+                                     className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                     title="Remover Acesso"
+                                   >
+                                     <Trash2 size={16} />
+                                   </button>
+                                 </div>
+                               )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                   </section>
+
+                   {/* Sent Invites Section */}
+                   <section>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                        <Mail size={20} />
+                      </div>
+                      <h4 className="font-black text-sm text-gray-800 uppercase tracking-widest">Convites Enviados</h4>
+                    </div>
+
+                    {congressInvites.length === 0 ? (
+                      <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center text-gray-400 border-dashed">
+                        <Users size={32} className="mx-auto mb-3 opacity-20" />
+                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum convite enviado</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {congressInvites.map((inv) => (
+                          <div key={inv.id} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex items-center justify-between group">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center font-black text-gray-400">
+                                <Landmark size={20} />
+                              </div>
+                              <div>
+                                <div className="text-sm font-black text-gray-800">Para: Assistente {inv.collaboratorNumber}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    inv.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' : 
+                                    inv.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                                  }`}>
+                                    {inv.status === 'accepted' ? 'Ativo' : inv.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                               <button 
+                                 onClick={() => handleRemoveCongressInvite(inv.id)}
                                  className="p-2 text-gray-300 hover:text-red-500 transition-colors"
                                  title="Remover Acesso"
                                >
