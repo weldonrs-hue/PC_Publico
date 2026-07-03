@@ -40,6 +40,7 @@ const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView')
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
 const ChatView = dynamic(() => import('@/components/ChatView'), { ssr: false });
+const FloatingStopwatch = dynamic(() => import('@/components/FloatingStopwatch'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
@@ -1189,6 +1190,7 @@ export default function Home() {
         onClose={() => setShowTerms(false)} 
         initialTab={termsType}
       />
+      <FloatingStopwatch />
     </div>
   );
 }
