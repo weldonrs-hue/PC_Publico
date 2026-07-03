@@ -249,11 +249,13 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     if (!receiptRef.current) return;
     setGenerating(true);
     try {
-      // Use toJpeg for better rendering of signatures/images in PDF
+      // Use toJpeg for better rendering
       const dataUrl = await toJpeg(receiptRef.current, {
-        quality: 0.95,
-        pixelRatio: 3,
+        quality: 1.0,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
+        // Ensure the full width is captured
+        width: 800,
       });
 
       const pdf = new jsPDF({
@@ -263,7 +265,8 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       });
 
       const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = 100; // Slip width in PDF
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pdfWidth = pageWidth - 20; // 10mm margins on each side
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       pdf.addImage(dataUrl, 'JPEG', 10, 10, pdfWidth, pdfHeight);
@@ -614,91 +617,74 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
       <style jsx global>{`
         @media print {
-          /* Reseta o ambiente para impressão limpa e sem fundos cinzas */
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+
+          /* Reseta o ambiente para impressão limpa */
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
+            width: 210mm !important;
             height: auto !important;
-            min-height: auto !important;
             overflow: visible !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
 
-          /* Esconde absolutamente tudo por padrão para evitar elementos fantasmas */
+          /* Esconde tudo exceto o recibo */
           body * {
             visibility: hidden !important;
           }
           
-          /* Mostra apenas o conteúdo do recibo e garante que seus filhos sejam visíveis */
           #receipt-content,
           #receipt-content * {
             visibility: visible !important;
           }
 
-          /* Força os elementos pai a permitirem a visualização do recibo */
-          html, body, main, div#__next, [data-nextjs-scroll-focus-boundary] {
+          /* Força os elementos pai a não quebrarem o layout */
+          main, div#__next {
             visibility: visible !important;
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
             display: block !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
-            border: none !important;
           }
 
-          /* Ajusta o container do recibo para proporções de uma folha A4 (210mm) */
+          /* Ajusta o container do recibo para a folha */
           #receipt-content {
             visibility: visible !important;
-            position: absolute !important;
-            top: 10mm !important;
-            left: 50% !important;
-            transform: translateX(-50%) scale(0.5) !important;
-            transform-origin: top center !important;
+            position: relative !important;
+            width: 100% !important;
+            max-width: 100% !important;
             margin: 0 !important;
-            width: 210mm !important;
-            max-width: 210mm !important;
-            min-height: auto !important;
-            padding: 20mm !important;
-            border: 1px solid #cfc4c5 !important;
-            background: white !important;
+            padding: 10mm !important;
+            border: 1px solid #eee !important;
             box-shadow: none !important;
-            display: block !important;
+            background: white !important;
             page-break-inside: avoid !important;
+            left: 0 !important;
+            top: 0 !important;
+            transform: none !important;
           }
 
-          /* Remove explicitamente botões e navegação */
-          header, nav, .no-print, button, .fixed, .absolute.bottom-4, .cursor-pointer {
+          /* Remove navegação e botões */
+          header, nav, .no-print, button {
             display: none !important;
           }
 
-          /* Esconde o placeholder nos campos de "Outro item" na impressão */
-          .no-print-placeholder::placeholder {
-            color: transparent !important;
-          }
-
-          /* Configurações da página para remover cabeçalhos/rodapés do navegador */
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          
-          /* Garante que os checkboxes apareçam corretamente na impressão */
+          /* Garante que os checkboxes apareçam */
           input[type="checkbox"] {
             visibility: visible !important;
-            -webkit-appearance: checkbox !important;
             appearance: checkbox !important;
-            border: 1.5px solid black !important;
-            width: 16px !important;
-            height: 16px !important;
+            -webkit-appearance: checkbox !important;
+            width: 14px !important;
+            height: 14px !important;
           }
 
-          /* Ajuste de tipografia para garantir nitidez */
-          #receipt-content h2 {
-            font-size: 2rem !important;
-            letter-spacing: 0.3em !important;
+          /* Esconde placeholder */
+          .no-print-placeholder::placeholder {
+            color: transparent !important;
           }
         }
       `}</style>
