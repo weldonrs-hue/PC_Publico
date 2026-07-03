@@ -69,6 +69,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
+  const [acceptedCongressInvites, setAcceptedCongressInvites] = useState<any[]>([]);
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -253,6 +254,12 @@ export default function Home() {
         where('collaboratorId', '==', user.id),
         where('status', '==', 'pending')
       );
+
+      const qAcceptedCongress = query(
+        collection(db, 'regional_convention_invitations'),
+        where('collaboratorId', '==', user.id),
+        where('status', '==', 'accepted')
+      );
       
       unsubByNumber = onSnapshot(qByNumber, (snap) => {
         if (!snap.empty) setHasGuestInvites(true);
@@ -276,10 +283,15 @@ export default function Home() {
         return () => qPendingCongressSnap();
       });
 
+      const unsubAcceptedCongress = onSnapshot(qAcceptedCongress, (snap) => {
+        setAcceptedCongressInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      });
+
       return () => {
         unsubByNumber();
         unsubById();
         unsubPendingPioneer();
+        unsubAcceptedCongress();
       };
     } catch (e) {
       console.error('Error setting up invites listener:', e);
@@ -957,9 +969,10 @@ export default function Home() {
              />
           )}
 
-          {currentView === 'events' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+          {currentView === 'events' && (personalData?.role === 'viajante' || user?.role === 'admin' || acceptedCongressInvites.length > 0) && (
             <EventsView 
               userId={user.id}
+              acceptedCongressInvites={acceptedCongressInvites}
               onBack={() => changeView('dashboard')}
               onViewChange={changeView}
             />
