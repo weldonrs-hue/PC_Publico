@@ -246,13 +246,15 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   };
 
   const handleDownloadPDF = async () => {
-    if (!receiptRef.current) return;
+    const element = receiptRef.current;
+    if (!element) return;
+
     setGenerating(true);
     try {
-      // Capture with high quality
-      const dataUrl = await toJpeg(receiptRef.current, {
+      // Use high quality capture as in S-302
+      const dataUrl = await toJpeg(element, {
         quality: 0.95,
-        pixelRatio: 2,
+        pixelRatio: 3,
         backgroundColor: '#ffffff',
       });
 
@@ -260,32 +262,25 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
+        compress: true
       });
 
       const imgProps = pdf.getImageProperties(dataUrl);
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      
-      // Margins for safety
-      const margin = 10;
-      const maxWidth = pageWidth - (margin * 2);
-      const maxHeight = pageHeight - (margin * 2);
+      const pdfWidth = 210; // A4 width
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      // Initial scaling based on width
-      let finalWidth = maxWidth;
-      let finalHeight = (imgProps.height * finalWidth) / imgProps.width;
+      // Fit the image to A4 with 60% scale as requested
+      const scale = 0.6;
+      const imgWidth = pdfWidth * scale;
+      const imgScaledHeight = pdfHeight * scale;
+      const xOffset = (pdfWidth - imgWidth) / 2;
+      const yOffset = 20; // 20mm from top
 
-      // If still too tall, scale based on height
-      if (finalHeight > maxHeight) {
-        finalHeight = maxHeight;
-        finalWidth = (imgProps.width * finalHeight) / imgProps.height;
-      }
-
-      pdf.addImage(dataUrl, 'JPEG', (pageWidth - finalWidth) / 2, margin, finalWidth, finalHeight);
+      pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgScaledHeight, undefined, 'FAST');
       pdf.save(`Recibo_${date.replace(/\//g, '-')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Erro ao gerar PDF.');
+      alert('Erro ao gerar o PDF. Por favor, tente novamente.');
     } finally {
       setGenerating(false);
     }
@@ -627,78 +622,47 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         </button>
       </nav>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
-            size: A4;
+            size: A4 portrait;
             margin: 0;
           }
-
-          /* Reseta o ambiente para impressão limpa */
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            width: 100% !important;
-            height: auto !important;
-          }
-
-          /* Esconde tudo exceto o recibo */
           body * {
-            visibility: hidden !important;
+            visibility: hidden;
           }
-          
-          #receipt-content,
-          #receipt-content * {
+          #receipt-content, #receipt-content * {
             visibility: visible !important;
           }
-
-          /* Força os elementos pai a não quebrarem o layout */
-          main, div#__next {
-            visibility: visible !important;
-            display: block !important;
-            height: auto !important;
+          body {
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
             margin: 0 !important;
             padding: 0 !important;
           }
-
-          /* Ajusta o container do recibo para a folha */
           #receipt-content {
-            visibility: visible !important;
-            position: relative !important;
-            width: 190mm !important;
-            max-width: 190mm !important;
-            margin: 0 auto !important;
-            padding: 10mm !important;
+            display: block !important;
+            position: absolute !important;
+            top: 20mm !important;
+            left: 0 !important;
+            right: 0 !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            width: 210mm !important;
             border: none !important;
             box-shadow: none !important;
+            overflow: visible !important;
+            z-index: 9999 !important;
             background: white !important;
-            page-break-inside: avoid !important;
-            left: 0 !important;
-            top: 0 !important;
-            transform: none !important;
+            transform: scale(0.6) !important;
+            transform-origin: top center !important;
           }
-
-          /* Remove navegação e botões */
           header, nav, .no-print, button {
             display: none !important;
           }
-
-          /* Garante que os checkboxes apareçam */
-          input[type="checkbox"] {
-            visibility: visible !important;
-            appearance: checkbox !important;
-            -webkit-appearance: checkbox !important;
-            width: 14px !important;
-            height: 14px !important;
-          }
-
-          /* Esconde placeholder */
-          .no-print-placeholder::placeholder {
-            color: transparent !important;
-          }
         }
-      `}</style>
+      `}} />
     </div>
   );
 }
