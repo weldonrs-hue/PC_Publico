@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Pause, RotateCcw, X, GripHorizontal, ChevronUp, ChevronDown, Clock, Settings } from 'lucide-react';
+import { Play, Pause, RotateCcw, X, GripHorizontal, ChevronUp, ChevronDown, Clock, Settings, Share2, Radio, Copy, Check } from 'lucide-react';
+import { db, auth } from '@/lib/firebase';
+import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function FloatingStopwatch() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,6 +14,10 @@ export default function FloatingStopwatch() {
   const [mode, setMode] = useState<'stopwatch' | 'timer'>('stopwatch');
   const [timerValue, setTimerValue] = useState(10); // minutes for timer
   const [showSettings, setShowSettings] = useState(false);
+  
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [lastSync, setLastSync] = useState(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -40,35 +46,103 @@ export default function FloatingStopwatch() {
     return `${hrs > 0 ? `${hrs.toString().padStart(2, '0')}:` : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStartPause = () => setIsRunning(!isRunning);
+  const handleStartPause = () => {
+    const nextRunning = !isRunning;
+    setIsRunning(nextRunning);
+    if (isBroadcasting) syncToFirestore(nextRunning);
+  };
   
   const handleReset = () => {
     setIsRunning(false);
+    let newTime = 0;
     if (mode === 'stopwatch') {
-      setTime(0);
+      newTime = 0;
     } else {
-      setTime(timerValue * 60);
+      newTime = timerValue * 60;
     }
+    setTime(newTime);
+    if (isBroadcasting) syncToFirestore(false, newTime);
   };
 
   const toggleMode = () => {
     setIsRunning(false);
     const newMode = mode === 'stopwatch' ? 'timer' : 'stopwatch';
     setMode(newMode);
+    let newTime = 0;
     if (newMode === 'stopwatch') {
-      setTime(0);
+      newTime = 0;
     } else {
-      setTime(timerValue * 60);
+      newTime = timerValue * 60;
     }
+    setTime(newTime);
+    if (isBroadcasting) syncToFirestore(false, newTime, newMode);
   };
 
   const adjustTimer = (amount: number) => {
     const newValue = Math.max(1, timerValue + amount);
     setTimerValue(newValue);
     if (mode === 'timer' && !isRunning) {
-      setTime(newValue * 60);
+      const newTime = newValue * 60;
+      setTime(newTime);
+      if (isBroadcasting) syncToFirestore(false, newTime);
     }
   };
+
+  const syncToFirestore = async (overrideIsRunning?: boolean, overrideTime?: number, overrideMode?: 'stopwatch' | 'timer') => {
+    if (!isBroadcasting || !auth.currentUser) return;
+
+    try {
+      const broadcastId = auth.currentUser.uid;
+      const ref = doc(db, 'timer_broadcasts', broadcastId);
+      
+      await setDoc(ref, {
+        userId: auth.currentUser.uid,
+        userName: auth.currentUser.displayName || 'Instrutor',
+        mode: overrideMode || mode,
+        isRunning: overrideIsRunning !== undefined ? overrideIsRunning : isRunning,
+        time: overrideTime !== undefined ? overrideTime : time,
+        timerValue: timerValue,
+        syncTime: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error syncing timer:', error);
+    }
+  };
+
+  const toggleBroadcast = async () => {
+    if (!auth.currentUser) {
+      alert('Você precisa estar logado para transmitir o cronômetro.');
+      return;
+    }
+
+    const nextState = !isBroadcasting;
+    setIsBroadcasting(nextState);
+
+    if (nextState) {
+      await syncToFirestore();
+    } else {
+      try {
+        await deleteDoc(doc(db, 'timer_broadcasts', auth.currentUser.uid));
+      } catch (e) {
+        console.error('Error stopping broadcast:', e);
+      }
+    }
+  };
+
+  const copyBroadcastLink = () => {
+    if (!auth.currentUser) return;
+    const url = `${window.location.origin}/timer/${auth.currentUser.uid}`;
+    navigator.clipboard.writeText(url);
+    setCopying(true);
+    setTimeout(() => setCopying(false), 2000);
+  };
+
+  // Sync on broadcast toggle
+  useEffect(() => {
+    if (isBroadcasting) {
+      syncToFirestore();
+    }
+  }, [isBroadcasting]);
 
   if (!isOpen) return (
     <button 
@@ -184,6 +258,39 @@ export default function FloatingStopwatch() {
                         </div>
                       </div>
                     )}
+
+                    <div className="pt-2 border-t border-gray-100 flex flex-col gap-3">
+                      <button 
+                        onClick={toggleBroadcast}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                          isBroadcasting 
+                            ? 'bg-red-50 text-red-600 border border-red-100' 
+                            : 'bg-blue-50 text-blue-600 border border-blue-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Radio size={16} className={isBroadcasting ? 'animate-pulse' : ''} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">
+                            {isBroadcasting ? 'Transmitindo...' : 'Transmitir Link'}
+                          </span>
+                        </div>
+                        <div className={`w-8 h-4 rounded-full relative transition-colors ${isBroadcasting ? 'bg-red-500' : 'bg-gray-300'}`}>
+                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${isBroadcasting ? 'left-4.5' : 'left-0.5'}`} />
+                        </div>
+                      </button>
+
+                      {isBroadcasting && (
+                        <button 
+                          onClick={copyBroadcastLink}
+                          className="flex items-center justify-center gap-2 w-full py-2 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all"
+                        >
+                          {copying ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} className="text-gray-400" />}
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">
+                            {copying ? 'Copiado!' : 'Copiar Link'}
+                          </span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               )}

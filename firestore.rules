@@ -81,6 +81,13 @@ service cloud.firestore {
         (request.resource.data.userId == request.auth.uid)
       );
     }
+    
+    match /timer_broadcasts/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
 
     // Fallback para outras coleções menores
     match /{document=**} {

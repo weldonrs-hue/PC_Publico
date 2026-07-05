@@ -331,9 +331,28 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "date", "items", "total", "createdAt"]
+    },
+    "timer_broadcast": {
+      "title": "Timer Broadcast",
+      "description": "Real-time state of a shared timer or stopwatch",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "mode": { "type": "string", "enum": ["stopwatch", "timer"] },
+        "isRunning": { "type": "boolean" },
+        "time": { "type": "integer", "description": "Seconds elapsed or remaining at the moment of sync" },
+        "timerValue": { "type": "integer", "description": "Base timer value in minutes" },
+        "syncTime": { "type": "string", "format": "date-time", "description": "Server timestamp when the state was last synced" }
+      },
+      "required": ["userId", "mode", "isRunning", "time", "syncTime"]
     }
   },
   "firestore": {
+    "/timer_broadcasts/{broadcastId}": {
+      "schema": "timer_broadcast",
+      "description": "Collection of shared timer states"
+    },
     "/chat_messages/{msgId}": {
       "schema": "chat_message",
       "description": "Collection of messages for real-time chat between users"
