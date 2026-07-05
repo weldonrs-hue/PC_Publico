@@ -404,38 +404,43 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Financial Items */}
-          <div className="space-y-6 mb-12">
-            {items.map((item, idx) => (
-              <div key={idx} className="flex items-end gap-4 h-10">
-                <div className="flex-grow flex items-end">
-                  {idx < 3 ? (
-                    <span className="text-base md:text-lg font-medium">{item.label}</span>
-                  ) : (
+          <div className="flex flex-col gap-6 mb-12 print:gap-4">
+            {items.map((item, idx) => {
+              const isItemEmpty = !item.value || item.value === '0,00' || item.value === '';
+              const isLabelEmpty = idx >= 3 && !item.label;
+              
+              return (
+                <div key={idx} className={`flex items-end gap-4 h-10 ${ (isItemEmpty || isLabelEmpty) ? 'print:hidden' : ''}`}>
+                  <div className="flex-grow flex items-end">
+                    {idx < 3 ? (
+                      <span className="text-base md:text-lg font-medium">{item.label}</span>
+                    ) : (
+                      <input 
+                        type="text"
+                        value={item.label}
+                        onChange={(e) => {
+                          const newItems = [...items];
+                          newItems[idx].label = e.target.value;
+                          setItems(newItems);
+                        }}
+                        placeholder="Outro item..."
+                        className="w-full border-b border-gray-100 focus:border-gray-300 bg-transparent outline-none py-1"
+                      />
+                    )}
+                  </div>
+                  <div className="w-32 md:w-48 flex items-baseline border-b-2 border-gray-100 focus-within:border-black transition-colors py-1">
+                    <span className="mr-2 text-sm font-bold text-gray-400">R$</span>
                     <input 
                       type="text"
-                      value={item.label}
-                      onChange={(e) => {
-                        const newItems = [...items];
-                        newItems[idx].label = e.target.value;
-                        setItems(newItems);
-                      }}
-                      placeholder="Outro item..."
-                      className="w-full border-b border-gray-100 focus:border-gray-300 bg-transparent outline-none py-1"
+                      value={item.value}
+                      onChange={(e) => handleValueChange(idx, e.target.value)}
+                      placeholder="0,00"
+                      className="w-full bg-transparent outline-none text-right font-bold text-lg md:text-xl"
                     />
-                  )}
+                  </div>
                 </div>
-                <div className="w-32 md:w-48 flex items-baseline border-b-2 border-gray-100 focus-within:border-black transition-colors py-1">
-                  <span className="mr-2 text-sm font-bold text-gray-400">R$</span>
-                  <input 
-                    type="text"
-                    value={item.value}
-                    onChange={(e) => handleValueChange(idx, e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent outline-none text-right font-bold text-lg md:text-xl"
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Total Section */}
@@ -454,19 +459,13 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           {/* Signatures */}
           <div className="grid grid-cols-2 gap-12 md:gap-16 mt-20 md:mt-32 items-end">
             <div className="text-center flex flex-col items-center">
-              {personalData?.signatureImage ? (
-                <img 
-                  src={personalData.signatureImage} 
-                  alt="Signature" 
-                  className="h-16 mb-[-10px] object-contain print:h-20" 
-                />
-              ) : (
-                <div className="mb-2 text-sm md:text-base font-medium italic text-slate-700 font-serif">
-                  {personalData?.nome || 'Viajante'}
-                </div>
-              )}
+              <div className="mb-2 h-16 flex items-end justify-center print:h-12">
+                {/* Espaço para assinatura manual */}
+              </div>
               <div className="border-t border-[#7e7576] w-full mb-1"></div>
-              <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Assinatura do Viajante)</span>
+              <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">
+                {personalData?.nome || 'Viajante'} {personalData?.circuito ? `- ${personalData.circuito}` : ''}
+              </span>
             </div>
             <div className="text-center flex flex-col items-center">
               <input 
@@ -479,7 +478,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
               <div className="border-t border-[#7e7576] w-full mb-1"></div>
               <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Conferido por)</span>
             </div>
-            </div>
+          </div>
           </motion.div>
         </div>
       </div>
