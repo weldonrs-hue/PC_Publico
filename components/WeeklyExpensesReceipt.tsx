@@ -363,11 +363,6 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           {/* Header Row */}
           <div className="text-center mb-10">
             <h2 className="font-serif text-2xl md:text-3xl font-bold tracking-[0.3em] uppercase underline underline-offset-8">RECIBO</h2>
-            {selectedCongregation && (
-              <p className="mt-4 font-bold text-slate-700 uppercase tracking-widest text-sm">
-                Congregação {selectedCongregation}
-              </p>
-            )}
           </div>
 
           {/* Selection Section & Date */}
