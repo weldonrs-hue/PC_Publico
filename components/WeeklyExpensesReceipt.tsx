@@ -399,8 +399,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
               value={date}
               onChange={(e) => setDate(e.target.value)}
               placeholder="___/___/___"
-              className="w-40 border-b-2 border-gray-200 focus:border-black bg-transparent outline-none text-center font-bold py-1 transition-colors"
+              className="w-40 border-b-2 border-gray-200 focus:border-black bg-transparent outline-none text-center font-bold py-1 transition-colors print:hidden"
             />
+            <span className="hidden print:block w-40 text-center font-bold py-1 border-b-2 border-transparent">
+              {date}
+            </span>
           </div>
 
           {/* Financial Items */}
@@ -415,17 +418,22 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                     {idx < 3 ? (
                       <span className="text-base md:text-lg font-medium">{item.label}</span>
                     ) : (
-                      <input 
-                        type="text"
-                        value={item.label}
-                        onChange={(e) => {
-                          const newItems = [...items];
-                          newItems[idx].label = e.target.value;
-                          setItems(newItems);
-                        }}
-                        placeholder="Outro item..."
-                        className="w-full border-b border-gray-100 focus:border-gray-300 bg-transparent outline-none py-1"
-                      />
+                      <>
+                        <input 
+                          type="text"
+                          value={item.label}
+                          onChange={(e) => {
+                            const newItems = [...items];
+                            newItems[idx].label = e.target.value;
+                            setItems(newItems);
+                          }}
+                          placeholder="Outro item..."
+                          className="w-full border-b border-gray-100 focus:border-gray-300 bg-transparent outline-none py-1 print:hidden"
+                        />
+                        <span className="hidden print:block text-base md:text-lg font-medium">
+                          {item.label}
+                        </span>
+                      </>
                     )}
                   </div>
                   <div className="w-32 md:w-48 flex items-baseline border-b-2 border-gray-100 focus-within:border-black transition-colors py-1">
@@ -435,8 +443,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                       value={item.value}
                       onChange={(e) => handleValueChange(idx, e.target.value)}
                       placeholder="0,00"
-                      className="w-full bg-transparent outline-none text-right font-bold text-lg md:text-xl"
+                      className="w-full bg-transparent outline-none text-right font-bold text-lg md:text-xl print:hidden"
                     />
+                    <span className="hidden print:block w-full text-right font-bold text-lg md:text-xl tabular-nums">
+                      {item.value || '0,00'}
+                    </span>
                   </div>
                 </div>
               );
@@ -473,8 +484,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                 value={checkedBy}
                 onChange={(e) => setCheckedBy(e.target.value)}
                 placeholder="Nome de quem conferiu"
-                className="w-full text-center border-b border-transparent focus:border-gray-200 outline-none text-sm font-medium mb-1 bg-transparent no-print-placeholder"
+                className="w-full text-center border-b border-transparent focus:border-gray-200 outline-none text-sm font-medium mb-1 bg-transparent print:hidden"
               />
+              <span className="hidden print:block text-sm font-medium mb-1 h-5">
+                {checkedBy}
+              </span>
               <div className="border-t border-[#7e7576] w-full mb-1"></div>
               <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Conferido por)</span>
             </div>
