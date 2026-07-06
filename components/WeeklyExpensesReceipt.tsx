@@ -282,9 +282,18 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       // Use a more standard margin (10mm on each side)
       const margin = 10;
       const fullWidth = pageWidth - (margin * 2);
-      // Reduce to 50%
-      const imgWidth = fullWidth * 0.5;
-      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Target width is 50% of page width, but check height too
+      let imgWidth = fullWidth * 0.5;
+      let imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+      
+      // If still too tall for one page (leaving 15mm top and 15mm bottom margin)
+      const maxAvailableHeight = pageHeight - 30;
+      if (imgHeight > maxAvailableHeight) {
+        imgHeight = maxAvailableHeight;
+        imgWidth = (imgHeight * imgProps.width) / imgProps.height;
+      }
       
       const xOffset = (pageWidth - imgWidth) / 2; // Center horizontally
       const yOffset = 15; // 15mm from top
@@ -361,7 +370,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                   className="bg-white w-[800px] mx-auto shadow-lg md:shadow-xl p-8 md:p-12 relative border border-[#cfc4c5] print:shadow-none print:border-none print:p-0 print:m-0"
                 >
           {/* Header Row */}
-          <div className="text-center mb-10">
+          <div className="text-center mb-10 print:mb-6">
             <h2 className="font-serif text-2xl md:text-3xl font-bold tracking-[0.3em] uppercase underline underline-offset-8">RECIBO</h2>
           </div>
 
@@ -401,7 +410,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Print only version of selection */}
-          <div className="hidden print:flex justify-between mb-8 items-center border-b-2 border-gray-300 pb-4">
+          <div className="hidden print:flex justify-between mb-4 items-center border-b-2 border-gray-300 pb-4">
             <div className="flex gap-8">
               {Object.entries(types).map(([key, value]) => (
                 <div key={key} className="flex items-center">
@@ -421,7 +430,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             )}
           </div>
 
-          <div className="flex items-baseline mb-12">
+          <div className="flex items-baseline mb-12 print:mb-6">
             <span className="font-bold text-sm mr-2 uppercase tracking-wider text-gray-600">Data:</span>
             <div className="w-40 border-b-2 border-gray-400 flex justify-center">
               <input 
@@ -438,7 +447,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Financial Items */}
-          <div className="flex flex-col gap-6 mb-12 print:gap-4">
+          <div className="flex flex-col gap-6 mb-8 print:mb-6 print:gap-2">
             {items.map((item, idx) => {
               return (
                 <div key={idx} className="flex items-end gap-4 h-10">
@@ -483,7 +492,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Total Section */}
-          <div className="flex justify-end items-center mb-16">
+          <div className="flex justify-end items-center mb-16 print:mb-8">
             <div className="bg-slate-50 px-6 py-4 rounded-xl border-2 border-[#10B981] flex items-center shadow-md transform hover:scale-105 transition-transform duration-200">
               <span className="text-xl md:text-2xl font-black text-slate-800 mr-6 uppercase tracking-tighter">TOTAL:</span>
               <div className="flex items-baseline min-w-[120px] text-[#059669]">
@@ -496,7 +505,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Signatures */}
-          <div className="grid grid-cols-2 gap-12 md:gap-16 mt-20 md:mt-32 items-end">
+          <div className="grid grid-cols-2 gap-12 md:gap-16 mt-20 md:mt-32 items-end print:mt-10">
             <div className="text-center flex flex-col items-center">
               <div className="mb-2 h-16 flex items-end justify-center print:h-12">
                 {/* Espaço para assinatura manual */}
@@ -686,14 +695,16 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             display: block !important;
             position: relative !important;
             margin: 0 auto !important;
-            width: 800px !important; /* Keep original width but scale down */
+            width: 800px !important;
             border: none !important;
             box-shadow: none !important;
             overflow: visible !important;
             background: white !important;
             padding: 10mm !important;
-            transform: scale(0.5) !important;
+            transform: scale(0.45) !important; /* Slightly smaller than 0.5 to be safe */
             transform-origin: top center !important;
+            height: auto !important;
+            max-height: 270mm !important; /* Ensure it stays within A4 height (297mm) */
           }
           header, nav, .no-print, button {
             display: none !important;
