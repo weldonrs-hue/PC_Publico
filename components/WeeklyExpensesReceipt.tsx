@@ -403,33 +403,53 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             </div>
           </div>
 
+          {/* Print only version of selection */}
+          <div className="hidden print:flex justify-between mb-8 items-center border-b border-gray-100 pb-4">
+            <div className="flex gap-8">
+              {Object.entries(types).map(([key, value]) => (
+                <div key={key} className="flex items-center">
+                  <div className={`w-5 h-5 border border-[#7e7576] mr-2 flex items-center justify-center font-bold ${value ? 'bg-black text-white' : 'bg-transparent'}`}>
+                    {value ? 'X' : ''}
+                  </div>
+                  <span className="text-sm font-bold capitalize">
+                    {key}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {selectedCongregation && (
+              <span className="font-bold text-sm uppercase tracking-widest text-slate-800">
+                Congregação {selectedCongregation}
+              </span>
+            )}
+          </div>
+
           <div className="flex items-baseline mb-12">
             <span className="font-bold text-sm mr-2 uppercase tracking-wider text-gray-600">Data:</span>
-            <input 
-              type="text" 
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              placeholder="___/___/___"
-              className="w-40 border-b-2 border-gray-200 focus:border-black bg-transparent outline-none text-center font-bold py-1 transition-colors print:hidden"
-            />
-            <span className="hidden print:block w-40 text-center font-bold py-1 border-b-2 border-transparent">
-              {date}
-            </span>
+            <div className="w-40 border-b-2 border-gray-200 flex justify-center">
+              <input 
+                type="text" 
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                placeholder="___/___/___"
+                className="w-full bg-transparent outline-none text-center font-bold py-1 transition-colors print:hidden"
+              />
+              <span className="hidden print:block font-bold py-1">
+                {date}
+              </span>
+            </div>
           </div>
 
           {/* Financial Items */}
           <div className="flex flex-col gap-6 mb-12 print:gap-4">
             {items.map((item, idx) => {
-              const isItemEmpty = !item.value || item.value === '0,00' || item.value === '';
-              const isLabelEmpty = idx >= 3 && !item.label;
-              
               return (
                 <div key={idx} className="flex items-end gap-4 h-10">
-                  <div className="flex-grow flex items-end">
+                  <div className="flex-grow flex items-end border-b border-gray-100 min-h-[40px]">
                     {idx < 3 ? (
-                      <span className="text-base md:text-lg font-medium">{item.label}</span>
+                      <span className="text-base md:text-lg font-medium mb-1">{item.label}</span>
                     ) : (
-                      <>
+                      <div className="w-full relative">
                         <input 
                           type="text"
                           value={item.label}
@@ -439,12 +459,12 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                             setItems(newItems);
                           }}
                           placeholder="Outro item..."
-                          className="w-full border-b border-gray-100 focus:border-gray-300 bg-transparent outline-none py-1 print:hidden"
+                          className="w-full bg-transparent outline-none py-1 print:hidden"
                         />
-                        <span className="hidden print:block text-base md:text-lg font-medium">
+                        <span className="hidden print:block text-base md:text-lg font-medium mb-1 min-h-[1.5rem]">
                           {item.label}
                         </span>
-                      </>
+                      </div>
                     )}
                   </div>
                   <div className="w-32 md:w-48 flex items-baseline border-b-2 border-gray-100 focus-within:border-black transition-colors py-1">
