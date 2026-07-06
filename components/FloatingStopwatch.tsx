@@ -27,10 +27,6 @@ export default function FloatingStopwatch() {
           setTime((prev) => prev + 1);
         } else {
           setTime((prev) => {
-            if (prev <= 0) {
-              setIsRunning(false);
-              return 0;
-            }
             return prev - 1;
           });
         }
@@ -40,10 +36,13 @@ export default function FloatingStopwatch() {
   }, [isRunning, mode]);
 
   const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs > 0 ? `${hrs.toString().padStart(2, '0')}:` : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const isNegative = seconds < 0;
+    const absSeconds = Math.abs(seconds);
+    const hrs = Math.floor(absSeconds / 3600);
+    const mins = Math.floor((absSeconds % 3600) / 60);
+    const secs = absSeconds % 60;
+    const timeStr = `${hrs > 0 ? `${hrs.toString().padStart(2, '0')}:` : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return isNegative ? `-${timeStr}` : timeStr;
   };
 
   const handleStartPause = () => {
@@ -190,7 +189,7 @@ export default function FloatingStopwatch() {
             {/* Display */}
             <div className={`text-center py-6 bg-gray-950 rounded-2xl shadow-inner border border-white/5 relative overflow-hidden ${time < 60 && mode === 'timer' && time > 0 ? 'animate-pulse' : ''}`}>
               <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-              <span className={`text-5xl font-mono font-bold tracking-tighter transition-colors ${time === 0 && mode === 'timer' ? 'text-red-500' : 'text-emerald-400'}`}>
+              <span className={`text-5xl font-mono font-bold tracking-tighter transition-colors ${time <= 0 && mode === 'timer' ? 'text-red-500' : 'text-emerald-400'}`}>
                 {formatTime(time)}
               </span>
               <div className="text-[10px] uppercase font-black text-gray-600 mt-2 tracking-[0.2em]">

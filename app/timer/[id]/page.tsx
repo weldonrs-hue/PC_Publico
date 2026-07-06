@@ -50,7 +50,7 @@ export default function TimerBroadcastPage({ params }: { params: Promise<{ id: s
         if (data.mode === 'stopwatch') {
           setDisplayTime(data.time + elapsedSinceSync);
         } else {
-          setDisplayTime(Math.max(0, data.time - elapsedSinceSync));
+          setDisplayTime(data.time - elapsedSinceSync);
         }
       } else {
         setDisplayTime(data.time);
@@ -63,10 +63,13 @@ export default function TimerBroadcastPage({ params }: { params: Promise<{ id: s
   }, [data]);
 
   const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs > 0 ? `${hrs.toString().padStart(2, '0')}:` : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const isNegative = seconds < 0;
+    const absSeconds = Math.abs(seconds);
+    const hrs = Math.floor(absSeconds / 3600);
+    const mins = Math.floor((absSeconds % 3600) / 60);
+    const secs = absSeconds % 60;
+    const timeStr = `${hrs > 0 ? `${hrs.toString().padStart(2, '0')}:` : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return isNegative ? `-${timeStr}` : timeStr;
   };
 
   const toggleFullscreen = () => {
@@ -103,13 +106,13 @@ export default function TimerBroadcastPage({ params }: { params: Promise<{ id: s
   }
 
   const isEnding = data.mode === 'timer' && displayTime < 60 && displayTime > 0 && data.isRunning;
-  const isFinished = data.mode === 'timer' && displayTime === 0;
+  const isFinished = data.mode === 'timer' && displayTime <= 0;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center overflow-hidden relative font-sans">
       {/* Background Glow */}
       <div className={`absolute inset-0 transition-colors duration-1000 ${
-        isFinished ? 'bg-red-900/20' : isEnding ? 'bg-amber-900/10' : 'bg-violet-900/10'
+        isFinished ? 'bg-red-900/30' : isEnding ? 'bg-amber-900/10' : 'bg-violet-900/10'
       }`} />
       
       {/* Top Info */}
@@ -139,7 +142,7 @@ export default function TimerBroadcastPage({ params }: { params: Promise<{ id: s
           initial={{ scale: 0.95, opacity: 0.8 }}
           animate={{ scale: 1, opacity: 1 }}
           className={`text-[25vw] sm:text-[20vw] font-mono font-bold leading-none tracking-tighter transition-colors duration-300 ${
-            isFinished ? 'text-red-500 animate-pulse' : isEnding ? 'text-amber-400' : 'text-emerald-400'
+            isFinished ? 'text-red-500' : isEnding ? 'text-amber-400' : 'text-emerald-400'
           }`}
         >
           {formatTime(displayTime)}
