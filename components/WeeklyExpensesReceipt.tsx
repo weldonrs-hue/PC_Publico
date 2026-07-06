@@ -251,11 +251,22 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
     setGenerating(true);
     try {
-      // Use high quality capture as in S-302
+      // Force margin 0 and no transform to ensure we capture ONLY the receipt itself
+      // without any screen centering offsets
       const dataUrl = await toJpeg(element, {
         quality: 0.95,
         pixelRatio: 3,
         backgroundColor: '#ffffff',
+        width: 800, // Explicitly set width to match the component's base width
+        style: {
+          margin: '0',
+          padding: '48px', // Match p-12 (12 * 4 = 48px)
+          transform: 'none',
+          left: '0',
+          top: '0',
+          boxShadow: 'none',
+          borderRadius: '0',
+        }
       });
 
       const pdf = new jsPDF({
@@ -266,18 +277,18 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       });
 
       const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = 210; // A4 width
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      
+      // Use a more standard margin (10mm on each side)
+      const margin = 10;
+      const imgWidth = pageWidth - (margin * 2);
+      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+      
+      const xOffset = margin;
+      const yOffset = 15; // 15mm from top
 
-      // Fit the image to A4 with 60% scale as requested
-      const scale = 0.6;
-      const imgWidth = pdfWidth * scale;
-      const imgScaledHeight = pdfHeight * scale;
-      const xOffset = (pdfWidth - imgWidth) / 2;
-      const yOffset = 20; // 20mm from top
-
-      pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgScaledHeight, undefined, 'FAST');
-      pdf.save(`Recibo_${date.replace(/\//g, '-')}.pdf`);
+      pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgHeight, undefined, 'FAST');
+      pdf.save(`Recibo_Despesas_${date.replace(/\//g, '-') || 'Sem_Data'}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Erro ao gerar o PDF. Por favor, tente novamente.');
@@ -413,7 +424,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
               const isLabelEmpty = idx >= 3 && !item.label;
               
               return (
-                <div key={idx} className={`flex items-end gap-4 h-10 ${ (isItemEmpty || isLabelEmpty) ? 'print:hidden' : ''}`}>
+                <div key={idx} className="flex items-end gap-4 h-10">
                   <div className="flex-grow flex items-end">
                     {idx < 3 ? (
                       <span className="text-base md:text-lg font-medium">{item.label}</span>
@@ -656,20 +667,15 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           }
           #receipt-content {
             display: block !important;
-            position: absolute !important;
-            top: 20mm !important;
-            left: 0 !important;
-            right: 0 !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-            width: 210mm !important;
+            position: relative !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            max-width: 190mm !important; /* Slightly less than A4 to allow margins */
             border: none !important;
             box-shadow: none !important;
             overflow: visible !important;
-            z-index: 9999 !important;
             background: white !important;
-            transform: scale(0.6) !important;
-            transform-origin: top center !important;
+            padding: 10mm !important;
           }
           header, nav, .no-print, button {
             display: none !important;
