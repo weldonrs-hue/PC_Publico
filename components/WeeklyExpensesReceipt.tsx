@@ -406,7 +406,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           </div>
 
           {/* Print only version of selection */}
-          <div className="hidden print:flex justify-between mb-8 items-center border-b border-gray-100 pb-4">
+          <div className="hidden print:flex justify-between mb-8 items-center border-b-2 border-gray-300 pb-4">
             <div className="flex gap-8">
               {Object.entries(types).map(([key, value]) => (
                 <div key={key} className="flex items-center">
@@ -428,7 +428,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
           <div className="flex items-baseline mb-12">
             <span className="font-bold text-sm mr-2 uppercase tracking-wider text-gray-600">Data:</span>
-            <div className="w-40 border-b-2 border-gray-200 flex justify-center">
+            <div className="w-40 border-b-2 border-gray-400 flex justify-center">
               <input 
                 type="text" 
                 value={date}
@@ -447,7 +447,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             {items.map((item, idx) => {
               return (
                 <div key={idx} className="flex items-end gap-4 h-10">
-                  <div className="flex-grow flex items-end border-b border-gray-100 min-h-[40px]">
+                  <div className="flex-grow flex items-end border-b-2 border-gray-300 min-h-[40px]">
                     {idx < 3 ? (
                       <span className="text-base md:text-lg font-medium mb-1">{item.label}</span>
                     ) : (
@@ -469,7 +469,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                       </div>
                     )}
                   </div>
-                  <div className="w-32 md:w-48 flex items-baseline border-b-2 border-gray-100 focus-within:border-black transition-colors py-1">
+                  <div className="w-32 md:w-48 flex items-baseline border-b-2 border-gray-400 focus-within:border-black transition-colors py-1">
                     <span className="mr-2 text-sm font-bold text-gray-400">R$</span>
                     <input 
                       type="text"
@@ -506,7 +506,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
               <div className="mb-2 h-16 flex items-end justify-center print:h-12">
                 {/* Espaço para assinatura manual */}
               </div>
-              <div className="border-t border-[#7e7576] w-full mb-1"></div>
+              <div className="border-t-2 border-slate-400 w-full mb-1"></div>
               <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">
                 {personalData?.nome || 'Viajante'} {personalData?.circuito ? `- ${personalData.circuito}` : ''}
               </span>
@@ -522,7 +522,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
               <span className="hidden print:block text-sm font-medium mb-1 h-5">
                 {checkedBy}
               </span>
-              <div className="border-t border-[#7e7576] w-full mb-1"></div>
+              <div className="border-t-2 border-slate-400 w-full mb-1"></div>
               <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Conferido por)</span>
             </div>
           </div>
