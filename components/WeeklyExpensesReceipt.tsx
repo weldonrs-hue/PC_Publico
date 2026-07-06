@@ -281,10 +281,12 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       
       // Use a more standard margin (10mm on each side)
       const margin = 10;
-      const imgWidth = pageWidth - (margin * 2);
+      const fullWidth = pageWidth - (margin * 2);
+      // Reduce to 50%
+      const imgWidth = fullWidth * 0.5;
       const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
       
-      const xOffset = margin;
+      const xOffset = (pageWidth - imgWidth) / 2; // Center horizontally
       const yOffset = 15; // 15mm from top
 
       pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgHeight, undefined, 'FAST');
@@ -689,13 +691,14 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             display: block !important;
             position: relative !important;
             margin: 0 auto !important;
-            width: 100% !important;
-            max-width: 190mm !important; /* Slightly less than A4 to allow margins */
+            width: 800px !important; /* Keep original width but scale down */
             border: none !important;
             box-shadow: none !important;
             overflow: visible !important;
             background: white !important;
             padding: 10mm !important;
+            transform: scale(0.5) !important;
+            transform-origin: top center !important;
           }
           header, nav, .no-print, button {
             display: none !important;
