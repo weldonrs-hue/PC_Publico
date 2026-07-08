@@ -3,6 +3,7 @@ import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display, Pa
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LGPDConsent from '@/components/LGPDConsent';
+import { DialogProvider } from '@/hooks/useDialog';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -78,8 +79,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-br" suppressHydrationWarning className={`${inter.variable} ${manrope.variable} ${libreBaskerville.variable} ${playfairDisplay.variable} ${dancingScript.variable} ${pacifico.variable} ${caveat.variable} ${satisfy.variable} ${marckScript.variable}`}>
       <body suppressHydrationWarning className="bg-gray-50 font-sans">
         <ErrorBoundary>
-          {children}
-          <LGPDConsent />
+          <DialogProvider>
+            {children}
+            <LGPDConsent />
+          </DialogProvider>
         </ErrorBoundary>
       </body>
     </html>

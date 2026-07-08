@@ -32,6 +32,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 import { AnimatePresence, motion } from 'motion/react';
 import { cleanPSSMetadata } from '@/lib/docxUtils';
 
@@ -54,6 +55,7 @@ export default function CongressLetters({
   canManage,
   initialMode = 'geracao'
 }: CongressLettersProps) {
+  const { showAlert } = useDialog();
   const [selectedTemplate, setSelectedTemplate] = useState<string>(CONGRESSO_TEMPLATES[0].id);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isPrivate?: boolean }>>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -561,7 +563,7 @@ export default function CongressLetters({
       }
     } catch (err) {
       console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF.');
+      await showAlert('Erro ao gerar PDF.', 'Erro');
     } finally {
       setGenerating(false);
     }
@@ -599,10 +601,10 @@ export default function CongressLetters({
 
       setFile(null);
       setLocalFileBuffer(null);
-      alert('Template salvo com sucesso!');
+      await showAlert('Template salvo com sucesso!', 'Sucesso');
     } catch (error: any) {
       console.error('Error saving template:', error);
-      alert('Erro ao salvar template: ' + error.message);
+      await showAlert('Erro ao salvar template: ' + error.message, 'Erro');
     } finally {
       setIsSaving(false);
     }

@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, RotateCcw, X, GripHorizontal, ChevronUp, ChevronDown, Clock, Settings, Share2, Radio, Copy, Check } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 export default function FloatingStopwatch() {
+  const { showAlert } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [time, setTime] = useState(0); // seconds
@@ -110,7 +112,7 @@ export default function FloatingStopwatch() {
 
   const toggleBroadcast = async () => {
     if (!auth.currentUser) {
-      alert('Você precisa estar logado para transmitir o cronômetro.');
+      await showAlert('Você precisa estar logado para transmitir o cronômetro.', 'Aviso');
       return;
     }
 
@@ -130,7 +132,7 @@ export default function FloatingStopwatch() {
 
   const copyBroadcastLink = () => {
     if (!auth.currentUser) return;
-    const url = `${window.location.origin}/timer/${auth.currentUser.uid}`;
+    const url = `${window.location.origin}/timer?id=${auth.currentUser.uid}`;
     navigator.clipboard.writeText(url);
     setCopying(true);
     setTimeout(() => setCopying(false), 2000);

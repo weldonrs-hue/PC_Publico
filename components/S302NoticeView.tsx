@@ -28,7 +28,7 @@ import Image from 'next/image';
 import { motion } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-
+import { useDialog } from '@/hooks/useDialog';
 import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
@@ -106,6 +106,7 @@ interface S302NoticeViewProps {
 }
 
 export default function S302NoticeView({ events, initialIndex, userId, isAdmin, onBack }: S302NoticeViewProps) {
+  const { showAlert } = useDialog();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const currentEvent = events[currentIndex];
   const { congregacao, data, substituteName } = currentEvent;
@@ -342,7 +343,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       pdf.save(filename);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Erro ao gerar o PDF. Por favor, tente novamente.');
+      await showAlert('Erro ao gerar o PDF. Por favor, tente novamente.', 'Erro');
     } finally {
       setGenerating(false);
     }

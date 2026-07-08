@@ -6,6 +6,7 @@ import { Globe, Sparkles, User as UserIcon, Check, Loader2, Info, X, Phone } fro
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, getDocs, limit } from 'firebase/firestore';
 import { formatBRPhone } from '@/utils/formatters';
+import { useDialog } from '@/hooks/useDialog';
 
 interface RoleChangeRequestModalProps {
   userId: string;
@@ -15,6 +16,7 @@ interface RoleChangeRequestModalProps {
 }
 
 export default function RoleChangeRequestModal({ userId, currentRole, userName, onClose }: RoleChangeRequestModalProps) {
+  const { showAlert } = useDialog();
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,7 +64,7 @@ export default function RoleChangeRequestModal({ userId, currentRole, userName, 
       setTimeout(() => onClose(), 3000);
     } catch (error) {
       console.error('Error submitting request:', error);
-      alert('Erro ao enviar solicitação.');
+      await showAlert('Erro ao enviar solicitação.', 'Erro');
     } finally {
       setLoading(false);
     }

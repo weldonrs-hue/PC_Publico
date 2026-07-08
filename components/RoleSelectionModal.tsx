@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Globe, Sparkles, User, Check, Loader2, Info } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 interface RoleSelectionModalProps {
   userId: string;
@@ -12,6 +13,7 @@ interface RoleSelectionModalProps {
 }
 
 export default function RoleSelectionModal({ userId, onRoleSelected }: RoleSelectionModalProps) {
+  const { showAlert } = useDialog();
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +35,7 @@ export default function RoleSelectionModal({ userId, onRoleSelected }: RoleSelec
       onRoleSelected(selectedRole);
     } catch (error) {
       console.error('Error saving role:', error);
-      alert('Erro ao salvar categoria. Tente novamente.');
+      await showAlert('Erro ao salvar categoria. Tente novamente.', 'Erro');
     } finally {
       setLoading(false);
     }

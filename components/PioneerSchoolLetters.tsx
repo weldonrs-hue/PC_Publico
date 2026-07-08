@@ -25,6 +25,7 @@ import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/doc
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 interface PioneerSchoolLettersProps {
   userId: string;
@@ -60,6 +61,7 @@ export default function PioneerSchoolLetters({
   selectedTurma, 
   schoolInfo
 }: PioneerSchoolLettersProps) {
+  const { showAlert, showConfirm } = useDialog();
   const [selectedTemplate, setSelectedTemplate] = useState<string>(ESP_TEMPLATES[0].id);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isPrivate?: boolean }>>({});
   const [personalData, setPersonalData] = useState<any>(null);
@@ -828,7 +830,7 @@ export default function PioneerSchoolLetters({
       pdf.save(filename);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF. Uma alternativa é utilizar a função "Imprimir" e selecionar "Salvar como PDF".');
+      await showAlert('Erro ao gerar PDF. Uma alternativa é utilizar a função "Imprimir" e selecionar "Salvar como PDF".', 'Erro');
     } finally {
       setGenerating(false);
     }
@@ -908,7 +910,7 @@ export default function PioneerSchoolLetters({
         }
       }
 
-      alert(isGlobal ? 'Modelo substituído com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi atualizado com sucesso.');
+      await showAlert(isGlobal ? 'Modelo substituído com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi atualizado com sucesso!', 'Sucesso');
       setSaveStatus('success');
       setFile(null);
       setLocalFileBuffer(null);
@@ -917,7 +919,7 @@ export default function PioneerSchoolLetters({
       console.error('Error saving template:', error);
       setErrorMessage(error.message || 'Erro ao salvar');
       setSaveStatus('error');
-      alert('Erro ao salvar template: ' + error.message);
+      await showAlert('Erro ao salvar template: ' + error.message, 'Erro');
     } finally {
       setIsSaving(false);
     }
@@ -926,7 +928,7 @@ export default function PioneerSchoolLetters({
   const deletePrivateTemplate = async () => {
     const templateData = templates[selectedTemplate];
     if (!templateData?.isPrivate) return;
-    if (!confirm('Tem certeza que deseja excluir sua versão personalizada deste modelo? O sistema voltará a usar o modelo padrão.')) return;
+    if (!(await showConfirm('Tem certeza que deseja excluir sua versão personalizada deste modelo? O sistema voltará a usar o modelo padrão.', 'Excluir Versão Personalizada'))) return;
     
     setIsSaving(true);
     try {
@@ -937,14 +939,14 @@ export default function PioneerSchoolLetters({
       
       setSaveStatus('success');
       
-      alert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.');
+      await showAlert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.', 'Sucesso');
       
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error deleting template:', error);
       setErrorMessage(error.message || 'Erro ao excluir');
       setSaveStatus('error');
-      alert('Erro ao excluir versão personalizada: ' + error.message);
+      await showAlert('Erro ao excluir versão personalizada: ' + error.message, 'Erro');
     } finally {
       setIsSaving(false);
     }

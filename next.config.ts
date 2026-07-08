@@ -31,9 +31,16 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cms-imgp.jw-cdn.org',
+        port: '',
+        pathname: '/**',
+      },
     ],
+    unoptimized: true,
   },
-  output: 'standalone',
+  output: 'export',
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
     // Do not modifyâfile watching is disabled to prevent flickering during agent edits.

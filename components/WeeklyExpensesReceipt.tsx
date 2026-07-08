@@ -7,6 +7,7 @@ import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import { useDialog } from '@/hooks/useDialog';
 
 interface WeeklyExpensesReceiptProps {
   onBack: () => void;
@@ -24,6 +25,7 @@ interface ReceiptRecord {
 }
 
 export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptProps) {
+  const { showAlert, showConfirm } = useDialog();
   const [view, setView] = useState<'form' | 'history'>('form');
   const [history, setHistory] = useState<ReceiptRecord[]>([]);
   const [congregations, setCongregations] = useState<{ id: string; nome: string }[]>([]);
@@ -35,8 +37,6 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   const [checkedBy, setCheckedBy] = useState('');
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [receiptToDelete, setReceiptToDelete] = useState<string | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const initialItems = [
@@ -155,7 +155,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   const saveReceipt = async () => {
     if (!auth.currentUser) return;
     if (total === '0,00') {
-      alert('O total deve ser maior que zero para salvar.');
+      await showAlert('O total deve ser maior que zero para salvar.', 'Aviso');
       return;
     }
 
@@ -175,41 +175,36 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       if (editingId) {
         // Atualiza o recibo existente
         await updateDoc(doc(db, 'weekly_expenses', editingId), receiptData);
-        alert('Recibo atualizado com sucesso!');
+        await showAlert('Recibo atualizado com sucesso!', 'Sucesso');
       } else {
         // Salva um novo recibo
         await addDoc(collection(db, 'weekly_expenses'), {
           ...receiptData,
           createdAt: serverTimestamp(),
         });
-        alert('Recibo salvo com sucesso!');
+        await showAlert('Recibo salvo com sucesso!', 'Sucesso');
       }
       
       resetForm();
       setView('history');
     } catch (error) {
       console.error('Error saving receipt:', error);
-      alert('Erro ao salvar recibo.');
+      await showAlert('Erro ao salvar recibo.', 'Erro');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const deleteReceipt = (id: string) => {
-    setReceiptToDelete(id);
-    setShowDeleteModal(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!receiptToDelete) return;
-    try {
-      await deleteDoc(doc(db, 'weekly_expenses', receiptToDelete));
-      setHistory(prev => prev.filter(item => item.id !== receiptToDelete));
-      setShowDeleteModal(false);
-      setReceiptToDelete(null);
-    } catch (error) {
-      console.error('Error deleting receipt:', error);
-      alert('Erro ao excluir recibo.');
+  const deleteReceipt = async (id: string) => {
+    if (await showConfirm('Esta ação não pode ser desfeita. O registro será removido permanentemente do histórico.', 'Excluir Recibo?')) {
+      try {
+        await deleteDoc(doc(db, 'weekly_expenses', id));
+        setHistory(prev => prev.filter(item => item.id !== id));
+        await showAlert('Recibo excluído com sucesso!', 'Sucesso');
+      } catch (error) {
+        console.error('Error deleting receipt:', error);
+        await showAlert('Erro ao excluir recibo.', 'Erro');
+      }
     }
   };
 
@@ -302,7 +297,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       pdf.save(`Recibo_Despesas_${date.replace(/\//g, '-') || 'Sem_Data'}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Erro ao gerar o PDF. Por favor, tente novamente.');
+      await showAlert('Erro ao gerar o PDF. Por favor, tente novamente.', 'Erro');
     } finally {
       setGenerating(false);
     }
@@ -606,49 +601,6 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           )}
         </AnimatePresence>
       </main>
-
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowDeleteModal(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center"
-            >
-              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 size={32} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Excluir Recibo?</h3>
-              <p className="text-slate-500 mb-6 text-sm">
-                Esta ação não pode ser desfeita. O registro será removido permanentemente do histórico.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button 
-                  onClick={() => setShowDeleteModal(false)}
-                  className="py-3 px-4 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleConfirmDelete}
-                  className="py-3 px-4 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-200"
-                >
-                  Excluir
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Bottom Nav - No Print */}
       <nav className="fixed bottom-0 w-full z-50 bg-white border-t border-[#7e7576] flex justify-around items-center h-16 pb-safe no-print">

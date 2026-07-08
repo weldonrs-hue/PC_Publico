@@ -42,6 +42,7 @@ import {
 } from 'firebase/auth';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { motion, AnimatePresence } from 'motion/react';
+import { useDialog } from '@/hooks/useDialog';
 
 interface UserMetadata {
   id: string;
@@ -71,6 +72,7 @@ interface UsersViewProps {
 }
 
 export default function UsersView({ onBack }: UsersViewProps) {
+  const { showAlert, showConfirm } = useDialog();
   const [users, setUsers] = useState<UserMetadata[]>([]);
   const [roleRequests, setRoleRequests] = useState<RoleChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,7 +196,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isInactive: !u.isInactive } : u));
     } catch (error) {
       console.error('Error toggling inactive status:', error);
-      alert('Erro ao alterar status.');
+      await showAlert('Erro ao alterar status.', 'Erro');
     }
   };
 
@@ -281,7 +283,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
       fetchUsers();
     } catch (error) {
       console.error('Error approving request:', error);
-      alert('Erro ao aprovar solicitação.');
+      await showAlert('Erro ao aprovar solicitação.', 'Erro');
     }
   };
 
@@ -294,7 +296,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
       setRoleRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' } : r));
     } catch (error) {
       console.error('Error rejecting request:', error);
-      alert('Erro ao rejeitar solicitação.');
+      await showAlert('Erro ao rejeitar solicitação.', 'Erro');
     }
   };
 
@@ -354,11 +356,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
           <button 
             onClick={async () => {
               if (isQuotaExceeded()) {
-                alert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.');
+                await showAlert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.', 'Aviso de Cota');
                 return;
               }
               const confirmMsg = `AVISO DE COTA FIRESTORE:\n\nEsta operação irá comparar e atualizar TODOS os usuários cadastrados. \nDependendo do número de usuários, isso pode consumir centenas de "WRITES" da sua cota diária.\n\nDeseja realmente continuar?`;
-              if (!confirm(confirmMsg)) return;
+              const confirmed = await showConfirm(confirmMsg, 'Confirmar Sincronização em Lote');
+              if (!confirmed) return;
               
               setRefreshing(true);
               try {
@@ -391,14 +394,14 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
                 if (count > 0) {
                   await batch.commit();
-                  alert(`${count} usuários atualizados com sucesso.`);
+                  await showAlert(`${count} usuários atualizados com sucesso.`, 'Sucesso');
                 } else {
-                  alert('Todos os usuários já estão sincronizados.');
+                  await showAlert('Todos os usuários já estão sincronizados.', 'Aviso');
                 }
                 fetchUsers();
               } catch (err) {
                 console.error('Error in batch sync:', err);
-                alert('Erro na sincronização em lote. Tente novamente.');
+                await showAlert('Erro na sincronização em lote. Tente novamente.', 'Erro');
               } finally {
                 setRefreshing(false);
               }

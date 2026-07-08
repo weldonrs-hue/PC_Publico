@@ -21,6 +21,7 @@ const PioneerSchoolView = dynamic(() => import('@/components/PioneerSchoolView')
 const CongregationStatisticsView = dynamic(() => import('@/components/CongregationStatisticsView'), { ssr: false });
 const EventsView = dynamic(() => import('@/components/EventsView'), { ssr: false });
 const RegionalConventionView = dynamic(() => import('@/components/RegionalConventionView'), { ssr: false });
+const CircuitAssemblyView = dynamic(() => import('@/components/CircuitAssemblyView'), { ssr: false });
 const MiscView = dynamic(() => import('@/components/MiscView'), { 
   ssr: false,
   loading: () => (
@@ -981,6 +982,13 @@ export default function Home() {
 
           {currentView === 'regional_convention_program' && (
             <RegionalConventionView 
+              userId={user.id}
+              onBack={() => changeView('events')}
+            />
+          )}
+
+          {currentView === 'circuit_assembly_supt_program' && (
+            <CircuitAssemblyView 
               userId={user.id}
               onBack={() => changeView('events')}
             />

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 
@@ -246,6 +247,7 @@ const regionalConventionProgram = [
 ];
 
 export default function RegionalConventionView({ userId, isGuest = false, onBack }: RegionalConventionViewProps) {
+  const { showAlert } = useDialog();
   const [speakers, setSpeakers] = useState<Record<string, string>>({});
   const [initialSpeakers, setInitialSpeakers] = useState<Record<string, string>>({});
   const [confirmedSpeakers, setConfirmedSpeakers] = useState<Record<string, boolean>>({});
@@ -465,7 +467,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
   const generateDocument = async (item: any, type: 'docx' | 'pdf') => {
     const speakerName = speakers[item.id];
     if (!speakerName) {
-      alert('Por favor, informe o nome do orador primeiro.');
+      await showAlert('Por favor, informe o nome do orador primeiro.', 'Campo Obrigatório');
       return;
     }
 
@@ -492,7 +494,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
 
     const template = templates[templateId];
     if (!template) {
-      alert(`Template "${templateId}" não encontrado. Por favor, carregue-o no Gerenciador de Uploads primeiro.`);
+      await showAlert(`Template "${templateId}" não encontrado. Por favor, carregue-o no Gerenciador de Uploads primeiro.`, 'Aviso');
       return;
     }
 
@@ -626,11 +628,11 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
         link.click();
         document.body.removeChild(link);
       } else {
-        alert('Dica: Para obter o PDF com máxima fidelidade e qualidade visual, utilize a aba "Cartas Congresso". Lá você poderá visualizar o documento com perfeição antes de baixar o PDF usando as ferramentas integradas do novo visualizador!');
+        await showAlert('Dica: Para obter o PDF com máxima fidelidade e qualidade visual, utilize a aba "Cartas Congresso". Lá você poderá visualizar o documento com perfeição antes de baixar o PDF usando as ferramentas integradas do novo visualizador!', 'Dica de Qualidade');
       }
     } catch (err) {
       console.error('Error generating document:', err);
-      alert('Erro ao gerar documento. Verifique se os modelos estão carregados.');
+      await showAlert('Erro ao gerar documento. Verifique se os modelos estão carregados.', 'Erro');
     } finally {
       setIsSaving(false);
     }

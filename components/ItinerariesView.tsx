@@ -44,6 +44,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 interface ItinerariesViewProps {
   userId: string;
@@ -121,6 +122,7 @@ const OUTROS_EVENTOS = [
 ];
 
 export default function ItinerariesView({ userId, user, onBack }: ItinerariesViewProps) {
+  const { showAlert } = useDialog();
   const getLastMonday = () => {
     const today = new Date();
     const day = today.getDay(); // 0 (Sun) to 6 (Sat)
@@ -259,7 +261,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
-      alert('Erro ao gerar PDF. Tente novamente.');
+      await showAlert('Erro ao gerar PDF. Tente novamente.', 'Erro');
     } finally {
       setGenerating(false);
     }

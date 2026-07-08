@@ -49,6 +49,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 import { createCircuitFolderStructure } from '@/utils/fileSystem';
 const RoleChangeRequestModal = dynamic(() => import('@/components/RoleChangeRequestModal'), { ssr: false });
 
@@ -146,6 +147,7 @@ const settingsButtons = [
 ];
 
 export default function SettingsView({ userId, onBack, onViewChange, isAdmin, appConfig }: SettingsViewProps) {
+  const { showAlert, showConfirm } = useDialog();
   const [pastaCircuito, setPastaCircuito] = useState<string>('Não configurada');
   const [circuito, setCircuito] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -361,7 +363,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
     } else if (id === 'role_change') {
       setShowRoleChangeModal(true);
     } else {
-      alert(`Função "${id}" em desenvolvimento para o ProgCir Web.`);
+      showAlert(`Função "${id}" em desenvolvimento para o ProgCir Web.`, 'Em Desenvolvimento');
     }
   };
 
@@ -374,7 +376,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       }, { merge: true });
     } catch (err) {
       console.error('Erro ao atualizar configuração global:', err);
-      alert('Erro ao atualizar configuração. Verifique suas permissões.');
+      await showAlert('Erro ao atualizar configuração. Verifique suas permissões.', 'Erro');
     }
   };
 
@@ -387,7 +389,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       }, { merge: true });
     } catch (err) {
       console.error('Erro ao atualizar configuração global:', err);
-      alert('Erro ao atualizar configuração. Verifique suas permissões.');
+      await showAlert('Erro ao atualizar configuração. Verifique suas permissões.', 'Erro');
     }
   };
 
@@ -400,7 +402,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       }, { merge: true });
     } catch (err) {
       console.error('Erro ao atualizar configuração global:', err);
-      alert('Erro ao atualizar configuração. Verifique suas permissões.');
+      await showAlert('Erro ao atualizar configuração. Verifique suas permissões.', 'Erro');
     }
   };
 
@@ -413,7 +415,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       }, { merge: true });
     } catch (err) {
       console.error('Erro ao atualizar configuração global:', err);
-      alert('Erro ao atualizar configuração. Verifique suas permissões.');
+      await showAlert('Erro ao atualizar configuração. Verifique suas permissões.', 'Erro');
     }
   };
 
@@ -459,7 +461,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
     // Check if user has permission (viajante)
     if (personalData?.role !== 'viajante' && !isAdmin) {
-      alert('Apenas viajantes podem enviar convites para Instrutor B.');
+      await showAlert('Apenas viajantes podem enviar convites para Instrutor B.', 'Permissão Negada');
       return;
     }
     
@@ -469,7 +471,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       const snap = await getDocs(q);
       
       if (snap.empty) {
-        alert('Usuário não encontrado com este número pessoal.');
+        await showAlert('Usuário não encontrado com este número pessoal.', 'Não Encontrado');
         setInviteLoading(false);
         return;
       }
@@ -478,19 +480,19 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       const instructorId = instructorData.userId;
       
       if (instructorId === auth.currentUser?.uid) {
-        alert('Você não pode convidar a si mesmo.');
+        await showAlert('Você não pode convidar a si mesmo.', 'Aviso');
         setInviteLoading(false);
         return;
       }
-
+ 
       // Check if already invited for this turma
       const existing = pioneerInvites.find(inv => inv.collaboratorId === instructorId && inv.turma === inviteTurma);
       if (existing) {
-        alert('Este usuário já possui um convite pendente ou ativo para esta turma.');
+        await showAlert('Este usuário já possui um convite pendente ou ativo para esta turma.', 'Aviso');
         setInviteLoading(false);
         return;
       }
-
+ 
       await addDoc(collection(db, 'pioneer_school_invitations'), {
         ownerId: auth.currentUser?.uid,
         ownerName: personalData?.nome || 'Instrutor',
@@ -503,7 +505,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       });
       
       setInviteNumber('');
-      alert('Convite enviado com sucesso!');
+      await showAlert('Convite enviado com sucesso!', 'Sucesso');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'pioneer_school_invitations');
     } finally {
@@ -536,9 +538,9 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const handleInviteCongressAssistant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteCongressNumber.trim() || inviteCongressLoading) return;
-
+ 
     if (personalData?.role !== 'viajante' && !isAdmin) {
-      alert('Apenas viajantes podem enviar convites para Assistente de Congresso.');
+      await showAlert('Apenas viajantes podem enviar convites para Assistente de Congresso.', 'Permissão Negada');
       return;
     }
     
@@ -548,7 +550,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       const snap = await getDocs(q);
       
       if (snap.empty) {
-        alert('Usuário não encontrado com este número pessoal.');
+        await showAlert('Usuário não encontrado com este número pessoal.', 'Não Encontrado');
         setInviteCongressLoading(false);
         return;
       }
@@ -557,18 +559,18 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       const assistantId = assistantData.userId;
       
       if (assistantId === auth.currentUser?.uid) {
-        alert('Você não pode convidar a si mesmo.');
+        await showAlert('Você não pode convidar a si mesmo.', 'Aviso');
         setInviteCongressLoading(false);
         return;
       }
-
+ 
       const existing = congressInvites.find(inv => inv.collaboratorId === assistantId);
       if (existing) {
-        alert('Este usuário já possui um convite pendente ou ativo para o congresso.');
+        await showAlert('Este usuário já possui um convite pendente ou ativo para o congresso.', 'Aviso');
         setInviteCongressLoading(false);
         return;
       }
-
+ 
       await addDoc(collection(db, 'regional_convention_invitations'), {
         ownerId: auth.currentUser?.uid,
         ownerName: personalData?.nome || 'Viajante',
@@ -580,7 +582,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       });
       
       setInviteCongressNumber('');
-      alert('Convite enviado com sucesso!');
+      await showAlert('Convite enviado com sucesso!', 'Sucesso');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'regional_convention_invitations');
     } finally {
@@ -611,16 +613,18 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   };
 
   const handleRemoveCongressInvite = async (inviteId: string) => {
-    if (!confirm('Tem certeza que deseja remover este acesso/convite?')) return;
+    const confirmed = await showConfirm('Tem certeza que deseja remover este acesso/convite?', 'Remover Acesso');
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'regional_convention_invitations', inviteId));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'regional_convention_invitations');
     }
   };
-
+ 
   const handleRemoveInvite = async (inviteId: string) => {
-    if (!confirm('Tem certeza que deseja remover este acesso/convite?')) return;
+    const confirmed = await showConfirm('Tem certeza que deseja remover este acesso/convite?', 'Remover Acesso');
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'pioneer_school_invitations', inviteId));
     } catch (error) {

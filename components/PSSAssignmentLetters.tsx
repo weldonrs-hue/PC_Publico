@@ -38,6 +38,7 @@ import {
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { AnimatePresence, motion } from 'motion/react';
+import { useDialog } from '@/hooks/useDialog';
 
 interface PSSAssignmentLettersProps {
   userId: string;
@@ -70,6 +71,7 @@ export default function PSSAssignmentLetters({
   schoolInfo, 
   workshopAssignments 
 }: PSSAssignmentLettersProps) {
+  const { showAlert, showConfirm } = useDialog();
   const [selectedTemplate, setSelectedTemplate] = useState<string>(TEMPLATE_NAMES[0]);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isPrivate?: boolean }>>({});
   const [previewHtml, setPreviewHtml] = useState<string>('');
@@ -887,7 +889,7 @@ export default function PSSAssignmentLetters({
       pdf.save(filename);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      alert('Erro ao gerar PDF. Uma alternativa é utilizar a função "Imprimir" e selecionar "Salvar como PDF".');
+      await showAlert('Erro ao gerar PDF. Uma alternativa é utilizar a função "Imprimir" e selecionar "Salvar como PDF".', 'Erro');
     } finally {
       setGenerating(false);
     }
@@ -995,14 +997,14 @@ export default function PSSAssignmentLetters({
       setFile(null);
       setLocalFileBuffer(null);
       
-      alert(isGlobal ? 'Modelo substituído com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi atualizado com sucesso.');
+      await showAlert(isGlobal ? 'Modelo substituído com sucesso para TODOS os usuários.' : 'Seu modelo personalizado foi atualizado com sucesso.', 'Sucesso');
       
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('CRITICAL: Error saving template:', error);
       setErrorMessage('Falha ao salvar: ' + (error.message || 'Erro desconhecido'));
       setSaveStatus('error');
-      alert('Erro ao substituir template: ' + (error.message || 'Verifique sua conexão e tente novamente.'));
+      await showAlert('Erro ao substituir template: ' + (error.message || 'Verifique sua conexão e tente novamente.'), 'Erro');
     } finally {
       setIsSaving(false);
     }
@@ -1010,7 +1012,8 @@ export default function PSSAssignmentLetters({
 
   const deletePrivateTemplate = async () => {
     if (!templates[selectedTemplate]?.isPrivate) return;
-    if (!confirm('Tem certeza que deseja excluir sua versão personalizada deste modelo? O sistema voltará a usar o modelo padrão.')) return;
+    const confirmed = await showConfirm('Tem certeza que deseja excluir sua versão personalizada deste modelo? O sistema voltará a usar o modelo padrão.', 'Confirmar Exclusão');
+    if (!confirmed) return;
     
     setIsSaving(true);
     try {
@@ -1021,14 +1024,14 @@ export default function PSSAssignmentLetters({
       
       setSaveStatus('success');
       
-      alert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.');
+      await showAlert('Sua versão personalizada foi excluída. O sistema voltará a usar o modelo padrão.', 'Sucesso');
       
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error deleting template:', error);
       setErrorMessage(error.message || 'Erro ao excluir');
       setSaveStatus('error');
-      alert('Erro ao excluir versão personalizada: ' + error.message);
+      await showAlert('Erro ao excluir versão personalizada: ' + error.message, 'Erro');
     } finally {
       setIsSaving(false);
     }

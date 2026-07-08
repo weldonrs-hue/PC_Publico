@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clock, Radio, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 interface BroadcastData {
   userId: string;
@@ -16,8 +17,9 @@ interface BroadcastData {
   syncTime: any;
 }
 
-export default function TimerBroadcastPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+function TimerContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
   const [data, setData] = useState<BroadcastData | null>(null);
   const [displayTime, setDisplayTime] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -161,5 +163,18 @@ export default function TimerBroadcastPage({ params }: { params: Promise<{ id: s
         <span className="text-xs font-bold uppercase tracking-widest">ProgCir Timer System</span>
       </div>
     </div>
+  );
+}
+
+export default function TimerBroadcastPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+        <p className="text-violet-400 font-bold uppercase tracking-[0.3em] text-xs">Carregando...</p>
+      </div>
+    }>
+      <TimerContent />
+    </Suspense>
   );
 }

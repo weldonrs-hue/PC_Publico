@@ -26,7 +26,7 @@ const events = [
     color: '#F59E0B', // Amber
     gradient: 'from-amber-500 to-orange-600',
     icon: Store,
-    inactive: true
+    inactive: false
   },
   {
     id: 'circuit_assembly_branch',
@@ -48,8 +48,12 @@ const events = [
 
 export default function EventsView({ userId, acceptedCongressInvites = [], onBack, onViewChange }: EventsViewProps) {
   const handleEventClick = (event: typeof events[0]) => {
-    if (!event.inactive && event.id === 'regional_convention') {
+    if (event.inactive) return;
+    
+    if (event.id === 'regional_convention') {
       onViewChange('regional_convention_program');
+    } else if (event.id === 'circuit_assembly_supt') {
+      onViewChange('circuit_assembly_supt_program');
     }
   };
 

@@ -17,6 +17,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useDialog } from '@/hooks/useDialog';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -81,6 +82,7 @@ interface AnalysisData {
 }
 
 export default function CircuitStatisticsView({ userId, personalData, onBack }: CircuitStatisticsViewProps) {
+  const { showAlert } = useDialog();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [congCount, setCongCount] = useState(0);
@@ -347,12 +349,12 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
       URL.revokeObjectURL(url);
       
       if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
+        await showAlert('PDF gerado com sucesso! Verifique sua pasta de Downloads.', 'Sucesso');
       }
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
       const msg = error?.message || 'Erro desconhecido';
-      alert(`Ocorreu um erro ao gerar o PDF: ${msg}. Tente novamente.`);
+      await showAlert(`Ocorreu um erro ao gerar o PDF: ${msg}. Tente novamente.`, 'Erro ao Gerar PDF');
     } finally {
       setGenerating(false);
     }

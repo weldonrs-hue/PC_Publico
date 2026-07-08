@@ -19,6 +19,7 @@ import {
 import { Send, User, MessageCircle, Loader2, Users, ChevronLeft, X, Search, Phone, Video, Info, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 const CHAT_PRIMARY = '#0058be';
 const CHAT_SECONDARY_CONTAINER = '#dee0e2';
@@ -50,6 +51,7 @@ interface ChatViewProps {
 }
 
 export default function ChatView({ user, personalData, onClose }: ChatViewProps) {
+  const { showAlert } = useDialog();
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatUsers, setChatUsers] = useState<ChatUser[]>([]);
   const [lastMessages, setLastMessages] = useState<Record<string, Message>>({});
@@ -327,7 +329,7 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
     if (!newMessage.trim() || sending || !auth.currentUser) return;
     
     if (isQuotaExceeded()) {
-      alert('Limite diário atingido. Tente novamente amanhã.');
+      await showAlert('Limite diário atingido. Tente novamente amanhã.', 'Aviso de Cota');
       return;
     }
 
@@ -354,7 +356,7 @@ export default function ChatView({ user, personalData, onClose }: ChatViewProps)
     } catch (error: any) {
        console.error('Error sending message:', error);
        if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {
-         alert('Limite de cotas excedido. Não foi possível enviar a mensagem.');
+         await showAlert('Limite de cotas excedido. Não foi possível enviar a mensagem.', 'Aviso de Cota');
          setQuotaExceededGlobal();
        } else {
          handleFirestoreError(error, OperationType.CREATE, 'chat_messages');

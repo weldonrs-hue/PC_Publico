@@ -47,6 +47,7 @@ import {
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 interface Student {
   id: string;
@@ -231,6 +232,7 @@ export default function PioneerSchoolView({
   guestTurma = null,
   isAdmin = false
 }: PioneerSchoolViewProps) {
+  const { showAlert, showConfirm } = useDialog();
   const [userId, setUserId] = useState(initialUserId);
   const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info' | 'templates_pss'>(() => {
     if (isGuest) return 'students';
@@ -274,14 +276,11 @@ export default function PioneerSchoolView({
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Student | 'index'; direction: 'asc' | 'desc' }>({
     key: 'nome',
     direction: 'asc',
@@ -770,35 +769,41 @@ export default function PioneerSchoolView({
     }
   };
 
-  const handleDeleteClick = (id: string) => {
-    setStudentToDelete(id);
-    setIsDeleteModalOpen(true);
-  };
-
-  const executeDelete = async () => {
-    if (!studentToDelete) return;
-    try {
-      await deleteDoc(doc(db, 'pioneer_school_students', studentToDelete));
-      setIsDeleteModalOpen(false);
-      setStudentToDelete(null);
-      setSelectedStudents(prev => prev.filter(id => id !== studentToDelete));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'pioneer_school_students');
+  const handleDeleteClick = async (id: string) => {
+    const confirmed = await showConfirm(
+      'Tem certeza que deseja excluir este aluno? Esta ação não pode ser desfeita.',
+      'Excluir Aluno'
+    );
+    
+    if (confirmed) {
+      try {
+        await deleteDoc(doc(db, 'pioneer_school_students', id));
+        setSelectedStudents(prev => prev.filter(sId => sId !== id));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, 'pioneer_school_students');
+      }
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedStudents.length === 0) return;
-    try {
-      const batch = writeBatch(db);
-      selectedStudents.forEach(id => {
-        batch.delete(doc(db, 'pioneer_school_students', id));
-      });
-      await batch.commit();
-      setSelectedStudents([]);
-      setIsBulkDeleteModalOpen(false);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'pioneer_school_students');
+    
+    const confirmed = await showConfirm(
+      `Tem certeza que deseja excluir os ${selectedStudents.length} alunos selecionados? Esta ação não pode ser desfeita.`,
+      'Excluir em Massa'
+    );
+
+    if (confirmed) {
+      try {
+        const batch = writeBatch(db);
+        selectedStudents.forEach(id => {
+          batch.delete(doc(db, 'pioneer_school_students', id));
+        });
+        await batch.commit();
+        setSelectedStudents([]);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, 'pioneer_school_students');
+      }
     }
   };
 
@@ -849,7 +854,7 @@ export default function PioneerSchoolView({
     const element = document.getElementById('pioneer-school-report');
     
     if (!element) {
-      alert('Erro: Não foi possível localizar o conteúdo do relatório para gerar o PDF.');
+      await showAlert('Erro: Não foi possível localizar o conteúdo do relatório para gerar o PDF.', 'Erro');
       return;
     }
 
@@ -903,11 +908,11 @@ export default function PioneerSchoolView({
       URL.revokeObjectURL(url);
       
       if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
+        await showAlert('PDF gerado com sucesso! Verifique sua pasta de Downloads.', 'Sucesso');
       }
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
-      alert(`Ocorreu um erro ao gerar o PDF: ${error?.message || 'Erro desconhecido'}.`);
+      await showAlert(`Ocorreu um erro ao gerar o PDF: ${error?.message || 'Erro desconhecido'}.`, 'Erro');
     } finally {
       setGenerating(false);
     }
@@ -921,7 +926,7 @@ export default function PioneerSchoolView({
       // 1. Fetch the template
       const templateDoc = await getDoc(doc(db, 'document_templates', 'esp_pioneiros'));
       if (!templateDoc.exists()) {
-        alert('Template "esp_pioneiros" não encontrado. Carregue-o primeiro.');
+        await showAlert('Template "esp_pioneiros" não encontrado. Carregue-o primeiro.', 'Aviso');
         setDownloadingDesignacao(false);
         return;
       }
@@ -1161,7 +1166,7 @@ export default function PioneerSchoolView({
       }
     } catch (error) {
       console.error('Erro ao baixar designações:', error);
-      alert('Erro ao processar documentos.');
+      await showAlert('Erro ao processar documentos.', 'Erro');
     } finally {
       setDownloadingDesignacao(false);
     }
@@ -2107,84 +2112,9 @@ export default function PioneerSchoolView({
         )}
       </AnimatePresence>
 
-      {/* Modal Confirmar Exclusão em Massa */}
-      <AnimatePresence>
-        {isBulkDeleteModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
-            >
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trash2 size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Excluir {selectedStudents.length} Alunos?</h3>
-                <p className="text-gray-600 mb-6">
-                  Tem certeza que deseja excluir os {selectedStudents.length} alunos selecionados? Esta ação não pode ser desfeita.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setIsBulkDeleteModalOpen(false)}
-                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
-                  >
-                    Não
-                  </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold transition-all shadow-md"
-                  >
-                    Sim, Excluir Todos
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal Confirmar Exclusão */}
-      <AnimatePresence>
-        {isDeleteModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
-            >
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trash2 size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Excluir Aluno?</h3>
-                <p className="text-gray-600 mb-6">
-                  Tem certeza que deseja excluir este aluno? Esta ação não pode ser desfeita.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setIsDeleteModalOpen(false);
-                      setStudentToDelete(null);
-                    }}
-                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
-                  >
-                    Não
-                  </button>
-                  <button
-                    onClick={executeDelete}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold transition-all shadow-md"
-                  >
-                    Sim, Excluir
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Modal Confirmar Exclusão em Massa (Removed since using showConfirm) */}
+      
+      {/* Modal Confirmar Exclusão (Removed since using showConfirm) */}
 
       {/* Modal Alterações Não Salvas */}
       <AnimatePresence>

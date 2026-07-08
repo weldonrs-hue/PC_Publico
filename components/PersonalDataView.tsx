@@ -41,6 +41,7 @@ import {
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { formatBRPhone, formatCEP, formatCircuito } from '@/utils/formatters';
+import { useDialog } from '@/hooks/useDialog';
 
 interface PersonalDataViewProps {
   userId: string;
@@ -68,6 +69,7 @@ const defaultData = {
 };
 
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
+  const { showAlert } = useDialog();
   const [initialData, setInitialData] = useState(defaultData);
   const [formData, setFormData] = useState(defaultData);
   const [loading, setLoading] = useState(true);
@@ -209,7 +211,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     const finalNumeroPessoal = accountNumeroPessoal || formData.numeroPessoal.trim();
     
     if (!finalNumeroPessoal || finalNumeroPessoal.length === 0) {
-      alert('O Número Pessoal é obrigatório.');
+      await showAlert('O Número Pessoal é obrigatório.', 'Campo Obrigatório');
       return;
     }
 
@@ -260,7 +262,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
       setInitialData(dataToSave);
       setFormData(dataToSave);
-      alert('Dados salvos com sucesso!');
+      await showAlert('Dados salvos com sucesso!', 'Sucesso');
       onSave();
     } catch (error: any) {
       if (error.message?.includes('quota') || error.message?.includes('resource-exhausted')) {

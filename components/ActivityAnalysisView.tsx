@@ -18,6 +18,7 @@ import {
   Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useDialog } from '@/hooks/useDialog';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
@@ -121,6 +122,7 @@ const defaultData: AnalysisData = {
 };
 
 export default function ActivityAnalysisView({ userId, congregationName, congregationId, visitDate, onBack }: ActivityAnalysisViewProps) {
+  const { showAlert, showConfirm } = useDialog();
   const [data, setData] = useState<AnalysisData>({
     ...defaultData,
     congregacao: congregationName,
@@ -431,12 +433,12 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
       URL.revokeObjectURL(url);
       
       if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        alert('PDF gerado com sucesso! Verifique sua pasta de Downloads.');
+        await showAlert('PDF gerado com sucesso! Verifique sua pasta de Downloads.', 'Sucesso');
       }
     } catch (error: any) {
       console.error('Erro ao gerar PDF:', error);
       const msg = error?.message || 'Erro desconhecido';
-      alert(`Ocorreu um erro ao gerar o PDF: ${msg}. Tente novamente.`);
+      await showAlert(`Ocorreu um erro ao gerar o PDF: ${msg}. Tente novamente.`, 'Erro ao Gerar PDF');
     } finally {
       setGenerating(false);
     }
@@ -470,9 +472,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
     setShowPioneerModal(true);
   };
 
-  const handleSavePioneerRaw = () => {
+  const handleSavePioneerRaw = async () => {
     if (!pioneerName.trim()) {
-      alert('Por favor, insira o nome do pioneiro.');
+      await showAlert('Por favor, insira o nome do pioneiro.', 'Aviso');
       return;
     }
 
@@ -481,7 +483,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
     const numActiveMonths = activeMonthsIndices.length;
 
     if (numActiveMonths === 0) {
-      alert('Por favor, insira horas em pelo menos um mês.');
+      await showAlert('Por favor, insira horas em pelo menos um mês.', 'Aviso');
       return;
     }
 
@@ -516,8 +518,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
     setShowPioneerModal(false);
   };
 
-  const handleDeletePioneer = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta média individual?')) {
+  const handleDeletePioneer = async (id: string) => {
+    const confirmed = await showConfirm('Tem certeza que deseja excluir esta média individual?', 'Excluir Média');
+    if (confirmed) {
       setIsDirty(true);
       setData(prev => ({
         ...prev,

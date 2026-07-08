@@ -1,0 +1,19 @@
+[package]
+name = "prog-cir-web"
+version = "0.1.0"
+description = "ProgCir Web Desktop App"
+authors = ["Weldon"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.6", features = ["shell-open"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+# by default Tauri runs in production mode
+# this feature is used for auto-reloading during development
+custom-protocol = ["tauri/custom-protocol"]
