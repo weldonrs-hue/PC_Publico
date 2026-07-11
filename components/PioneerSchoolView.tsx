@@ -23,7 +23,9 @@ import {
   Info,
   Undo2,
   FileText,
-  Mail
+  Mail,
+  Filter,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import PSSAssignmentLetters from './PSSAssignmentLetters';
@@ -278,6 +280,8 @@ export default function PioneerSchoolView({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [turmaFilter, setTurmaFilter] = useState<string>('all');
+  const [showTurmaFilter, setShowTurmaFilter] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -821,10 +825,14 @@ export default function PioneerSchoolView({
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.congregacao.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.congregacao.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (turmaFilter === 'all') return matchesSearch;
+    if (turmaFilter === 'none') return matchesSearch && !s.turma;
+    return matchesSearch && s.turma === turmaFilter;
+  });
 
   const sortedStudents = [...filteredStudents].sort((a, b) => {
     if (sortConfig.key === 'index') {
@@ -1569,13 +1577,71 @@ export default function PioneerSchoolView({
                       </div>
                     </th>
                     <th 
-                      className="px-4 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors text-center"
-                      onClick={() => handleSort('turma')}
+                      className="px-4 py-2 font-bold text-sm uppercase tracking-wider relative group/header text-center"
                     >
-                      <div className="flex items-center justify-center">
-                        Turma
-                        <span className="print:hidden pdf-hidden"><SortIcon column="turma" /></span>
+                      <div className="flex items-center justify-center gap-1">
+                        <button 
+                          className="hover:bg-[#2c4d55] px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                          onClick={() => handleSort('turma')}
+                        >
+                          Turma
+                          <span className="print:hidden pdf-hidden"><SortIcon column="turma" /></span>
+                        </button>
+                        
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowTurmaFilter(!showTurmaFilter);
+                          }}
+                          className={`p-1 rounded-md transition-all print:hidden pdf-hidden ${
+                            turmaFilter !== 'all' ? 'bg-amber-400 text-[#37616b] shadow-sm' : 'hover:bg-[#2c4d55] text-white/70 hover:text-white'
+                          }`}
+                        >
+                          <Filter size={14} fill={turmaFilter !== 'all' ? 'currentColor' : 'none'} />
+                        </button>
                       </div>
+
+                      {/* Dropdown Menu */}
+                      <AnimatePresence>
+                        {showTurmaFilter && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={() => setShowTurmaFilter(false)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                              className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 overflow-hidden normal-case tracking-normal font-normal"
+                            >
+                              {[
+                                { id: 'all', label: 'Todos os Alunos' },
+                                { id: 'none', label: 'Alunos sem Turma' },
+                                { id: '1', label: 'Turma 1' },
+                                { id: '2', label: 'Turma 2' },
+                                { id: '3', label: 'Turma 3' }
+                              ].map((option) => (
+                                <button
+                                  key={option.id}
+                                  onClick={() => {
+                                    setTurmaFilter(option.id);
+                                    setShowTurmaFilter(false);
+                                  }}
+                                  className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors ${
+                                    turmaFilter === option.id 
+                                      ? 'bg-amber-50 text-amber-700 font-bold' 
+                                      : 'text-gray-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {option.label}
+                                  {turmaFilter === option.id && <Check size={14} className="text-amber-600" />}
+                                </button>
+                              ))}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </th>
                     <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center print:hidden pdf-hidden">Ações</th>
                   </tr>
