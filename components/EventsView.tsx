@@ -22,7 +22,7 @@ const events = [
   },
   {
     id: 'circuit_assembly_supt',
-    title: 'ASSEMBLEIA DE CIRCUITO COM O SUPERINTENDENTE',
+    title: 'Assembleia com o Viajante',
     color: '#F59E0B', // Amber
     gradient: 'from-amber-500 to-orange-600',
     icon: Store,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Printer, History, Home, PlusSquare, Settings, Save, Trash2, Loader2, Search, Download } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Printer, History, Home, PlusSquare, Settings, Save, Trash2, Loader2, Search, Download } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { toJpeg } from 'html-to-image';
@@ -311,7 +311,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           onClick={onBack}
           className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded"
         >
-          <ArrowLeft size={24} />
+          <ChevronLeft size={28} strokeWidth={3} />
         </button>
         <h1 className="font-serif text-lg font-bold uppercase tracking-widest text-black">
           {view === 'form' ? 'RECIBO' : 'HISTÓRICO'}
@@ -325,7 +325,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                 className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded disabled:opacity-50"
                 title="Baixar PDF"
               >
-                {generating ? <Loader2 size={24} className="animate-spin" /> : <Download size={24} />}
+                {generating ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
               </button>
               <button 
                 onClick={saveReceipt}
@@ -333,7 +333,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                 className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded disabled:opacity-50"
                 title="Salvar"
               >
-                {isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
+                {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
               </button>
             </>
           )}
@@ -342,7 +342,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             className="transition-colors duration-200 active:opacity-70 text-black flex items-center hover:bg-gray-100 p-1 rounded"
             title="Imprimir"
           >
-            <Printer size={24} />
+            <Printer size={20} />
           </button>
         </div>
       </header>

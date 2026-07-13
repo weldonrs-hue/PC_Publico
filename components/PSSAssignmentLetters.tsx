@@ -545,7 +545,7 @@ export default function PSSAssignmentLetters({
       
       if (signatureImage && signatureImage.startsWith('data:image')) {
         try {
-          const img = new Image();
+          const img = new window.Image();
           await new Promise((resolve, reject) => {
             img.onload = resolve;
             img.onerror = reject;

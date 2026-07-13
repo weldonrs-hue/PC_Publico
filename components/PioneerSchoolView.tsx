@@ -976,7 +976,7 @@ export default function PioneerSchoolView({
       
       if (signatureImage && signatureImage.startsWith('data:image')) {
         try {
-          const img = new Image();
+          const img = new window.Image();
           await new Promise((resolve, reject) => {
             img.onload = resolve;
             img.onerror = reject;
@@ -1271,7 +1271,7 @@ export default function PioneerSchoolView({
               }}
               className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-white shadow-md border border-gray-200 shrink-0"
             >
-              <ChevronLeft size={24} strokeWidth={3} />
+              <ChevronLeft size={28} strokeWidth={3} />
             </button>
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 truncate flex items-center gap-2">
               Escola do Serviço de Pioneiro
@@ -1292,7 +1292,7 @@ export default function PioneerSchoolView({
                   className={`p-2 rounded-xl transition-all flex items-center justify-center ${showSearch ? 'absolute left-1 z-10 text-[#37616b]' : 'hover:bg-gray-100 border border-gray-200 text-gray-600'}`}
                   title="Buscar aluno"
                 >
-                  <Search size={18} />
+                  <Search size={20} />
                 </button>
                 {showSearch && (
                   <motion.input
@@ -1363,7 +1363,7 @@ export default function PioneerSchoolView({
                 title="Baixar PDF"
               >
                 <div className="shrink-0">
-                  {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} className="text-[#facc15]" />}
+                  {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} className="text-[#facc15]" />}
                 </div>
                 <span className="font-black">
                   {generating ? 'Gerando...' : 'Baixar PDF'}

@@ -619,7 +619,7 @@ export default function PioneerSchoolLetters({
       
       if (replacements.ASSINATURA && replacements.ASSINATURA.startsWith('data:image')) {
         try {
-          const img = new Image();
+          const img = new window.Image();
           await new Promise((resolve, reject) => {
             img.onload = resolve;
             img.onerror = reject;

@@ -41,12 +41,11 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
     {
       id: 'assembleias',
       title: 'Cartas Assembleias',
-      description: 'Documentação para Assembleias de Circuito.',
+      description: 'Anciãos, Oradores, Presidentes, Orações e Pioneiros.',
       icon: Mail,
       view: 'cartas_assembleias',
       color: '#F59E0B',
       gradient: 'from-amber-500 to-orange-600',
-      inactive: true
     },
     {
       id: 'programacoes',

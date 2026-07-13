@@ -37,6 +37,7 @@ const FileViewer = dynamic(() => import('@/components/FileViewer'), { ssr: false
 const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
 const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
 const CartasCongressoView = dynamic(() => import('@/components/CartasCongressoView'), { ssr: false });
+const CartasAssembleiasView = dynamic(() => import('@/components/CartasAssembleiasView'), { ssr: false });
 const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
@@ -1102,21 +1103,13 @@ export default function Home() {
           )}
 
           {currentView === 'cartas_assembleias' && (
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
-              <div className="bg-amber-100 p-6 rounded-full text-amber-600 shadow-inner">
-                <Mail size={64} />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Cartas Assembleias</h2>
-                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
-              </div>
-              <button 
-                onClick={() => changeView('cartas')}
-                className="px-8 py-3 bg-amber-600 text-white rounded-2xl font-bold hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 uppercase tracking-widest text-xs"
-              >
-                Voltar para Cartas
-              </button>
-            </div>
+            <CartasAssembleiasView 
+              userId={user.id}
+              isAdmin={user.role === 'admin'}
+              canManage={true}
+              initialMode={assembleiasInitialMode}
+              onBack={() => changeView('cartas')}
+            />
           )}
 
           {currentView === 'cartas_programacoes' && (

@@ -55,12 +55,12 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'assembleias',
       title: 'Cartas Assembleias',
-      subtitle: 'EM BREVE',
+      subtitle: 'ANCIÃOS, ORADORES E PIONEIROS',
       icon: Mail,
       color: '#F59E0B', // Amber
-      gradient: 'from-amber-200 to-orange-300',
+      gradient: 'from-amber-500 to-orange-600',
       view: 'cartas_assembleias',
-      active: false,
+      active: true,
       uploadKey: 'allowAssembleiasUploadForAll'
     },
     {

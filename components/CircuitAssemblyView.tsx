@@ -10,6 +10,7 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
+import { cleanPSSMetadata } from '@/lib/docxUtils';
 
 interface CircuitAssemblyViewProps {
   userId: string;
@@ -26,7 +27,7 @@ interface AssemblyDetails {
 }
 
 const assemblyProgram = {
-  title: 'ASSEMBLEIA DE CIRCUITO COM O SUPERINTENDENTE',
+  title: 'Programa da Assembleia de Circuito de 2027 — com o Superintendente de Circuito',
   year: '2026-2027',
   theme: '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20',
   color: '#F59E0B', // Amber
@@ -211,23 +212,85 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
       return;
     }
 
+    const isSpeech = (it: any) => {
+      if (it.noSpeaker || it.isRole) return false;
+      const t = it.title.toLowerCase();
+      // A prayer is identified by "Cântico" AND "oração"
+      const isPr = t.includes('cântico') && t.includes('oração');
+      if (isPr) return false;
+      
+      if (t.includes('música') || t.includes('anúncios') || t.includes('intervalo') || t.includes('cântico')) return false;
+      return true;
+    };
+
+    let n = 0;
+    let found = false;
+    let parentItem: any = null;
+    for (const session of assemblyProgram.sessions) {
+      for (const pItem of session.items) {
+        if (pItem.subitems) {
+          const subTarget = pItem.subitems.find(si => si.id === item.id);
+          if (subTarget) parentItem = pItem;
+          
+          for (const sub of pItem.subitems) {
+            if (isSpeech(sub)) n++;
+            if (sub.id === item.id) { found = true; break; }
+          }
+        } else {
+          if (isSpeech(pItem)) n++;
+          if (pItem.id === item.id) { found = true; break; }
+        }
+        if (found) break;
+      }
+      if (found) break;
+    }
+
     let templateId = '';
     let designation = '';
 
-    if (item.title.toLowerCase().includes('oração')) {
-      templateId = 'cong_convite_oracao';
-      designation = item.title.toLowerCase().includes('final') ? 'Oração Final' : 'Oração Inicial';
-    } else if (item.isRole && item.title.includes('PRESIDENTE')) {
-      templateId = 'cong_presidente_sessao';
-      designation = 'PRESIDENTE DE SESSÃO';
+    const isPrayer = item.title.toLowerCase().includes('cântico') && item.title.toLowerCase().includes('oração');
+    const isPresident = item.isRole && item.title.toLowerCase().includes('presidente');
+
+    if (isPrayer) {
+      templateId = 'ass_convite_oracao';
+      // Identify which prayer it is based on all items in the program
+      const allItems: any[] = [];
+      assemblyProgram.sessions.forEach(s => {
+        s.items.forEach(i => {
+          allItems.push(i);
+          if (i.subitems) i.subitems.forEach(si => allItems.push(si));
+        });
+      });
+      const prayerItems = allItems.filter(i => i.title.toLowerCase().includes('cântico') && i.title.toLowerCase().includes('oração'));
+      const prayerIndex = prayerItems.findIndex(i => i.id === item.id);
+      
+      if (prayerIndex === 0) designation = 'ORAÇÃO INICIAL';
+      else if (prayerIndex === 1) designation = 'ORAÇÃO DA TARDE';
+      else if (prayerIndex === 2) designation = 'ORAÇÃO FINAL';
+      else designation = 'ORAÇÃO';
+    } else if (isPresident) {
+      templateId = 'ass_convite_presidente';
+      const allItems: any[] = [];
+      assemblyProgram.sessions.forEach(s => {
+        s.items.forEach(i => {
+          allItems.push(i);
+          if (i.subitems) i.subitems.forEach(si => allItems.push(si));
+        });
+      });
+      const presidentItems = allItems.filter(i => i.isRole && i.title.toLowerCase().includes('presidente'));
+      const presidentIndex = presidentItems.findIndex(i => i.id === item.id);
+      
+      if (presidentIndex === 0) designation = 'PRESIDENTE DE SESSÃO MANHÃ';
+      else if (presidentIndex === 1) designation = 'PRESIDENTE DE SESSÃO TARDE';
+      else designation = 'PRESIDENTE DE SESSÃO';
     } else {
-      templateId = 'cong_aviso_treinamentos';
+      templateId = 'ass_carta_oradores';
       designation = item.title;
     }
 
-    const template = templates[templateId];
+    const template = templates[templateId] || templates[`${userId}_${templateId}`];
     if (!template) {
-      await showAlert(`Template "${templateId}" não encontrado.`, 'Aviso');
+      await showAlert(`Template "${templateId}" não encontrado. Por favor, carregue-o em Cartas > Gerenciar.`, 'Aviso');
       return;
     }
 
@@ -239,22 +302,125 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
         bytes[i] = binaryString.charCodeAt(i);
       }
       
-      const zip = new PizZip(bytes.buffer);
+      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const zip = new PizZip(cleanedBuffer);
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       
       const signatureImage = personalData?.signatureImage || '';
+
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      xmlFiles.forEach(xmlResource => {
+        let xmlContent = xmlResource.asText();
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        
+        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
+
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          let newText = text;
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            return `${p1}[${p2.toUpperCase()}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        zip.file(xmlResource.name, xmlContent);
+      });
+
+      let sigWidth = 150;
+      let sigHeight = 60;
       
+      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
+      if (isBase64Image) {
+        const img = new window.Image();
+        const promise = new Promise((resolve) => {
+          img.onload = resolve;
+          img.src = signatureImage;
+        });
+        await promise;
+        const aspectRatio = img.width / img.height;
+        sigHeight = 60;
+        sigWidth = sigHeight * aspectRatio;
+        if (sigWidth > 220) {
+          sigWidth = 220;
+          sigHeight = sigWidth / aspectRatio;
+        }
+      }
+
+      const imgOpts: any = {
+        centered: false,
+        getImage: (tagValue: string) => {
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            const binaryStringArray = window.atob(base64Data);
+            const len = binaryStringArray.length;
+            const bytesArray = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding image:', e);
+            return null;
+          }
+        },
+        getSize: () => [sigWidth, sigHeight],
+      };
+      
+      const themeValue = details.assemblyTheme || assemblyProgram.theme;
+      const itemLabel = (item as any).label || '';
+      const parentLabel = parentItem?.label || '';
+      const parentTitle = parentItem?.title || '';
+
+      const isSerie = parentLabel.toUpperCase().includes('SÉRIE DE DISCURSOS') || itemLabel.toUpperCase().includes('SÉRIE DE DISCURSOS');
+      const isBatismo = itemLabel.toUpperCase().includes('BATISMO') || item.title.toUpperCase().includes('BATISMO');
+      const isPub = itemLabel.toUpperCase().includes('DISCURSO PARA O PÚBLICO') || item.title.toUpperCase().includes('DISCURSO PARA O PÚBLICO');
+
+      let tituloValue = (isPrayer || isPresident) ? designation : item.title;
+      
+      if (isSerie) {
+        const seriesTheme = (parentTitle || item.title).replace(/^SÉRIE DE DISCURSOS:\s*/i, '').trim();
+        let partTitle = item.title.replace(/^SÉRIE DE DISCURSOS:\s*/i, '').trim();
+        
+        if (parentItem && partTitle !== seriesTheme) {
+          if (partTitle.startsWith(seriesTheme)) {
+            partTitle = partTitle.substring(seriesTheme.length).replace(/^[—\-\s:]+/, '').trim();
+          }
+          tituloValue = `SÉRIE DE DISCURSOS:\n${seriesTheme}${partTitle ? `\n${partTitle}` : ''}`;
+        } else {
+          tituloValue = `SÉRIE DE DISCURSOS:\n${seriesTheme}`;
+        }
+      } else if (isBatismo) {
+        const cleanTitle = item.title.replace(/^BATISMO:\s*/i, '');
+        tituloValue = `BATISMO:\n${cleanTitle}`;
+      } else if (isPub) {
+        const cleanTitle = item.title.replace(/^DISCURSO PARA O PÚBLICO:\s*/i, '');
+        tituloValue = `DISCURSO PARA O PÚBLICO:\n${cleanTitle}`;
+      }
+
       const replacements = {
-        'ANO': '2026',
-        'TEMA': details.assemblyTheme || assemblyProgram.theme,
+        'EVENTO': assemblyProgram.title,
+        'TEMA': themeValue,
         'DATA': details.eventDate || '________________',
         'LOCAL': details.eventLocation || '________________',
+        'ORADOR': speakerName,
+        'D_ENSAIO': details.rehearsalDate || '________________',
+        'L_ENSAIO': details.rehearsalLocation || '________________',
+        'HORA': item.time || '',
+        'N': n.toString(),
+        'TITULO': tituloValue,
+        // Mantendo compatibilidade
+        'ANO': '2026',
         'DATA_ENSAIO': details.rehearsalDate || '________________',
         'LOCAL_ENSAIO': details.rehearsalLocation || '________________',
         'DESIGNAÇÃO': designation,
         'DESIGNACAO': designation,
         'DIA': 'Assembleia',
-        'ORADOR': speakerName,
         'ASSINATURA': signatureImage,
         '%ASSINATURA': signatureImage,
         'VIAJANTE': personalData?.nome || '________________',
@@ -266,6 +432,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
+        modules: ImageModule ? [new ImageModule(imgOpts)] : []
       });
 
       docObj.render(replacements);
@@ -316,7 +483,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
           <button onClick={handleBackClick} className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200">
             <ChevronLeft size={28} strokeWidth={3} />
           </button>
-          <h2 className="text-2xl font-bold text-gray-800">Assembleia de Circuito 2026-2027</h2>
+          <h2 className="text-2xl font-bold text-gray-800">CAco 2026-2027</h2>
         </div>
         <div className="flex items-center gap-4">
           {hasChanges && !isGuest && (
@@ -333,7 +500,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
       </div>
 
       {/* Hero */}
-      <div className="relative h-48 md:h-72 rounded-3xl overflow-hidden shadow-lg border border-gray-100 no-print">
+      <div className="relative h-56 md:h-80 rounded-3xl overflow-hidden shadow-lg border border-gray-100 no-print">
         <Image 
           src={assemblyProgram.headerImage} 
           alt="Assembleia de Circuito" 
@@ -345,8 +512,31 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
           unoptimized
           referrerPolicy="no-referrer"
         />
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 text-white">
-          <div className="text-xl md:text-2xl font-black uppercase tracking-tight text-amber-300 drop-shadow-sm">{details.assemblyTheme}</div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 flex flex-col justify-between p-6 text-white">
+          <div className="text-xs md:text-sm font-black uppercase tracking-widest text-amber-200/80 drop-shadow-sm">
+            {assemblyProgram.title}
+          </div>
+          
+          <div className="space-y-3">
+            <div className="text-xl md:text-3xl font-black uppercase tracking-tight text-amber-300 drop-shadow-sm">
+              {details.assemblyTheme}
+            </div>
+            
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {details.eventDate && (
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white/90">
+                  <CalendarDays size={18} className="text-amber-400" />
+                  {details.eventDate}
+                </div>
+              )}
+              {details.eventLocation && (
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-white/90">
+                  <MapPin size={18} className="text-amber-400" />
+                  {details.eventLocation}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

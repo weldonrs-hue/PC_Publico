@@ -549,7 +549,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               className="p-2 hover:bg-white hover:shadow-md rounded-full transition-all text-[#3525cd] border border-transparent hover:border-[#c7c4d8]/30"
               title="Voltar ao Painel"
             >
-              <ChevronLeft size={24} strokeWidth={2.5} />
+              <ChevronLeft size={28} strokeWidth={3} />
             </button>
             <div className="text-xl font-extrabold tracking-tighter text-[#3525cd]">Análise das Atividades</div>
           </div>
@@ -560,7 +560,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               disabled={saving || !isDirty}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#3525cd] text-white rounded-xl font-bold text-sm hover:bg-[#2a1da3] transition-all disabled:opacity-50 shadow-sm"
             >
-              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
               <span>{saving ? 'Salvando...' : 'Salvar'}</span>
             </button>
             <button 
@@ -569,7 +569,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-[#c7c4d8]/30 text-[#464555] rounded-xl font-bold text-sm hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
               title="Baixar PDF"
             >
-              {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} />}
+              {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
               <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
             </button>
             <button 
@@ -767,7 +767,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
                                     className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
                                   >
-                                    <Calculator size={18} />
+                                    <Calculator size={20} />
                                   </button>
                                 </div>
                               </td>
@@ -783,7 +783,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
                                     className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
                                   >
-                                    <Calculator size={18} />
+                                    <Calculator size={20} />
                                   </button>
                                 </div>
                               </td>
@@ -1093,7 +1093,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                     }}
                     className="w-full py-3 rounded-xl font-bold bg-[#512da8] text-white hover:bg-[#4527a0] transition-all flex items-center justify-center gap-2"
                   >
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Salvar e Sair
+                    {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />} Salvar e Sair
                   </button>
                   <button 
                     onClick={onBack}
@@ -1129,7 +1129,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                   <Calculator size={24} /> Média de Pioneiro Individual
                 </h3>
                 <button onClick={() => setShowPioneerModal(false)} className="hover:bg-white/20 p-1 rounded-full">
-                  <X size={20} />
+                  <X size={24} />
                 </button>
               </div>
 
@@ -1235,7 +1235,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                   onClick={handleSavePioneerRaw}
                   className="flex-[2] py-3 rounded-xl font-bold bg-[#3525cd] text-white hover:bg-[#2a1da3] transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <Save size={18} /> {editingPioneer ? 'Salvar Alterações' : 'Salvar Média Individual'}
+                  <Save size={20} /> {editingPioneer ? 'Salvar Alterações' : 'Salvar Média Individual'}
                 </button>
               </div>
             </motion.div>
@@ -1257,7 +1257,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                   <Calculator size={24} /> Calcular Média
                 </h3>
                 <button onClick={() => setCalcModal(null)} className="hover:bg-white/20 p-1 rounded-full">
-                  <X size={20} />
+                  <X size={24} />
                 </button>
               </div>
               <div className="p-6 space-y-4">

@@ -383,7 +383,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
             onClick={handleBack}
             className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-sm border border-gray-200 flex-shrink-0"
           >
-            <ChevronLeft size={24} strokeWidth={2.5} />
+            <ChevronLeft size={28} strokeWidth={3} />
           </button>
           <div className="min-w-0">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight truncate">S-303 Relatório</h2>
@@ -397,7 +397,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
               disabled={generating}
               className="bg-[#7B1FA2] text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
             >
-              {generating ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+              {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
               <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
               <ChevronDown size={14} className={`transition-transform duration-200 ${showPdfMenu ? 'rotate-180' : ''}`} />
             </button>

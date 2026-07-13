@@ -273,7 +273,7 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
             onClick={onBack}
             className="p-3 hover:bg-[#000666] hover:text-white rounded-2xl transition-all text-[#000666] bg-white shadow-xl shadow-black/5 border border-gray-100 group"
           >
-            <ChevronLeft size={24} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" />
+            <ChevronLeft size={28} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" />
           </button>
             <div className="flex flex-col">
               <div className="flex items-center gap-2 mb-1">

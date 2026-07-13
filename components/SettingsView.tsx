@@ -708,7 +708,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             className="p-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl border border-red-100 transition-all flex items-center justify-center shadow-lg active:scale-95 shrink-0"
             title="Fechar"
           >
-            <X size={20} strokeWidth={3} />
+            <X size={24} strokeWidth={3} />
           </button>
         </div>
 

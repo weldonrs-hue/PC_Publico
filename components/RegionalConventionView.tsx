@@ -570,7 +570,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
       const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
       
       if (isBase64Image) {
-        const img = new Image();
+        const img = new window.Image();
         const promise = new Promise((resolve) => {
           img.onload = resolve;
           img.src = signatureImage;
