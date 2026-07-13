@@ -172,10 +172,19 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const personalDocRef = doc(db, 'personal_data', userId);
-        const personalSnap = await getDoc(personalDocRef);
-        if (personalSnap.exists()) {
-          setPersonalData(personalSnap.data());
+        // More robust personal data fetching
+        const personalDataRef = collection(db, 'personal_data');
+        const q = query(personalDataRef, where('userId', '==', userId));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          setPersonalData(querySnapshot.docs[0].data());
+        } else {
+          const personalDocRef = doc(db, 'personal_data', userId);
+          const personalSnap = await getDoc(personalDocRef);
+          if (personalSnap.exists()) {
+            setPersonalData(personalSnap.data());
+          }
         }
 
         const templatesSnapshot = await getDocs(collection(db, 'document_templates'));
@@ -354,7 +363,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const zip = new PizZip(cleanedBuffer);
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       
-      const signatureImage = personalData?.signatureImage || '';
+      const signatureImage = personalData?.signatureImage || personalData?.signature || '';
 
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       xmlFiles.forEach(xmlResource => {
@@ -370,9 +379,17 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
+          // Handle @Assinatura specially as an image tag
           newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Signature([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@AssinaturaGlobal/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Assinatura_Global/gi, '[%ASSINATURA]');
+          
+          // Generic @TAG replacement
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
-            return `${p1}[${p2.toUpperCase()}]`;
+            const tag = p2.toUpperCase();
+            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
+            return `${p1}[${tag}]`;
           });
           return `${opening}${newText}${closing}`;
         });
@@ -452,24 +469,30 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         'TEMA': themeValue,
         'DATA': details.eventDate || '________________',
         'LOCAL': details.eventLocation || '________________',
+        'DATA_EVENTO': details.eventDate || '________________',
+        'LOCAL_EVENTO': details.eventLocation || '________________',
         'ORADOR': speakerName,
         'D_ENSAIO': details.rehearsalDate || '________________',
         'L_ENSAIO': details.rehearsalLocation || '________________',
+        'DATA_ENSAIO': details.rehearsalDate || '________________',
+        'LOCAL_ENSAIO': details.rehearsalLocation || '________________',
+        'DATAHORA': details.rehearsalDate || '________________',
+        'LOCALTREINO': details.rehearsalLocation || '________________',
         'HORA': item.time || '',
         'N': n.toString(),
         'TITULO': tituloValue,
         // Mantendo compatibilidade
         'ANO': '2026',
-        'DATA_ENSAIO': details.rehearsalDate || '________________',
-        'LOCAL_ENSAIO': details.rehearsalLocation || '________________',
         'DESIGNAÇÃO': designation,
         'DESIGNACAO': designation,
         'DIA': 'Assembleia',
         'ASSINATURA': signatureImage,
         '%ASSINATURA': signatureImage,
         'VIAJANTE': personalData?.nome || '________________',
+        'NOME': personalData?.nome || '________________',
         'CIRCUITO': personalData?.circuito || '________________',
         'FONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
+        'TELEFONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
       };
 
       const docObj = new Docxtemplater(zip, {

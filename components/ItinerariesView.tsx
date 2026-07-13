@@ -611,21 +611,32 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
   const handleAnalysisClick = () => {
     if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
-      setAnalysisParams({
-        congregacao: selectedItem.congregacao || '',
-        congregacaoId: selectedItem.congregacaoId || '',
-        data: selectedItem.dataEvento || selectedItem.semana
-      });
-      setShowAnalysis(true);
-      setModalMode(null);
+      let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+      if (!cong && selectedItem.congregacao) {
+        cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
+      }
+
+      if (cong) {
+        setAnalysisParams({
+          congregacao: cong.nome,
+          congregacaoId: cong.id,
+          data: selectedItem.dataEvento || selectedItem.semana
+        });
+        setShowAnalysis(true);
+        setModalMode(null);
+      } else {
+        showAlert('Congregação não encontrada no cadastro. Por favor, edite o evento e selecione a congregação novamente.', 'Erro');
+      }
     }
   };
 
   const handleS303Click = () => {
     if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
-      const cong = congregations.find(c => 
-        selectedItem.congregacaoId ? c.id === selectedItem.congregacaoId : c.nome === selectedItem.congregacao
-      );
+      let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+      if (!cong && selectedItem.congregacao) {
+        cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
+      }
+
       if (cong) {
         setS303Params({
           congregacao: cong,
@@ -634,6 +645,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         });
         setShowS303(true);
         setModalMode(null);
+      } else {
+        showAlert('Congregação não encontrada no cadastro. Por favor, edite o evento e selecione a congregação novamente.', 'Erro');
       }
     }
   };
@@ -644,9 +657,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       const s302Events = itineraries
         .filter(item => item.congregacaoId || item.congregacao)
         .map(item => {
-          const cong = congregations.find(c => 
-            item.congregacaoId ? c.id === item.congregacaoId : c.nome === item.congregacao
-          );
+          let cong = congregations.find(c => c.id === item.congregacaoId);
+          if (!cong && item.congregacao) {
+            cong = congregations.find(c => c.nome.trim().toLowerCase() === item.congregacao!.trim().toLowerCase());
+          }
           return {
             congregacao: cong,
             data: item.dataEvento || item.semana,
@@ -657,7 +671,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
       // Find the index of the selected item in this filtered list
       const initialIndex = s302Events.findIndex(event => 
-        (selectedItem.congregacaoId ? event.congregacao?.id === selectedItem.congregacaoId : event.congregacao?.nome === selectedItem.congregacao) && 
+        (selectedItem.congregacaoId ? event.congregacao?.id === selectedItem.congregacaoId : event.congregacao?.nome.trim().toLowerCase() === selectedItem.congregacao?.trim().toLowerCase()) && 
         event.data === (selectedItem.dataEvento || selectedItem.semana)
       );
 
@@ -668,15 +682,19 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         });
         setShowS302(true);
         setModalMode(null);
+      } else {
+        showAlert('Congregação não encontrada no cadastro. Por favor, edite o evento e selecione a congregação novamente.', 'Erro');
       }
     }
   };
 
   const handleAppointmentLetterClick = () => {
     if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
-      const cong = congregations.find(c => 
-        selectedItem.congregacaoId ? c.id === selectedItem.congregacaoId : c.nome === selectedItem.congregacao
-      );
+      let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+      if (!cong && selectedItem.congregacao) {
+        cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
+      }
+
       if (cong) {
         setAppointmentLetterParams({
           congregacao: cong,
@@ -684,6 +702,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         });
         setShowAppointmentLetter(true);
         setModalMode(null);
+      } else {
+        showAlert('Congregação não encontrada no cadastro. Por favor, edite o evento e selecione a congregação novamente.', 'Erro');
       }
     }
   };
