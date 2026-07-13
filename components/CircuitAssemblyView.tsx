@@ -468,16 +468,160 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
   return (
     <div id="circuit-assembly-print-content" className="space-y-8 pb-12 print:p-0">
       <style jsx global>{`
+        @media screen {
+          .print-header, .print-theme, .print-session-title, .print-row, .print-subitem-row {
+            display: none !important;
+          }
+        }
+
         @media print {
           @page { size: A4 portrait; margin: 15mm; }
           body * { visibility: hidden; }
           #circuit-assembly-print-content, #circuit-assembly-print-content * { visibility: visible !important; }
-          #circuit-assembly-print-content { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; }
+          #circuit-assembly-print-content { 
+            position: absolute !important; 
+            top: 0 !important; 
+            left: 0 !important; 
+            width: 100% !important; 
+            display: block !important;
+          }
           .no-print { display: none !important; }
+          
+          body {
+            background: white !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .print-header {
+            display: block !important;
+            text-align: center !important;
+            margin-bottom: 1.5rem !important;
+            border-bottom: 2px solid #F59E0B !important;
+            padding-bottom: 1rem !important;
+          }
+
+          .print-title {
+            display: block !important;
+            font-size: 18pt !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            color: #F59E0B !important;
+            margin-bottom: 0.2rem !important;
+          }
+
+          .print-theme {
+            display: block !important;
+            font-size: 11pt !important;
+            font-style: italic !important;
+            color: #4b5563 !important;
+          }
+
+          .print-details {
+            display: flex !important;
+            justify-content: center !important;
+            gap: 2rem !important;
+            margin-top: 0.5rem !important;
+            font-size: 10pt !important;
+            font-weight: 600 !important;
+          }
+
+          .print-session-title {
+            display: block !important;
+            font-size: 14pt !important;
+            font-weight: 800 !important;
+            background-color: #FEF3C7 !important;
+            color: #92400E !important;
+            padding: 4pt 10pt !important;
+            margin-top: 1.5rem !important;
+            text-transform: uppercase !important;
+            border-radius: 4pt !important;
+          }
+
+          .print-table {
+            width: 100% !important;
+            margin-top: 0.5rem !important;
+            border: 0.5pt solid #e5e7eb !important;
+          }
+
+          .print-row {
+            display: flex !important;
+            border-bottom: 0.5pt solid #e5e7eb !important;
+            align-items: stretch !important;
+            break-inside: avoid !important;
+          }
+
+          .print-cell-time {
+            width: 45pt !important;
+            padding: 6pt !important;
+            font-size: 9pt !important;
+            font-weight: 700 !important;
+            border-right: 0.5pt solid #e5e7eb !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            color: #92400E !important;
+          }
+
+          .print-cell-content {
+            flex: 1 !important;
+            padding: 6pt 10pt !important;
+            font-size: 10pt !important;
+            line-height: 1.2 !important;
+          }
+
+          .print-item-label {
+            font-size: 8pt !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            color: #D97706 !important;
+            margin-bottom: 1pt !important;
+            display: block !important;
+          }
+
+          .print-item-title {
+            font-weight: 700 !important;
+          }
+
+          .print-cell-speaker {
+            width: 160pt !important;
+            padding: 6pt 10pt !important;
+            font-size: 10pt !important;
+            font-weight: 700 !important;
+            border-left: 0.5pt solid #e5e7eb !important;
+            background-color: #FFFBEB !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+
+          .print-subitem-row {
+            display: flex !important;
+            border-bottom: 0.5pt solid #f3f4f6 !important;
+            margin-left: 45pt !important;
+            background-color: #fafafa !important;
+          }
+
+          .print-subitem-content {
+            flex: 1 !important;
+            padding: 4pt 10pt !important;
+            font-size: 9pt !important;
+            font-style: italic !important;
+          }
+
+          .print-subitem-speaker {
+            width: 160pt !important;
+            padding: 4pt 10pt !important;
+            font-size: 9pt !important;
+            font-weight: 700 !important;
+            border-left: 0.5pt solid #e5e7eb !important;
+            display: flex !important;
+            align-items: center !important;
+          }
         }
       `}</style>
 
-      {/* Header */}
+      {/* Screen Header (no-print) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 no-print">
         <div className="flex items-center gap-4">
           <button onClick={handleBackClick} className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200">
@@ -571,8 +715,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
         )}
       </AnimatePresence>
 
-      {/* Program */}
-      <div className="space-y-12">
+      {/* Program (no-print) */}
+      <div className="space-y-12 no-print">
         {assemblyProgram.sessions.map(session => (
           <div key={session.period} className="space-y-6">
             <div className="flex items-center gap-4">
@@ -638,6 +782,50 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
                       ))}
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Printed Program Layout (Visible only when printing) */}
+      <div className="print-header">
+        <h1 className="print-title">{assemblyProgram.title}</h1>
+        <p className="print-theme">{details.assemblyTheme}</p>
+        <div className="print-details">
+          {details.eventDate && <span>Data: {details.eventDate}</span>}
+          {details.eventLocation && <span>Local: {details.eventLocation}</span>}
+        </div>
+      </div>
+
+      <div className="hidden print:block">
+        {assemblyProgram.sessions.map(session => (
+          <div key={session.period} className="mb-8">
+            <h2 className="print-session-title">{session.period}</h2>
+            <div className="print-table">
+              {session.items.map(item => (
+                <div key={item.id} className="print:contents">
+                  <div className="print-row">
+                    <div className="print-cell-time">{item.time || ''}</div>
+                    <div className="print-cell-content">
+                      {item.label && <span className="print-item-label">{item.label}</span>}
+                      <span className="print-item-title">{item.title}</span>
+                    </div>
+                    {!item.noSpeaker && (
+                      <div className="print-cell-speaker">
+                        {speakers[item.id] || ''}
+                      </div>
+                    )}
+                  </div>
+                  {item.subitems && item.subitems.map(sub => (
+                    <div key={sub.id} className="print-subitem-row">
+                      <div className="print-subitem-content">• {sub.title}</div>
+                      <div className="print-subitem-speaker">
+                        {speakers[sub.id] || ''}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
