@@ -626,9 +626,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
                               className="w-full mt-1.5 text-xs md:text-sm font-semibold text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-500 outline-none pb-1"
                             />
                           </div>
-                          <button onClick={() => generateDocument({ ...sub, title: `${item.title}: ${sub.title}` }, 'docx')} className="p-1.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-amber-50 hover:text-amber-600">
-                            <FileText size={14} />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleConfirmationToggle(sub.id)} className={`p-1.5 rounded-lg transition-all ${confirmedSpeakers[sub.id] ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-50 text-gray-400'}`}>
+                              <CheckCircle2 size={14} />
+                            </button>
+                            <button onClick={() => generateDocument({ ...sub, title: `${item.title}: ${sub.title}` }, 'docx')} className="p-1.5 bg-gray-50 text-gray-400 rounded-lg hover:bg-amber-50 hover:text-amber-600">
+                              <FileText size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
