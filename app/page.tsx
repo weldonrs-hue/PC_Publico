@@ -305,7 +305,7 @@ export default function Home() {
   useEffect(() => {
     if (['dashboard', 'congregations', 'personal_data', 'substitutes', 'itineraries', 'statistics'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, dashboard: currentView }));
-    } else if (['events', 'regional_convention_program', 'circuit_assembly_supt_program'].includes(currentView)) {
+    } else if (['events', 'regional_convention_program', 'circuit_assembly_supt_program', 'circuit_assembly_branch_program'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, events: currentView }));
     } else if (['settings', 'users'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
@@ -706,7 +706,7 @@ export default function Home() {
               }
             } else if (view === 'events') {
               // If already in an Events sub-view, reset to main events
-              if (['events', 'regional_convention_program', 'circuit_assembly_supt_program'].includes(currentView)) {
+              if (['events', 'regional_convention_program', 'circuit_assembly_supt_program', 'circuit_assembly_branch_program'].includes(currentView)) {
                 changeView('events');
               } else {
                 // Restore last visited sub-view in Events
@@ -992,6 +992,15 @@ export default function Home() {
             <CircuitAssemblyView 
               userId={user.id}
               onBack={() => changeView('events')}
+              type="supt"
+            />
+          )}
+
+          {currentView === 'circuit_assembly_branch_program' && (
+            <CircuitAssemblyView 
+              userId={user.id}
+              onBack={() => changeView('events')}
+              type="branch"
             />
           )}
 

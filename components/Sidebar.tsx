@@ -109,7 +109,7 @@ export default function Sidebar({
       return ['schools', 'pioneer_school'].includes(currentView) || currentView.startsWith('pioneer_school_guest');
     }
     if (itemView === 'events') {
-      return ['events', 'regional_convention_program', 'circuit_assembly_supt_program'].includes(currentView) || currentView.startsWith('regional_convention_guest');
+      return ['events', 'regional_convention_program', 'circuit_assembly_supt_program', 'circuit_assembly_branch_program'].includes(currentView) || currentView.startsWith('regional_convention_guest');
     }
     if (itemView === 'misc') {
       const miscViews = ['misc', 'field_service_report', 'file_viewer', 'weekly_expenses'];

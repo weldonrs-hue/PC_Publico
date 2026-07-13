@@ -30,11 +30,11 @@ const events = [
   },
   {
     id: 'circuit_assembly_branch',
-    title: 'ASSEMBLEIA DE CIRCUITO COM REPRESENTANTE DE BETEL',
+    title: 'Assembleia com Representante',
     color: '#F43F5E', // Rose
     gradient: 'from-rose-500 to-pink-600',
     icon: Store,
-    inactive: true
+    inactive: false
   },
   {
     id: 'special_meeting',
@@ -54,6 +54,8 @@ export default function EventsView({ userId, acceptedCongressInvites = [], onBac
       onViewChange('regional_convention_program');
     } else if (event.id === 'circuit_assembly_supt') {
       onViewChange('circuit_assembly_supt_program');
+    } else if (event.id === 'circuit_assembly_branch') {
+      onViewChange('circuit_assembly_branch_program');
     }
   };
 

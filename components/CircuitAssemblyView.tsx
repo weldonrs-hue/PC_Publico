@@ -16,79 +16,125 @@ interface CircuitAssemblyViewProps {
   userId: string;
   isGuest?: boolean;
   onBack: () => void;
+  type: 'supt' | 'branch';
 }
 
-interface AssemblyDetails {
-  eventDate: string;
-  eventLocation: string;
-  rehearsalDate: string;
-  rehearsalLocation: string;
-  assemblyTheme: string;
-}
-
-const assemblyProgram = {
-  title: 'Programa da Assembleia de Circuito de 2027 — com o Superintendente de Circuito',
-  year: '2026-2027',
-  theme: '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20',
-  color: '#F59E0B', // Amber
-  headerImage: 'https://cms-imgp.jw-cdn.org/img/p/1102027245/univ/art/1102027245_univ_lsr_xl.jpg',
-  sessions: [
-    {
-      period: 'Manhã',
-      items: [
-        { id: 'm0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
-        { id: 'm1', time: '9:40', title: 'Música', icon: Music, noSpeaker: true },
-        { id: 'm2', time: '9:50', title: 'Cântico 31 e oração', icon: Music },
-        { id: 'm3', time: '10:00', title: 'Por que ‘confiar em Jeová de todo o seu coração’?', icon: BookOpen },
-        { 
-          id: 'm4', 
-          time: '10:15', 
-          label: 'SÉRIE DE DISCURSOS:', 
-          title: 'Imite aqueles que confiaram em Jeová!', 
-          icon: BookOpen,
-          noSpeaker: true,
-          subitems: [
-            { id: 'm4_1', title: 'Baraque' },
-            { id: 'm4_2', title: 'A mulher sunamita' },
-            { id: 'm4_3', title: 'Daniel, Hananias, Misael e Azarias' }
-          ]
-        },
-        { id: 'm5', time: '11:05', title: 'Cântico 57 e anúncios', icon: Info, noSpeaker: true },
-        { id: 'm6', time: '11:15', title: 'Ajude as pessoas a confiar no “Deus vivente e verdadeiro”', icon: BookOpen },
-        { id: 'm7', time: '11:35', label: 'BATISMO:', title: '“Seu Pai, que observa em secreto, o recompensará”', icon: BookOpen },
-        { id: 'm8', time: '12:05', title: 'Cântico 29 e intervalo', icon: Clock, noSpeaker: true }
-      ]
-    },
-    {
-      period: 'Tarde',
-      items: [
-        { id: 't0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
-        { id: 't1', time: '1:20', title: 'Música', icon: Music, noSpeaker: true },
-        { id: 't2', time: '1:30', title: 'Cântico 8 e oração', icon: Music },
-        { id: 't3', time: '1:35', label: 'DISCURSO PARA O PÚBLICO:', title: 'Em quem você realmente pode confiar?', icon: BookOpen },
-        { id: 't4', time: '2:05', title: 'Resumo de A Sentinela', icon: BookOpen },
-        { id: 't5', time: '2:35', title: 'Cântico 135 e anúncios', icon: Info, noSpeaker: true },
-        { 
-          id: 't6', 
-          time: '2:45', 
-          label: 'SÉRIE DE DISCURSOS:', 
-          title: 'Confie na sabedoria de Jeová', 
-          icon: BookOpen,
-          noSpeaker: true,
-          subitems: [
-            { id: 't6_1', title: 'Ao orientar seus filhos' },
-            { id: 't6_2', title: 'Ao fazer planos para o futuro' },
-            { id: 't6_3', title: 'Ao enfrentar tentações' }
-          ]
-        },
-        { id: 't7', time: '3:30', title: '“Feliz é aquele que confia em Jeová”', icon: BookOpen },
-        { id: 't8', time: '4:00', title: 'Cântico 54 e oração final', icon: Music }
-      ]
-    }
-  ]
+const programs = {
+  supt: {
+    title: 'Programa da Assembleia de Circuito de 2027 — com o Superintendente de Circuito',
+    year: '2026-2027',
+    theme: '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20',
+    color: '#F59E0B', // Amber
+    headerImage: 'https://cms-imgp.jw-cdn.org/img/p/1102027245/univ/art/1102027245_univ_lsr_xl.jpg',
+    sessions: [
+      {
+        period: 'Manhã',
+        items: [
+          { id: 'm0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
+          { id: 'm1', time: '9:40', title: 'Música', icon: Music, noSpeaker: true },
+          { id: 'm2', time: '9:50', title: 'Cântico 31 e oração', icon: Music },
+          { id: 'm3', time: '10:00', title: 'Por que ‘confiar em Jeová de todo o seu coração’?', icon: BookOpen },
+          { 
+            id: 'm4', 
+            time: '10:15', 
+            label: 'SÉRIE DE DISCURSOS:', 
+            title: 'Imite aqueles que confiaram em Jeová!', 
+            icon: BookOpen,
+            noSpeaker: true,
+            subitems: [
+              { id: 'm4_1', title: 'Baraque' },
+              { id: 'm4_2', title: 'A mulher sunamita' },
+              { id: 'm4_3', title: 'Daniel, Hananias, Misael e Azarias' }
+            ]
+          },
+          { id: 'm5', time: '11:05', title: 'Cântico 57 e anúncios', icon: Info, noSpeaker: true },
+          { id: 'm6', time: '11:15', title: 'Ajude as pessoas a confiar no “Deus vivente e verdadeiro”', icon: BookOpen },
+          { id: 'm7', time: '11:35', title: '“Seu Pai, que observa em secreto, o recompensará”', icon: BookOpen },
+          { id: 'm8', time: '12:05', title: 'Cântico 29 e intervalo', icon: Clock, noSpeaker: true }
+        ]
+      },
+      {
+        period: 'Tarde',
+        items: [
+          { id: 't0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
+          { id: 't1', time: '1:20', title: 'Música', icon: Music, noSpeaker: true },
+          { id: 't2', time: '1:30', title: 'Cântico 8 e oração', icon: Music },
+          { id: 't3', time: '1:35', label: 'DISCURSO PARA O PÚBLICO:', title: 'Em quem você realmente pode confiar?', icon: BookOpen },
+          { id: 't4', time: '2:05', title: 'Resumo de A Sentinela', icon: BookOpen },
+          { id: 't5', time: '2:35', title: 'Cântico 135 e anúncios', icon: Info, noSpeaker: true },
+          { 
+            id: 't6', 
+            time: '2:45', 
+            label: 'SÉRIE DE DISCURSOS:', 
+            title: 'Confie na sabedoria de Jeová', 
+            icon: BookOpen,
+            noSpeaker: true,
+            subitems: [
+              { id: 't6_1', title: 'Ao orientar seus filhos' },
+              { id: 't6_2', title: 'Ao fazer planos para o futuro' },
+              { id: 't6_3', title: 'Ao enfrentar tentações' }
+            ]
+          },
+          { id: 't7', time: '3:30', title: '“Feliz é aquele que confia em Jeová”', icon: BookOpen },
+          { id: 't8', time: '4:00', title: 'Cântico 54 e oração final', icon: Music }
+        ]
+      }
+    ]
+  },
+  branch: {
+    title: 'Programa da Assembleia de Circuito de 2027 — com o Representante de Betel',
+    year: '2026-2027',
+    theme: '“Encontre a Mais Plena Alegria em Jeová” — Salmo 37:4',
+    color: '#F43F5E', // Rose
+    headerImage: 'https://cms-imgp.jw-cdn.org/img/p/1102027241/univ/art/1102027241_univ_lsr_xl.jpg',
+    sessions: [
+      {
+        period: 'Manhã',
+        items: [
+          { id: 'm0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
+          { id: 'm1', time: '9:40', title: 'Música', icon: Music, noSpeaker: true },
+          { id: 'm2', time: '9:50', title: 'Cântico 7 e oração', icon: Music },
+          { id: 'm3', time: '10:00', title: '“Encontre a mais plena alegria em Jeová” — Como?', icon: BookOpen },
+          { id: 'm4', time: '10:15', title: '“Feliz aquele . . . cujo pecado é desculpado”', icon: BookOpen },
+          { id: 'm5', time: '10:30', title: '“Felizes são os que moram na tua casa!”', icon: BookOpen },
+          { id: 'm6', time: '10:55', title: 'Cântico 37 e anúncios', icon: Info, noSpeaker: true },
+          { id: 'm7', time: '11:05', title: '‘Feliz o homem que se refugia em Jeová’', icon: BookOpen },
+          { id: 'm8', time: '11:35', title: '“Seu Pai, que observa em secreto, o recompensará”', icon: BookOpen },
+          { id: 'm9', time: '12:05', title: 'Cântico 38 e intervalo', icon: Clock, noSpeaker: true }
+        ]
+      },
+      {
+        period: 'Tarde',
+        items: [
+          { id: 't0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
+          { id: 't1', time: '1:20', title: 'Música', icon: Music, noSpeaker: true },
+          { id: 't2', time: '1:30', title: 'Cântico 111 e oração', icon: Music },
+          { id: 't3', time: '1:35', title: 'Experiências', icon: Info },
+          { id: 't4', time: '1:45', title: 'Resumo de A Sentinela', icon: BookOpen },
+          { 
+            id: 't5', 
+            time: '2:15', 
+            label: 'SÉRIE DE DISCURSOS:', 
+            title: 'Busque o que traz verdadeira felicidade', 
+            icon: BookOpen,
+            noSpeaker: true,
+            subitems: [
+              { id: 't5_1', title: 'Um estilo de vida simples' },
+              { id: 't5_2', title: 'Bons amigos' },
+              { id: 't5_3', title: 'Uma família unida' }
+            ]
+          },
+          { id: 't6', time: '3:00', title: 'Cântico 88 e anúncios', icon: Info, noSpeaker: true },
+          { id: 't7', time: '3:10', title: '“Feliz o povo cujo Deus é Jeová!”', icon: BookOpen },
+          { id: 't8', time: '3:55', title: 'Cântico 161 e oração final', icon: Music }
+        ]
+      }
+    ]
+  }
 };
 
-export default function CircuitAssemblyView({ userId, isGuest = false, onBack }: CircuitAssemblyViewProps) {
+export default function CircuitAssemblyView({ userId, isGuest = false, onBack, type }: CircuitAssemblyViewProps) {
+  const assemblyProgram = programs[type];
   const { showAlert } = useDialog();
   const [speakers, setSpeakers] = useState<Record<string, string>>({});
   const [initialSpeakers, setInitialSpeakers] = useState<Record<string, string>>({});
@@ -116,6 +162,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
+  const collectionName = type === 'supt' ? 'circuit_assembly_supt_speakers' : 'circuit_assembly_branch_speakers';
+
   const hasChanges = JSON.stringify(speakers) !== JSON.stringify(initialSpeakers) || 
                      JSON.stringify(confirmedSpeakers) !== JSON.stringify(initialConfirmedSpeakers) ||
                      JSON.stringify(details) !== JSON.stringify(initialDetails);
@@ -137,7 +185,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
         });
         setTemplates(fetchedTemplates);
 
-        const docRef = doc(db, 'circuit_assembly_supt_speakers', userId);
+        const docRef = doc(db, collectionName, userId);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
@@ -164,12 +212,12 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
     };
 
     loadData();
-  }, [userId]);
+  }, [userId, collectionName, assemblyProgram.theme]);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const docRef = doc(db, 'circuit_assembly_supt_speakers', userId);
+      const docRef = doc(db, collectionName, userId);
       await setDoc(docRef, { 
         speakers,
         confirmations: confirmedSpeakers,
@@ -378,7 +426,6 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
       const parentTitle = parentItem?.title || '';
 
       const isSerie = parentLabel.toUpperCase().includes('SÉRIE DE DISCURSOS') || itemLabel.toUpperCase().includes('SÉRIE DE DISCURSOS');
-      const isBatismo = itemLabel.toUpperCase().includes('BATISMO') || item.title.toUpperCase().includes('BATISMO');
       const isPub = itemLabel.toUpperCase().includes('DISCURSO PARA O PÚBLICO') || item.title.toUpperCase().includes('DISCURSO PARA O PÚBLICO');
 
       let tituloValue = (isPrayer || isPresident) ? designation : item.title;
@@ -395,9 +442,6 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
         } else {
           tituloValue = `SÉRIE DE DISCURSOS:\n${seriesTheme}`;
         }
-      } else if (isBatismo) {
-        const cleanTitle = item.title.replace(/^BATISMO:\s*/i, '');
-        tituloValue = `BATISMO:\n${cleanTitle}`;
       } else if (isPub) {
         const cleanTitle = item.title.replace(/^DISCURSO PARA O PÚBLICO:\s*/i, '');
         tituloValue = `DISCURSO PARA O PÚBLICO:\n${cleanTitle}`;
@@ -627,7 +671,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack }:
           <button onClick={handleBackClick} className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200">
             <ChevronLeft size={28} strokeWidth={3} />
           </button>
-          <h2 className="text-2xl font-bold text-gray-800">CAco 2026-2027</h2>
+          <h2 className="text-2xl font-bold text-gray-800">
+            {type === 'supt' ? 'CAco 2026-2027' : 'CAbr 2026-2027'}
+          </h2>
         </div>
         <div className="flex items-center gap-4">
           {hasChanges && !isGuest && (
