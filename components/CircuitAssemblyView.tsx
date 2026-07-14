@@ -108,7 +108,7 @@ const programs = {
         items: [
           { id: 't0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
           { id: 't1', time: '1:20', title: 'Música', icon: Music, noSpeaker: true },
-          { id: 't2', time: '1:30', title: 'Cântico 111 e oração', icon: Music },
+          { id: 't2', time: '1:30', title: 'Cântico 111', icon: Music, noSpeaker: true },
           { id: 't3', time: '1:35', title: 'Experiências', icon: Info },
           { id: 't4', time: '1:45', title: 'Resumo de A Sentinela', icon: BookOpen },
           { 
