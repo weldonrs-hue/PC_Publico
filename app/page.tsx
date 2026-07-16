@@ -64,7 +64,7 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
-import { Camera, User, ArrowLeft, AlertCircle, X } from 'lucide-react';
+import { Camera, User, ArrowLeft, AlertCircle, X, Heart } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -791,7 +791,7 @@ export default function Home() {
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}
-              <div className="flex justify-between items-center gap-4">
+              <div className="flex justify-between items-center gap-4 relative">
                 <div className="border-2 border-blue-400 p-2 md:p-4 rounded-sm flex-1 md:flex-initial bg-white/50 flex items-center gap-3 md:gap-4">
                   <div 
                     className="relative w-12 h-12 md:w-16 md:h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner cursor-pointer group/avatar overflow-hidden flex-shrink-0"
@@ -829,6 +829,18 @@ export default function Home() {
                     <p className="text-blue-400 font-medium uppercase tracking-widest text-[8px] md:text-xs">Seja bem-vindo ao ProgCir Web</p>
                   </div>
                 </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => changeView('donations')}
+                  className="p-3 text-pink-400 hover:text-pink-600 transition-all group flex items-center gap-2 bg-white/50 rounded-2xl hover:bg-white shadow-sm border border-transparent hover:border-pink-100"
+                >
+                  <Heart size={20} fill="currentColor" className="opacity-30 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap">
+                    Doação
+                  </span>
+                </motion.button>
               </div>
 
               {/* Dashboard Cards Grid */}
