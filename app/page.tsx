@@ -43,6 +43,7 @@ const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ss
 const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
 const ChatView = dynamic(() => import('@/components/ChatView'), { ssr: false });
 const FloatingStopwatch = dynamic(() => import('@/components/FloatingStopwatch'), { ssr: false });
+const DonationView = dynamic(() => import('@/components/DonationView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
@@ -862,6 +863,12 @@ export default function Home() {
                 }}
               />
             </>
+          )}
+
+          {currentView === 'donations' && (
+            <DonationView 
+              onBack={() => changeView('dashboard')} 
+            />
           )}
 
           {currentView === 'congregations' && (

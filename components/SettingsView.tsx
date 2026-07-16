@@ -22,7 +22,8 @@ import {
   UserPlus,
   Mail,
   UserCheck,
-  Landmark
+  Landmark,
+  Heart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -143,6 +144,14 @@ const settingsButtons = [
     subtitle: 'PROTEÇÃO DE DADOS (LGPD)',
     color: '#6c40bd',
     gradient: 'from-[#6c40bd] to-[#5a35a0]'
+  },
+  {
+    id: 'donations',
+    icon: Heart,
+    title: 'DOAÇÕES',
+    subtitle: 'APOIE O PROJETO',
+    color: '#ec4899',
+    gradient: 'from-[#ec4899] to-[#db2777]'
   }
 ];
 
@@ -360,6 +369,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       setFormatError(null);
     } else if (id === 'privacidade') {
       setIsShowingPrivacy(true);
+    } else if (id === 'donations') {
+      onViewChange('donations');
     } else if (id === 'role_change') {
       setShowRoleChangeModal(true);
     } else {
