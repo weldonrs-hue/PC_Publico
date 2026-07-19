@@ -150,6 +150,50 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [substitutes, setSubstitutes] = useState<Substitute[]>([]);
   
+  const sortedCongregations = useMemo(() => {
+    if (!congregations.length) return [];
+    
+    const visitMap = new Map<string, number>();
+    
+    itineraries.forEach(item => {
+      // If it has a congregation ID or name, and it's a visit type event
+      const isVisit = item.tipoEvento === 'Visita a Congregação' || 
+                      item.tipoEvento === 'Visita a Grupo' || 
+                      item.evento?.toLowerCase().includes('visita') ||
+                      (item.congregacaoId && !item.tipoEvento); // Fallback for older items
+
+      if ((item.congregacaoId || item.congregacao) && isVisit) {
+        try {
+          const s = item.semana || '';
+          const parts = s.split('/');
+          if (parts.length === 3) {
+            const [d, m, y] = parts.map(Number);
+            if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+              const date = new Date(y, m - 1, d).getTime();
+              
+              const targetId = item.congregacaoId || congregations.find(c => c.nome === item.congregacao)?.id;
+              
+              if (targetId) {
+                const current = visitMap.get(targetId);
+                if (current === undefined || date < current) {
+                  visitMap.set(targetId, date);
+                }
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    });
+    
+    return [...congregations].sort((a, b) => {
+      const dateA = visitMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const dateB = visitMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      
+      if (dateA !== dateB) return dateA - dateB;
+      return a.nome.localeCompare(b.nome);
+    });
+  }, [congregations, itineraries]);
+  
   // Modal states
   const [selectedItem, setSelectedItem] = useState<ItineraryItem | null>(null);
   const [modalMode, setModalMode] = useState<'actions' | 'edit' | 'confirmDelete' | null>(null);
@@ -606,6 +650,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
   const handleRowDoubleClick = (item: ItineraryItem) => {
     setSelectedItem(item);
+    setIsAddingNew(false);
     setModalMode('actions');
   };
 
@@ -664,6 +709,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           return {
             congregacao: cong,
             data: item.dataEvento || item.semana,
+            semana: item.semana,
             substituteName: item.substituto
           };
         })
@@ -1193,18 +1239,20 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </div>
                     </button>
 
-                    <button 
-                      onClick={handleAddClick}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
-                    >
-                      <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                        <Plus size={18} />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-bold text-sm text-gray-800">Adicionar Evento</div>
-                        <div className="text-[10px] text-gray-500 leading-tight">Adicionar evento na mesma semana</div>
-                      </div>
-                    </button>
+                    {(selectedItem?.evento || selectedItem?.congregacao || selectedItem?.observacoes) && (
+                      <button 
+                        onClick={handleAddClick}
+                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+                      >
+                        <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                          <Plus size={18} />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-bold text-sm text-gray-800">Adicionar Evento</div>
+                          <div className="text-[10px] text-gray-500 leading-tight">Adicionar evento na mesma semana</div>
+                        </div>
+                      </button>
+                    )}
 
                     {selectedItem?.evento && (
                       <button 
@@ -1414,7 +1462,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione um grupo...</option>
-                          {congregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome, congId: c.id }))).map((g, idx) => (
+                          {sortedCongregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome, congId: c.id }))).map((g, idx) => (
                             <option key={idx} value={`${g.congId}|${g.nome}`}>{g.nome} ({g.congNome})</option>
                           ))}
                         </select>
@@ -1462,7 +1510,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione uma congregação...</option>
-                          {congregations.map(c => (
+                          {sortedCongregations.map(c => (
                             <option key={c.id} value={c.id}>{c.nome} - {c.cidade} / {c.estado}</option>
                           ))}
                         </select>

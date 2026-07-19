@@ -101,6 +101,7 @@ export default function GlobalS302View({ userId, isAdmin, onBack }: GlobalS302Vi
       id: item.id,
       congregacao: cong || { nome: item.congregacao, numero: '', cidade: '', estado: '' } as any,
       data: item.dataEvento || item.semana,
+      semana: item.semana,
       substituteName: item.substituto
     };
   }).filter(e => e.congregacao.nome);

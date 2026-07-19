@@ -27,6 +27,7 @@ import {
   deleteDoc,
   onSnapshot
 } from 'firebase/firestore';
+import { useMemo } from 'react';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 
 interface Congregation {
@@ -45,6 +46,13 @@ interface Substitute {
   estado: string;
 }
 
+interface ItineraryItem {
+  id?: string;
+  semana: string;
+  congregacaoId?: string;
+  evento: string;
+}
+
 interface SubstitutesViewProps {
   userId: string;
   onBack: () => void;
@@ -53,6 +61,7 @@ interface SubstitutesViewProps {
 export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps) {
   const [substitutes, setSubstitutes] = useState<Substitute[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
+  const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -89,10 +98,67 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
       }
     };
 
+    // Fetch itineraries once for sorting
+    const fetchItineraries = async () => {
+      try {
+        const qItin = query(collection(db, 'itineraries'), where('userId', '==', userId));
+        const snapshot = await getDocs(qItin);
+        const itinData = snapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id
+        })) as ItineraryItem[];
+        setItineraries(itinData);
+      } catch (error) {
+        console.error("Error fetching itineraries for sorting:", error);
+      }
+    };
+
     fetchCongregations();
+    fetchItineraries();
 
     return () => unsubscribeSubs();
   }, [userId]);
+
+  const sortedCongregations = useMemo(() => {
+    if (!congregations.length) return [];
+    
+    const visitMap = new Map<string, number>();
+    
+    itineraries.forEach(item => {
+      const isVisit = item.evento?.toLowerCase().includes('visita') || 
+                      (item.congregacaoId && !item.evento);
+
+      if ((item.congregacaoId) && isVisit) {
+        try {
+          const s = item.semana || '';
+          const parts = s.split('/');
+          if (parts.length === 3) {
+            const [d, m, y] = parts.map(Number);
+            if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+              const date = new Date(y, m - 1, d).getTime();
+              
+              const targetId = item.congregacaoId;
+              
+              if (targetId) {
+                const current = visitMap.get(targetId);
+                if (current === undefined || date < current) {
+                  visitMap.set(targetId, date);
+                }
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    });
+    
+    return [...congregations].sort((a, b) => {
+      const dateA = visitMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const dateB = visitMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      
+      if (dateA !== dateB) return dateA - dateB;
+      return a.nome.localeCompare(b.nome);
+    });
+  }, [congregations, itineraries]);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Substitute | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -321,7 +387,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                     className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500"
                   >
                     <option value="">Selecione uma congregação...</option>
-                    {congregations.map(cong => (
+                    {sortedCongregations.map(cong => (
                       <option key={cong.id} value={cong.id}>{cong.nome}</option>
                     ))}
                   </select>

@@ -64,7 +64,7 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
-import { Camera, User, ArrowLeft, AlertCircle, X, Heart } from 'lucide-react';
+import { Camera, User, ArrowLeft, AlertCircle, X, Coffee } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -831,14 +831,14 @@ export default function Home() {
                 </div>
 
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => changeView('donations')}
-                  className="p-3 text-pink-400 hover:text-pink-600 transition-all group flex items-center gap-2 bg-white/50 rounded-2xl hover:bg-white shadow-sm border border-transparent hover:border-pink-100"
+                  className="p-2.5 text-violet-500 hover:text-violet-600 transition-all group flex items-center gap-2 bg-white/40 backdrop-blur-sm rounded-xl hover:bg-white/80 shadow-sm border border-violet-100/50 hover:border-violet-200"
                 >
-                  <Heart size={20} fill="currentColor" className="opacity-30 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap">
-                    Doação
+                  <Coffee size={18} className="opacity-40 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap">
+                    Apoiar
                   </span>
                 </motion.button>
               </div>

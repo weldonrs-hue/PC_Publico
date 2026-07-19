@@ -94,6 +94,7 @@ interface Congregation {
 interface S302Event {
   congregacao: Congregation;
   data: string;
+  semana: string;
   substituteName?: string;
 }
 
@@ -109,7 +110,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const { showAlert } = useDialog();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const currentEvent = events[currentIndex];
-  const { congregacao, data, substituteName } = currentEvent;
+  const { congregacao, data, semana, substituteName } = currentEvent;
 
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
@@ -339,7 +340,36 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
 
       pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgScaledHeight, undefined, 'FAST');
       
-      const filename = `S-302_${congregacao.nome.replace(/\s+/g, '_')}.pdf`;
+      // Format date for filename: yyyy mm-dd
+      // Try to find the Monday date (using the semana field)
+      let formattedDate = semana.replace(/\//g, '-');
+      
+      // Match the first date pattern DD/MM/YYYY in the semana string
+      const fullDateMatch = semana.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      
+      if (fullDateMatch) {
+        const day = fullDateMatch[1].padStart(2, '0');
+        const month = fullDateMatch[2].padStart(2, '0');
+        const year = fullDateMatch[3];
+        formattedDate = `${year} ${month}-${day}`;
+      } else {
+        // Fallback: try to extract parts from strings like "14-20/09/2026"
+        const numbers = semana.match(/\d+/g);
+        if (numbers && numbers.length >= 3) {
+          const year = numbers.find(n => n.length === 4);
+          if (year) {
+            const yearIndex = numbers.indexOf(year);
+            const month = numbers[yearIndex - 1]?.padStart(2, '0');
+            const day = numbers[0].padStart(2, '0');
+            if (day && month && year) {
+              formattedDate = `${year} ${month}-${day}`;
+            }
+          }
+        }
+      }
+
+      // Format: S-302 (yyyy mm-dd) Congregação — CIDADE UF
+      const filename = `S-302 (${formattedDate}) ${congregacao.nome} — ${congregacao.cidade.toUpperCase()} ${congregacao.estado.toUpperCase()}.pdf`;
       pdf.save(filename);
     } catch (error) {
       console.error('Error generating PDF:', error);

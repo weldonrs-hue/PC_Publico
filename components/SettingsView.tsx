@@ -23,7 +23,7 @@ import {
   Mail,
   UserCheck,
   Landmark,
-  Heart
+  Coffee
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -147,11 +147,11 @@ const settingsButtons = [
   },
   {
     id: 'donations',
-    icon: Heart,
+    icon: Coffee,
     title: 'DOAÇÕES',
     subtitle: 'APOIE O PROJETO',
-    color: '#ec4899',
-    gradient: 'from-[#ec4899] to-[#db2777]'
+    color: '#8b5cf6',
+    gradient: 'from-[#8b5cf6] to-[#7c3aed]'
   }
 ];
 

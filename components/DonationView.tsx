@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Heart, Copy, Check, Coffee, Rocket, ArrowLeft, ShieldCheck, Zap } from 'lucide-react';
+import { Copy, Check, Coffee, Rocket, ArrowLeft, ShieldCheck, Zap } from 'lucide-react';
 
 interface DonationViewProps {
   onBack: () => void;
