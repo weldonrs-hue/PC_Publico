@@ -629,7 +629,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         'N': n.toString(),
         'TITULO': tituloValue,
         // Mantendo compatibilidade
-        'ANO': '2026',
+        'ANO': selectedYear.split('-')[0],
         'DESIGNAÇÃO': designation,
         'DESIGNACAO': designation,
         'DIA': 'Assembleia',

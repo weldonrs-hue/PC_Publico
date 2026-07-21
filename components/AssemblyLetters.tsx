@@ -64,7 +64,9 @@ export default function AssemblyLetters({
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState<'2025-2026' | '2026-2027'>('2026-2027');
   const [personalData, setPersonalData] = useState<any>(null);
+  const [assemblyDetails, setAssemblyDetails] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   
   // Management state
@@ -225,13 +227,23 @@ export default function AssemblyLetters({
         if (personalSnap.exists()) {
           setPersonalData(personalSnap.data());
         }
+
+        // Fetch assembly details for the selected year
+        const docId = selectedYear === '2026-2027' ? userId : `${userId}_${selectedYear}`;
+        const assemblyDocRef = doc(db, 'circuit_assembly_speakers', docId);
+        const assemblySnap = await getDoc(assemblyDocRef);
+        if (assemblySnap.exists()) {
+          setAssemblyDetails(assemblySnap.data().details || null);
+        } else {
+          setAssemblyDetails(null);
+        }
       } catch (error) {
-        console.error('Error fetching personal data:', error);
+        console.error('Error fetching data:', error);
       }
     };
 
     fetchData();
-  }, [userId]);
+  }, [userId, selectedYear]);
 
   // Auto-load template when selectedTemplate or templates changes
   useEffect(() => {
@@ -256,19 +268,25 @@ export default function AssemblyLetters({
     const travelerName = personalData?.nome || '________________';
     const circuit = personalData?.circuito || '________________';
     const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
+    
+    // Use dynamic data from database if available
+    const theme = assemblyDetails?.theme || '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20';
+    const eventName = assemblyDetails?.title || `Programa da Assembleia de Circuito de ${selectedYear.split('-')[1]} — com o Superintendente de Circuito`;
+    const date = assemblyDetails?.date || '________________';
+    const location = assemblyDetails?.location || '________________';
 
     const replacements = {
-      'EVENTO': 'Programa da Assembleia de Circuito de 2027 — com o Superintendente de Circuito',
-      'TEMA': '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20',
-      'DATA': hoje,
-      'LOCAL': '________________',
+      'EVENTO': eventName,
+      'TEMA': theme,
+      'DATA': date,
+      'LOCAL': location,
       'ORADOR': '________________',
-      'D_ENSAIO': '________________',
-      'L_ENSAIO': '________________',
+      'D_ENSAIO': assemblyDetails?.rehearsalDate || '________________',
+      'L_ENSAIO': assemblyDetails?.rehearsalLocation || '________________',
       'HORA': '________________',
       'N': '________________',
       'TITULO': '________________',
-      'ANO': '2026',
+      'ANO': selectedYear.split('-')[0],
       'data': hoje,
       'HOJE': hoje,
       'orador': '________________',
@@ -521,10 +539,28 @@ export default function AssemblyLetters({
       <div className="flex flex-col gap-6">
         <div className="bg-gray-50 p-6 rounded-none border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-amber-50 text-amber-700 px-4 py-2 rounded-none border border-amber-100">
-              <Mail size={20} />
-              Selecione o Modelo de Carta
-            </h3>
+            <div className="flex items-center gap-4">
+              <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-amber-50 text-amber-700 px-4 py-2 rounded-none border border-amber-100">
+                <Mail size={20} />
+                Selecione o Modelo de Carta
+              </h3>
+              
+              <div className="flex items-center bg-gray-200 rounded-none p-0.5 border border-gray-300 no-print">
+                {(['2025-2026', '2026-2027'] as const).map((year) => (
+                  <button
+                    key={year}
+                    onClick={() => setSelectedYear(year)}
+                    className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest transition-all ${
+                      selectedYear === year
+                        ? 'bg-white text-amber-700 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
             
             {canManage && (
               <button
