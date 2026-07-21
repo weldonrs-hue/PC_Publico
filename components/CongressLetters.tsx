@@ -62,7 +62,6 @@ export default function CongressLetters({
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [processedDocBuffer, setProcessedDocBuffer] = useState<ArrayBuffer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState<'2024' | '2025'>('2025');
   const [personalData, setPersonalData] = useState<any>(null);
   const [conventionDetails, setConventionDetails] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
@@ -229,14 +228,11 @@ export default function CongressLetters({
           setPersonalData(personalSnap.data());
         }
 
-        // Fetch regional convention details for the selected year
-        const docId = selectedYear === '2025' ? userId : `${userId}_${selectedYear}`;
-        const convDocRef = doc(db, 'regional_convention_speakers', docId);
+        // Fetch regional convention details
+        const convDocRef = doc(db, 'regional_convention_speakers', userId);
         const convSnap = await getDoc(convDocRef);
         if (convSnap.exists()) {
           setConventionDetails(convSnap.data().details || null);
-        } else {
-          setConventionDetails(null);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -244,7 +240,7 @@ export default function CongressLetters({
     };
 
     fetchData();
-  }, [userId, selectedYear]);
+  }, [userId]);
 
   // Auto-load template when selectedTemplate or templates changes
   useEffect(() => {
@@ -357,7 +353,7 @@ export default function CongressLetters({
     }
 
     const replacements = {
-      'ANO': selectedYear,
+      'ANO': '2026',
       'TEMA': theme,
       'DATA': date,
       'LOCAL': location,
@@ -629,28 +625,10 @@ export default function CongressLetters({
         {/* Top: Square Cards Grid */}
         <div className="bg-gray-50 p-6 rounded-none border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-violet-50 text-violet-700 px-4 py-2 rounded-none border border-violet-100">
-                <Mail size={20} />
-                Selecione o Modelo de Carta
-              </h3>
-              
-              <div className="flex items-center bg-gray-200 rounded-none p-0.5 border border-gray-300">
-                {(['2024', '2025'] as const).map((year) => (
-                  <button
-                    key={year}
-                    onClick={() => setSelectedYear(year)}
-                    className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest transition-all ${
-                      selectedYear === year
-                        ? 'bg-white text-violet-700 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {year}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-violet-50 text-violet-700 px-4 py-2 rounded-none border border-violet-100">
+              <Mail size={20} />
+              Selecione o Modelo de Carta
+            </h3>
             
             {canManage && (
               <button
