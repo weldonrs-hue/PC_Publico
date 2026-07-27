@@ -21,7 +21,7 @@
         "signatureImage": { "type": "string", "description": "Base64 encoded signature image" },
         "role": { 
           "type": "string", 
-          "enum": ["viajante", "pioneiro_especial", "pioneiro_regular"],
+          "enum": ["viajante", "pioneiro_especial", "pioneiro_regular", "secretaria"],
           "description": "User role determining access level"
         }
       },

@@ -65,7 +65,7 @@ const defaultData = {
   signatureImage: null as string | null,
   signatureOffset: 0,
   signatureSize: 60,
-  role: '' as 'viajante' | 'pioneiro_especial' | 'pioneiro_regular' | ''
+  role: '' as 'viajante' | 'pioneiro_especial' | 'pioneiro_regular' | 'secretaria' | ''
 };
 
 export default function PersonalDataView({ userId, onBack, onSave }: PersonalDataViewProps) {
@@ -292,12 +292,16 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             ? 'Dados Pessoais do Pioneiro Especial'
             : formData.role === 'pioneiro_regular'
             ? 'Dados Pessoais do Pioneiro Regular'
+            : formData.role === 'secretaria'
+            ? 'Dados Pessoais da Secretaria (TJSec)'
             : initialData.role === 'viajante'
             ? 'Dados Pessoais do Viajante'
             : initialData.role === 'pioneiro_especial'
             ? 'Dados Pessoais do Pioneiro Especial'
             : initialData.role === 'pioneiro_regular'
             ? 'Dados Pessoais do Pioneiro Regular'
+            : initialData.role === 'secretaria'
+            ? 'Dados Pessoais da Secretaria (TJSec)'
             : 'Meus Dados Pessoais'}
         </h2>
       </div>

@@ -747,7 +747,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   onClick={() => !isDisabled && handleButtonClick(btn.id)}
-                  className={`relative group h-28 ${
+                  className={`relative group h-20 ${
                     isDisabled 
                       ? 'cursor-not-allowed grayscale-[0.8] opacity-60' 
                       : 'cursor-pointer'
@@ -756,28 +756,28 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                   {/* Background Glow */}
                   {!isDisabled && (
                     <div 
-                      className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-[2rem]"
+                      className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-2xl"
                       style={{ backgroundColor: btn.color }}
                     />
                   )}
                   
-                  <div className="relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:border-transparent transition-all duration-300 h-full group">
-                    <div className={`w-2 h-full bg-gradient-to-b ${btn.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
-                    <div className="flex-1 flex items-center px-6 gap-6">
+                  <div className="relative flex bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:border-transparent transition-all duration-300 h-full group">
+                    <div className={`w-1.5 h-full bg-gradient-to-b ${btn.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
+                    <div className="flex-1 flex items-center px-4 gap-4">
                       <div 
-                        className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
                           isDisabled 
                             ? 'bg-gray-100 text-gray-400' 
-                            : `bg-gradient-to-br ${btn.gradient} group-hover:scale-110 group-hover:rotate-3`
+                            : `bg-gradient-to-br ${btn.gradient} group-hover:scale-105 group-hover:rotate-2`
                         }`}
                       >
-                        <btn.icon size={30} strokeWidth={2.5} className={`${isDisabled ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
+                        <btn.icon size={22} strokeWidth={2.5} className={`${isDisabled ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
                       </div>
                       <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
-                        <div className={`font-black text-xs md:text-sm leading-tight uppercase mb-1 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
+                        <div className={`font-black text-[10px] md:text-xs leading-tight uppercase mb-0.5 transition-colors ${isDisabled ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
                           {btn.title}
                         </div>
-                        <div className={`text-[9px] font-bold uppercase tracking-widest transition-opacity ${isDisabled ? 'text-gray-300' : 'text-gray-400 opacity-80 group-hover:opacity-100'}`}>
+                        <div className={`text-[8px] font-bold uppercase tracking-widest transition-opacity ${isDisabled ? 'text-gray-300' : 'text-gray-400 opacity-60 group-hover:opacity-100'}`}>
                           {btn.subtitle}
                         </div>
                       </div>

@@ -242,12 +242,12 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
       <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-gray-100 rounded-full transition-all text-rose-600 bg-white shadow-md border border-gray-200"
+          className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-rose-600 bg-white shadow-md border border-gray-200"
           title="Voltar ao Painel"
         >
-          <ChevronLeft size={28} strokeWidth={3} />
+          <ChevronLeft size={22} strokeWidth={3} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800">
+        <h2 className="text-xl font-bold text-gray-800">
           Superintendentes Substitutos
         </h2>
       </div>
@@ -262,23 +262,23 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
             className="space-y-4"
           >
             {/* Search and Add Bar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <div className="relative w-full md:w-96">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 <input 
                   type="text"
-                  placeholder="Buscar por nome ou congregação..."
+                  placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500 transition-colors"
+                  className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 transition-colors"
                 />
               </div>
               <button 
                 onClick={handleAddNew}
-                className="w-full md:w-auto bg-rose-600 text-white px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-rose-700 transition-colors shadow-md"
+                className="w-full md:w-auto bg-rose-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 active:scale-95"
               >
-                <Plus size={20} />
-                Novo Substituto
+                <Plus size={16} />
+                NOVO
               </button>
             </div>
 

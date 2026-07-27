@@ -50,7 +50,7 @@ export default function MiscView({ onViewChange, isAdmin, appConfig }: MiscViewP
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {miscItems.map((item, index) => {
           const isReport = item.id === 'field_service_report';
           
@@ -63,32 +63,32 @@ export default function MiscView({ onViewChange, isAdmin, appConfig }: MiscViewP
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               onClick={() => !isInactive && onViewChange(item.id)}
-              className={`relative group h-28 ${isInactive ? 'cursor-not-allowed grayscale' : 'cursor-pointer'}`}
+              className={`relative group h-20 ${isInactive ? 'cursor-not-allowed grayscale' : 'cursor-pointer'}`}
             >
               {/* Background Glow */}
               <div 
-                className={`absolute -inset-0.5 blur-md transition-opacity duration-500 rounded-[2rem] ${isInactive ? 'opacity-0' : 'opacity-20 group-hover:opacity-40'}`}
+                className={`absolute -inset-0.5 blur-md transition-opacity duration-500 rounded-2xl ${isInactive ? 'opacity-0' : 'opacity-20 group-hover:opacity-40'}`}
                 style={{ backgroundColor: isInactive ? '#e2e8f0' : item.color }}
               />
               
-              <div className={`relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 transition-all duration-300 h-full group ${!isInactive && 'hover:border-transparent'}`}>
+              <div className={`relative flex bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 transition-all duration-300 h-full group ${!isInactive && 'hover:border-transparent'}`}>
                 {/* Vibrant Vertical Accent */}
-                <div className={`w-2 h-full bg-gradient-to-b ${item.gradient} ${isInactive ? 'opacity-10' : 'opacity-40 group-hover:opacity-100'} transition-opacity`}></div>
+                <div className={`w-1.5 h-full bg-gradient-to-b ${item.gradient} ${isInactive ? 'opacity-10' : 'opacity-40 group-hover:opacity-100'} transition-opacity`}></div>
                 
-                <div className="flex-1 flex items-center px-6 gap-6">
+                <div className="flex-1 flex items-center px-4 gap-4">
                   <div 
-                    className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${isInactive ? 'bg-gray-200' : `bg-gradient-to-br ${item.gradient} group-hover:scale-110 group-hover:rotate-3`}`}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${isInactive ? 'bg-gray-200' : `bg-gradient-to-br ${item.gradient} group-hover:scale-105 group-hover:rotate-2`}`}
                   >
-                    <item.icon size={30} strokeWidth={2.5} className={isInactive ? 'text-gray-400' : 'text-white drop-shadow-md'} />
+                    <item.icon size={22} strokeWidth={2.5} className={isInactive ? 'text-gray-400' : 'text-white drop-shadow-md'} />
                   </div>
 
                   <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
-                    <div className={`font-black text-xs md:text-sm leading-tight uppercase mb-1 transition-colors ${isInactive ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
+                    <div className={`font-black text-[10px] md:text-xs leading-tight uppercase mb-0.5 transition-colors ${isInactive ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
                       {item.title}
-                      {isInactive && <span className="ml-2 text-[8px] font-black bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">INATIVO</span>}
+                      {isInactive && <span className="ml-2 text-[7px] font-black bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">INATIVO</span>}
                     </div>
                     
-                    <div className={`text-[9px] font-bold uppercase tracking-widest ${isInactive ? 'text-gray-300' : 'text-gray-400'}`}>
+                    <div className={`text-[8px] font-bold uppercase tracking-widest ${isInactive ? 'text-gray-300' : 'text-gray-400'}`}>
                       {isInactive ? 'INDISPONÍVEL NO MOMENTO' : item.subtitle}
                     </div>
                   </div>

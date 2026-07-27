@@ -22,6 +22,7 @@ import {
   ChevronUp,
   ChevronDown,
   X,
+  Check,
   Phone
 } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
@@ -78,8 +79,11 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [roleFilter, setRoleFilter] = useState('all');
   const [userToDelete, setUserToDelete] = useState<UserMetadata | null>(null);
+  const [userToEditRole, setUserToEditRole] = useState<UserMetadata | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'reauth' | 'deleting' | 'success' | 'error'>('idle');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
@@ -91,58 +95,90 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const fetchUsers = async () => {
     setRefreshing(true);
     try {
-      // Fetch users, personal data, and role requests in parallel
-      const [usersSnapshot, personalDataSnapshot, requestsSnapshot] = await Promise.all([
+      // Fetch users and personal data in parallel - ONLY essential collections
+      const [usersSnapshot, personalDataSnapshot] = await Promise.all([
         getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'personal_data')),
-        getDocs(query(collection(db, 'role_change_requests'), orderBy('createdAt', 'desc')))
+        getDocs(collection(db, 'personal_data'))
       ]);
 
+      const usersDocs = usersSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
       const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
-      const usersData = usersSnapshot.docs.map(doc => {
-        const data = doc.data();
-        // Robust matching:
-        // 1. By Document ID (UID)
-        // 2. By internal userId field in personal_data (if it exists and differs from doc ID)
-        // 3. Fallback: By numeroPessoal (User's usuario field) matching personal_data's numeroPessoal
-        const pd = pdDocs.find(p => 
-          p.id === doc.id || 
-          p.userId === doc.id || 
-          (data.usuario && p.numeroPessoal === data.usuario) ||
-          (data.email && p.email === data.email)
-        );
+      // Create a set of all unique UIDs. 
+      // We prioritize the UID (users document ID or personal_data userId field)
+      const allUids = Array.from(new Set([
+        ...usersDocs.map(u => u.id),
+        ...pdDocs.map(p => p.userId).filter(Boolean)
+      ]));
+      
+      // If there are documents in personal_data indexed by Personal Number, we add them as well if they don't have a userId
+      pdDocs.forEach(pd => {
+        if (!pd.userId && pd.id && !allUids.includes(pd.id)) {
+          // Check if this ID looks like a UID or personal number
+          // We add it to ensure we don't miss data
+          allUids.push(pd.id);
+        }
+      });
+
+      const usersData = allUids.map(uid => {
+        const userData = usersDocs.find(u => u.id === uid);
+        const pdData = pdDocs.find(p => p.id === uid || p.userId === uid);
         
+        // Use UID as fallback for email if it looks like an email (TJSec pattern)
+        const email = userData?.email || pdData?.emailPessoal || pdData?.emailJwpub || (uid.includes('@') ? uid : '');
+        const isTjSec = email.toLowerCase().endsWith('@tjsec.app');
+        
+        // If it's a TJSec account, we try to extract the congregation number from the email
+        const tjSecNumber = isTjSec ? email.split('@')[0] : '';
+        
+        // Check if this account should be shown (must exist in Auth/users OR be a TJSec account)
+        // This filters out stale personal_data entries that don't correspond to real users
+        const isRealUser = !!userData || isTjSec;
+
         return {
-          id: doc.id,
-          ...data,
-          nome: pd?.nome || data.nome || data.displayName || (data.usuario && data.usuario.length > 5 ? data.usuario : 'Sem nome'),
-          role: pd?.role || data.role || 'user',
-          numeroPessoal: pd?.numeroPessoal || data.usuario || data.email?.split('@')[0] || '---',
-          photoURL: pd?.profilePhoto || data.photoURL || null,
-          isInactive: !!data.isInactive
+          id: uid,
+          ...userData,
+          nome: pdData?.nome || userData?.nome || (isTjSec ? `Secretaria ${tjSecNumber}` : (userData?.displayName || (userData?.usuario && userData?.usuario.length > 5 ? userData?.usuario : 'Sem nome'))),
+          role: pdData?.role || userData?.role || (isTjSec ? 'secretaria' : 'user'),
+          numeroPessoal: pdData?.numeroPessoal || userData?.usuario || tjSecNumber || '---',
+          photoURL: pdData?.profilePhoto || userData?.photoURL || null,
+          isInactive: !!userData?.isInactive,
+          email: email,
+          isRealUser: isRealUser // Track if it's a real user for filtering
         } as UserMetadata;
       });
 
+      // Filter to only show real users (Auth or TJSec)
+      const filteredRealUsers = usersData.filter(u => (u as any).isRealUser);
+
       // Sort in-memory: newest first, users without date at the end
-      usersData.sort((a, b) => {
+      filteredRealUsers.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
       
-      const requestsData = requestsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as RoleChangeRequest[];
-
-      setRoleRequests(requestsData);
-      setUsers(usersData);
+      setUsers(filteredRealUsers);
     } catch (error) {
+      console.error('Error fetching users:', error);
       handleFirestoreError(error, OperationType.GET, 'users_and_personal_data');
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+
+    // Fetch role requests separately to avoid blocking users list if permission is denied for requests
+    try {
+      const requestsSnapshot = await getDocs(query(collection(db, 'role_change_requests'), orderBy('createdAt', 'desc')));
+      const requestsData = requestsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as RoleChangeRequest[];
+      setRoleRequests(requestsData);
+    } catch (error) {
+      console.warn('UsersView: Permission denied or error fetching role requests:', error);
+      // We don't block the UI, just show no requests
+      setRoleRequests([]);
     }
   };
 
@@ -183,11 +219,16 @@ export default function UsersView({ onBack }: UsersViewProps) {
     });
   };
 
-  const filteredUsers = getSortedUsers(users.filter(user => 
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase())
-  ));
+  const filteredUsers = getSortedUsers(users.filter(user => {
+    const matchesSearch = 
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    
+    return matchesSearch && matchesRole;
+  }));
 
   const handleToggleInactive = async (user: UserMetadata) => {
     try {
@@ -300,6 +341,25 @@ export default function UsersView({ onBack }: UsersViewProps) {
     }
   };
 
+  const handleUpdateRole = async (userId: string, newRole: string) => {
+    setIsUpdatingRole(true);
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'users', userId), { role: newRole });
+      batch.update(doc(db, 'personal_data', userId), { role: newRole });
+      await batch.commit();
+      
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      setUserToEditRole(null);
+      await showAlert('Categoria atualizada com sucesso!', 'Sucesso');
+    } catch (error) {
+      console.error('Error updating role:', error);
+      await showAlert('Erro ao atualizar categoria.', 'Erro');
+    } finally {
+      setIsUpdatingRole(false);
+    }
+  };
+
   const formatDate = (dateStr: any) => {
     if (!dateStr) return 'N/A';
     try {
@@ -339,22 +399,36 @@ export default function UsersView({ onBack }: UsersViewProps) {
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+            className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
             title="Voltar"
           >
-            <ChevronLeft size={28} strokeWidth={3} />
+            <ChevronLeft size={22} strokeWidth={3} />
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 leading-tight">
               Usuários do Sistema
             </h2>
-            <p className="text-sm text-gray-500">Gerencie os acessos e visualize metadados dos usuários</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Gerencie os acessos do sistema</p>
           </div>
         </div>
         
-        <div className="flex items-center flex-wrap gap-2">
-          <button 
-            onClick={async () => {
+          <div className="flex items-center flex-wrap gap-2">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#512da8]/10 focus:border-[#512da8] transition-all font-bold text-gray-700"
+            >
+              <option value="all">Todas Categorias</option>
+              <option value="admin">Administradores</option>
+              <option value="viajante">Viajantes</option>
+              <option value="pioneiro_especial">Pioneiros Especiais</option>
+              <option value="pioneiro_regular">Pioneiros Regulares</option>
+              <option value="secretaria">Secretarias (TJSec)</option>
+              <option value="user">Usuários Comuns</option>
+            </select>
+
+            <button 
+              onClick={async () => {
               if (isQuotaExceeded()) {
                 await showAlert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.', 'Aviso de Cota');
                 return;
@@ -407,37 +481,37 @@ export default function UsersView({ onBack }: UsersViewProps) {
               }
             }}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl border border-indigo-200 text-xs font-bold transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg border border-indigo-200 text-[10px] font-black transition-all disabled:opacity-50 uppercase tracking-widest"
             title="Sincronizar nomes e categorias de todos os usuários"
           >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
             SYNC GERAL
           </button>
-          <div className="relative flex-1 min-w-[200px] md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <div className="relative flex-1 min-w-[150px] md:w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <input
               type="text"
-              placeholder="Buscar por email ou nome..."
+              placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#512da8]/20 focus:border-[#512da8] transition-all"
+              className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#512da8]/10 focus:border-[#512da8] transition-all"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button 
               onClick={fetchUsers}
               disabled={refreshing}
-              className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 text-gray-600 transition-all disabled:opacity-50"
+              className="p-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 text-gray-500 transition-all disabled:opacity-50"
               title="Recarregar"
             >
-              <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             </button>
             <button 
               onClick={onBack}
-              className="p-2.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-xl border-2 border-red-200 transition-all flex items-center justify-center shadow-md active:scale-95 shrink-0 z-10"
+              className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg border border-red-200 transition-all flex items-center justify-center shadow-sm active:scale-95 shrink-0"
               title="Fechar"
             >
-              <X size={24} strokeWidth={3} />
+              <X size={16} strokeWidth={3} />
             </button>
           </div>
         </div>
@@ -529,61 +603,61 @@ export default function UsersView({ onBack }: UsersViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50/50 border-bottom border-gray-100">
+              <tr className="bg-gray-50/50 border-b border-gray-100">
                 <th 
-                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('nome')}
                 >
                   <div className="flex items-center gap-1">
                     Usuário / Nome
                     {sortConfig?.key === 'nome' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={14} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-gray-300" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('numeroPessoal')}
                 >
                   <div className="flex items-center justify-center gap-1">
                     ID Pessoal
                     {sortConfig?.key === 'numeroPessoal' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={14} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-gray-300" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('createdAt')}
                 >
                   <div className="flex items-center gap-1">
                     Criação
                     {sortConfig?.key === 'createdAt' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={14} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-gray-300" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('lastLogin')}
                 >
                   <div className="flex items-center gap-1">
                     Último login
                     {sortConfig?.key === 'lastLogin' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={14} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-gray-300" />
                     )}
                   </div>
                 </th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ações</th>
+                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -598,55 +672,63 @@ export default function UsersView({ onBack }: UsersViewProps) {
               ) : filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#512da8]/10 flex items-center justify-center text-[#512da8] overflow-hidden border border-[#512da8]/5">
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-[#512da8]/10 flex items-center justify-center text-[#512da8] overflow-hidden border border-[#512da8]/5 flex-shrink-0">
                           {user.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
                             <Image 
                               src={user.photoURL} 
                               alt={user.nome || 'Usuário'} 
-                              width={40}
-                              height={40}
+                              width={32}
+                              height={32}
                               className="w-full h-full object-cover"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <UserIcon size={20} />
+                            <UserIcon size={16} />
                           )}
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 leading-tight">{user.nome}</p>
-                          <p className="text-[11px] text-gray-500 font-medium">{user.email}</p>
-                          {user.role === 'admin' && (
-                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[9px] font-bold uppercase border border-amber-200">
-                              <ShieldCheck size={10} />
-                              Administrador
-                            </span>
-                          )}
-                          {user.role === 'viajante' && (
-                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[9px] font-bold uppercase border border-blue-200">
-                              <Globe size={10} />
-                              Viajante
-                            </span>
-                          )}
-                          {user.role === 'pioneiro_especial' && (
-                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[9px] font-bold uppercase border border-purple-200">
-                              <Sparkles size={10} />
-                              Pioneiro Especial
-                            </span>
-                          )}
-                          {user.role === 'pioneiro_regular' && (
-                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase border border-emerald-200">
-                              <UserIcon size={10} />
-                              Pioneiro Regular
-                            </span>
-                          )}
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-900 leading-tight truncate">{user.nome}</p>
+                          <p className="text-[10px] text-gray-500 font-medium truncate">{user.email}</p>
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {user.role === 'admin' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[8px] font-black uppercase border border-amber-200">
+                                <ShieldCheck size={8} />
+                                Administrador
+                              </span>
+                            )}
+                            {user.role === 'viajante' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[8px] font-black uppercase border border-blue-200">
+                                <Globe size={8} />
+                                Viajante
+                              </span>
+                            )}
+                            {user.role === 'pioneiro_especial' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[8px] font-black uppercase border border-purple-200">
+                                <Sparkles size={8} />
+                                Pioneiro Especial
+                              </span>
+                            )}
+                            {user.role === 'pioneiro_regular' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase border border-emerald-200">
+                                <UserIcon size={8} />
+                                Pioneiro Regular
+                              </span>
+                            )}
+                            {user.role === 'secretaria' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[8px] font-black uppercase border border-rose-200">
+                                <ShieldCheck size={8} />
+                                Secretaria (TJSec)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        <span className={`text-xs font-mono font-bold px-2 py-1 rounded-lg ${
+                    <td className="px-4 py-2.5 text-center">
+                      <div className="flex flex-col items-center justify-center gap-0.5">
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
                           users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1
                             ? 'bg-red-100 text-red-700 border border-red-200'
                             : 'bg-[#512da8]/5 text-[#512da8]'
@@ -654,26 +736,26 @@ export default function UsersView({ onBack }: UsersViewProps) {
                           {user.numeroPessoal}
                         </span>
                         {users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1 && (
-                          <span className="text-[9px] text-red-500 font-black uppercase">Duplicado</span>
+                          <span className="text-[8px] text-red-500 font-black uppercase tracking-tighter">Duplicado</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar size={14} className="text-gray-400" />
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                        <Calendar size={12} className="text-gray-400" />
                         {formatDate(user.createdAt)}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Clock size={14} className="text-gray-400" />
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                        <Clock size={12} className="text-gray-400" />
                         {formatDate(user.lastLogin)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <button
                         onClick={() => handleToggleInactive(user)}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border shadow-sm w-full max-w-[85px] mx-auto ${
+                        className={`px-2 py-1 rounded-lg text-[9px] font-black transition-all border shadow-sm w-full max-w-[70px] mx-auto ${
                           user.isInactive 
                             ? 'bg-gray-100 text-gray-400 border-gray-200' 
                             : 'bg-emerald-500 text-white border-emerald-400'
@@ -682,15 +764,22 @@ export default function UsersView({ onBack }: UsersViewProps) {
                         {user.isInactive ? 'OFFLINE' : 'ATIVO'}
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setUserToEditRole(user)}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          title="Alterar Categoria"
+                        >
+                          <Fingerprint size={16} />
+                        </button>
                         {auth.currentUser?.uid !== user.id && (
                           <button
                             onClick={() => setUserToDelete(user)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                             title="Excluir dados do usuário"
                           >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>
@@ -852,6 +941,89 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     </button>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Role Change Modal */}
+      <AnimatePresence>
+        {userToEditRole && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">Alterar Categoria</h3>
+                  <button onClick={() => setUserToEditRole(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="p-4 bg-indigo-50 rounded-2xl flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
+                    <UserIcon size={24} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">{userToEditRole.nome}</p>
+                    <p className="text-xs text-gray-500">ID: {userToEditRole.numeroPessoal}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase ml-1">Selecione a Categoria</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { value: 'viajante', label: 'Viajante', icon: Globe, color: 'text-blue-600', bg: 'bg-blue-50' },
+                      { value: 'pioneiro_especial', label: 'Pioneiro Especial', icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-50' },
+                      { value: 'pioneiro_regular', label: 'Pioneiro Regular', icon: UserIcon, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                      { value: 'secretaria', label: 'Secretaria (TJSec)', icon: ShieldCheck, color: 'text-rose-600', bg: 'bg-rose-50' },
+                      { value: 'user', label: 'Usuário Comum', icon: UserIcon, color: 'text-gray-600', bg: 'bg-gray-50' }
+                    ].map((role) => (
+                      <button
+                        key={role.value}
+                        onClick={() => handleUpdateRole(userToEditRole.id, role.value)}
+                        disabled={isUpdatingRole}
+                        className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all group ${
+                          userToEditRole.role === role.value 
+                            ? 'border-indigo-500 bg-indigo-50/50' 
+                            : 'border-gray-100 hover:border-indigo-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${role.bg} ${role.color}`}>
+                            <role.icon size={18} />
+                          </div>
+                          <span className={`text-sm font-bold ${userToEditRole.role === role.value ? 'text-indigo-700' : 'text-gray-700'}`}>
+                            {role.label}
+                          </span>
+                        </div>
+                        {userToEditRole.role === role.value && (
+                          <div className="w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center text-white">
+                            <Check size={12} strokeWidth={4} />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setUserToEditRole(null)}
+                  className="w-full py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
               </div>
             </motion.div>
           </motion.div>

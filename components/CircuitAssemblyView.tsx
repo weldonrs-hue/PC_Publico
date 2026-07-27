@@ -836,21 +836,21 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       `}</style>
 
       {/* Screen Header (no-print) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 no-print">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div className="flex items-center gap-4">
-          <button onClick={handleBackClick} className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200">
-            <ChevronLeft size={28} strokeWidth={3} />
+          <button onClick={handleBackClick} className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200">
+            <ChevronLeft size={22} strokeWidth={3} />
           </button>
           <div className="flex flex-col">
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-xl font-bold text-gray-800 leading-tight">
               {type === 'supt' ? 'CAco' : 'CAbr'} {selectedYear}
             </h2>
-            <div className="flex gap-2 mt-1">
+            <div className="flex gap-2 mt-0.5">
               {(['2025-2026', '2026-2027'] as const).map((year) => (
                 <button
                   key={year}
                   onClick={() => handleYearChange(year)}
-                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
+                  className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${
                     selectedYear === year 
                       ? 'bg-[#512da8] text-white border-[#512da8]' 
                       : 'bg-white text-gray-400 border-gray-200 hover:border-[#512da8] hover:text-[#512da8]'
@@ -862,16 +862,16 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {hasChanges && !isGuest && (
-            <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-full shadow-lg">
-              {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-              <span className="text-xs font-bold uppercase">Salvar</span>
+            <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-lg shadow-md">
+              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              <span className="text-[10px] font-bold uppercase">Salvar</span>
             </button>
           )}
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 rounded-full shadow-md border border-gray-200">
-            <Printer size={20} />
-            <span className="text-xs font-bold uppercase">Imprimir</span>
+          <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-gray-600 rounded-lg shadow-sm border border-gray-200">
+            <Printer size={16} />
+            <span className="text-[10px] font-bold uppercase">Imprimir</span>
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 {
   "name": "ProgCir - Programador de Atividades do Circuito",
-  "description": "Sistema de gestão e programação das atividades do circuito, agora com suporte para aplicativo desktop Windows via Tauri.",
+  "description": "Sistema de gestão e programação das atividades do circuito, com controle de usuários e suporte para aplicativo desktop Windows via Tauri.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -283,12 +283,18 @@ export default function Home() {
         const hasPending = !snap.empty;
         const qPendingCongressSnap = onSnapshot(qPendingCongress, (congressSnap) => {
           setHasPendingInvites(hasPending || !congressSnap.empty);
+        }, (error) => {
+          console.warn('Home: Error listening to pending congress invites:', error);
         });
         return () => qPendingCongressSnap();
+      }, (error) => {
+        console.warn('Home: Error listening to pending pioneer invites:', error);
       });
 
       const unsubAcceptedCongress = onSnapshot(qAcceptedCongress, (snap) => {
         setAcceptedCongressInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }, (error) => {
+        console.warn('Home: Error listening to accepted congress invites:', error);
       });
 
       return () => {

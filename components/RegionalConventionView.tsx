@@ -804,25 +804,25 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
       `}</style>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 no-print">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div className="flex items-center gap-4">
           <button 
             onClick={handleBackClick}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
+            className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
             title="Voltar"
           >
-            <ChevronLeft size={28} strokeWidth={3} />
+            <ChevronLeft size={22} strokeWidth={3} />
           </button>
           <div className="min-w-0">
-            <h2 className="text-2xl font-bold text-gray-800">
-              Congresso Regional 2026 {isGuest && <span className="text-violet-500 text-sm font-black ml-2 bg-violet-50 px-3 py-1 rounded-full uppercase">Modo Assistente</span>}
+            <h2 className="text-xl font-bold text-gray-800 leading-tight">
+              Congresso Regional 2026 {isGuest && <span className="text-violet-500 text-[10px] font-black ml-2 bg-violet-50 px-2 py-0.5 rounded-full uppercase">Assistente</span>}
             </h2>
-            <div className="flex items-center gap-4 mt-1 overflow-x-auto scrollbar-hide pb-1">
+            <div className="flex items-center gap-3 mt-0.5 overflow-x-auto scrollbar-hide pb-0.5">
               {regionalConventionProgram.map((day, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleDayChange(idx)}
-                  className={`text-sm font-bold transition-all pb-1 border-b-2 whitespace-nowrap shrink-0 ${
+                  className={`text-xs font-bold transition-all pb-0.5 border-b-2 whitespace-nowrap shrink-0 ${
                     selectedDayIndex === idx 
                       ? 'border-current' 
                       : 'text-gray-400 border-transparent hover:text-gray-600'
@@ -836,31 +836,31 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
           </div>
         </div>
 
-        <div className="flex items-center gap-4 self-start sm:self-center">
+        <div className="flex items-center gap-3 self-start sm:self-center">
           {hasChanges && !isGuest && (
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 overflow-hidden whitespace-nowrap pl-[7px] hover:pl-4 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-lg shadow-md shadow-emerald-500/10 transition-all disabled:opacity-50"
               title="Salvar Alterações"
             >
-              {isSaving ? <Loader2 size={24} className="animate-spin shrink-0" /> : <Save size={24} className="shrink-0" />}
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Salvar</span>
+              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              <span className="font-black text-[10px] uppercase tracking-widest">Salvar</span>
             </button>
           )}
           {hasChanges && isGuest && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100 shadow-sm">
-              <AlertTriangle size={14} />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-lg text-[8px] font-black uppercase tracking-widest border border-amber-100">
+              <AlertTriangle size={12} />
               Apenas Visualização
             </div>
           )}
           <button
             onClick={handlePrint}
-            className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-white text-gray-600 shadow-md border border-gray-200 overflow-hidden whitespace-nowrap pl-[7px] hover:pl-4"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-gray-600 rounded-lg shadow-sm border border-gray-200 transition-all"
             title="Imprimir"
           >
-            <Printer size={24} className="shrink-0" />
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Imprimir</span>
+            <Printer size={16} />
+            <span className="font-black text-[10px] uppercase tracking-widest">Imprimir</span>
           </button>
         </div>
       </div>
