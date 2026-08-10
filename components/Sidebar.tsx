@@ -155,7 +155,7 @@ export default function Sidebar({
     }
   };
 
-  const isAdminUser = user?.role === 'admin' || user?.usuario === '2283701' || user?.email === 'weldonrs@gmail.com';
+  const isAdminUser = user?.role === 'admin' || user?.usuario === '2283701' || user?.email === 'weldonrs@gmail.com' || user?.email === '2283701@progcir.app' || user?.email === '2283701@procir.app' || user?.email === '2283701@tjsec.app';
   
   const menuItems = navItems.filter(item => {
     const role = personalData?.role || 'viajante';

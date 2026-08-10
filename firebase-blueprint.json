@@ -145,7 +145,8 @@
       "type": "object",
       "properties": {
         "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "user"] },
+        "usuario": { "type": "string", "description": "Numeric identifier extracted from email" },
+        "role": { "type": "string", "enum": ["admin", "user", "secretaria"] },
         "photoURL": { "type": "string", "description": "Base64 encoded profile picture" }
       },
       "required": ["email", "role"]

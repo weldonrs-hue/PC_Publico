@@ -8,52 +8,121 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isSignedIn() && (
+        request.auth.uid == userId ||
+        (exists(/databases/$(database)/documents/personal_data/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/personal_data/$(request.auth.uid)).data.numeroPessoal == userId)
+      );
+    }
+
+    function isTjSec() {
+      return isSignedIn() && 
+             request.auth.token.email != null && 
+             request.auth.token.email.lower().endsWith('@tjsec.app');
+    }
+
+    function isProgCir() {
+      return isSignedIn() && 
+             request.auth.token.email != null && 
+             (request.auth.token.email.lower().endsWith('@progcir.app') || 
+              request.auth.token.email.lower().endsWith('@procir.app') || 
+              request.auth.token.email.lower().endsWith('@progcir.com'));
     }
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email.lower() in [
+        (request.auth.token.email != null && request.auth.token.email.lower() in [
           'weldonrs@gmail.com',
           '2283701@progcir.app',
           '2283701@progcir.com',
-          '2283701@gmail.com'
-        ] || 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          '2283701@procir.app',
+          '2283701@procir.com',
+          '2283701@gmail.com',
+          '2283701@tjsec.app'
+        ]) || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isSecretaria() {
+      return isSignedIn() && (
+        isTjSec() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'secretaria')
       );
     }
 
     // Regras Específicas
     
     match /users/{id} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || isTjSec() || isProgCir() || isSecretaria();
       allow write: if isAdmin() || isOwner(id);
     }
 
     match /personal_data/{id} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || isTjSec() || isProgCir() || isSecretaria();
       allow create, update: if isAdmin() || isOwner(id) || (isSignedIn() && request.resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
     }
 
     match /regional_convention_invitations/{id} {
-      allow read: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.collaboratorId == request.auth.uid || isAdmin());
-      allow write: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (isAdmin() || resource.data.ownerId == request.auth.uid || resource.data.collaboratorId == request.auth.uid);
+      allow create, update: if isSignedIn() && (isAdmin() || request.resource.data.ownerId == request.auth.uid);
+      allow delete: if isSignedIn() && (isAdmin() || resource.data.ownerId == request.auth.uid);
     }
 
     match /congregations/{id} {
-      allow read, write: if isSignedIn() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid || !('userId' in request.resource.data));
+      allow update, delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
     }
 
     match /substitutes/{id} {
-      allow read, write: if isSignedIn() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid || !('userId' in request.resource.data));
+      allow update, delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
     }
 
     match /itineraries/{id} {
-      allow read, write: if isSignedIn() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid || !('userId' in request.resource.data));
+      allow update, delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
+    }
+
+    match /activity_analysis/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /s302_layouts/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /s303_reports/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /signature_placements/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /service_reports/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /regional_convention_speakers/{id} {
+      allow read, write: if isSignedIn();
     }
 
     match /pioneer_school_info/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /pioneer_school_students/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /pioneer_school_workshops/{id} {
       allow read, write: if isSignedIn();
     }
 
@@ -70,8 +139,9 @@ service cloud.firestore {
     }
 
     match /pioneer_school_invitations/{id} {
-      allow read: if isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.collaboratorId == request.auth.uid || isAdmin());
-      allow write: if isSignedIn() && (request.resource.data.ownerId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (isAdmin() || resource.data.ownerId == request.auth.uid || resource.data.collaboratorId == request.auth.uid);
+      allow create, update: if isSignedIn() && (isAdmin() || request.resource.data.ownerId == request.auth.uid);
+      allow delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
     match /config/app_settings {
@@ -86,11 +156,9 @@ service cloud.firestore {
     }
 
     match /weekly_expenses/{id} {
-      allow read, write: if isSignedIn() && (
-        isAdmin() || 
-        (resource.data.userId == request.auth.uid) || 
-        (request.resource.data.userId == request.auth.uid)
-      );
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.userId == request.auth.uid || !('userId' in request.resource.data));
+      allow update, delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || !('userId' in resource.data));
     }
     
     match /timer_broadcasts/{id} {

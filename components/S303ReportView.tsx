@@ -167,14 +167,14 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
     const fetchData = async () => {
       if (!userId) return;
 
-      // Wait for auth.currentUser to be ready and match userId
-      if (!auth.currentUser || auth.currentUser.uid !== userId) {
+      // Wait for auth.currentUser to be ready
+      if (!auth.currentUser) {
         let attempts = 0;
-        while ((!auth.currentUser || auth.currentUser.uid !== userId) && attempts < 20) {
+        while (!auth.currentUser && attempts < 20) {
           await new Promise(resolve => setTimeout(resolve, 100));
           attempts++;
         }
-        if (!auth.currentUser || auth.currentUser.uid !== userId) return;
+        if (!auth.currentUser) return;
       }
 
       try {
@@ -197,7 +197,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const userData = userSnap.data();
-          const adminEmails = ["weldonrs@gmail.com", "2283701@progcir.app", "2283701@progcir.com"];
+          const adminEmails = ["weldonrs@gmail.com", "2283701@progcir.app", "2283701@procir.app", "2283701@progcir.com"];
           const userEmail = userData.email?.toLowerCase();
           setIsAdmin(userData.role === 'admin' || adminEmails.includes(userEmail));
         }

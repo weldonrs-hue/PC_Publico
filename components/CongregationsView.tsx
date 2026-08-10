@@ -98,7 +98,7 @@ export default function CongregationsView({
   }, [initialCongregation]);
 
   useEffect(() => {
-    const q = query(collection(db, 'congregations'), where('userId', '==', userId));
+    const q = collection(db, 'congregations');
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const congsData = snapshot.docs.map(doc => ({

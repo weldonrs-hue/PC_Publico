@@ -29,6 +29,7 @@ import ActivityAnalysisView from './ActivityAnalysisView';
 import S303ReportView from './S303ReportView';
 import AppointmentLetterView from './AppointmentLetterView';
 import S302NoticeView from './S302NoticeView';
+import PublisherSearch from './PublisherSearch';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -315,7 +316,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     if (!userId) return;
 
     // Real-time congregations fetch
-    const congQuery = query(collection(db, 'congregations'), where('userId', '==', userId));
+    const congQuery = collection(db, 'congregations');
     const unsubscribeCongs = onSnapshot(congQuery, (snap) => {
       const congList = snap.docs.map(doc => ({
         id: doc.id,
@@ -336,7 +337,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     });
 
     // Real-time substitutes fetch
-    const subQuery = query(collection(db, 'substitutes'), where('userId', '==', userId));
+    const subQuery = collection(db, 'substitutes');
     const unsubscribeSubs = onSnapshot(subQuery, (snap) => {
       setSubstitutes(snap.docs.map(doc => ({ 
         id: doc.id, 
@@ -468,10 +469,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   }, [userId]);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'itineraries'), 
-      where('userId', '==', userId)
-    );
+    const q = collection(db, 'itineraries');
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const rawItems = snapshot.docs.map(doc => ({
@@ -1523,18 +1521,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           Substituto (se aplicável):
                         </label>
                         <div className="relative">
-                          <input 
-                            list="substitutes-list"
-                            value={editFormData.substituto}
-                            onChange={(e) => setEditFormData({ ...editFormData, substituto: e.target.value })}
+                          <PublisherSearch 
                             placeholder="Digite ou selecione um substituto..."
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                            value={editFormData.substituto || ''}
+                            onChange={(value) => setEditFormData({ ...editFormData, substituto: value })}
                           />
-                          <datalist id="substitutes-list">
-                            {substitutes.map(s => (
-                              <option key={s.id} value={s.nome} />
-                            ))}
-                          </datalist>
                         </div>
                       </div>
                     )}

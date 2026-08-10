@@ -236,6 +236,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         const isAdminEmail = 
           userEmail === 'weldonrs@gmail.com' || 
           userEmail === '2283701@progcir.app' ||
+          userEmail === '2283701@procir.app' ||
           userEmail === '2283701@progcir.com';
         
         const userDocRef = doc(db, 'users', userId);

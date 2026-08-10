@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   RefreshCw,
   ShieldCheck,
+  CheckCircle2,
   User as UserIcon,
   Globe,
   Sparkles,
@@ -79,7 +80,6 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [roleFilter, setRoleFilter] = useState('all');
   const [userToDelete, setUserToDelete] = useState<UserMetadata | null>(null);
   const [userToEditRole, setUserToEditRole] = useState<UserMetadata | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -87,6 +87,66 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'reauth' | 'deleting' | 'success' | 'error'>('idle');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [verifyingAccount, setVerifyingAccount] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<{found: boolean, data?: any, searchedEmail?: string} | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState('');
+
+  const handleVerifyAccount = async () => {
+    if (!verificationEmail.trim()) return;
+    
+    setVerifyingAccount(true);
+    setVerificationResult(null);
+    
+    try {
+      let emailToSearch = verificationEmail.trim().toLowerCase();
+      
+      // If it's just a number, format it
+      if (/^\d{7}$/.test(emailToSearch)) {
+        emailToSearch = `${emailToSearch}@progcir.app`;
+      }
+
+      // Try searching in users collection
+      const q = query(collection(db, 'users'), where('email', '==', emailToSearch));
+      let snapshot = await getDocs(q);
+      
+      // If not found and it was a personal number pattern, try variants
+      if (snapshot.empty && emailToSearch.includes('@')) {
+        const prefix = emailToSearch.split('@')[0];
+        if (/^\d{7}$/.test(prefix)) {
+          const variants = [
+            `${prefix}@procir.app`,
+            `${prefix}@progcir.app`,
+            `${prefix}@progcir.com`,
+            `${prefix}@tjsec.app`
+          ].filter(v => v !== emailToSearch);
+          
+          for (const variant of variants) {
+            const variantQ = query(collection(db, 'users'), where('email', '==', variant));
+            const variantSnapshot = await getDocs(variantQ);
+            if (!variantSnapshot.empty) {
+              snapshot = variantSnapshot;
+              emailToSearch = variant;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!snapshot.empty) {
+        const userData = snapshot.docs[0].data();
+        setVerificationResult({ found: true, data: userData, searchedEmail: emailToSearch });
+      } else {
+        setVerificationResult({ found: false, searchedEmail: emailToSearch });
+      }
+    } catch (error) {
+      console.error('Error verifying account:', error);
+      handleFirestoreError(error, OperationType.GET, 'users_verification');
+      await showAlert('Erro ao verificar conta. Verifique sua conexão.', 'Erro');
+    } finally {
+      setVerifyingAccount(false);
+    }
+  };
+
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserMetadata | 'nome' | 'numeroPessoal'; direction: 'asc' | 'desc' } | null>({ 
     key: 'createdAt', 
     direction: 'desc' 
@@ -127,20 +187,20 @@ export default function UsersView({ onBack }: UsersViewProps) {
         // Use UID as fallback for email if it looks like an email (TJSec pattern)
         const email = userData?.email || pdData?.emailPessoal || pdData?.emailJwpub || (uid.includes('@') ? uid : '');
         const isTjSec = email.toLowerCase().endsWith('@tjsec.app');
+        const isProgCir = email.toLowerCase().endsWith('@progcir.app') || email.toLowerCase().endsWith('@procir.app');
         
-        // If it's a TJSec account, we try to extract the congregation number from the email
-        const tjSecNumber = isTjSec ? email.split('@')[0] : '';
+        // If it's a TJSec or ProgCir account, we try to extract the number from the email
+        const accountNumber = (isTjSec || isProgCir) ? email.split('@')[0] : '';
         
-        // Check if this account should be shown (must exist in Auth/users OR be a TJSec account)
-        // This filters out stale personal_data entries that don't correspond to real users
-        const isRealUser = !!userData || isTjSec;
+        // Check if this account should be shown
+        const isRealUser = !!userData || isTjSec || isProgCir;
 
         return {
           id: uid,
           ...userData,
-          nome: pdData?.nome || userData?.nome || (isTjSec ? `Secretaria ${tjSecNumber}` : (userData?.displayName || (userData?.usuario && userData?.usuario.length > 5 ? userData?.usuario : 'Sem nome'))),
-          role: pdData?.role || userData?.role || (isTjSec ? 'secretaria' : 'user'),
-          numeroPessoal: pdData?.numeroPessoal || userData?.usuario || tjSecNumber || '---',
+          nome: pdData?.nome || userData?.nome || (isTjSec ? `Secretaria ${accountNumber}` : (isProgCir ? `Viajante ${accountNumber}` : (userData?.displayName || (userData?.usuario && userData?.usuario.length > 5 ? userData?.usuario : 'Sem nome')))),
+          role: pdData?.role || userData?.role || (isTjSec ? 'secretaria' : (isProgCir && accountNumber === '2283701' ? 'admin' : 'user')),
+          numeroPessoal: pdData?.numeroPessoal || userData?.usuario || accountNumber || '---',
           photoURL: pdData?.profilePhoto || userData?.photoURL || null,
           isInactive: !!userData?.isInactive,
           email: email,
@@ -219,16 +279,11 @@ export default function UsersView({ onBack }: UsersViewProps) {
     });
   };
 
-  const filteredUsers = getSortedUsers(users.filter(user => {
-    const matchesSearch = 
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    
-    return matchesSearch && matchesRole;
-  }));
+  const filteredUsers = getSortedUsers(users.filter(user => 
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.numeroPessoal?.toLowerCase().includes(searchTerm.toLowerCase())
+  ));
 
   const handleToggleInactive = async (user: UserMetadata) => {
     try {
@@ -412,107 +467,168 @@ export default function UsersView({ onBack }: UsersViewProps) {
           </div>
         </div>
         
-          <div className="flex items-center flex-wrap gap-2">
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#512da8]/10 focus:border-[#512da8] transition-all font-bold text-gray-700"
-            >
-              <option value="all">Todas Categorias</option>
-              <option value="admin">Administradores</option>
-              <option value="viajante">Viajantes</option>
-              <option value="pioneiro_especial">Pioneiros Especiais</option>
-              <option value="pioneiro_regular">Pioneiros Regulares</option>
-              <option value="secretaria">Secretarias (TJSec)</option>
-              <option value="user">Usuários Comuns</option>
-            </select>
+        {/* Tools & Search Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 no-print mt-4">
+          {/* Verification Tool (For TJSec) */}
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+            <h3 className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2">
+              <ShieldCheck size={14} />
+              Verificador de Conta
+            </h3>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Número ou Email..."
+                value={verificationEmail}
+                onChange={(e) => setVerificationEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleVerifyAccount()}
+                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold focus:bg-white outline-none transition-all placeholder:text-gray-300"
+              />
+              <button
+                onClick={handleVerifyAccount}
+                disabled={verifyingAccount || !verificationEmail}
+                className="px-3 bg-[#512da8] text-white rounded-xl hover:bg-[#4527a0] transition-all disabled:opacity-50 flex items-center justify-center shadow-md shadow-[#512da8]/10"
+              >
+                {verifyingAccount ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+              </button>
+            </div>
 
-            <button 
-              onClick={async () => {
-              if (isQuotaExceeded()) {
-                await showAlert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.', 'Aviso de Cota');
-                return;
-              }
-              const confirmMsg = `AVISO DE COTA FIRESTORE:\n\nEsta operação irá comparar e atualizar TODOS os usuários cadastrados. \nDependendo do número de usuários, isso pode consumir centenas de "WRITES" da sua cota diária.\n\nDeseja realmente continuar?`;
-              const confirmed = await showConfirm(confirmMsg, 'Confirmar Sincronização em Lote');
-              if (!confirmed) return;
-              
-              setRefreshing(true);
-              try {
-                const [usersSnapshot, personalDataSnapshot] = await Promise.all([
-                  getDocs(collection(db, 'users')),
-                  getDocs(collection(db, 'personal_data'))
-                ]);
-                
-                const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
-                const batch = writeBatch(db);
-                let count = 0;
-
-                usersSnapshot.docs.forEach(uDoc => {
-                  const uData = uDoc.data();
-                  // Try to find personal data by UID (document ID) or by numeroPessoal
-                  const pd = pdDocs.find(p => p.id === uDoc.id || p.userId === uDoc.id || (uData.usuario && p.numeroPessoal === uData.usuario));
-                  
-                  if (pd && (pd.nome || pd.role)) {
-                    const update: any = {};
-                    if (pd.nome && pd.nome !== uData.nome) update.nome = pd.nome;
-                    if (pd.role && pd.role !== uData.role) update.role = pd.role;
-                    if (pd.profilePhoto && pd.profilePhoto !== uData.photoURL) update.photoURL = pd.profilePhoto;
-
-                    if (Object.keys(update).length > 0) {
-                      batch.update(doc(db, 'users', uDoc.id), update);
-                      count++;
-                    }
-                  }
-                });
-
-                if (count > 0) {
-                  await batch.commit();
-                  await showAlert(`${count} usuários atualizados com sucesso.`, 'Sucesso');
-                } else {
-                  await showAlert('Todos os usuários já estão sincronizados.', 'Aviso');
-                }
-                fetchUsers();
-              } catch (err) {
-                console.error('Error in batch sync:', err);
-                await showAlert('Erro na sincronização em lote. Tente novamente.', 'Erro');
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg border border-indigo-200 text-[10px] font-black transition-all disabled:opacity-50 uppercase tracking-widest"
-            title="Sincronizar nomes e categorias de todos os usuários"
-          >
-            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-            SYNC GERAL
-          </button>
-          <div className="relative flex-1 min-w-[150px] md:w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#512da8]/10 focus:border-[#512da8] transition-all"
-            />
+            <AnimatePresence mode="wait">
+              {verificationResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className={`p-2.5 rounded-xl border ${
+                    verificationResult.found ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'
+                  }`}
+                >
+                  {verificationResult.found ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shrink-0">
+                        <CheckCircle2 size={12} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-emerald-900 truncate leading-none">
+                          {verificationResult.data.usuario || verificationResult.data.nome || 'Localizada'}
+                        </p>
+                        <p className="text-[8px] text-emerald-700/70 truncate">{verificationResult.searchedEmail}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 shrink-0">
+                        <AlertCircle size={12} />
+                      </div>
+                      <p className="text-[9px] text-rose-900 leading-tight">
+                        Não encontrada: <span className="font-bold">{verificationResult.searchedEmail}</span>
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button 
-              onClick={fetchUsers}
+
+          {/* Global Sync */}
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between gap-3">
+            <h3 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+              <RefreshCw size={14} />
+              Sincronização
+            </h3>
+            <button
+              onClick={async () => {
+                if (isQuotaExceeded()) {
+                  await showAlert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.', 'Aviso de Cota');
+                  return;
+                }
+                const confirmMsg = `AVISO DE COTA FIRESTORE:\n\nEsta operação irá comparar e atualizar TODOS os usuários cadastrados. \nDependendo do número de usuários, isso pode consumir centenas de "WRITES" da sua cota diária.\n\nDeseja realmente continuar?`;
+                const confirmed = await showConfirm(confirmMsg, 'Confirmar Sincronização em Lote');
+                if (!confirmed) return;
+                
+                setRefreshing(true);
+                try {
+                  const [usersSnapshot, personalDataSnapshot] = await Promise.all([
+                    getDocs(collection(db, 'users')),
+                    getDocs(collection(db, 'personal_data'))
+                  ]);
+                  
+                  const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
+                  const batch = writeBatch(db);
+                  let count = 0;
+
+                  usersSnapshot.docs.forEach(uDoc => {
+                    const uData = uDoc.data();
+                    const pd = pdDocs.find(p => p.id === uDoc.id || p.userId === uDoc.id || (uData.usuario && p.numeroPessoal === uData.usuario));
+                    
+                    if (pd && (pd.nome || pd.role)) {
+                      const update: any = {};
+                      if (pd.nome && pd.nome !== uData.nome) update.nome = pd.nome;
+                      if (pd.role && pd.role !== uData.role) update.role = pd.role;
+                      if (pd.profilePhoto && pd.profilePhoto !== uData.photoURL) update.photoURL = pd.profilePhoto;
+
+                      if (Object.keys(update).length > 0) {
+                        batch.update(doc(db, 'users', uDoc.id), update);
+                        count++;
+                      }
+                    }
+                  });
+
+                  if (count > 0) {
+                    await batch.commit();
+                    await showAlert(`${count} usuários atualizados com sucesso.`, 'Sucesso');
+                  } else {
+                    await showAlert('Todos os usuários já estão sincronizados.', 'Aviso');
+                  }
+                  fetchUsers();
+                } catch (err) {
+                  console.error('Error in batch sync:', err);
+                  await showAlert('Erro na sincronização em lote. Tente novamente.', 'Erro');
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
               disabled={refreshing}
-              className="p-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 text-gray-500 transition-all disabled:opacity-50"
-              title="Recarregar"
+              className="w-full py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl border border-indigo-200 text-[10px] font-black transition-all disabled:opacity-50 uppercase tracking-widest flex items-center justify-center gap-2"
             >
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
+              Sincronizar Geral
             </button>
-            <button 
-              onClick={onBack}
-              className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg border border-red-200 transition-all flex items-center justify-center shadow-sm active:scale-95 shrink-0"
-              title="Fechar"
-            >
-              <X size={16} strokeWidth={3} />
-            </button>
+          </div>
+
+          {/* Regular Search */}
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+              <Search size={14} />
+              Filtrar Lista
+            </h3>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+              <input
+                type="text"
+                placeholder="Buscar na lista..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#512da8]/10 focus:border-[#512da8] transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 justify-end">
+              <button 
+                onClick={fetchUsers}
+                disabled={refreshing}
+                className="p-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 text-gray-500 transition-all disabled:opacity-50"
+                title="Recarregar"
+              >
+                <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              </button>
+              <button 
+                onClick={onBack}
+                className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg border border-red-200 transition-all flex items-center justify-center shadow-sm active:scale-95 shrink-0"
+                title="Fechar"
+              >
+                <X size={16} strokeWidth={3} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -603,61 +719,61 @@ export default function UsersView({ onBack }: UsersViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100">
+              <tr className="bg-gray-50/50 border-bottom border-gray-100">
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('nome')}
                 >
                   <div className="flex items-center gap-1">
                     Usuário / Nome
                     {sortConfig?.key === 'nome' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={14} className="text-gray-300" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('numeroPessoal')}
                 >
                   <div className="flex items-center justify-center gap-1">
                     ID Pessoal
                     {sortConfig?.key === 'numeroPessoal' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={14} className="text-gray-300" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('createdAt')}
                 >
                   <div className="flex items-center gap-1">
                     Criação
                     {sortConfig?.key === 'createdAt' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={14} className="text-gray-300" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors"
                   onClick={() => handleSort('lastLogin')}
                 >
                   <div className="flex items-center gap-1">
                     Último login
                     {sortConfig?.key === 'lastLogin' ? (
-                      sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                      sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={14} className="text-gray-300" />
                     )}
                   </div>
                 </th>
-                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

@@ -29,6 +29,7 @@ import {
 } from 'firebase/firestore';
 import { useMemo } from 'react';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import PublisherSearch from './PublisherSearch';
 
 interface Congregation {
   id: string;
@@ -66,7 +67,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
 
   useEffect(() => {
     // Listen to substitutes
-    const qSubs = query(collection(db, 'substitutes'), where('userId', '==', userId));
+    const qSubs = collection(db, 'substitutes');
     const unsubscribeSubs = onSnapshot(qSubs, (snapshot) => {
       const subsData = snapshot.docs.map(doc => ({
         ...doc.data(),
@@ -84,7 +85,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
     // Fetch congregations once for the select dropdown
     const fetchCongregations = async () => {
       try {
-        const qCongs = query(collection(db, 'congregations'), where('userId', '==', userId));
+        const qCongs = collection(db, 'congregations');
         const snapshot = await getDocs(qCongs);
         const congsData = snapshot.docs.map(doc => ({
           ...doc.data(),
@@ -101,7 +102,7 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
     // Fetch itineraries once for sorting
     const fetchItineraries = async () => {
       try {
-        const qItin = query(collection(db, 'itineraries'), where('userId', '==', userId));
+        const qItin = collection(db, 'itineraries');
         const snapshot = await getDocs(qItin);
         const itinData = snapshot.docs.map(doc => ({
           ...doc.data(),
@@ -369,12 +370,20 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500 uppercase">Nome Completo</label>
-                  <input 
-                    required
-                    value={formData.nome}
-                    onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500"
+                  <PublisherSearch 
                     placeholder="Nome do Superintendente Substituto"
+                    value={formData.nome}
+                    onChange={(value) => setFormData({...formData, nome: value})}
+                    onSelect={(pub) => {
+                      if (pub.congregacao) {
+                        const cong = congregations.find(c => 
+                          c.nome.toLowerCase() === pub.congregacao?.toLowerCase()
+                        );
+                        if (cong) {
+                          handleCongregationChange(cong.id);
+                        }
+                      }
+                    }}
                   />
                 </div>
 

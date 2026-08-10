@@ -84,7 +84,7 @@ export default function Home() {
   const [showTerms, setShowTerms] = useState(false);
   const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
 
-  const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com';
+  const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com' || user?.email === '2283701@procir.app' || user?.email === '2283701@procir.com';
 
   // Initialize client-side state
   useEffect(() => {
@@ -346,14 +346,20 @@ export default function Home() {
         const isAdminEmail = 
           firebaseUser.email === 'weldonrs@gmail.com' || 
           firebaseUser.email === '2283701@progcir.app' ||
-          firebaseUser.email === '2283701@progcir.com';
+          firebaseUser.email === '2283701@progcir.com' ||
+          firebaseUser.email === '2283701@procir.app' ||
+          firebaseUser.email === '2283701@procir.com' ||
+          firebaseUser.email === '2283701@tjsec.app';
+
+        const isTjSecEmail = firebaseUser.email?.toLowerCase().endsWith('@tjsec.app');
+        const userIdentifier = firebaseUser.email?.split('@')[0] || firebaseUser.uid;
 
         // Set a basic user state immediately
         const basicUserData = {
           id: firebaseUser.uid,
-          usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+          usuario: firebaseUser.displayName || userIdentifier,
           email: firebaseUser.email,
-          role: isAdminEmail ? 'admin' : 'user',
+          role: isAdminEmail ? 'admin' : (isTjSecEmail ? 'secretaria' : 'user'),
           photoURL: firebaseUser.photoURL || null,
           migrationCompleted: true,
           itinerariesInitialized: true
@@ -378,7 +384,8 @@ export default function Home() {
              if (!userDoc.exists()) {
                await setDoc(userDocRef, {
                  email: firebaseUser.email,
-                 role: isAdminEmail ? 'admin' : 'user',
+                 usuario: userIdentifier,
+                 role: isAdminEmail ? 'admin' : (isTjSecEmail ? 'secretaria' : 'user'),
                  photoURL: firebaseUser.photoURL || null,
                  createdAt: new Date().toISOString(),
                  lastLogin: new Date().toISOString(),
@@ -388,6 +395,7 @@ export default function Home() {
                const data = userDoc.data();
                const updates: any = {};
                if (isAdminEmail && data.role !== 'admin') updates.role = 'admin';
+               if (!data.usuario) updates.usuario = userIdentifier;
                updates.lastLogin = new Date().toISOString();
                if (Object.keys(updates).length > 0) {
                  await updateDoc(userDocRef, updates);
@@ -498,7 +506,7 @@ export default function Home() {
     const activeUid = user?.id || auth.currentUser?.uid;
     if (!activeUid || quotaExceeded) return;
 
-    const q = query(collection(db, 'congregations'), where('userId', '==', activeUid));
+    const q = collection(db, 'congregations');
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const congs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCongregations(congs);
@@ -537,23 +545,34 @@ export default function Home() {
           const pdDocRef = doc(db, 'personal_data', activeUid);
           const pdDoc = await getDoc(pdDocRef);
           
+          let data = null;
           if (pdDoc.exists()) {
-            const data = pdDoc.data();
-            setPersonalData(data);
-            sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
+            data = pdDoc.data();
           } else {
-            // Fallback query (only once per session)
-            const fallbackKey = `fallbackDone_${activeUid}`;
-            if (!sessionStorage.getItem(fallbackKey)) {
-              const q = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
-              const snap = await getDocs(q);
-              if (!snap.empty) {
-                const data = snap.docs[0].data();
-                setPersonalData(data);
-                sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
-                sessionStorage.setItem(fallbackKey, 'true');
+            // Fallback: search by userId field (UID)
+            const q = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              data = snap.docs[0].data();
+            } else {
+              // Second Fallback: search by numeroPessoal (derived from email)
+              const emailIdentifier = auth.currentUser?.email?.split('@')[0];
+              const isCorpEmail = auth.currentUser?.email?.includes('@progcir.') || auth.currentUser?.email?.includes('@procir.') || auth.currentUser?.email?.includes('@tjsec.');
+              const personalNumber = isCorpEmail ? emailIdentifier : auth.currentUser?.displayName;
+              
+              if (personalNumber) {
+                const qNum = query(collection(db, 'personal_data'), where('numeroPessoal', '==', personalNumber), limit(1));
+                const snapNum = await getDocs(qNum);
+                if (!snapNum.empty) {
+                  data = snapNum.docs[0].data();
+                }
               }
             }
+          }
+
+          if (data) {
+            setPersonalData(data);
+            sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
           }
         }
 
@@ -577,10 +596,10 @@ export default function Home() {
         if (needsUpdate && isDashboard && !quotaExceeded) {
           console.log(`🚀 [Firestore Fetch] Buscando novas estatísticas para ${activeUid}...`);
           const [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
-            getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
-            getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
-            getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))),
-            getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid)))
+            getDocs(collection(db, 'congregations')),
+            getDocs(collection(db, 'substitutes')),
+            getDocs(collection(db, 'itineraries')),
+            getDocs(collection(db, 'activity_analysis'))
           ]);
 
           let groups = 0;
