@@ -15,6 +15,7 @@ const SubstitutesView = dynamic(() => import('@/components/SubstitutesView'), { 
 const ItinerariesView = dynamic(() => import('@/components/ItinerariesView'), { ssr: false });
 const SettingsView = dynamic(() => import('@/components/SettingsView'), { ssr: false });
 const UsersView = dynamic(() => import('@/components/UsersView'), { ssr: false });
+const TjSecAccountsView = dynamic(() => import('@/components/TjSecAccountsView'), { ssr: false });
 const CircuitStatisticsView = dynamic(() => import('@/components/CircuitStatisticsView'), { ssr: false });
 const SchoolsView = dynamic(() => import('@/components/SchoolsView'), { ssr: false });
 const PioneerSchoolView = dynamic(() => import('@/components/PioneerSchoolView'), { ssr: false });
@@ -74,7 +75,7 @@ export default function Home() {
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
   const [acceptedCongressInvites, setAcceptedCongressInvites] = useState<any[]>([]);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'tjsec_accounts' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const quotaExceededRef = useRef(false);
@@ -84,7 +85,7 @@ export default function Home() {
   const [showTerms, setShowTerms] = useState(false);
   const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
 
-  const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com' || user?.email === '2283701@procir.app' || user?.email === '2283701@procir.com';
+  const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com';
 
   // Initialize client-side state
   useEffect(() => {
@@ -314,7 +315,7 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, dashboard: currentView }));
     } else if (['events', 'regional_convention_program', 'circuit_assembly_supt_program', 'circuit_assembly_branch_program'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, events: currentView }));
-    } else if (['settings', 'users'].includes(currentView)) {
+    } else if (['settings', 'users', 'tjsec_accounts'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
     } else if (['schools', 'pioneer_school'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
@@ -346,20 +347,14 @@ export default function Home() {
         const isAdminEmail = 
           firebaseUser.email === 'weldonrs@gmail.com' || 
           firebaseUser.email === '2283701@progcir.app' ||
-          firebaseUser.email === '2283701@progcir.com' ||
-          firebaseUser.email === '2283701@procir.app' ||
-          firebaseUser.email === '2283701@procir.com' ||
-          firebaseUser.email === '2283701@tjsec.app';
-
-        const isTjSecEmail = firebaseUser.email?.toLowerCase().endsWith('@tjsec.app');
-        const userIdentifier = firebaseUser.email?.split('@')[0] || firebaseUser.uid;
+          firebaseUser.email === '2283701@progcir.com';
 
         // Set a basic user state immediately
         const basicUserData = {
           id: firebaseUser.uid,
-          usuario: firebaseUser.displayName || userIdentifier,
+          usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
           email: firebaseUser.email,
-          role: isAdminEmail ? 'admin' : (isTjSecEmail ? 'secretaria' : 'user'),
+          role: isAdminEmail ? 'admin' : 'user',
           photoURL: firebaseUser.photoURL || null,
           migrationCompleted: true,
           itinerariesInitialized: true
@@ -384,8 +379,7 @@ export default function Home() {
              if (!userDoc.exists()) {
                await setDoc(userDocRef, {
                  email: firebaseUser.email,
-                 usuario: userIdentifier,
-                 role: isAdminEmail ? 'admin' : (isTjSecEmail ? 'secretaria' : 'user'),
+                 role: isAdminEmail ? 'admin' : 'user',
                  photoURL: firebaseUser.photoURL || null,
                  createdAt: new Date().toISOString(),
                  lastLogin: new Date().toISOString(),
@@ -395,7 +389,6 @@ export default function Home() {
                const data = userDoc.data();
                const updates: any = {};
                if (isAdminEmail && data.role !== 'admin') updates.role = 'admin';
-               if (!data.usuario) updates.usuario = userIdentifier;
                updates.lastLogin = new Date().toISOString();
                if (Object.keys(updates).length > 0) {
                  await updateDoc(userDocRef, updates);
@@ -506,7 +499,7 @@ export default function Home() {
     const activeUid = user?.id || auth.currentUser?.uid;
     if (!activeUid || quotaExceeded) return;
 
-    const q = collection(db, 'congregations');
+    const q = query(collection(db, 'congregations'), where('userId', '==', activeUid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const congs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCongregations(congs);
@@ -545,34 +538,23 @@ export default function Home() {
           const pdDocRef = doc(db, 'personal_data', activeUid);
           const pdDoc = await getDoc(pdDocRef);
           
-          let data = null;
           if (pdDoc.exists()) {
-            data = pdDoc.data();
-          } else {
-            // Fallback: search by userId field (UID)
-            const q = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-              data = snap.docs[0].data();
-            } else {
-              // Second Fallback: search by numeroPessoal (derived from email)
-              const emailIdentifier = auth.currentUser?.email?.split('@')[0];
-              const isCorpEmail = auth.currentUser?.email?.includes('@progcir.') || auth.currentUser?.email?.includes('@procir.') || auth.currentUser?.email?.includes('@tjsec.');
-              const personalNumber = isCorpEmail ? emailIdentifier : auth.currentUser?.displayName;
-              
-              if (personalNumber) {
-                const qNum = query(collection(db, 'personal_data'), where('numeroPessoal', '==', personalNumber), limit(1));
-                const snapNum = await getDocs(qNum);
-                if (!snapNum.empty) {
-                  data = snapNum.docs[0].data();
-                }
-              }
-            }
-          }
-
-          if (data) {
+            const data = pdDoc.data();
             setPersonalData(data);
             sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
+          } else {
+            // Fallback query (only once per session)
+            const fallbackKey = `fallbackDone_${activeUid}`;
+            if (!sessionStorage.getItem(fallbackKey)) {
+              const q = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                const data = snap.docs[0].data();
+                setPersonalData(data);
+                sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
+                sessionStorage.setItem(fallbackKey, 'true');
+              }
+            }
           }
         }
 
@@ -596,10 +578,10 @@ export default function Home() {
         if (needsUpdate && isDashboard && !quotaExceeded) {
           console.log(`🚀 [Firestore Fetch] Buscando novas estatísticas para ${activeUid}...`);
           const [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
-            getDocs(collection(db, 'congregations')),
-            getDocs(collection(db, 'substitutes')),
-            getDocs(collection(db, 'itineraries')),
-            getDocs(collection(db, 'activity_analysis'))
+            getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
+            getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
+            getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))),
+            getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid)))
           ]);
 
           let groups = 0;
@@ -740,7 +722,7 @@ export default function Home() {
               }
             } else if (view === 'settings') {
               // If already in a Settings sub-view, reset to main settings
-              if (['settings', 'users'].includes(currentView)) {
+              if (['settings', 'users', 'tjsec_accounts'].includes(currentView)) {
                 changeView('settings');
               } else {
                 // Restore last visited sub-view in Settings
@@ -957,6 +939,12 @@ export default function Home() {
 
           {currentView === 'users' && (
             <UsersView 
+              onBack={() => changeView('settings')} 
+            />
+          )}
+
+          {currentView === 'tjsec_accounts' && (
+            <TjSecAccountsView 
               onBack={() => changeView('settings')} 
             />
           )}

@@ -85,10 +85,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
     const fetchPersonalData = async () => {
       try {
         const currentUser = auth.currentUser;
-        const emailIdentifier = currentUser?.email?.split('@')[0];
-        const accountNumeroPessoal = (currentUser?.email?.includes('@progcir.') || currentUser?.email?.includes('@procir.') || currentUser?.email?.includes('@tjsec.')) 
-          ? emailIdentifier 
-          : (currentUser?.displayName || '');
+        const accountNumeroPessoal = currentUser?.displayName || '';
 
         // Try to get by userId as doc ID first
         const docRef = doc(db, 'personal_data', userId);
@@ -129,13 +126,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           }
 
           const q = query(collection(db, 'personal_data'), where('userId', '==', currentUid), limit(1));
-          let querySnapshot = await getDocs(q);
-          
-          if (querySnapshot.empty && accountNumeroPessoal) {
-            // Fallback: search by personal number if userId field doesn't match
-            const qNum = query(collection(db, 'personal_data'), where('numeroPessoal', '==', accountNumeroPessoal), limit(1));
-            querySnapshot = await getDocs(qNum);
-          }
+          const querySnapshot = await getDocs(q);
           
           if (!querySnapshot.empty) {
             sessionStorage.setItem(`pdMigrationAttempted_${userId}`, 'true');

@@ -60,31 +60,26 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
 
     const formattedUsuario = formData.usuario;
     const emailApp = `${formattedUsuario}@progcir.app`;
-    const emailPro = `${formattedUsuario}@procir.app`;
     const emailCom = `${formattedUsuario}@progcir.com`;
-    const emailSec = `${formattedUsuario}@tjsec.app`;
 
     try {
       if (isLogin) {
         let userCredential;
-        const loginAttempts = [emailApp, emailPro, emailCom, emailSec];
-        let lastError;
-
-        for (const emailToTry of loginAttempts) {
-          try {
-            userCredential = await signInWithEmailAndPassword(auth, emailToTry, formData.senha);
-            if (userCredential) break;
-          } catch (err: any) {
-            lastError = err;
-            if (err.code !== 'auth/user-not-found' && err.code !== 'auth/invalid-credential' && err.code !== 'auth/user-disabled') {
-              throw err;
+        try {
+          // Try with the new domain first
+          userCredential = await signInWithEmailAndPassword(auth, emailApp, formData.senha);
+        } catch (err: any) {
+          // If it fails with user not found or invalid credential, try the old domain
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/user-disabled') {
+            try {
+              userCredential = await signInWithEmailAndPassword(auth, emailCom, formData.senha);
+            } catch (secondErr: any) {
+              // If both fail, throw the second error (or the first one)
+              throw secondErr;
             }
-            // Continue to next domain if user not found or invalid credential
+          } else {
+            throw err;
           }
-        }
-
-        if (!userCredential) {
-          throw lastError || new Error('Usuário não encontrado');
         }
 
         onLoginSuccess({

@@ -8,7 +8,6 @@ import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, de
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useDialog } from '@/hooks/useDialog';
-import PublisherSearch from './PublisherSearch';
 
 interface WeeklyExpensesReceiptProps {
   onBack: () => void;
@@ -512,11 +511,12 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
               </span>
             </div>
             <div className="text-center flex flex-col items-center">
-              <PublisherSearch 
+              <input 
+                type="text"
                 value={checkedBy}
-                onChange={(value) => setCheckedBy(value)}
+                onChange={(e) => setCheckedBy(e.target.value)}
                 placeholder="Nome de quem conferiu"
-                className="w-full print:hidden"
+                className="w-full text-center border-b border-transparent focus:border-gray-200 outline-none text-sm font-medium mb-1 bg-transparent print:hidden"
               />
               <span className="hidden print:block text-sm font-medium mb-1 h-5">
                 {checkedBy}

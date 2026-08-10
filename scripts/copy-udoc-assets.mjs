@@ -15,6 +15,10 @@ function copyDir(src, dest) {
     if (entry.isDirectory()) {
       copyDir(srcPath, destPath);
     } else {
+      // Exclude source maps and declaration files to reduce file count
+      if (entry.name.endsWith('.map') || entry.name.endsWith('.d.ts')) {
+        continue;
+      }
       fs.copyFileSync(srcPath, destPath);
     }
   }

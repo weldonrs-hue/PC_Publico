@@ -122,6 +122,14 @@ const settingsButtons = [
     gradient: 'from-[#4C1D95] to-[#2E1065]'
   },
   {
+    id: 'tjsec_accounts',
+    icon: Landmark,
+    title: 'CONTAS TJSEC',
+    subtitle: 'CONTAS DAS CONGREGAÇÕES',
+    color: '#059669',
+    gradient: 'from-[#059669] to-[#047857]'
+  },
+  {
     id: 'senha',
     icon: Lock,
     title: 'ALTERAR SENHA',
@@ -236,7 +244,6 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         const isAdminEmail = 
           userEmail === 'weldonrs@gmail.com' || 
           userEmail === '2283701@progcir.app' ||
-          userEmail === '2283701@procir.app' ||
           userEmail === '2283701@progcir.com';
         
         const userDocRef = doc(db, 'users', userId);
@@ -359,6 +366,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       handleCreateFolders();
     } else if (id === 'usuarios') {
       onViewChange('users');
+    } else if (id === 'tjsec_accounts') {
+      onViewChange('tjsec_accounts');
     } else if (id === 'senha') {
       setIsChangingPassword(true);
     } else if (id === 'invites') {
@@ -727,7 +736,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {settingsButtons
             .filter(btn => {
-              if (btn.id === 'usuarios' && currentUserRole !== 'admin') return false;
+              if ((btn.id === 'usuarios' || btn.id === 'tjsec_accounts') && currentUserRole !== 'admin') return false;
               
               if (btn.id === 'pioneer_access' || btn.id === 'congress_access') return false;
 

@@ -30,7 +30,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import PSSAssignmentLetters from './PSSAssignmentLetters';
 import PioneerSchoolLetters from './PioneerSchoolLetters';
-import PublisherSearch from './PublisherSearch';
 import { db, auth } from '@/lib/firebase';
 import { 
   collection, 
@@ -1880,20 +1879,22 @@ export default function PioneerSchoolView({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor A</label>
-                  <PublisherSearch
+                  <input
+                    type="text"
                     value={schoolInfo.instrutorA}
-                    onChange={(value) => setSchoolInfo({ ...schoolInfo, instrutorA: value })}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
                     placeholder="Nome do Instrutor A"
-                    className="w-full"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor B</label>
-                  <PublisherSearch
+                  <input
+                    type="text"
                     value={schoolInfo.instrutorB}
-                    onChange={(value) => setSchoolInfo({ ...schoolInfo, instrutorB: value })}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
                     placeholder="Nome do Instrutor B"
-                    className="w-full"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
                   />
                 </div>
               </div>
@@ -2099,19 +2100,13 @@ export default function PioneerSchoolView({
               <form onSubmit={handleSave} className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Nome do Aluno</label>
-                  <PublisherSearch
-                    placeholder="Nome completo"
+                  <input
+                    required
+                    type="text"
                     value={formData.nome}
-                    onChange={(value) => setFormData({ ...formData, nome: value })}
-                    onSelect={(pub) => {
-                      setFormData({
-                        ...formData,
-                        nome: pub.nome,
-                        congregacao: pub.congregacao || formData.congregacao,
-                        circuito: pub.circuito || formData.circuito
-                      });
-                    }}
-                    className="w-full"
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none"
+                    placeholder="Nome completo"
                   />
                 </div>
 

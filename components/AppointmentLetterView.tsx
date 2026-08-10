@@ -23,7 +23,6 @@ import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
 import DraggableSignature from './DraggableSignature';
-import PublisherSearch from './PublisherSearch';
 
 interface AppointmentLetterViewProps {
   userId: string;
@@ -582,12 +581,13 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                 <p className="mb-0.5">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">ancião(s)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.ancianosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] min-h-[1.5rem] w-full flex items-end">
-                      <PublisherSearch 
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.5rem] w-full flex items-end">
+                      <input 
+                        type="text"
                         value={name}
-                        onChange={(value) => updateField('ancianosDesignados', i, value)}
+                        onChange={(e) => updateField('ancianosDesignados', i, e.target.value)}
+                        className="w-full bg-transparent outline-none text-[17px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder=""
-                        className="w-full"
                       />
                     </div>
                   ))}
@@ -598,12 +598,13 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                 <p className="mb-0.5 mt-2">Confirmo que fiz a(s) seguinte(s) designação(ões) de <strong className="font-bold">servo(s) ministerial(is)</strong>:</p>
                 <div className="space-y-0">
                   {letterData.servosDesignados.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] min-h-[1.5rem] w-full flex items-end">
-                      <PublisherSearch 
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.5rem] w-full flex items-end">
+                      <input 
+                        type="text"
                         value={name}
-                        onChange={(value) => updateField('servosDesignados', i, value)}
+                        onChange={(e) => updateField('servosDesignados', i, e.target.value)}
+                        className="w-full bg-transparent outline-none text-[17px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder=""
-                        className="w-full"
                       />
                     </div>
                   ))}
@@ -614,12 +615,13 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                 <p className="mb-0.5 mt-2">Confirmo que <strong className="font-bold">cancelei</strong> o(s) seguinte(s) irmão(s) de servir como ancião ou servo ministerial:</p>
                 <div className="space-y-0">
                   {letterData.irmaosRemovidos.map((name, i) => (
-                    <div key={i} className="border-b border-dotted border-[#bbb] min-h-[1.5rem] w-full flex items-end">
-                      <PublisherSearch 
+                    <div key={i} className="border-b border-dotted border-[#bbb] h-[1.5rem] w-full flex items-end">
+                      <input 
+                        type="text"
                         value={name}
-                        onChange={(value) => updateField('irmaosRemovidos', i, value)}
+                        onChange={(e) => updateField('irmaosRemovidos', i, e.target.value)}
+                        className="w-full bg-transparent outline-none text-[17px] font-bold border-none p-0 h-full placeholder:text-gray-300 print:placeholder:text-transparent"
                         placeholder=""
-                        className="w-full"
                       />
                     </div>
                   ))}

@@ -22,7 +22,6 @@ import { useDialog } from '@/hooks/useDialog';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import PublisherSearch from './PublisherSearch';
 
 interface ActivityAnalysisViewProps {
   userId: string;
@@ -174,21 +173,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
         const identifier = congregationId || congregationName;
         const docId = `${userId}_${identifier}_${visitDate.replace(/\//g, '-')}`;
         const docRef = doc(db, 'activity_analysis', docId);
-        let docSnap = await getDoc(docRef);
-
-        // Fallback: search by personal number if userId field doesn't match
-        if (!docSnap.exists()) {
-          const pdRef = doc(db, 'personal_data', userId);
-          const pdSnap = await getDoc(pdRef);
-          if (pdSnap.exists()) {
-            const num = pdSnap.data().numeroPessoal;
-            if (num && num !== userId) {
-              const fallbackDocId = `${num}_${identifier}_${visitDate.replace(/\//g, '-')}`;
-              const fallbackRef = doc(db, 'activity_analysis', fallbackDocId);
-              docSnap = await getDoc(fallbackRef);
-            }
-          }
-        }
+        const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
           const fetchedData = docSnap.data();
@@ -1152,11 +1137,12 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 {/* Identification */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block">Nome / Identificação</label>
-                  <PublisherSearch 
+                  <input 
+                    type="text"
                     value={pioneerName}
-                    onChange={(value) => setPioneerName(value)}
+                    onChange={(e) => setPioneerName(e.target.value)}
                     placeholder="Ex: João Silva"
-                    className="w-full"
+                    className="w-full p-3 bg-gray-50 border border-[#c7c4d8]/40 rounded-xl font-bold text-gray-800 focus:border-[#3525cd] focus:bg-white outline-none transition-all"
                   />
                 </div>
 
