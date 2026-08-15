@@ -42,7 +42,7 @@ const events = [
     color: '#8B5CF6', // Violet
     gradient: 'from-violet-500 to-purple-600',
     icon: Users,
-    inactive: true
+    inactive: false
   },
 ];
 
@@ -56,6 +56,8 @@ export default function EventsView({ userId, acceptedCongressInvites = [], onBac
       onViewChange('circuit_assembly_supt_program');
     } else if (event.id === 'circuit_assembly_branch') {
       onViewChange('circuit_assembly_branch_program');
+    } else if (event.id === 'special_meeting') {
+      onViewChange('special_pioneer_meeting_program');
     }
   };
 

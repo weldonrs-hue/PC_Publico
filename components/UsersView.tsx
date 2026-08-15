@@ -106,34 +106,27 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
       // Create a set of all unique UIDs. 
       // We prioritize the UID (users document ID or personal_data userId field)
+      // And we explicitly include all IDs from personal_data to capture TJSec and other pre-registered accounts
       const allUids = Array.from(new Set([
         ...usersDocs.map(u => u.id),
-        ...pdDocs.map(p => p.userId).filter(Boolean)
+        ...pdDocs.map(p => p.userId).filter(Boolean),
+        ...pdDocs.map(p => p.id)
       ]));
       
-      // If there are documents in personal_data indexed by Personal Number, we add them as well if they don't have a userId
-      pdDocs.forEach(pd => {
-        if (!pd.userId && pd.id && !allUids.includes(pd.id)) {
-          // Check if this ID looks like a UID or personal number
-          // We add it to ensure we don't miss data
-          allUids.push(pd.id);
-        }
-      });
-
       const usersData = allUids.map(uid => {
         const userData = usersDocs.find(u => u.id === uid);
         const pdData = pdDocs.find(p => p.id === uid || p.userId === uid);
         
         // Use UID as fallback for email if it looks like an email (TJSec pattern)
-        const email = userData?.email || pdData?.emailPessoal || pdData?.emailJwpub || (uid.includes('@') ? uid : '');
-        const isTjSec = email.toLowerCase().endsWith('@tjsec.app');
+        const email = (userData?.email || (userData?.usuario?.includes('@') ? userData.usuario : '') || pdData?.emailPessoal || pdData?.emailJwpub || (uid.includes('@') ? uid : '')).trim();
+        const isTjSec = /@tjsec\.app$/i.test(email) || pdData?.role === 'secretaria' || userData?.role === 'secretaria';
         
-        // If it's a TJSec account, we try to extract the congregation number from the email
-        const tjSecNumber = isTjSec ? email.split('@')[0] : '';
+        // If it's a TJSec account, we try to extract the congregation number from the email or use other fields
+        const tjSecNumber = isTjSec ? (email.includes('@') ? email.split('@')[0] : (pdData?.numeroPessoal || userData?.usuario || '')) : '';
         
-        // Check if this account should be shown (must exist in Auth/users OR be a TJSec account)
-        // This filters out stale personal_data entries that don't correspond to real users
-        const isRealUser = !!userData || isTjSec;
+        // Check if this account should be shown (must exist in Auth/users OR be a TJSec account OR have personal data)
+        // This ensures pre-registered TJSec accounts and users with personal data but no auth record yet are shown
+        const isRealUser = !!userData || isTjSec || !!pdData;
 
         return {
           id: uid,
@@ -148,7 +141,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
         } as UserMetadata;
       });
 
-      // Filter to only show real users (Auth or TJSec)
+      // Filter to only show real users (Auth, TJSec or with Personal Data)
       const filteredRealUsers = usersData.filter(u => (u as any).isRealUser);
 
       // Sort in-memory: newest first, users without date at the end

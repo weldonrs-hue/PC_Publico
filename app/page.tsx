@@ -23,6 +23,7 @@ const CongregationStatisticsView = dynamic(() => import('@/components/Congregati
 const EventsView = dynamic(() => import('@/components/EventsView'), { ssr: false });
 const RegionalConventionView = dynamic(() => import('@/components/RegionalConventionView'), { ssr: false });
 const CircuitAssemblyView = dynamic(() => import('@/components/CircuitAssemblyView'), { ssr: false });
+const SpecialPioneerMeetingView = dynamic(() => import('@/components/SpecialPioneerMeetingView'), { ssr: false });
 const MiscView = dynamic(() => import('@/components/MiscView'), { 
   ssr: false,
   loading: () => (
@@ -42,7 +43,6 @@ const CartasAssembleiasView = dynamic(() => import('@/components/CartasAssemblei
 const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
-const ChatView = dynamic(() => import('@/components/ChatView'), { ssr: false });
 const FloatingStopwatch = dynamic(() => import('@/components/FloatingStopwatch'), { ssr: false });
 const DonationView = dynamic(() => import('@/components/DonationView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
@@ -76,7 +76,6 @@ export default function Home() {
   const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
   const [acceptedCongressInvites, setAcceptedCongressInvites] = useState<any[]>([]);
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'tjsec_accounts' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const quotaExceededRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -203,7 +202,6 @@ export default function Home() {
     allowAssembleiasUploadForAll: boolean;
     allowProgramacoesUploadForAll: boolean;
     allowPSSUploadForAll: boolean;
-    chatEnabledForAll: boolean;
   }>({ 
     reportEnabledForAll: false, 
     congregationImportEnabledForAll: false,
@@ -212,8 +210,7 @@ export default function Home() {
     allowCongressoUploadForAll: false,
     allowAssembleiasUploadForAll: false,
     allowProgramacoesUploadForAll: false,
-    allowPSSUploadForAll: false,
-    chatEnabledForAll: false
+    allowPSSUploadForAll: false
   });
   const [hasGuestInvites, setHasGuestInvites] = useState(false);
   const [hasPendingInvites, setHasPendingInvites] = useState(false);
@@ -281,15 +278,15 @@ export default function Home() {
       });
 
       const unsubPendingPioneer = onSnapshot(qPendingPioneer, (snap) => {
-        const hasPending = !snap.empty;
-        const qPendingCongressSnap = onSnapshot(qPendingCongress, (congressSnap) => {
-          setHasPendingInvites(hasPending || !congressSnap.empty);
-        }, (error) => {
-          console.warn('Home: Error listening to pending congress invites:', error);
-        });
-        return () => qPendingCongressSnap();
+        setHasPendingInvites(prev => !snap.empty || prev);
       }, (error) => {
         console.warn('Home: Error listening to pending pioneer invites:', error);
+      });
+
+      const unsubPendingCongress = onSnapshot(qPendingCongress, (snap) => {
+        setHasPendingInvites(prev => !snap.empty || prev);
+      }, (error) => {
+        console.warn('Home: Error listening to pending congress invites:', error);
       });
 
       const unsubAcceptedCongress = onSnapshot(qAcceptedCongress, (snap) => {
@@ -455,8 +452,7 @@ export default function Home() {
           allowCongressoUploadForAll: !!data.allowCongressoUploadForAll,
           allowAssembleiasUploadForAll: !!data.allowAssembleiasUploadForAll,
           allowProgramacoesUploadForAll: !!data.allowProgramacoesUploadForAll,
-          allowPSSUploadForAll: !!data.allowPSSUploadForAll,
-          chatEnabledForAll: !!data.chatEnabledForAll
+          allowPSSUploadForAll: !!data.allowPSSUploadForAll
         });
       } else {
         console.log('Home: App settings doc not found.');
@@ -470,8 +466,7 @@ export default function Home() {
             allowCongressoUploadForAll: false,
             allowAssembleiasUploadForAll: false,
             allowProgramacoesUploadForAll: false,
-            allowPSSUploadForAll: false,
-            chatEnabledForAll: false
+            allowPSSUploadForAll: false
           }).catch(err => {
             console.error('Home: Failed to init app settings:', err);
           });
@@ -484,8 +479,7 @@ export default function Home() {
           allowCongressoUploadForAll: false,
           allowAssembleiasUploadForAll: false,
           allowProgramacoesUploadForAll: false,
-          allowPSSUploadForAll: false,
-          chatEnabledForAll: false
+          allowPSSUploadForAll: false
         });
       }
     }, (err) => {
@@ -700,9 +694,6 @@ export default function Home() {
           hasGuestInvites={hasGuestInvites}
           hasPendingInvites={hasPendingInvites}
           onBack={() => changeView('dashboard')}
-          onToggleChat={() => setIsChatOpen(!isChatOpen)}
-          isChatOpen={isChatOpen}
-          chatEnabled={appConfig.chatEnabledForAll}
           onViewChange={(view) => {
             if (view === 'dashboard') {
               // If already in a Circuito sub-view, reset to main dashboard
@@ -1036,6 +1027,13 @@ export default function Home() {
             />
           )}
 
+          {currentView === 'special_pioneer_meeting_program' && (
+            <SpecialPioneerMeetingView 
+              userId={user.id}
+              onBack={() => changeView('events')}
+            />
+          )}
+
           {typeof currentView === 'string' && currentView.startsWith('regional_convention_guest') && guestCongressData && (
             <RegionalConventionView 
               userId={guestCongressData.ownerId}
@@ -1181,24 +1179,6 @@ export default function Home() {
           )}
         </div>
 
-
-        {/* Chat Overlay */}
-        <AnimatePresence>
-          {isChatOpen && (
-            <motion.div 
-              initial={{ opacity: 0, y: 100, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 100, scale: 0.95 }}
-              className="fixed bottom-4 right-4 z-[5000] w-[calc(100vw-32px)] sm:w-[450px] h-[600px] max-h-[calc(100vh-100px)] shadow-2xl"
-            >
-              <ChatView 
-                user={user} 
-                personalData={personalData} 
-                onClose={() => setIsChatOpen(false)} 
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Footer */}
         <footer className="mt-auto p-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center text-xs text-gray-400 print:hidden gap-4">

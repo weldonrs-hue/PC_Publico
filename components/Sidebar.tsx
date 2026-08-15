@@ -2,7 +2,7 @@
 // Force rebuild - updated
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList, Mail, MessageSquare, Heart } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Calendar, Shapes, Settings, LogOut, Square, ChevronLeft, ChevronRight, HelpCircle, UserCheck, User, Map, Camera, ClipboardList, Mail, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import ImageCropper from './ImageCropper';
@@ -16,7 +16,6 @@ const navItems = [
   { icon: Calendar, label: 'Eventos', view: 'events' },
   { icon: Mail, label: 'Cartas', view: 'cartas' },
   { icon: Shapes, label: 'Diversos', view: 'misc' },
-  { icon: MessageSquare, label: 'Chat', view: 'chat' },
   { icon: Settings, label: 'Ajustes', view: 'settings' },
 ];
 
@@ -30,9 +29,6 @@ interface SidebarProps {
   onViewChange: (view: any) => void;
   hasGuestInvites?: boolean;
   hasPendingInvites?: boolean;
-  onToggleChat?: () => void;
-  isChatOpen?: boolean;
-  chatEnabled?: boolean;
 }
 
 import Logo from './Logo';
@@ -47,9 +43,6 @@ export default function Sidebar({
   onViewChange,
   hasGuestInvites = false,
   hasPendingInvites = false,
-  onToggleChat,
-  isChatOpen = false,
-  chatEnabled = false
 }: SidebarProps) {
   const navRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,16 +50,6 @@ export default function Sidebar({
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [totalUnreadChatCount, setTotalUnreadChatCount] = useState(0);
-
-  // Listen for unread notification updates
-  useEffect(() => {
-    const handleUnreadUpdate = (e: any) => {
-      setTotalUnreadChatCount(e.detail.count || 0);
-    };
-    window.addEventListener('chat_unread_update', handleUnreadUpdate);
-    return () => window.removeEventListener('chat_unread_update', handleUnreadUpdate);
-  }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -167,8 +150,6 @@ export default function Sidebar({
       if (item.view === 'schools') return hasGuestInvites;
     }
     
-    if (item.view === 'chat' && !chatEnabled && !isAdminUser) return false;
-    
     return true;
   });
 
@@ -231,11 +212,7 @@ export default function Sidebar({
                 onClick={(e) => {
                   e.preventDefault();
                   if (!isDisabled) {
-                    if (item.view === 'chat' && onToggleChat) {
-                      onToggleChat();
-                    } else {
-                      onViewChange(item.view);
-                    }
+                    onViewChange(item.view);
                   }
                 }}
                 className={`
@@ -243,7 +220,7 @@ export default function Sidebar({
                   landscape:justify-start
                   landscape:gap-3 landscape:px-2 lg:landscape:px-4 landscape:py-3 landscape:font-bold
                   portrait:flex-col portrait:justify-center portrait:p-2 portrait:min-w-[55px] md:portrait:min-w-[70px]
-                  ${(isActive(item.view) || (item.view === 'chat' && isChatOpen))
+                  ${(isActive(item.view))
                     ? 'bg-gradient-to-r from-white/15 to-transparent border-l-4 border-[#C084FC] text-white shadow-lg' 
                     : 'text-white/60 hover:text-white hover:bg-white/5 active:scale-95'}
                   ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : ''}
@@ -251,11 +228,6 @@ export default function Sidebar({
                 title={isDisabled ? 'Função em desenvolvimento' : item.label}
               >
                 <item.icon size={20} className="flex-shrink-0" />
-                {item.view === 'chat' && totalUnreadChatCount > 0 && !isChatOpen && (
-                  <span className="absolute landscape:right-4 landscape:top-3 portrait:right-2 portrait:top-2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#4C1D95] animate-pulse">
-                    {totalUnreadChatCount > 99 ? '99+' : totalUnreadChatCount}
-                  </span>
-                )}
                 {item.view === 'settings' && hasPendingInvites && (
                   <span className="absolute landscape:right-4 landscape:top-3 portrait:right-2 portrait:top-2 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#4C1D95] animate-bounce" />
                 )}

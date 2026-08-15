@@ -64,26 +64,40 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
       const usersDocs = usersSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
       const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
-      const allUsers: UserMetadata[] = usersDocs.map(userData => {
-        const pdData = pdDocs.find(p => p.id === userData.id || p.userId === userData.id);
+      // Create a set of all unique IDs from both collections
+      const allUids = Array.from(new Set([
+        ...usersDocs.map(u => u.id),
+        ...pdDocs.map(p => p.userId).filter(Boolean),
+        ...pdDocs.map(p => p.id)
+      ]));
+
+      const allUsers: UserMetadata[] = allUids.map(uid => {
+        const userData = usersDocs.find(u => u.id === uid);
+        const pdData = pdDocs.find(p => p.id === uid || p.userId === uid);
+        
+        const email = (userData?.email || (userData?.usuario?.includes('@') ? userData.usuario : '') || pdData?.emailPessoal || pdData?.emailJwpub || (uid.includes('@') ? uid : '')).trim();
+        const isTjSec = /@tjsec\.app$/i.test(email) || pdData?.role === 'secretaria' || userData?.role === 'secretaria';
+        const tjSecNumber = isTjSec ? (email.includes('@') ? email.split('@')[0] : (pdData?.numeroPessoal || userData?.usuario || '')) : '';
+
         return {
-          id: userData.id,
-          email: userData.email || pdData?.emailPessoal || '',
-          role: pdData?.role || userData.role || 'user',
-          nome: pdData?.nome || userData.nome || userData.displayName || 'Sem nome',
-          numeroPessoal: pdData?.numeroPessoal || userData.usuario || '',
-          photoURL: pdData?.profilePhoto || userData.photoURL || null,
+          id: uid,
+          email: email,
+          role: pdData?.role || userData?.role || (isTjSec ? 'secretaria' : 'user'),
+          nome: pdData?.nome || userData?.nome || (isTjSec ? `Secretaria ${tjSecNumber}` : (userData?.displayName || 'Sem nome')),
+          numeroPessoal: pdData?.numeroPessoal || userData?.usuario || tjSecNumber || '',
+          photoURL: pdData?.profilePhoto || userData?.photoURL || null,
           congregacao: pdData?.congregacao || '',
           circuito: pdData?.circuito || '',
-          isInactive: !!userData.isInactive
+          isInactive: !!userData?.isInactive
         };
       });
 
       // Filter for TJSec accounts
-      const tjSecAccounts = allUsers.filter(u => u.email?.toLowerCase().endsWith('@tjsec.app'));
+      const tjSecAccounts = allUsers.filter(u => u.role === 'secretaria' || (u.email && /@tjsec\.app$/i.test(u.email)));
       
       const groups: CongregationGroup[] = tjSecAccounts.map(tjAcc => {
-        const tjSecNumber = tjAcc.email.split('@')[0];
+        const emailToUse = tjAcc.email || '';
+        const tjSecNumber = emailToUse.includes('@') ? emailToUse.split('@')[0] : (tjAcc.numeroPessoal || '');
         
         // Find related users
         const related = allUsers.filter(u => {

@@ -996,9 +996,9 @@ export default function CongregationsView({
                       <input 
                         required
                         value={formData.numero}
-                        onChange={(e) => setFormData({...formData, numero: e.target.value.replace(/\D/g, '').slice(0, 6)})}
+                        onChange={(e) => setFormData({...formData, numero: e.target.value.replace(/\D/g, '').slice(0, 7)})}
                         className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
-                        placeholder="000000"
+                        placeholder="0000000"
                       />
                     </div>
                     <div className="w-full md:w-[100px] space-y-1">

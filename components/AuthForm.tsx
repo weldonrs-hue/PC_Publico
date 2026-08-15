@@ -50,10 +50,10 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
     setError('');
     setSuccess('');
 
-    // Validate username format: numeric personal number (7 digits)
-    const usernameRegex = /^\d{7}$/;
+    // Validate username format: numeric personal number (7-10 digits)
+    const usernameRegex = /^\d{7,10}$/;
     if (!usernameRegex.test(formData.usuario)) {
-      setError('Formato inválido. Use seu número pessoal de 7 dígitos (ex: 2283701)');
+      setError('Formato inválido. Use seu número pessoal de 7 a 10 dígitos (ex: 2283701)');
       setLoading(false);
       return;
     }

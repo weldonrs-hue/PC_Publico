@@ -68,7 +68,6 @@ interface SettingsViewProps {
     allowAssembleiasUploadForAll: boolean;
     allowProgramacoesUploadForAll: boolean;
     allowPSSUploadForAll: boolean;
-    chatEnabledForAll: boolean;
   };
 }
 
@@ -420,19 +419,6 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       const configRef = doc(db, 'config', 'app_settings');
       await setDoc(configRef, { 
         [field]: !currentValue 
-      }, { merge: true });
-    } catch (err) {
-      console.error('Erro ao atualizar configuração global:', err);
-      await showAlert('Erro ao atualizar configuração. Verifique suas permissões.', 'Erro');
-    }
-  };
-
-  const handleToggleChatVisibility = async () => {
-    if (!isAdmin) return;
-    try {
-      const configRef = doc(db, 'config', 'app_settings');
-      await setDoc(configRef, { 
-        chatEnabledForAll: !appConfig?.chatEnabledForAll 
       }, { merge: true });
     } catch (err) {
       console.error('Erro ao atualizar configuração global:', err);
@@ -817,7 +803,6 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                 { id: 'allowAssembleiasUploadForAll', label: 'Upload Cartas Assembleias', desc: 'Permite que usuários enviem novos templates para Cartas Assembleias. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowAssembleiasUploadForAll },
                 { id: 'allowProgramacoesUploadForAll', label: 'Upload Programações', desc: 'Permite que usuários enviem novos templates para Programações. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowProgramacoesUploadForAll },
                 { id: 'allowPSSUploadForAll', label: 'Upload Workshops PSS', desc: 'Permite que usuários enviem novos templates para Workshops PSS. Enquanto desativado, apenas administradores podem gerenciar templates.', value: (appConfig as any)?.allowPSSUploadForAll },
-                { id: 'chatEnabledForAll', label: 'Chat (Suporte)', desc: 'Ao ativar esta opção, o Chat de Suporte ficará visível e utilizável por todos os usuários do circuito. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleChatVisibility, value: appConfig?.chatEnabledForAll },
               ].map((toggle) => (
                 <div key={toggle.id} className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
                   <div className="flex items-center justify-between gap-4">

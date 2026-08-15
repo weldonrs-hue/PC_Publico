@@ -287,20 +287,6 @@
       },
       "required": ["x", "y", "scale"]
     },
-    "chat_message": {
-      "title": "Chat Message",
-      "description": "A message sent in the internal chat system",
-      "type": "object",
-      "properties": {
-        "senderId": { "type": "string" },
-        "senderName": { "type": "string" },
-        "senderPhoto": { "type": "string" },
-        "text": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "channel": { "type": "string", "description": "Channel ID, 'general' by default" }
-      },
-      "required": ["senderId", "senderName", "text", "timestamp", "channel"]
-    },
     "weekly_expense_receipt": {
       "title": "Weekly Expense Receipt",
       "description": "A financial receipt for weekly expenses",
@@ -352,10 +338,6 @@
     "/timer_broadcasts/{broadcastId}": {
       "schema": "timer_broadcast",
       "description": "Collection of shared timer states"
-    },
-    "/chat_messages/{msgId}": {
-      "schema": "chat_message",
-      "description": "Collection of messages for real-time chat between users"
     },
     "/weekly_expenses/{receiptId}": {
       "schema": "weekly_expense_receipt",
