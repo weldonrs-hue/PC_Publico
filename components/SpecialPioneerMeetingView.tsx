@@ -697,7 +697,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           )}
           <button onClick={generateS302} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-lg shadow-md hover:bg-violet-700 transition-all">
             <FileText size={16} />
-            <span className="text-[10px] font-bold uppercase">S-302</span>
+            <span className="text-[10px] font-bold uppercase">Convite</span>
           </button>
           <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-gray-600 rounded-lg shadow-sm border border-gray-200">
             <Printer size={16} />
