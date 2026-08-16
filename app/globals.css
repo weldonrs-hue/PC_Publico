@@ -167,3 +167,19 @@
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before { content: "Enorme"; }
 .ql-snow .ql-picker.ql-size .ql-picker-label::before,
 .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: "Normal"; }
+
+/* Custom Map Tooltip Styling */
+.leaflet-tooltip {
+  background: white !important;
+  border: 1px solid #fde68a !important;
+  border-radius: 9999px !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  color: #92400e !important;
+  font-weight: 900 !important;
+  font-size: 10px !important;
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: #fde68a !important;
+}

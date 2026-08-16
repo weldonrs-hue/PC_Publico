@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 // CSS is already imported in globals.css
-import { Maximize, Navigation } from 'lucide-react';
+import { Maximize, Navigation, Type } from 'lucide-react';
 
 // Fix for Leaflet marker icons in Next.js
 const DefaultIcon = L.icon({
@@ -57,7 +57,7 @@ const parseGPS = (gpsStr?: string): [number, number] | null => {
 };
 
 // Component to handle map centering and bounds
-function MapControls({ congregations }: { congregations: any[] }) {
+function MapControls({ congregations, showNames, setShowNames }: { congregations: any[], showNames: boolean, setShowNames: (v: boolean) => void }) {
   const map = useMap();
 
   const handleResetView = useCallback(() => {
@@ -97,7 +97,7 @@ function MapControls({ congregations }: { congregations: any[] }) {
 
   return (
     <div className="leaflet-top leaflet-right" style={{ marginTop: '80px', marginRight: '10px' }}>
-      <div className="leaflet-control leaflet-bar">
+      <div className="leaflet-control leaflet-bar flex flex-col gap-2 border-none shadow-none bg-transparent">
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -110,6 +110,21 @@ function MapControls({ congregations }: { congregations: any[] }) {
         >
           <Maximize size={18} />
         </button>
+
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowNames(!showNames);
+          }}
+          className={`w-[34px] h-[34px] flex items-center justify-center transition-all shadow-md border-none rounded-sm ${
+            showNames ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+          title={showNames ? "Ocultar Nomes" : "Mostrar Nomes"}
+          type="button"
+        >
+          <Type size={18} />
+        </button>
       </div>
     </div>
   );
@@ -117,6 +132,7 @@ function MapControls({ congregations }: { congregations: any[] }) {
 
 export default function CongregationsMap({ congregations, onEdit }: CongregationsMapProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const [showNames, setShowNames] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -152,6 +168,11 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
         {validCongregations.map((cong) => {
           return (
             <Marker key={cong.id} position={cong.coords}>
+              {showNames && (
+                <Tooltip permanent direction="top" offset={[0, -32]} opacity={1}>
+                  <span className="font-black uppercase tracking-tight text-[10px] text-amber-900">{cong.nome}</span>
+                </Tooltip>
+              )}
               <Popup>
                 <div className="p-1 space-y-2 min-w-[150px]">
                   <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1">{cong.nome}</h3>
@@ -183,7 +204,7 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
           );
         })}
         
-        <MapControls congregations={validCongregations} />
+        <MapControls congregations={validCongregations} showNames={showNames} setShowNames={setShowNames} />
       </MapContainer>
     </div>
   );

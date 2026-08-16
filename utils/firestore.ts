@@ -56,17 +56,28 @@ export function setQuotaExceededGlobal() {
   localStorage.setItem('firestore_quota_exceeded_date', today);
   // Also set in session for immediate reactive checks if needed
   sessionStorage.setItem('firestore_quota_exceeded', 'true');
+  console.warn('⚠️ Firestore Quota Exceeded flag set in localStorage for today:', today);
 }
 
 export function clearQuotaExceeded() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('firestore_quota_exceeded_date');
   sessionStorage.removeItem('firestore_quota_exceeded');
+  console.log('🔄 Firestore Quota flag cleared manually.');
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: any, operationType: OperationType, path: string | null) {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  const isQuotaError = errorMessage.includes('quota') || errorMessage.includes('resource-exhausted');
+  const errorCode = error?.code || 'unknown';
+  
+  const isQuotaError = 
+    errorCode === 'resource-exhausted' || 
+    errorMessage.toLowerCase().includes('quota') || 
+    errorMessage.toLowerCase().includes('resource-exhausted');
+
+  const isPermissionError = 
+    errorCode === 'permission-denied' || 
+    errorMessage.toLowerCase().includes('permission');
 
   if (isQuotaError) {
     setQuotaExceededGlobal();
@@ -91,14 +102,17 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  
-  // Only throw if it's NOT a quota error, to avoid crashing the app when quota is hit
-  if (!isQuotaError) {
-    throw new Error(JSON.stringify(errInfo));
+  if (isQuotaError) {
+    console.error('🛑 ERRO DE COTA (Firestore):', errorMessage, { errorCode, operationType, path });
+  } else if (isPermissionError) {
+    console.error('🔐 ERRO DE PERMISSÃO (Firestore):', errorMessage, { errorCode, operationType, path });
   } else {
-    // If quota is hit, we just log it and maybe show a warning in the UI
-    console.warn('Firestore Quota Exceeded. Some data may not load correctly.');
+    console.error('❌ Erro no Firestore:', JSON.stringify(errInfo, null, 2));
+  }
+  
+  // Only throw if it's NOT a quota or permission error, to avoid crashing the app
+  if (!isQuotaError && !isPermissionError) {
+    throw new Error(JSON.stringify(errInfo));
   }
 }
 
