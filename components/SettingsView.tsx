@@ -178,6 +178,43 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [showRoleChangeModal, setShowRoleChangeModal] = useState(false);
   const [isShowingPrivacy, setIsShowingPrivacy] = useState(false);
   const [isManagingInvites, setIsManagingInvites] = useState(false);
+  const [isManagingNews, setIsManagingNews] = useState(false);
+  const [newsForm, setNewsForm] = useState({
+    title: '',
+    content: '',
+    version: '',
+    active: false
+  });
+  const [newsLoading, setNewsLoading] = useState(false);
+
+  useEffect(() => {
+    if (appConfig?.whatsNew) {
+      setNewsForm(appConfig.whatsNew);
+    }
+  }, [appConfig?.whatsNew]);
+
+  const handleUpdateNews = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    setNewsLoading(true);
+    try {
+      const configRef = doc(db, 'config', 'app_settings');
+      await setDoc(configRef, { 
+        whatsNew: {
+          ...newsForm,
+          version: newsForm.version || Date.now().toString()
+        }
+      }, { merge: true });
+      await showAlert('Novidades atualizadas com sucesso!', 'Sucesso');
+      setIsManagingNews(false);
+    } catch (err) {
+      console.error('Erro ao atualizar novidades:', err);
+      await showAlert('Erro ao atualizar novidades.', 'Erro');
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
   const [inviteView, setInviteView] = useState<'pioneer' | 'congress'>('pioneer');
   const [pioneerInvites, setPioneerInvites] = useState<any[]>([]);
   const [receivedPioneerInvites, setReceivedPioneerInvites] = useState<any[]>([]);
@@ -794,6 +831,21 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             </div>
 
             <div className="space-y-4">
+              <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 mb-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-gray-900">Gerenciar Novidades</h4>
+                    <p className="text-xs text-gray-500 max-w-md">Configure a mensagem que os usuários verão ao abrir o app pela primeira vez após uma atualização.</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsManagingNews(true)}
+                    className="px-6 py-2 bg-amber-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
+                  >
+                    Configurar
+                  </button>
+                </div>
+              </div>
+
               {[
                 { id: 'reportEnabledForAll', label: 'Relatório de Pregação', desc: 'Ao ativar esta opção, o Relatório de Pregação ficará visível e utilizável por todos os usuários do circuito. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleReportVisibility, value: appConfig?.reportEnabledForAll },
                 { id: 'congregationImportEnabledForAll', label: 'Importação em Massa', desc: 'Ao ativar esta opção, o botão de Importação em Massa na Gestão de Congregações ficará visível e utilizável por todos os usuários. Enquanto desativado, apenas administradores têm acesso.', toggleFn: handleToggleImportVisibility, value: appConfig?.congregationImportEnabledForAll },
@@ -824,6 +876,97 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
           </section>
         )}
       </motion.div>
+      
+      {/* Manage News Modal */}
+      <AnimatePresence>
+        {isManagingNews && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl overflow-hidden"
+            >
+              <div className="bg-amber-600 p-8 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-xl">
+                    <AlertCircle size={24} />
+                  </div>
+                  <h2 className="text-xl font-black uppercase tracking-widest">Configurar Novidades</h2>
+                </div>
+                <button onClick={() => setIsManagingNews(false)} className="hover:bg-white/20 p-2 rounded-full transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateNews} className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Título da Novidade</label>
+                  <input 
+                    type="text" 
+                    value={newsForm.title}
+                    onChange={(e) => setNewsForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Ex: Nova Função Adicionada!"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Conteúdo da Mensagem</label>
+                  <textarea 
+                    value={newsForm.content}
+                    onChange={(e) => setNewsForm(prev => ({ ...prev, content: e.target.value }))}
+                    placeholder="Descreva as novidades aqui..."
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all min-h-[150px] resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Versão / ID Único</label>
+                  <input 
+                    type="text" 
+                    value={newsForm.version}
+                    onChange={(e) => setNewsForm(prev => ({ ...prev, version: e.target.value }))}
+                    placeholder="Ex: v1.1.0 ou reunião-especial"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
+                  />
+                  <p className="text-[9px] text-gray-400 font-bold ml-1 italic">Mude este ID para que a mensagem apareça novamente para quem já viu.</p>
+                </div>
+
+                <div className="flex items-center justify-between bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-900">Mensagem Ativa</p>
+                    <p className="text-[9px] font-bold text-amber-700/60">Define se a mensagem será exibida ou não.</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setNewsForm(prev => ({ ...prev, active: !prev.active }))}
+                    className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${newsForm.active ? 'bg-amber-500' : 'bg-gray-200'}`}
+                  >
+                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${newsForm.active ? 'translate-x-6' : 'translate-x-0'} shadow-sm`} />
+                  </button>
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={newsLoading}
+                  className="w-full py-4 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-500/20 hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  {newsLoading ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+                  Salvar Novidades
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Invites Management Modal */}
       <AnimatePresence>

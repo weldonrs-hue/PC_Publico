@@ -646,6 +646,41 @@ export default function Home() {
     changeView('dashboard');
   };
 
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [newsContent, setNewsContent] = useState<any>(null);
+
+  // Fetch News and Config
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchConfig = async () => {
+      try {
+        const configDoc = await getDoc(doc(db, 'config', 'app_settings'));
+        if (configDoc.exists()) {
+          const configData = configDoc.data();
+          if (configData.whatsNew?.active) {
+            const seenVersion = localStorage.getItem(`seen_news_${configData.whatsNew.version}`);
+            if (!seenVersion) {
+              setNewsContent(configData.whatsNew);
+              setShowWhatsNew(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching config:', error);
+      }
+    };
+
+    fetchConfig();
+  }, [user?.id]);
+
+  const closeNews = () => {
+    if (newsContent?.version) {
+      localStorage.setItem(`seen_news_${newsContent.version}`, 'true');
+    }
+    setShowWhatsNew(false);
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -684,6 +719,60 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen bg-[#f8f9fa] transition-all duration-500 ease-in-out portrait:flex-col landscape:flex-row print:block print:bg-white">
+      {/* Novidades Modal */}
+      <AnimatePresence>
+        {showWhatsNew && newsContent && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[2rem] shadow-2xl max-w-lg w-full overflow-hidden border border-amber-100"
+            >
+              <div className="bg-amber-600 p-8 text-white relative">
+                <div className="absolute top-0 right-0 p-4">
+                  <button 
+                    onClick={closeNews}
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                    <AlertCircle size={32} />
+                  </div>
+                  <h2 className="text-2xl font-black uppercase tracking-widest leading-none">
+                    Novidades!
+                  </h2>
+                </div>
+                <p className="text-amber-100 font-bold uppercase tracking-widest text-[10px]">Confira o que há de novo no app</p>
+              </div>
+              
+              <div className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                    {newsContent.title}
+                  </h3>
+                  <div className="w-12 h-1.5 bg-amber-500 rounded-full" />
+                </div>
+                
+                <p className="text-gray-600 font-bold text-sm leading-relaxed whitespace-pre-wrap">
+                  {newsContent.content}
+                </p>
+
+                <button
+                  onClick={closeNews}
+                  className="w-full py-4 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg hover:bg-amber-700 transition-all active:scale-95"
+                >
+                  Entendido
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="print:hidden">
         <Sidebar 
           onLogout={handleLogout} 

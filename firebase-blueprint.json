@@ -219,7 +219,16 @@
       "description": "Global application feature toggles and settings",
       "type": "object",
       "properties": {
-        "reportEnabledForAll": { "type": "boolean", "description": "Whether the field service report is enabled for all users" }
+        "reportEnabledForAll": { "type": "boolean", "description": "Whether the field service report is enabled for all users" },
+        "whatsNew": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "content": { "type": "string" },
+            "version": { "type": "string", "description": "A unique identifier for this news item" },
+            "active": { "type": "boolean" }
+          }
+        }
       },
       "required": ["reportEnabledForAll"]
     },
