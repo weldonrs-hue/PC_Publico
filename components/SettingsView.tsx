@@ -884,85 +884,87 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl overflow-hidden"
+              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]"
             >
-              <div className="bg-amber-600 p-8 text-white flex items-center justify-between">
+              <div className="bg-amber-600 p-6 sm:p-8 text-white flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="bg-white/20 p-2 rounded-xl">
                     <AlertCircle size={24} />
                   </div>
-                  <h2 className="text-xl font-black uppercase tracking-widest">Configurar Novidades</h2>
+                  <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest">Configurar Novidades</h2>
                 </div>
                 <button onClick={() => setIsManagingNews(false)} className="hover:bg-white/20 p-2 rounded-full transition-colors">
                   <X size={24} />
                 </button>
               </div>
 
-              <form onSubmit={handleUpdateNews} className="p-8 space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Título da Novidade</label>
-                  <input 
-                    type="text" 
-                    value={newsForm.title}
-                    onChange={(e) => setNewsForm(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Ex: Nova Função Adicionada!"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Conteúdo da Mensagem</label>
-                  <textarea 
-                    value={newsForm.content}
-                    onChange={(e) => setNewsForm(prev => ({ ...prev, content: e.target.value }))}
-                    placeholder="Descreva as novidades aqui..."
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all min-h-[150px] resize-none"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Versão / ID Único</label>
-                  <input 
-                    type="text" 
-                    value={newsForm.version}
-                    onChange={(e) => setNewsForm(prev => ({ ...prev, version: e.target.value }))}
-                    placeholder="Ex: v1.1.0 ou reunião-especial"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
-                  />
-                  <p className="text-[9px] text-gray-400 font-bold ml-1 italic">Mude este ID para que a mensagem apareça novamente para quem já viu.</p>
-                </div>
-
-                <div className="flex items-center justify-between bg-amber-50 p-4 rounded-2xl border border-amber-100">
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-900">Mensagem Ativa</p>
-                    <p className="text-[9px] font-bold text-amber-700/60">Define se a mensagem será exibida ou não.</p>
+              <div className="overflow-y-auto custom-scrollbar flex-1">
+                <form onSubmit={handleUpdateNews} className="p-6 sm:p-8 space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Título da Novidade</label>
+                    <input 
+                      type="text" 
+                      value={newsForm.title}
+                      onChange={(e) => setNewsForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Ex: Nova Função Adicionada!"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
+                      required
+                    />
                   </div>
-                  <button 
-                    type="button"
-                    onClick={() => setNewsForm(prev => ({ ...prev, active: !prev.active }))}
-                    className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${newsForm.active ? 'bg-amber-500' : 'bg-gray-200'}`}
-                  >
-                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${newsForm.active ? 'translate-x-6' : 'translate-x-0'} shadow-sm`} />
-                  </button>
-                </div>
 
-                <button 
-                  type="submit"
-                  disabled={newsLoading}
-                  className="w-full py-4 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-500/20 hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2"
-                >
-                  {newsLoading ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-                  Salvar Novidades
-                </button>
-              </form>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Conteúdo da Mensagem</label>
+                    <textarea 
+                      value={newsForm.content}
+                      onChange={(e) => setNewsForm(prev => ({ ...prev, content: e.target.value }))}
+                      placeholder="Descreva as novidades aqui..."
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all min-h-[150px] resize-none"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Versão / ID Único</label>
+                    <input 
+                      type="text" 
+                      value={newsForm.version}
+                      onChange={(e) => setNewsForm(prev => ({ ...prev, version: e.target.value }))}
+                      placeholder="Ex: v1.1.0 ou reunião-especial"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
+                    />
+                    <p className="text-[9px] text-gray-400 font-bold ml-1 italic leading-tight">Mude este ID para que a mensagem apareça novamente para quem já viu.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                    <div className="space-y-0.5 pr-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-900">Mensagem Ativa</p>
+                      <p className="text-[9px] font-bold text-amber-700/60 leading-tight">Define se a mensagem será exibida ou não.</p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setNewsForm(prev => ({ ...prev, active: !prev.active }))}
+                      className={`relative w-12 h-6 rounded-full transition-colors duration-300 flex-shrink-0 ${newsForm.active ? 'bg-amber-500' : 'bg-gray-200'}`}
+                    >
+                      <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${newsForm.active ? 'translate-x-6' : 'translate-x-0'} shadow-sm`} />
+                    </button>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={newsLoading}
+                    className="w-full py-4 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-500/20 hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {newsLoading ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+                    Salvar Novidades
+                  </button>
+                </form>
+              </div>
             </motion.div>
           </motion.div>
         )}
