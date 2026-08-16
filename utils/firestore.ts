@@ -58,6 +58,12 @@ export function setQuotaExceededGlobal() {
   sessionStorage.setItem('firestore_quota_exceeded', 'true');
 }
 
+export function clearQuotaExceeded() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('firestore_quota_exceeded_date');
+  sessionStorage.removeItem('firestore_quota_exceeded');
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const isQuotaError = errorMessage.includes('quota') || errorMessage.includes('resource-exhausted');

@@ -64,7 +64,7 @@ import {
 } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
-import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
+import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal, clearQuotaExceeded } from '@/utils/firestore';
 import { Camera, User, ArrowLeft, AlertCircle, X, Coffee } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
@@ -776,6 +776,16 @@ export default function Home() {
             <div className="flex-1">
               <p className="text-[11px] font-black uppercase tracking-widest leading-none mb-1">Limite de Cota Atingido</p>
               <p className="text-[10px] font-bold text-amber-900/60 leading-tight">O Firestore atingiu o limite de operações diárias. O sistema entrará em modo de economia de dados até amanhã.</p>
+              <button 
+                onClick={() => {
+                  clearQuotaExceeded();
+                  setQuotaExceeded(false);
+                  window.location.reload();
+                }}
+                className="mt-2 px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
+              >
+                Tentar Recarregar Dados
+              </button>
             </div>
             <button 
               onClick={() => setQuotaExceeded(false)}

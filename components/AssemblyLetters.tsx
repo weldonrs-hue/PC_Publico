@@ -485,10 +485,11 @@ export default function AssemblyLetters({
         new Uint8Array(localFileBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
       );
 
+      const templateInfo = ASSEMBLEIA_TEMPLATES.find(t => t.id === selectedTemplate);
       const docId = isGlobal ? selectedTemplate : `${userId}_${selectedTemplate}`;
       
       await setDoc(doc(db, 'document_templates', docId), {
-        name: selectedTemplate,
+        name: templateInfo?.name || selectedTemplate,
         content: base64,
         updatedAt: new Date().toISOString(),
         category: 'assembleias',

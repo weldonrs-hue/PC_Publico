@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Users, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, CheckCircle2, Circle, Coffee, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { useDialog } from '@/hooks/useDialog';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -24,6 +24,7 @@ interface AssemblyDetails {
   rehearsalLocation: string;
   assemblyTheme: string;
   startTime: string;
+  material?: string;
 }
 
 const programsByYear = {
@@ -90,10 +91,10 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
     confirmations: Record<string, boolean>,
     details: AssemblyDetails
   }>>({
-    0: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00' } },
-    1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00' } },
-    2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00' } },
-    3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00' } },
+    0: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00', material: '' } },
+    1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00', material: '' } },
+    2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00', material: '' } },
+    3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: program.theme, startTime: '09:00', material: '' } },
   });
 
   const [initialPartsData, setInitialPartsData] = useState<string>('');
@@ -132,19 +133,12 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       setIsLoading(true);
       try {
         const personalDataRef = collection(db, 'personal_data');
-        const q = query(personalDataRef, where('userId', '==', userId));
-        const querySnapshot = await getDocs(q);
+        const personalDataQuery = query(personalDataRef, where('userId', '==', userId));
+        const personalDataSnapshot = await getDocs(personalDataQuery);
         
-        if (!querySnapshot.empty) {
-          setPersonalData(querySnapshot.docs[0].data());
+        if (!personalDataSnapshot.empty) {
+          setPersonalData(personalDataSnapshot.docs[0].data());
         }
-
-        const templatesSnapshot = await getDocs(collection(db, 'document_templates'));
-        const fetchedTemplates: Record<string, any> = {};
-        templatesSnapshot.forEach((doc) => {
-          fetchedTemplates[doc.id] = doc.data();
-        });
-        setTemplates(fetchedTemplates);
 
         const docId = selectedYear === '2026-2027' ? userId : `${userId}_${selectedYear}`;
         const docRef = doc(db, collectionName, docId);
@@ -152,13 +146,10 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         
         if (docSnap.exists()) {
           const data = docSnap.data();
-          
           if (data.parts) {
-            // New multi-part format
             setPartsData(data.parts);
             setInitialPartsData(JSON.stringify(data.parts));
           } else {
-            // Legacy single-part format migration
             const migratedData = {
               0: { 
                 speakers: data.speakers || {}, 
@@ -189,7 +180,18 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       }
     };
 
+    // Real-time templates listener (matching AssemblyLetters logic)
+    const templatesQuery = query(collection(db, 'document_templates'), where('category', '==', 'assembleias'));
+    const unsubscribeTemplates = onSnapshot(templatesQuery, (snapshot) => {
+      const fetchedTemplates: Record<string, any> = {};
+      snapshot.forEach((doc) => {
+        fetchedTemplates[doc.id] = doc.data();
+      });
+      setTemplates(fetchedTemplates);
+    });
+
     loadData();
+    return () => unsubscribeTemplates();
   }, [userId, selectedYear, program.theme]);
 
   const handleSave = async () => {
@@ -257,11 +259,21 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   };
 
   const generateS302 = async () => {
-    const templateId = 'ass_carta_pioneiros';
-    const template = templates[templateId] || templates[`${userId}_${templateId}`];
+    // Standard ID for pioneer letter template
+    const pioneerId = 'ass_carta_pioneiros';
+    let template = templates[`${userId}_${pioneerId}`] || templates[pioneerId];
+    
+    // Fallback for legacy names if the standard one is not found
+    if (!template) {
+      const legacyIds = ['2026 CA_AOS_PIONEIROS', 'Carta aos pioneiros', 'ass_convite_pioneiros'];
+      for (const id of legacyIds) {
+        template = templates[`${userId}_${id}`] || templates[id];
+        if (template) break;
+      }
+    }
     
     if (!template) {
-      await showAlert(`Template "${templateId}" não encontrado. Por favor, carregue-o em Cartas > Gerenciar com o nome exato "ass_carta_pioneiros".`, 'Aviso');
+      await showAlert(`Template "Carta aos pioneiros" não encontrado. Verifique se carregou o arquivo em Cartas > Gerenciar > Cartas Assembleias (último botão).`, 'Aviso');
       return;
     }
 
@@ -292,24 +304,70 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
           newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          return opening + newText + closing;
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            const tag = p2.toUpperCase();
+            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
+            return `${p1}[${tag}]`;
+          });
+          return `${opening}${newText}${closing}`;
         });
-        xmlResource.node.textContent = xmlContent;
+        zip.file(xmlResource.name, xmlContent);
       });
+
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
+      if (isBase64Image) {
+        const img = new window.Image();
+        const promise = new Promise((resolve) => {
+          img.onload = resolve;
+          img.src = signatureImage;
+        });
+        await promise;
+        const aspectRatio = img.width / img.height;
+        sigHeight = 60;
+        sigWidth = sigHeight * aspectRatio;
+        if (sigWidth > 220) {
+          sigWidth = 220;
+          sigHeight = sigWidth / aspectRatio;
+        }
+      }
 
       const opts: any = {
         centered: false,
         getImage: (tagValue: string) => {
-          const base64 = tagValue.split(',')[1] || tagValue;
-          return Buffer.from(base64, 'base64');
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            const binaryStringArray = window.atob(base64Data);
+            const len = binaryStringArray.length;
+            const bytesArray = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding image:', e);
+            return null;
+          }
         },
-        getSize: () => [150, 60],
+        getSize: () => [sigWidth, sigHeight],
       };
+
+      const now = new Date();
+      const hoje = new Intl.DateTimeFormat('pt-BR', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      }).format(now);
 
       const replacements = {
         'EVENTO': program.title,
         'TEMA': details.assemblyTheme || program.theme,
         'DATA': details.eventDate || '________________',
+        'HOJE': hoje,
+        'data': hoje,
         'LOCAL': details.eventLocation || '________________',
         'DATA_EVENTO': details.eventDate || '________________',
         'LOCAL_EVENTO': details.eventLocation || '________________',
@@ -318,6 +376,9 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         'NOME': personalData?.nome || '________________',
         'FONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
         'TELEFONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
+        'ENSAIOS': details.eventDate || '________________', // For S-302, use event date as default for ENSAIOS
+        'ENDEREÇO': details.eventLocation || '________________', // For S-302, use event location as default for ENDEREÇO
+        'MATERIAL': details.material || '________________',
         'ASSINATURA': signatureImage,
         '%ASSINATURA': signatureImage,
       };
@@ -326,12 +387,31 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         modules: [new ImageModule(opts)],
         paragraphLoop: true,
         linebreaks: true,
+        delimiters: { start: '[', end: ']' }
       });
 
       doc.render(replacements);
       const out = doc.getZip().generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-      const { saveAs } = await import('file-saver');
-      saveAs(out, `S-302_Carta_Pioneiros_${details.eventDate || 'Evento'}.docx`);
+      
+      try {
+        const fileSaver = await import('file-saver');
+        const saveAs = fileSaver.saveAs || (fileSaver as any).default;
+        if (typeof saveAs === 'function') {
+          saveAs(out, `S-312_Carta convite aos pioneiros_${details.eventDate || 'Evento'}.docx`);
+        } else {
+          throw new Error('saveAs is not a function');
+        }
+      } catch (e) {
+        // Fallback to manual download if file-saver fails
+        const url = window.URL.createObjectURL(out);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `S-312_Carta convite aos pioneiros_${details.eventDate || 'Evento'}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
     } catch (error) {
       console.error('Error generating S-302:', error);
       await showAlert('Erro ao gerar o documento. Verifique o template.', 'Erro');
@@ -518,6 +598,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         'LOCAL': details.eventLocation || '________________',
         'DATA_EVENTO': details.eventDate || '________________',
         'LOCAL_EVENTO': details.eventLocation || '________________',
+        'MATERIAL': details.material || '________________',
         'ORADOR': speakerName,
         'TITULO': tituloValue,
         'HORA': itemStartTime,
@@ -779,6 +860,15 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                   <input type="text" placeholder="Data do Ensaio" value={details.rehearsalDate} onChange={e => updateDetails(d => ({ ...d, rehearsalDate: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
                   <input type="text" placeholder="Local do Ensaio" value={details.rehearsalLocation} onChange={e => updateDetails(d => ({ ...d, rehearsalLocation: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
                 </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2 col-span-1 md:col-span-2">
+                <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Material Necessário</label>
+                <textarea 
+                  placeholder="Liste o material necessário para a reunião..." 
+                  value={details.material} 
+                  onChange={e => updateDetails(d => ({ ...d, material: e.target.value }))} 
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold min-h-[100px] resize-none"
+                />
               </div>
             </div>
           </motion.div>
