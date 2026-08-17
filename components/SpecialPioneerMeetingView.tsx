@@ -33,7 +33,7 @@ const programsByYear = {
     year: '2026-2027',
     theme: '“Estabeleça alvos para enriquecer seu ministério!” — Prov. 4:25',
     color: '#8B5CF6', // Violet
-    headerImage: '/s-312.jfif',
+    headerImage: '/S-312.png',
     sessions: [
       {
         period: 'Programa',
@@ -794,7 +794,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           alt="Reunião Especial" 
           fill
           className="object-cover"
-          style={{ objectPosition: 'center 33%' }}
+          style={{ objectPosition: 'center 25%' }}
           priority
           quality={100}
           unoptimized
