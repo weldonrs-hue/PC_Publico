@@ -57,6 +57,9 @@ export function setQuotaExceededGlobal() {
   // Also set in session for immediate reactive checks if needed
   sessionStorage.setItem('firestore_quota_exceeded', 'true');
   console.warn('⚠️ Firestore Quota Exceeded flag set in localStorage for today:', today);
+  
+  // Dispatch a custom event so the UI can react immediately
+  window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { date: today } }));
 }
 
 export function clearQuotaExceeded() {
@@ -64,6 +67,9 @@ export function clearQuotaExceeded() {
   localStorage.removeItem('firestore_quota_exceeded_date');
   sessionStorage.removeItem('firestore_quota_exceeded');
   console.log('🔄 Firestore Quota flag cleared manually.');
+  
+  // Dispatch event to clear UI
+  window.dispatchEvent(new CustomEvent('firestore-quota-cleared'));
 }
 
 export function handleFirestoreError(error: any, operationType: OperationType, path: string | null) {
@@ -73,6 +79,7 @@ export function handleFirestoreError(error: any, operationType: OperationType, p
   const isQuotaError = 
     errorCode === 'resource-exhausted' || 
     errorMessage.toLowerCase().includes('quota') || 
+    errorMessage.toLowerCase().includes('limit exceeded') ||
     errorMessage.toLowerCase().includes('resource-exhausted');
 
   const isPermissionError = 

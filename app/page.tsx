@@ -86,11 +86,29 @@ export default function Home() {
 
   const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com';
 
-  // Initialize client-side state
+  // Initialize client-side state and listen for quota events
   useEffect(() => {
     const isQuota = isQuotaExceeded();
     setQuotaExceeded(isQuota);
     quotaExceededRef.current = isQuota;
+
+    const handleQuotaExceeded = () => {
+      setQuotaExceeded(true);
+      quotaExceededRef.current = true;
+    };
+
+    const handleQuotaCleared = () => {
+      setQuotaExceeded(false);
+      quotaExceededRef.current = false;
+    };
+
+    window.addEventListener('firestore-quota-exceeded', handleQuotaExceeded);
+    window.addEventListener('firestore-quota-cleared', handleQuotaCleared);
+
+    return () => {
+      window.removeEventListener('firestore-quota-exceeded', handleQuotaExceeded);
+      window.removeEventListener('firestore-quota-cleared', handleQuotaCleared);
+    };
   }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -399,23 +417,20 @@ export default function Home() {
           if (error.message?.includes('quota')) setQuotaExceededGlobal();
         }
         
-        // Listener otimizado para o perfil
-        unsubUser = onSnapshot(userDocRef, (userDoc) => {
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUser((prev: any) => ({
-              ...prev,
-              role: isAdminEmail ? 'admin' : (data.role || 'user'),
-              photoURL: data.photoURL || null,
-              migrationCompleted: data.migrationCompleted || false
-            }));
-          }
-        }, (error) => {
-          if (error.message?.includes('quota')) {
-            setQuotaExceeded(true);
-            setQuotaExceededGlobal();
-          }
-        });
+    unsubUser = onSnapshot(userDocRef, (userDoc) => {
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUser((prev: any) => ({
+          ...prev,
+          role: isAdminEmail ? 'admin' : (data.role || 'user'),
+          photoURL: data.photoURL || null,
+          migrationCompleted: data.migrationCompleted || false
+        }));
+      }
+    }, (error) => {
+      handleFirestoreError(error, 'read', `users/${firebaseUser.uid}`);
+      setQuotaExceeded(isQuotaExceeded());
+    });
       } else {
         if (unsubUser) { unsubUser(); unsubUser = null; }
         setUser(null);
@@ -469,7 +484,7 @@ export default function Home() {
             allowProgramacoesUploadForAll: false,
             allowPSSUploadForAll: false
           }).catch(err => {
-            console.error('Home: Failed to init app settings:', err);
+            handleFirestoreError(err, 'write', 'config/app_settings');
           });
         }
         setAppConfig({ 
@@ -484,7 +499,8 @@ export default function Home() {
         });
       }
     }, (err) => {
-      console.warn('Home: Error listening to app settings (likely permissions):', err);
+      handleFirestoreError(err, 'read', 'config/app_settings');
+      setQuotaExceeded(isQuotaExceeded());
     });
 
     return () => unsubConfig();
@@ -499,7 +515,8 @@ export default function Home() {
       const congs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCongregations(congs);
     }, (error) => {
-      console.error('Error listening to congregations:', error);
+      handleFirestoreError(error, 'read', 'congregations');
+      setQuotaExceeded(isQuotaExceeded());
     });
 
     return () => unsubscribe();
@@ -626,8 +643,8 @@ export default function Home() {
         }
 
       } catch (error: any) {
-        console.error('Data loading error:', error);
-        if (error.message?.includes('quota')) setQuotaExceededGlobal();
+        handleFirestoreError(error, 'read', null);
+        setQuotaExceeded(isQuotaExceeded());
       } finally {
         setLoadingPersonalData(false);
       }
@@ -668,7 +685,8 @@ export default function Home() {
           }
         }
       } catch (error) {
-        console.error('Error fetching config:', error);
+        handleFirestoreError(error, 'read', 'config/app_settings');
+        setQuotaExceeded(isQuotaExceeded());
       }
     };
 

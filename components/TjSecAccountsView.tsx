@@ -95,6 +95,9 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
       // Filter for TJSec accounts
       const tjSecAccounts = allUsers.filter(u => u.role === 'secretaria' || (u.email && /@tjsec\.app$/i.test(u.email)));
       
+      // Note: If PROGCIR_TJ_SEC_API is configured, we could potentially fetch 
+      // more detailed or synchronized data from the TJ-Sec API here.
+
       const groups: CongregationGroup[] = tjSecAccounts.map(tjAcc => {
         const emailToUse = tjAcc.email || '';
         const tjSecNumber = emailToUse.includes('@') ? emailToUse.split('@')[0] : (tjAcc.numeroPessoal || '');
