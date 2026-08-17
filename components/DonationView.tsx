@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Copy, Check, Coffee, Rocket, ArrowLeft, ShieldCheck, Zap } from 'lucide-react';
+import { Copy, Check, Coffee, Rocket, ArrowLeft, ShieldCheck, Zap, QrCode as QrIcon } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Pix } from '@/lib/pix-utils';
 
 interface DonationViewProps {
   onBack: () => void;
@@ -10,10 +12,25 @@ interface DonationViewProps {
 
 export default function DonationView({ onBack }: DonationViewProps) {
   const [copied, setCopied] = useState(false);
-  const pixKey = '98987663875'; 
+  const [pixPayload, setPixPayload] = useState('');
+  const pixKey = '+5598987663875';
+  const displayKey = '(98) 98766-3875';
+
+  useEffect(() => {
+    try {
+      const pix = new Pix(
+        pixKey,
+        'Weldon Rodrigues da Silva',
+        'Campina Grande'
+      );
+      setPixPayload(pix.getPayload());
+    } catch (error) {
+      console.error('Error generating PIX payload:', error);
+    }
+  }, []);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(pixKey);
+    navigator.clipboard.writeText(pixPayload || pixKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -64,8 +81,8 @@ export default function DonationView({ onBack }: DonationViewProps) {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">Manutenção do Projeto</h1>
-          <p className="text-gray-500 font-medium">Sobre a infraestrutura técnica do ProgCir</p>
+          <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">Apoio ao Projeto</h1>
+          <p className="text-gray-500 font-medium">Contribua para a manutenção do ProgCir</p>
         </div>
       </div>
 
@@ -97,29 +114,48 @@ export default function DonationView({ onBack }: DonationViewProps) {
                 ))}
               </div>
 
-              <div className="p-6 bg-gray-900 rounded-[2rem] text-white space-y-4 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-black uppercase tracking-wider">Apoio via PIX</h3>
-                    <p className="text-xs text-gray-400">Qualquer valor contribui para estas necessidades técnicas.</p>
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 p-6 bg-gray-900 rounded-[2rem] text-white space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-black uppercase tracking-wider">Apoio via PIX</h3>
+                      <p className="text-xs text-gray-400">Qualquer valor contribui para estas necessidades técnicas.</p>
+                    </div>
+                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                      <Zap className="text-violet-400" />
+                    </div>
                   </div>
-                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                    <Zap className="text-violet-400" />
+
+                  <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between gap-4 border border-white/10">
+                    <code className="text-sm md:text-base font-mono font-bold text-violet-200 break-all">
+                      {displayKey}
+                    </code>
+                    <button 
+                      onClick={handleCopy}
+                      className={`flex-shrink-0 p-3 rounded-xl transition-all ${
+                        copied ? 'bg-emerald-500 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      {copied ? <Check size={20} /> : <Copy size={20} />}
+                    </button>
                   </div>
                 </div>
 
-                <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between gap-4 border border-white/10">
-                  <code className="text-sm md:text-base font-mono font-bold text-violet-200 break-all">
-                    {pixKey}
-                  </code>
-                  <button 
-                    onClick={handleCopy}
-                    className={`flex-shrink-0 p-3 rounded-xl transition-all ${
-                      copied ? 'bg-emerald-500 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    {copied ? <Check size={20} /> : <Copy size={20} />}
-                  </button>
+                <div className="md:w-48 bg-white border-2 border-dashed border-gray-200 rounded-[2rem] flex flex-col items-center justify-center p-6 space-y-3 group hover:border-violet-300 transition-colors">
+                  <div className="w-32 h-32 bg-gray-50 rounded-2xl flex items-center justify-center group-hover:bg-violet-50 transition-colors p-3 overflow-hidden">
+                    {pixPayload ? (
+                      <QRCodeSVG 
+                        value={pixPayload} 
+                        size={112} 
+                        level="M"
+                        includeMargin={false}
+                        className="w-full h-full"
+                      />
+                    ) : (
+                      <QrIcon size={48} className="text-gray-300 group-hover:text-violet-400 transition-colors" />
+                    )}
+                  </div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Escaneie o<br/>QR Code PIX</p>
                 </div>
               </div>
             </div>

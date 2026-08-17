@@ -155,7 +155,7 @@ const settingsButtons = [
   {
     id: 'donations',
     icon: Coffee,
-    title: 'DOAÇÕES',
+    title: 'APOIO',
     subtitle: 'APOIE O PROJETO',
     color: '#8b5cf6',
     gradient: 'from-[#8b5cf6] to-[#7c3aed]'

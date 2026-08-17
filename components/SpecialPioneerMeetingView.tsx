@@ -764,7 +764,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                   : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              Parte {part + 1}
+              Parte {['A', 'B', 'C', 'D'][part]}
             </button>
           ))}
         </div>

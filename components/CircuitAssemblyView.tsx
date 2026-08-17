@@ -19,6 +19,20 @@ interface CircuitAssemblyViewProps {
   type: 'supt' | 'branch';
 }
 
+interface AssemblyDetails {
+  eventDate: string;
+  eventLocation: string;
+  rehearsalDate: string;
+  rehearsalLocation: string;
+  assemblyTheme: string;
+}
+
+interface PartData {
+  speakers: Record<string, string>;
+  confirmations: Record<string, boolean>;
+  details: AssemblyDetails;
+}
+
 const programsByYear = {
   '2026-2027': {
     supt: {
@@ -250,39 +264,36 @@ const programsByYear = {
 
 export default function CircuitAssemblyView({ userId, isGuest = false, onBack, type }: CircuitAssemblyViewProps) {
   const [selectedYear, setSelectedYear] = useState<'2025-2026' | '2026-2027'>('2026-2027');
+  const [selectedPart, setSelectedPart] = useState<number>(0);
   const assemblyProgram = programsByYear[selectedYear][type];
   const { showAlert } = useDialog();
-  const [speakers, setSpeakers] = useState<Record<string, string>>({});
-  const [initialSpeakers, setInitialSpeakers] = useState<Record<string, string>>({});
-  const [confirmedSpeakers, setConfirmedSpeakers] = useState<Record<string, boolean>>({});
-  const [initialConfirmedSpeakers, setInitialConfirmedSpeakers] = useState<Record<string, boolean>>({});
+
+  const [partsData, setPartsData] = useState<Record<number, PartData>>({
+    0: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+    1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+    2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+    3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+  });
+
+  const [initialPartsData, setInitialPartsData] = useState<string>('');
   const [personalData, setPersonalData] = useState<any>(null);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string }>>({});
-  const [details, setDetails] = useState<AssemblyDetails>({
-    eventDate: '',
-    eventLocation: '',
-    rehearsalDate: '',
-    rehearsalLocation: '',
-    assemblyTheme: assemblyProgram.theme,
-  });
-  const [initialDetails, setInitialDetails] = useState<AssemblyDetails>({
-    eventDate: '',
-    eventLocation: '',
-    rehearsalDate: '',
-    rehearsalLocation: '',
-    assemblyTheme: assemblyProgram.theme,
-  });
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
+  // Active part data
+  const currentPart = partsData[selectedPart];
+  const speakers = currentPart.speakers;
+  const confirmedSpeakers = currentPart.confirmations;
+  const details = currentPart.details;
+
   const collectionName = type === 'supt' ? 'circuit_assembly_supt_speakers' : 'circuit_assembly_branch_speakers';
 
-  const hasChanges = JSON.stringify(speakers) !== JSON.stringify(initialSpeakers) || 
-                     JSON.stringify(confirmedSpeakers) !== JSON.stringify(initialConfirmedSpeakers) ||
-                     JSON.stringify(details) !== JSON.stringify(initialDetails);
+  const hasChanges = initialPartsData !== JSON.stringify(partsData);
 
   useEffect(() => {
     const loadData = async () => {
@@ -310,44 +321,47 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         });
         setTemplates(fetchedTemplates);
 
-        // Try to load year-specific data first
+        // Try to load year-specific data
         const docId = selectedYear === '2026-2027' ? userId : `${userId}_${selectedYear}`;
         let docRef = doc(db, collectionName, docId);
         let docSnap = await getDoc(docRef);
         
-        // Fallback for 2026-2027: if new year-specific doc doesn't exist, try old docId (userId)
-        // Actually, if selectedYear is 2026-2027, docId is already userId.
-        
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setSpeakers(data.speakers || {});
-          setInitialSpeakers(data.speakers || {});
-          setConfirmedSpeakers(data.confirmations || {});
-          setInitialConfirmedSpeakers(data.confirmations || {});
-          const loadedDetails = {
-            eventDate: data.details?.eventDate || '',
-            eventLocation: data.details?.eventLocation || '',
-            rehearsalDate: data.details?.rehearsalDate || '',
-            rehearsalLocation: data.details?.rehearsalLocation || '',
-            assemblyTheme: data.details?.assemblyTheme || assemblyProgram.theme,
-          };
-          setDetails(loadedDetails);
-          setInitialDetails(loadedDetails);
+          if (data.parts) {
+            setPartsData(data.parts);
+            setInitialPartsData(JSON.stringify(data.parts));
+          } else {
+            // Migration from old format
+            const migratedData = {
+              0: { 
+                speakers: data.speakers || {}, 
+                confirmations: data.confirmations || {}, 
+                details: {
+                  eventDate: data.details?.eventDate || '',
+                  eventLocation: data.details?.eventLocation || '',
+                  rehearsalDate: data.details?.rehearsalDate || '',
+                  rehearsalLocation: data.details?.rehearsalLocation || '',
+                  assemblyTheme: data.details?.assemblyTheme || assemblyProgram.theme,
+                }
+              },
+              1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+              2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+              3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+            };
+            setPartsData(migratedData);
+            setInitialPartsData(JSON.stringify(migratedData));
+          }
         } else {
-          // Reset data for new year
-          setSpeakers({});
-          setInitialSpeakers({});
-          setConfirmedSpeakers({});
-          setInitialConfirmedSpeakers({});
-          const defaultDetails = {
-            eventDate: '',
-            eventLocation: '',
-            rehearsalDate: '',
-            rehearsalLocation: '',
-            assemblyTheme: assemblyProgram.theme,
+          // Reset data for new year or missing doc
+          const defaultData = {
+            0: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+            1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+            2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+            3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
           };
-          setDetails(defaultDetails);
-          setInitialDetails(defaultDetails);
+          setPartsData(defaultData);
+          setInitialPartsData(JSON.stringify(defaultData));
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -365,18 +379,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const docId = selectedYear === '2026-2027' ? userId : `${userId}_${selectedYear}`;
       const docRef = doc(db, collectionName, docId);
       await setDoc(docRef, { 
-        speakers,
-        confirmations: confirmedSpeakers,
-        details,
+        parts: partsData,
         updatedAt: new Date().toISOString(),
         year: selectedYear
       }, { merge: true });
-      setInitialSpeakers(speakers);
-      setInitialConfirmedSpeakers(confirmedSpeakers);
-      setInitialDetails(details);
+      setInitialPartsData(JSON.stringify(partsData));
       return true;
     } catch (error) {
-      console.error('Error saving speakers:', error);
+      console.error('Error saving data:', error);
       return false;
     } finally {
       setIsSaving(false);
@@ -402,11 +412,23 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   };
 
   const handleSpeakerChange = (id: string, value: string) => {
-    setSpeakers(prev => ({ ...prev, [id]: value }));
+    setPartsData(prev => ({
+      ...prev,
+      [selectedPart]: {
+        ...prev[selectedPart],
+        speakers: { ...prev[selectedPart].speakers, [id]: value }
+      }
+    }));
   };
 
   const handleConfirmationToggle = (id: string) => {
-    setConfirmedSpeakers(prev => ({ ...prev, [id]: !prev[id] }));
+    setPartsData(prev => ({
+      ...prev,
+      [selectedPart]: {
+        ...prev[selectedPart],
+        confirmations: { ...prev[selectedPart].confirmations, [id]: !prev[selectedPart].confirmations[id] }
+      }
+    }));
   };
 
   const generateDocument = async (item: any, type: 'docx' | 'pdf') => {
@@ -862,6 +884,24 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             </div>
           </div>
         </div>
+
+        {/* Part Selector */}
+        <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+          {[0, 1, 2, 3].map((part) => (
+            <button
+              key={part}
+              onClick={() => setSelectedPart(part)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                selectedPart === part 
+                  ? 'bg-white text-violet-600 shadow-sm' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              Parte {['A', 'B', 'C', 'D'][part]}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-3">
           {hasChanges && !isGuest && (
             <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-lg shadow-md">
@@ -932,15 +972,15 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Evento</label>
-                  <input type="text" placeholder="Data do Evento" value={details.eventDate} onChange={e => setDetails(d => ({ ...d, eventDate: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
-                  <input type="text" placeholder="Local" value={details.eventLocation} onChange={e => setDetails(d => ({ ...d, eventLocation: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
+                  <input type="text" placeholder="Data do Evento" value={details.eventDate} onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, eventDate: e.target.value } } }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
+                  <input type="text" placeholder="Local" value={details.eventLocation} onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, eventLocation: e.target.value } } }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
                 </div>
               </div>
               <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Ensaio</label>
-                  <input type="text" placeholder="Data do Ensaio" value={details.rehearsalDate} onChange={e => setDetails(d => ({ ...d, rehearsalDate: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
-                  <input type="text" placeholder="Local do Ensaio" value={details.rehearsalLocation} onChange={e => setDetails(d => ({ ...d, rehearsalLocation: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
+                  <input type="text" placeholder="Data do Ensaio" value={details.rehearsalDate} onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, rehearsalDate: e.target.value } } }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
+                  <input type="text" placeholder="Local do Ensaio" value={details.rehearsalLocation} onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, rehearsalLocation: e.target.value } } }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold" />
                 </div>
               </div>
             </div>
