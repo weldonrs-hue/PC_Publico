@@ -214,6 +214,12 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [editFormData, setEditFormData] = useState<Partial<ItineraryItem>>(defaultEditFormData);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
+  const isAdding = useMemo(() => {
+    if (isAddingNew) return true;
+    if (!selectedItem) return false;
+    return !selectedItem.evento && !selectedItem.congregacao && !selectedItem.outroEvento;
+  }, [isAddingNew, selectedItem]);
+
   const calculateDate = (mondayStr: string, dayName: string) => {
     try {
       const [day, month, year] = mondayStr.split('/').map(Number);
@@ -858,6 +864,38 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
   const handleFormSave = async () => {
     if (selectedItem && selectedItem.id) {
+      // Validation
+      const { evento, congregacao, congregacaoId, grupo, outroEvento } = editFormData;
+      
+      let isValid = true;
+      let message = '';
+
+      if (evento === 'Visita a Congregação') {
+        if (!congregacao && !congregacaoId) {
+          isValid = false;
+          message = 'Por favor, selecione uma congregação para este evento.';
+        }
+      } else if (evento === 'Visita a Grupo') {
+        if (!grupo) {
+          isValid = false;
+          message = 'Por favor, informe o nome do grupo.';
+        }
+        if (!congregacao && !congregacaoId) {
+          isValid = false;
+          message = 'Por favor, selecione a congregação vinculada a este grupo.';
+        }
+      } else if (evento === 'Outros Eventos') {
+        if (!outroEvento) {
+          isValid = false;
+          message = 'Por favor, selecione ou descreva o outro evento.';
+        }
+      }
+
+      if (!isValid) {
+        showAlert(message, 'Campo Obrigatório');
+        return;
+      }
+
       setSaving(true);
       try {
         // Calculate start and end dates in dd/mm/yyyy
@@ -1208,7 +1246,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                 <h3 className="font-bold flex items-center gap-2 text-sm">
                   {modalMode === 'actions' ? 'Opções do Evento' : 
                    modalMode === 'confirmDelete' ? 'Confirmar Exclusão' : 
-                   isAddingNew ? 'Adicionar Novo Evento' : 'Editar Evento'}
+                   isAdding ? 'Adicionar Evento' : 'Editar Evento'}
                 </h3>
                 <button 
                   onClick={() => setModalMode(null)}
@@ -1231,11 +1269,13 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-violet-600 hover:bg-violet-50 transition-all group"
                     >
                       <div className="bg-violet-100 p-1.5 rounded-lg text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition-colors">
-                        <Edit2 size={18} />
+                        {isAdding ? <Plus size={18} /> : <Edit2 size={18} />}
                       </div>
                       <div className="text-left">
-                        <div className="font-bold text-sm text-gray-800">Editar Evento</div>
-                        <div className="text-[10px] text-gray-500 leading-tight">Alterar informações existentes</div>
+                        <div className="font-bold text-sm text-gray-800">{isAdding ? 'Adicionar Evento' : 'Editar Evento'}</div>
+                        <div className="text-[10px] text-gray-500 leading-tight">
+                          {isAdding ? 'Programar um novo evento' : 'Alterar informações existentes'}
+                        </div>
                       </div>
                     </button>
 
@@ -1342,7 +1382,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     <div className="flex gap-3">
                       <button 
-                        onClick={() => setModalMode('actions')}
+                        onClick={() => setModalMode(null)}
                         disabled={saving}
                         className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all text-sm disabled:opacity-50"
                       >
@@ -1554,7 +1594,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     <div className="flex gap-3 pt-2">
                       <button 
-                        onClick={() => setModalMode('actions')}
+                        onClick={() => setModalMode(null)}
                         className="flex-1 py-2 rounded-lg font-bold text-gray-500 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 text-sm"
                       >
                         <X size={16} /> Cancelar
@@ -1564,7 +1604,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         disabled={saving}
                         className="flex-1 py-2 rounded-lg font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-indigo-200 transition-all text-sm disabled:opacity-50"
                       >
-                        {saving ? <Loader2 size={18} className="animate-spin mx-auto" /> : (isAddingNew ? 'Adicionar' : 'Salvar Alterações')}
+                        {saving ? <Loader2 size={18} className="animate-spin mx-auto" /> : (isAdding ? 'Adicionar' : 'Salvar Alterações')}
                       </button>
                     </div>
                   </div>

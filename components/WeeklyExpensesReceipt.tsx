@@ -4,10 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, ChevronLeft, Printer, History, Home, PlusSquare, Settings, Save, Trash2, Loader2, Search, Download } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, deleteDoc, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useDialog } from '@/hooks/useDialog';
+import DraggableSignature from './DraggableSignature';
 
 interface WeeklyExpensesReceiptProps {
   onBack: () => void;
@@ -37,6 +38,8 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
   const [checkedBy, setCheckedBy] = useState('');
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+  const [useGlobalSignature, setUseGlobalSignature] = useState(false);
+  const [signaturePlacement, setSignaturePlacement] = useState<{ x: number, y: number, scale: number } | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const initialItems = [
@@ -99,7 +102,11 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       try {
         const pdDoc = await getDoc(doc(db, 'personal_data', auth.currentUser.uid));
         if (pdDoc.exists()) {
-          setPersonalData(pdDoc.data());
+          const data = pdDoc.data();
+          setPersonalData(data);
+          if (data.signatureImage || data.signature) {
+            setUseGlobalSignature(true);
+          }
         }
       } catch (error) {
         console.error('Error fetching personal data:', error);
@@ -127,7 +134,36 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
     fetchPersonalData();
     fetchCongregations();
+    fetchSignaturePlacement();
   }, []);
+
+  const fetchSignaturePlacement = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const placementId = `receipt_${auth.currentUser.uid}`;
+      const docRef = doc(db, 'signature_placements', placementId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setSignaturePlacement(docSnap.data() as any);
+      } else {
+        setSignaturePlacement({ x: 90, y: 885, scale: 1.2 });
+      }
+    } catch (error) {
+      console.error('Error fetching signature placement:', error);
+      setSignaturePlacement({ x: 90, y: 885, scale: 1.2 });
+    }
+  };
+
+  const handleSignaturePlacementSave = async (settings: { x: number, y: number, scale: number }) => {
+    if (!auth.currentUser) return;
+    setSignaturePlacement(settings);
+    try {
+      const placementId = `receipt_${auth.currentUser.uid}`;
+      await setDoc(doc(db, 'signature_placements', placementId), settings);
+    } catch (error) {
+      console.error('Error saving signature placement:', error);
+    }
+  };
 
   const loadHistory = async () => {
     if (!auth.currentUser) return;
@@ -371,18 +407,23 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
 
           {/* Selection Section & Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 items-end no-print">
-            <div>
-              <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Congregação:</h3>
-              <select
-                value={selectedCongregation}
-                onChange={(e) => setSelectedCongregation(e.target.value)}
-                className="w-full border-b-2 border-gray-200 focus:border-black bg-transparent outline-none py-1 transition-colors"
-              >
-                <option value="">Selecione...</option>
-                {congregations.map(c => (
-                  <option key={c.id} value={c.nome}>{c.nome}</option>
-                ))}
-              </select>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Evento da Semana:</h3>
+                <input
+                  type="text"
+                  list="congregations-list"
+                  value={selectedCongregation}
+                  onChange={(e) => setSelectedCongregation(e.target.value)}
+                  placeholder="Selecione ou digite o evento..."
+                  className="w-full border-b-2 border-gray-200 focus:border-black bg-transparent outline-none py-1 transition-colors"
+                />
+                <datalist id="congregations-list">
+                  {congregations.map(c => (
+                    <option key={c.id} value={`Congregação ${c.nome}`} />
+                  ))}
+                </datalist>
+              </div>
             </div>
             <div>
               <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Escolha o tipo:</h3>
@@ -420,7 +461,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             </div>
             {selectedCongregation && (
               <span className="font-bold text-sm uppercase tracking-widest text-slate-800">
-                Congregação {selectedCongregation}
+                {selectedCongregation}
               </span>
             )}
           </div>
@@ -502,29 +543,52 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           {/* Signatures */}
           <div className="grid grid-cols-2 gap-12 md:gap-16 mt-20 md:mt-32 items-end print:mt-10">
             <div className="text-center flex flex-col items-center">
-              <div className="mb-2 h-16 flex items-end justify-center print:h-12">
-                {/* Espaço para assinatura manual */}
+              <div className="h-16 flex items-end justify-center print:h-12 relative w-full group/sig">
+                {!useGlobalSignature && !generating && (personalData?.signatureImage || personalData?.signature) && (
+                  <button
+                    onClick={() => setUseGlobalSignature(true)}
+                    className="no-print mb-2 px-3 py-1 bg-violet-50 text-violet-600 rounded-lg text-[10px] font-black uppercase tracking-wider border border-violet-100 hover:bg-violet-100 transition-all"
+                  >
+                    Incluir Assinatura
+                  </button>
+                )}
               </div>
               <div className="border-t-2 border-slate-400 w-full mb-1"></div>
               <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">
                 {personalData?.nome || 'Viajante'} {personalData?.circuito ? `- ${personalData.circuito}` : ''}
               </span>
             </div>
-            <div className="text-center flex flex-col items-center">
+            
+            <div className={`text-center flex flex-col items-center transition-opacity ${!checkedBy ? 'print:opacity-0' : ''}`}>
               <input 
                 type="text"
                 value={checkedBy}
                 onChange={(e) => setCheckedBy(e.target.value)}
-                placeholder="Nome de quem conferiu"
+                placeholder=""
                 className="w-full text-center border-b border-transparent focus:border-gray-200 outline-none text-sm font-medium mb-1 bg-transparent print:hidden"
               />
-              <span className="hidden print:block text-sm font-medium mb-1 h-5">
+              <span className={`hidden print:block text-sm font-medium mb-1 h-5 ${!checkedBy ? 'invisible' : ''}`}>
                 {checkedBy}
               </span>
-              <div className="border-t-2 border-slate-400 w-full mb-1"></div>
-              <span className="text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter">(Conferido por)</span>
+              <div className={`border-t-2 border-slate-400 w-full mb-1 ${!checkedBy ? 'print:invisible' : ''}`}></div>
+              <span className={`text-[10px] md:text-xs uppercase text-gray-500 font-bold tracking-tighter ${!checkedBy ? 'print:invisible' : ''}`}>
+                (Conferido por)
+              </span>
             </div>
           </div>
+
+          {/* Draggable Signature Layer */}
+          {useGlobalSignature && (personalData?.signatureImage || personalData?.signature) && signaturePlacement && (
+            <DraggableSignature 
+              image={personalData.signatureImage || personalData.signature}
+              initialX={signaturePlacement.x}
+              initialY={signaturePlacement.y}
+              initialScale={signaturePlacement.scale}
+              onSave={handleSignaturePlacementSave}
+              onRemove={() => setUseGlobalSignature(false)}
+              containerRef={receiptRef}
+            />
+          )}
           </motion.div>
         </div>
       </div>

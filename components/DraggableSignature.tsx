@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform } from 'motion/react';
-import { Move, RotateCcw, Save, Maximize2, Check } from 'lucide-react';
+import { Move, RotateCcw, Save, Maximize2, Check, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface DraggableSignatureProps {
@@ -11,6 +11,7 @@ interface DraggableSignatureProps {
   initialY?: number;
   initialScale?: number;
   onSave: (settings: { x: number, y: number, scale: number }) => void;
+  onRemove?: () => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -20,6 +21,7 @@ export default function DraggableSignature({
   initialY = 100,
   initialScale = 1,
   onSave,
+  onRemove,
   containerRef
 }: DraggableSignatureProps) {
   const [position, setPosition] = useState({ x: initialX, y: initialY });
@@ -214,6 +216,22 @@ export default function DraggableSignature({
             </button>
             
             <div className="h-3 w-px bg-gray-200 mx-0.5" />
+            
+            {onRemove && (
+              <>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove();
+                  }}
+                  className="p-1 hover:bg-red-50 rounded text-red-500 transition-colors"
+                  title="Remover"
+                >
+                  <Trash2 size={12} />
+                </button>
+                <div className="h-3 w-px bg-gray-200 mx-0.5" />
+              </>
+            )}
 
             <button 
               onClick={handleSave}
