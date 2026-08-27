@@ -3,8 +3,10 @@
   "appId": "1:29403984709:web:706b2d225b2f7f80f5c42c",
   "apiKey": "AIzaSyAgnYNVIimt7eipu6FA2TIv7P_D0ccMZuM",
   "authDomain": "ai-studio-applet-webapp-4163f.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-be9e55cd-1468-4747-acd2-d7548ca16732",
+  "firestoreDatabaseId": "ai-studio-93c26f55-b2e7-4cb7-adcc-a29804e12f00",
   "storageBucket": "ai-studio-applet-webapp-4163f.firebasestorage.app",
   "messagingSenderId": "29403984709",
-  "measurementId": ""
+  "measurementId": "",
+  "oAuthClientId": "29403984709-dekqb94qkq3gcu3ccbh60gk2jem5a9sr.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

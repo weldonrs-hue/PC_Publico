@@ -92,8 +92,13 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
         };
       });
 
-      // Filter for TJSec accounts
-      const tjSecAccounts = allUsers.filter(u => u.role === 'secretaria' || (u.email && /@tjsec\.app$/i.test(u.email)));
+      // Filter for TJSec accounts - If we are in the TJSec database, almost all users are congregations
+      const tjSecAccounts = allUsers.filter(u => 
+        u.role === 'secretaria' || 
+        (u.email && /@tjsec\.app$/i.test(u.email)) ||
+        // If we want to see ALL accounts from the connected database as they are all congregations
+        true 
+      );
       
       // Note: If PROGCIR_TJ_SEC_API is configured, we could potentially fetch 
       // more detailed or synchronized data from the TJ-Sec API here.
@@ -185,10 +190,10 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
           </button>
           <div>
             <h2 className="text-xl font-bold text-gray-900 leading-tight">
-              Contas das Congregações
+              Contas das Congregações (TJSec)
             </h2>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-              Gerencie contas @tjsec.app e seus usuários relacionados
+              {congregationGroups.length} contas registradas no banco de dados conectado
             </p>
           </div>
         </div>

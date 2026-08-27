@@ -14,3 +14,7 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
 
 console.log('[Firebase] Using database ID:', firebaseConfig.firestoreDatabaseId || '(default)');
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Export original Progcir database for users management
+const PROGCIR_DB_ID = 'ai-studio-be9e55cd-1468-4747-acd2-d7548ca16732';
+export const progcirDb = getFirestore(app, PROGCIR_DB_ID);

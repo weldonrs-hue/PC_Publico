@@ -25,7 +25,7 @@ import {
   Check,
   Phone
 } from 'lucide-react';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, progcirDb } from '@/lib/firebase';
 import { 
   collection, 
   query, 
@@ -97,8 +97,8 @@ export default function UsersView({ onBack }: UsersViewProps) {
     try {
       // Fetch users and personal data in parallel - ONLY essential collections
       const [usersSnapshot, personalDataSnapshot] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'personal_data'))
+        getDocs(collection(progcirDb, 'users')),
+        getDocs(collection(progcirDb, 'personal_data'))
       ]);
 
       const usersDocs = usersSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
@@ -162,7 +162,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
     // Fetch role requests separately to avoid blocking users list if permission is denied for requests
     try {
-      const requestsSnapshot = await getDocs(query(collection(db, 'role_change_requests'), orderBy('createdAt', 'desc')));
+      const requestsSnapshot = await getDocs(query(collection(progcirDb, 'role_change_requests'), orderBy('createdAt', 'desc')));
       const requestsData = requestsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -225,7 +225,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
   const handleToggleInactive = async (user: UserMetadata) => {
     try {
-      const userRef = doc(db, 'users', user.id);
+      const userRef = doc(progcirDb, 'users', user.id);
       await updateDoc(userRef, { isInactive: !user.isInactive });
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isInactive: !u.isInactive } : u));
     } catch (error) {
@@ -256,21 +256,21 @@ export default function UsersView({ onBack }: UsersViewProps) {
       }
 
       setDeleteStatus('deleting');
-      const batch = writeBatch(db);
+      const batch = writeBatch(progcirDb);
       const uid = userToDelete.id;
 
       // 1. Delete main user documents
-      batch.delete(doc(db, 'users', uid));
-      batch.delete(doc(db, 'personal_data', uid));
+      batch.delete(doc(progcirDb, 'users', uid));
+      batch.delete(doc(progcirDb, 'personal_data', uid));
 
       // 2. Find and delete all related data
       const collectionsToClean = ['congregations', 'substitutes', 'itineraries'];
       
       for (const collName of collectionsToClean) {
-        const q = query(collection(db, collName), where('userId', '==', uid));
+        const q = query(collection(progcirDb, collName), where('userId', '==', uid));
         const snapshot = await getDocs(q);
         snapshot.docs.forEach((d) => {
-          batch.delete(doc(db, collName, d.id));
+          batch.delete(doc(progcirDb, collName, d.id));
         });
       }
 
@@ -296,16 +296,16 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
   const handleApproveRequest = async (request: RoleChangeRequest) => {
     try {
-      const batch = writeBatch(db);
+      const batch = writeBatch(progcirDb);
       
       // Update request status
-      batch.update(doc(db, 'role_change_requests', request.id), { 
+      batch.update(doc(progcirDb, 'role_change_requests', request.id), { 
         status: 'approved',
         updatedAt: new Date().toISOString()
       });
       
       // Update user personal_data role
-      batch.update(doc(db, 'personal_data', request.userId), { 
+      batch.update(doc(progcirDb, 'personal_data', request.userId), { 
         role: request.requestedRole 
       });
       
@@ -323,7 +323,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
   const handleRejectRequest = async (requestId: string) => {
     try {
-      await updateDoc(doc(db, 'role_change_requests', requestId), { 
+      await updateDoc(doc(progcirDb, 'role_change_requests', requestId), { 
         status: 'rejected',
         updatedAt: new Date().toISOString()
       });
@@ -337,9 +337,9 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const handleUpdateRole = async (userId: string, newRole: string) => {
     setIsUpdatingRole(true);
     try {
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'users', userId), { role: newRole });
-      batch.update(doc(db, 'personal_data', userId), { role: newRole });
+      const batch = writeBatch(progcirDb);
+      batch.update(doc(progcirDb, 'users', userId), { role: newRole });
+      batch.update(doc(progcirDb, 'personal_data', userId), { role: newRole });
       await batch.commit();
       
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
@@ -433,12 +433,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
               setRefreshing(true);
               try {
                 const [usersSnapshot, personalDataSnapshot] = await Promise.all([
-                  getDocs(collection(db, 'users')),
-                  getDocs(collection(db, 'personal_data'))
+                  getDocs(collection(progcirDb, 'users')),
+                  getDocs(collection(progcirDb, 'personal_data'))
                 ]);
                 
                 const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
-                const batch = writeBatch(db);
+                const batch = writeBatch(progcirDb);
                 let count = 0;
 
                 usersSnapshot.docs.forEach(uDoc => {
@@ -453,7 +453,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     if (pd.profilePhoto && pd.profilePhoto !== uData.photoURL) update.photoURL = pd.profilePhoto;
 
                     if (Object.keys(update).length > 0) {
-                      batch.update(doc(db, 'users', uDoc.id), update);
+                      batch.update(doc(progcirDb, 'users', uDoc.id), update);
                       count++;
                     }
                   }
