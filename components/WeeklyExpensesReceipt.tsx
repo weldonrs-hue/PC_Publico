@@ -409,20 +409,17 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 items-end no-print">
             <div className="space-y-4">
               <div>
-                <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Evento da Semana:</h3>
-                <input
-                  type="text"
-                  list="congregations-list"
+                <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Congregação:</h3>
+                <select
                   value={selectedCongregation}
                   onChange={(e) => setSelectedCongregation(e.target.value)}
-                  placeholder="Selecione ou digite o evento..."
                   className="w-full border-b-2 border-gray-200 focus:border-black bg-transparent outline-none py-1 transition-colors"
-                />
-                <datalist id="congregations-list">
+                >
+                  <option value="">Selecione...</option>
                   {congregations.map(c => (
-                    <option key={c.id} value={`Congregação ${c.nome}`} />
+                    <option key={c.id} value={c.nome}>{c.nome}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
             </div>
             <div>
@@ -461,7 +458,7 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
             </div>
             {selectedCongregation && (
               <span className="font-bold text-sm uppercase tracking-widest text-slate-800">
-                {selectedCongregation}
+                Congregação {selectedCongregation}
               </span>
             )}
           </div>

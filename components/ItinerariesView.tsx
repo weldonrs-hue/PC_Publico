@@ -121,19 +121,6 @@ const OUTROS_EVENTOS = [
   'Reunião especial com os pioneiros'
 ];
 
-const isItemEmpty = (item?: Partial<ItineraryItem> | null) => {
-  if (!item) return true;
-  const hasEvento = !!item.evento && item.evento.trim() !== '' && item.evento.trim() !== '-';
-  const hasCong = !!item.congregacao && item.congregacao.trim() !== '';
-  const hasCongId = !!item.congregacaoId && item.congregacaoId.trim() !== '';
-  const hasOutro = !!item.outroEvento && item.outroEvento.trim() !== '';
-  const hasGrupo = !!item.grupo && item.grupo.trim() !== '';
-  const hasObs = !!item.observacoes && item.observacoes.trim() !== '' && item.observacoes.trim() !== '-';
-  const hasData = !!item.dataEvento && item.dataEvento.trim() !== '' && item.dataEvento.trim() !== '-';
-  
-  return !hasEvento && !hasCong && !hasCongId && !hasOutro && !hasGrupo && !hasObs && !hasData;
-};
-
 export default function ItinerariesView({ userId, user, onBack }: ItinerariesViewProps) {
   const { showAlert } = useDialog();
   const getLastMonday = () => {
@@ -230,9 +217,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const isAdding = useMemo(() => {
     if (isAddingNew) return true;
     if (!selectedItem) return false;
-    const activeInWeek = itineraries.filter(item => item.semana === selectedItem.semana && !isItemEmpty(item));
-    return activeInWeek.length === 0 || isItemEmpty(selectedItem);
-  }, [isAddingNew, selectedItem, itineraries]);
+    return !selectedItem.evento && !selectedItem.congregacao && !selectedItem.outroEvento;
+  }, [isAddingNew, selectedItem]);
 
   const calculateDate = (mondayStr: string, dayName: string) => {
     try {
@@ -499,25 +485,19 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         ...doc.data()
       })) as ItineraryItem[];
       
-      // Group items by week
-      const weeksMap = new Map<string, ItineraryItem[]>();
-      rawItems.forEach(item => {
-        const s = item.semana || '';
-        if (!weeksMap.has(s)) {
-          weeksMap.set(s, []);
-        }
-        weeksMap.get(s)!.push(item);
-      });
-
+      // Client-side deduplication: if multiple items have the same semana AND same content (empty), keep only one
       const items: ItineraryItem[] = [];
-      weeksMap.forEach((weekDocs) => {
-        const activeEvents = weekDocs.filter(d => !isItemEmpty(d));
-        if (activeEvents.length > 0) {
-          // If week has active events, display only the active events (no phantom empty rows)
-          items.push(...activeEvents);
-        } else if (weekDocs.length > 0) {
-          // If week is empty, display exactly one placeholder
-          items.push(weekDocs[0]);
+      const seenEmpty = new Set<string>();
+      
+      rawItems.forEach(item => {
+        const isEmpty = !item.evento && !item.observacoes && !item.dataEvento && !item.congregacao;
+        if (isEmpty) {
+          if (!seenEmpty.has(item.semana)) {
+            items.push(item);
+            seenEmpty.add(item.semana);
+          }
+        } else {
+          items.push(item);
         }
       });
 
@@ -791,8 +771,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         else if (selectedItem.evento === 'SEMANA DE PIONEIRO') tipo = 'SEMANA DE PIONEIRO';
         else if (selectedItem.evento === 'Recebendo visita de pastoreio') tipo = 'Recebendo visita de pastoreio';
         else if (selectedItem.grupo) tipo = 'Visita a Grupo';
-        else if (selectedItem.evento && OUTROS_EVENTOS.includes(selectedItem.evento)) tipo = 'Outros Eventos';
-        else if (selectedItem.congregacao || selectedItem.congregacaoId) tipo = 'Visita a Congregação';
+        else if (OUTROS_EVENTOS.includes(selectedItem.evento)) tipo = 'Outros Eventos';
+        else if (selectedItem.congregacao) tipo = 'Visita a Congregação';
         else tipo = TIPOS_EVENTO[0];
       }
 
@@ -801,7 +781,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         dataEvento: selectedItem.dataEvento,
         evento: tipo,
         tipoEvento: tipo,
-        observacoes: selectedItem.observacoes === '-' ? '' : (selectedItem.observacoes || ''),
+        observacoes: selectedItem.observacoes,
         dataInicialDia: selectedItem.dataInicialDia || (tipo === 'SEMANA LIVRE' ? 'Segunda-Feira' : 'Terça-Feira'),
         dataTerminoDia: selectedItem.dataTerminoDia || 'Domingo',
         congregacao: selectedItem.congregacao || '',
@@ -816,15 +796,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
   const handleAddClick = () => {
     if (selectedItem) {
-      const activeInWeek = itineraries.filter(item => item.semana === selectedItem.semana && !isItemEmpty(item));
+      const isEmpty = !selectedItem.evento && !selectedItem.observacoes && !selectedItem.dataEvento && !selectedItem.congregacao;
       
-      // If there are no active events for this week, we edit/fill the existing empty slot
-      if (activeInWeek.length === 0) {
+      if (isEmpty) {
+        // If the row is empty, "Adding" is just "Editing" the empty slot
         handleEditClick();
         return;
       }
 
-      // If the week already has active events, we add another event
       setIsAddingNew(true);
       setEditFormData({
         ...defaultEditFormData,
@@ -845,30 +824,29 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     if (selectedItem && selectedItem.id) {
       setSaving(true);
       try {
-        // Check if there are other active events for this week
+        // Check if there are other events for this week
         const othersInWeek = itineraries.filter(item => 
-          item.semana === selectedItem.semana && item.id !== selectedItem.id && !isItemEmpty(item)
+          item.semana === selectedItem.semana && item.id !== selectedItem.id
         );
 
         if (othersInWeek.length > 0) {
-          // Delete the document since other active events remain in this week
+          // Delete the document
           await deleteDoc(doc(db, 'itineraries', selectedItem.id));
         } else {
-          // Just clear the fields to keep the single empty week placeholder
+          // Just clear the fields
           const docRef = doc(db, 'itineraries', selectedItem.id);
           await setDoc(docRef, { 
             semana: selectedItem.semana,
             dataEvento: '',
             evento: '',
             observacoes: '',
-            escritorioNotificado: false,
-            congregacaoNotificada: false,
+            escritorioNotificado: selectedItem.escritorioNotificado,
+            congregacaoNotificada: selectedItem.congregacaoNotificada,
             ordem: selectedItem.ordem,
             userId,
             dataInicialDia: '',
             dataTerminoDia: '',
             congregacao: '',
-            congregacaoId: '',
             substituto: '',
             grupo: '',
             outroEvento: ''
@@ -885,7 +863,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleFormSave = async () => {
-    if (selectedItem) {
+    if (selectedItem && selectedItem.id) {
       // Validation
       const { evento, congregacao, congregacaoId, grupo, outroEvento } = editFormData;
       
@@ -924,6 +902,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         const start = calculateDate(selectedItem.semana, editFormData.dataInicialDia || 'Terça-Feira');
         const end = calculateDate(selectedItem.semana, editFormData.dataTerminoDia || 'Domingo');
         
+        // 1. Format Date Range according to rules:
+        // - Single day: dd/mm/yyyy
+        // - Same month: dd a dd/mm/aa
+        // - Different months: dd/mm a dd/mm/aa
+        // - Different years: dd/mm/aa a dd/mm/aa
         let dateRange = '';
         if (start && end && start.includes('/') && end.includes('/')) {
           if (start === end) {
@@ -944,6 +927,13 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           }
         }
 
+        // 2. Format Event Name according to rules:
+        // - If "SEMANA LIVRE", use that exactly
+        // - If "SEMANA DE PIONEIRO", use that exactly
+        // - If "Visita a Grupo", use "{Grupo} - {Congregação}"
+        // - If "Outros Eventos", use the selected/typed value
+        // - If congregation selected: "Nome - Cidade" (if different) or just "Nome" (if same)
+        // - Otherwise use the selected event type
         let finalEvento = editFormData.evento || '';
         if (editFormData.evento === 'SEMANA LIVRE') {
           finalEvento = 'SEMANA LIVRE';
@@ -958,6 +948,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             editFormData.congregacaoId ? c.id === editFormData.congregacaoId : c.nome === editFormData.congregacao
           );
           if (cong) {
+            // Check if name and city are the same (ignoring case)
             if (cong.nome.trim().toLowerCase() === cong.cidade.trim().toLowerCase()) {
               finalEvento = cong.nome;
             } else {
@@ -978,39 +969,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           userId
         };
 
-        const weekDocs = itineraries.filter(i => i.semana === selectedItem.semana);
-        const activeInWeek = weekDocs.filter(i => !isItemEmpty(i));
-        const emptyInWeek = weekDocs.filter(i => isItemEmpty(i));
-
-        // If week has active events AND user requested to add a new event
-        if (isAddingNew && activeInWeek.length > 0) {
-          // If there's an empty placeholder in this week, reuse it
-          if (emptyInWeek.length > 0 && emptyInWeek[0].id) {
-            const docRef = doc(db, 'itineraries', emptyInWeek[0].id);
-            await setDoc(docRef, dataToSave, { merge: true });
-          } else {
-            const newDocRef = doc(collection(db, 'itineraries'));
-            await setDoc(newDocRef, dataToSave);
-          }
+        if (isAddingNew) {
+          // Create new document
+          const newDocRef = doc(collection(db, 'itineraries'));
+          await setDoc(newDocRef, dataToSave);
         } else {
-          // Editing existing event or filling the empty week slot
-          const targetId = selectedItem.id || (emptyInWeek.length > 0 ? emptyInWeek[0].id : null);
-          if (targetId) {
-            const docRef = doc(db, 'itineraries', targetId);
-            await setDoc(docRef, dataToSave, { merge: true });
-          } else {
-            const newDocRef = doc(collection(db, 'itineraries'));
-            await setDoc(newDocRef, dataToSave);
-          }
-          
-          // Clean up any other duplicate empty docs for this week
-          if (emptyInWeek.length > 1) {
-            for (let i = 1; i < emptyInWeek.length; i++) {
-              if (emptyInWeek[i].id && emptyInWeek[i].id !== targetId) {
-                await deleteDoc(doc(db, 'itineraries', emptyInWeek[i].id!));
-              }
-            }
-          }
+          // Update existing document
+          const docRef = doc(db, 'itineraries', selectedItem.id);
+          await setDoc(docRef, dataToSave, { merge: true });
         }
 
         setModalMode(null);
@@ -1308,12 +1274,12 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       <div className="text-left">
                         <div className="font-bold text-sm text-gray-800">{isAdding ? 'Adicionar Evento' : 'Editar Evento'}</div>
                         <div className="text-[10px] text-gray-500 leading-tight">
-                          {isAdding ? 'Programar evento para esta semana' : 'Alterar informações deste evento'}
+                          {isAdding ? 'Programar um novo evento' : 'Alterar informações existentes'}
                         </div>
                       </div>
                     </button>
 
-                    {!isItemEmpty(selectedItem) && (
+                    {(selectedItem?.evento || selectedItem?.congregacao || selectedItem?.observacoes) && (
                       <button 
                         onClick={handleAddClick}
                         className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
@@ -1322,13 +1288,13 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           <Plus size={18} />
                         </div>
                         <div className="text-left">
-                          <div className="font-bold text-sm text-gray-800">Adicionar Outro Evento</div>
-                          <div className="text-[10px] text-gray-500 leading-tight">Adicionar um segundo evento nesta mesma semana</div>
+                          <div className="font-bold text-sm text-gray-800">Adicionar Evento</div>
+                          <div className="text-[10px] text-gray-500 leading-tight">Adicionar evento na mesma semana</div>
                         </div>
                       </button>
                     )}
 
-                    {!isItemEmpty(selectedItem) && (
+                    {selectedItem?.evento && (
                       <button 
                         onClick={handleDeleteClick}
                         className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-red-500 hover:bg-red-50 transition-all group"
