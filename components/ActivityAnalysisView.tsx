@@ -15,7 +15,8 @@ import {
   Calculator,
   X,
   FileDown,
-  Printer
+  Printer,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
@@ -267,6 +268,23 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
       setShowExitConfirmation(true);
     } else {
       onBack();
+    }
+  };
+
+  const handleClearForm = async () => {
+    const confirmed = await showConfirm(
+      'Tem certeza de que deseja limpar todos os campos deste relatório? Todos os dados preenchidos serão apagados.',
+      'Limpar formulário'
+    );
+    
+    if (confirmed) {
+      setData({
+        ...defaultData,
+        congregacao: congregationName,
+        congregacaoId: congregationId || '',
+        dataVisita: visitDate
+      });
+      setIsDirty(true);
     }
   };
 
@@ -555,6 +573,14 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
           </div>
           
           <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <button 
+              onClick={handleClearForm}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-rose-200 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-50 transition-all shadow-sm"
+              title="Limpar todos os campos"
+            >
+              <Trash2 size={18} />
+              <span className="hidden md:inline">Limpar Tudo</span>
+            </button>
             <button 
               onClick={handleSave}
               disabled={saving || !isDirty}
