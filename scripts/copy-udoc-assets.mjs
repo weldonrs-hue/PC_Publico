@@ -46,8 +46,8 @@ try {
     
     console.log('Full assets copy completed and critical files flattened.');
   } else {
-    console.error('Source directory not found:', srcDir);
+    console.log('Source directory not found, skipping asset copy:', srcDir);
   }
 } catch (err) {
-  console.error('Error copying assets:', err);
+  console.log('Notice: Asset copy skipped or failed safely:', err.message);
 }

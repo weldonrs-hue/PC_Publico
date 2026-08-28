@@ -140,12 +140,12 @@ export default function DashboardCards({
                 <div className="flex flex-col">
                   {card.title === 'Congregações' ? (
                     <div className="flex gap-2">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                      <p className="text-[10px] font-black text-[#3525cd] bg-[#e2dfff] px-2 py-0.5 rounded-md border border-[#c7c4d8]/40 shadow-sm uppercase tracking-tighter">
                         {isPioneer ? 'SUA CONGREGAÇÃO' : `CONG: ${congregationCount}`}
                       </p>
                       {!isPioneer && (
-                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                          GRUPOS: <span className="text-amber-600 font-black">{groupCount}</span>
+                        <p className="text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/50 shadow-sm uppercase tracking-tighter">
+                          GRUPOS: {groupCount}
                         </p>
                       )}
                     </div>
@@ -160,7 +160,7 @@ export default function DashboardCards({
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-400 font-bold text-[9px] uppercase truncate">
+                      <span className="text-[#3525cd] font-black text-xs uppercase truncate bg-[#e2dfff] px-2 py-0.5 rounded-md border border-[#c7c4d8]/40 shadow-sm">
                         {card.title === 'Substitutos' ? `${substituteCount} Ativos` : 
                          card.title === 'Itinerários' ? (currentEvent || 'Nenhum planejado') : 
                          card.title === 'Estatísticas' ? `${analyzedCongregationsCount} Analisadas` :

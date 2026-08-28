@@ -6,7 +6,7 @@
     "dev": "PORT=3000 next dev",
     "build": "node scripts/copy-udoc-assets.mjs && NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "next start",
-    "postinstall": "node scripts/copy-udoc-assets.mjs",
+    "postinstall": "node scripts/copy-udoc-assets.mjs || true",
     "lint": "eslint .",
     "clean": "next clean",
     "tauri": "tauri"

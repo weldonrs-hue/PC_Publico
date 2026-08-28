@@ -211,13 +211,23 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     outroEvento: ''
   };
 
+  const isItemEmpty = (item: Partial<ItineraryItem> | null | undefined): boolean => {
+    if (!item) return true;
+    return !item.evento?.trim() && 
+           !item.observacoes?.trim() && 
+           !item.dataEvento?.trim() && 
+           !item.congregacao?.trim() && 
+           !item.outroEvento?.trim() &&
+           !item.grupo?.trim();
+  };
+
   const [editFormData, setEditFormData] = useState<Partial<ItineraryItem>>(defaultEditFormData);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
   const isAdding = useMemo(() => {
     if (isAddingNew) return true;
     if (!selectedItem) return false;
-    return !selectedItem.evento && !selectedItem.congregacao && !selectedItem.outroEvento;
+    return isItemEmpty(selectedItem);
   }, [isAddingNew, selectedItem]);
 
   const calculateDate = (mondayStr: string, dayName: string) => {
@@ -485,19 +495,23 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         ...doc.data()
       })) as ItineraryItem[];
       
-      // Client-side deduplication: if multiple items have the same semana AND same content (empty), keep only one
-      const items: ItineraryItem[] = [];
-      const seenEmpty = new Set<string>();
-      
+      // Group raw items by week (semana)
+      const weeksMap = new Map<string, ItineraryItem[]>();
       rawItems.forEach(item => {
-        const isEmpty = !item.evento && !item.observacoes && !item.dataEvento && !item.congregacao;
-        if (isEmpty) {
-          if (!seenEmpty.has(item.semana)) {
-            items.push(item);
-            seenEmpty.add(item.semana);
-          }
-        } else {
-          items.push(item);
+        const s = item.semana || '';
+        const list = weeksMap.get(s) || [];
+        list.push(item);
+        weeksMap.set(s, list);
+      });
+
+      // Deduplicate: if a week has events, discard empty placeholders; if entirely empty, keep exactly 1
+      const items: ItineraryItem[] = [];
+      weeksMap.forEach((weekItems) => {
+        const nonEmpty = weekItems.filter(i => !isItemEmpty(i));
+        if (nonEmpty.length > 0) {
+          items.push(...nonEmpty);
+        } else if (weekItems.length > 0) {
+          items.push(weekItems[0]);
         }
       });
 
@@ -796,7 +810,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
   const handleAddClick = () => {
     if (selectedItem) {
-      const isEmpty = !selectedItem.evento && !selectedItem.observacoes && !selectedItem.dataEvento && !selectedItem.congregacao;
+      const isEmpty = isItemEmpty(selectedItem);
       
       if (isEmpty) {
         // If the row is empty, "Adding" is just "Editing" the empty slot
@@ -826,7 +840,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       try {
         // Check if there are other events for this week
         const othersInWeek = itineraries.filter(item => 
-          item.semana === selectedItem.semana && item.id !== selectedItem.id
+          item.semana === selectedItem.semana && item.id !== selectedItem.id && !isItemEmpty(item)
         );
 
         if (othersInWeek.length > 0) {
@@ -840,16 +854,18 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             dataEvento: '',
             evento: '',
             observacoes: '',
-            escritorioNotificado: selectedItem.escritorioNotificado,
-            congregacaoNotificada: selectedItem.congregacaoNotificada,
-            ordem: selectedItem.ordem,
+            escritorioNotificado: false,
+            congregacaoNotificada: false,
+            ordem: selectedItem.ordem || 0,
             userId,
             dataInicialDia: '',
             dataTerminoDia: '',
             congregacao: '',
+            congregacaoId: '',
             substituto: '',
             grupo: '',
-            outroEvento: ''
+            outroEvento: '',
+            tipoEvento: ''
           });
         }
         setModalMode(null);
@@ -965,18 +981,34 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           dataEvento: dateRange,
           evento: finalEvento,
           semana: selectedItem.semana,
-          ordem: selectedItem.ordem,
+          ordem: selectedItem.ordem || 0,
           userId
         };
 
-        if (isAddingNew) {
-          // Create new document
+        // If isAddingNew, check if an empty placeholder exists in this week to reuse it
+        const emptyPlaceholder = itineraries.find(i => i.semana === selectedItem.semana && isItemEmpty(i));
+
+        if (isAddingNew && !emptyPlaceholder) {
+          // Create new document only if there are already other real events in that week
           const newDocRef = doc(collection(db, 'itineraries'));
           await setDoc(newDocRef, dataToSave);
         } else {
-          // Update existing document
-          const docRef = doc(db, 'itineraries', selectedItem.id);
+          // Update existing document (or reuse the empty placeholder)
+          const targetId = (isAddingNew && emptyPlaceholder?.id) ? emptyPlaceholder.id : selectedItem.id;
+          const docRef = doc(db, 'itineraries', targetId);
           await setDoc(docRef, dataToSave, { merge: true });
+        }
+
+        // Cleanup any extra empty placeholder docs for this same week if any exist
+        const extraEmptyDocs = itineraries.filter(i => 
+          i.semana === selectedItem.semana && isItemEmpty(i) && i.id !== selectedItem.id
+        );
+        for (const extra of extraEmptyDocs) {
+          if (extra.id) {
+            try {
+              await deleteDoc(doc(db, 'itineraries', extra.id));
+            } catch (e) {}
+          }
         }
 
         setModalMode(null);

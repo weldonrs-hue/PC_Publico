@@ -197,6 +197,9 @@ export default function Home() {
   });
   const [personalData, setPersonalData] = useState<any>(null);
   const [loadingPersonalData, setLoadingPersonalData] = useState(true);
+  const [congregations, setCongregations] = useState<any[]>([]);
+  const [currentEvent, setCurrentEvent] = useState<string>('');
+  const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
   const [congStats, setCongStats] = useState({ 
     congregations: 0, 
     groups: 0, 
@@ -208,9 +211,21 @@ export default function Home() {
     anciaos: 0,
     servos: 0
   });
-  const [currentEvent, setCurrentEvent] = useState<string>('');
-  const [congregations, setCongregations] = useState<any[]>([]);
-  const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
+
+  // Update congStats whenever congregations change
+  useEffect(() => {
+    let groups = 0;
+    congregations.forEach(cong => {
+      if (cong.grupos && Array.isArray(cong.grupos)) {
+        groups += cong.grupos.length;
+      }
+    });
+    setCongStats(prev => ({
+      ...prev,
+      congregations: congregations.length,
+      groups: groups
+    }));
+  }, [congregations]);
   const [appConfig, setAppConfig] = useState<{ 
     reportEnabledForAll: boolean;
     congregationImportEnabledForAll: boolean;
@@ -514,6 +529,17 @@ export default function Home() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const congs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setCongregations(congs);
+      
+      // Update congStats immediately
+      let groups = 0;
+      congs.forEach((cong: any) => {
+        if (cong.grupos && Array.isArray(cong.grupos)) groups += cong.grupos.length;
+      });
+      setCongStats(prev => ({
+        ...prev,
+        congregations: congs.length,
+        groups: groups
+      }));
     }, (error) => {
       handleFirestoreError(error, 'read', 'congregations');
       setQuotaExceeded(isQuotaExceeded());
@@ -570,76 +596,90 @@ export default function Home() {
           }
         }
 
-        // 2. Statistics - Aggressive session cache (30 min in Dev, 15 min in Prod)
+        // 2. Statistics - Improved fetching and caching
         const cachedStats = sessionStorage.getItem(`stats_${activeUid}`);
         const now = new Date().getTime();
-        const cacheDuration = 1800000; // 30 minutes
+        const cacheDuration = 10 * 60 * 1000; // 10 minutes (shorter cache for better UX)
         let needsUpdate = !cachedStats;
         
         if (cachedStats) {
-          const parsed = JSON.parse(cachedStats);
-          setCongStats(parsed.stats);
-          setCurrentEvent(parsed.currentEvent || '');
-          if (now - parsed.timestamp > cacheDuration) {
+          try {
+            const parsed = JSON.parse(cachedStats);
+            setCongStats(prev => ({ ...prev, ...parsed.stats }));
+            setCurrentEvent(parsed.currentEvent || '');
+            if (now - parsed.timestamp > cacheDuration) {
+              needsUpdate = true;
+            }
+          } catch (e) {
             needsUpdate = true;
-          } else {
-            console.log('📊 [Firestore Cache] Utilizando estatísticas cacheadas do Dashboard para economizar leituras.');
           }
         }
 
-        if (needsUpdate && isDashboard && !quotaExceeded) {
+        // Force update if we are on dashboard and stats look empty (except if it's really empty)
+        if (isDashboard && !quotaExceeded && (needsUpdate || congStats.analyzedCongregations === 0)) {
           console.log(`🚀 [Firestore Fetch] Buscando novas estatísticas para ${activeUid}...`);
-          const [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
-            getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
-            getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
-            getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))),
-            getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid)))
-          ]);
-
-          let groups = 0;
-          congSnap.docs.forEach((doc: any) => {
-            const data = doc.data();
-            if (data.grupos && Array.isArray(data.grupos)) groups += data.grupos.length;
-          });
-
-          const analyzedCongs = new Set(analysisSnap.docs.map(d => d.data().congregacao).filter(Boolean));
           
-          const latestAnalyses: any = {};
-          analysisSnap.docs.forEach(d => {
-            const data = d.data();
-            const cong = data.congregacao;
-            if (!latestAnalyses[cong]) {
-              latestAnalyses[cong] = data;
-            } else {
-              const parseDate = (s: string) => {
-                if (!s) return 0;
-                const [d,m,y] = s.split('/').map(Number);
-                return new Date(y, m-1, d).getTime();
+          // Use separate try-catches to avoid one failing the rest
+          const fetchPromise = async () => {
+            try {
+              const [congSnap, subSnap, itinSnap, analysisSnap] = await Promise.all([
+                getDocs(query(collection(db, 'congregations'), where('userId', '==', activeUid))),
+                getDocs(query(collection(db, 'substitutes'), where('userId', '==', activeUid))),
+                getDocs(query(collection(db, 'itineraries'), where('userId', '==', activeUid))),
+                getDocs(query(collection(db, 'activity_analysis'), where('userId', '==', activeUid)))
+              ]);
+
+              let groups = 0;
+              congSnap.docs.forEach((doc: any) => {
+                const data = doc.data();
+                if (data.grupos && Array.isArray(data.grupos)) groups += data.grupos.length;
+              });
+
+              const analyzedCongs = new Set(analysisSnap.docs.map(d => d.data().congregacao).filter(Boolean));
+              
+              const latestAnalyses: any = {};
+              analysisSnap.docs.forEach(d => {
+                const data = d.data();
+                const cong = data.congregacao;
+                if (!latestAnalyses[cong]) {
+                  latestAnalyses[cong] = data;
+                } else {
+                  const parseDate = (s: string) => {
+                    if (!s) return 0;
+                    const [d,m,y] = s.split('/').map(Number);
+                    return new Date(y, m-1, d).getTime();
+                  };
+                  if (parseDate(data.dataVisita) > parseDate(latestAnalyses[cong].dataVisita)) {
+                    latestAnalyses[cong] = data;
+                  }
+                }
+              });
+
+              const statsArr = Object.values(latestAnalyses);
+              const stats = {
+                congregations: congSnap.size,
+                groups,
+                substitutes: subSnap.size,
+                analyzedCongregations: analyzedCongs.size,
+                publicadoresAtivos: statsArr.reduce((acc, a: any) => acc + (parseInt(a.pubAtivos) || 0), 0),
+                pioneirosRegulares: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosRegulares?.relatando) || 0), 0),
+                pioneirosEspeciais: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosEspeciais?.relatando) || 0), 0),
+                anciaos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.anciaos || 0), 0),
+                servos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.servos || 0), 0),
               };
-              if (parseDate(data.dataVisita) > parseDate(latestAnalyses[cong].dataVisita)) {
-                latestAnalyses[cong] = data;
-              }
+
+              const foundEvent = itinSnap.docs.find(d => isCurrentWeek(d.data().semana))?.data().evento || '';
+              
+              setCongStats(stats);
+              setCurrentEvent(foundEvent);
+              sessionStorage.setItem(`stats_${activeUid}`, JSON.stringify({ stats, currentEvent: foundEvent, timestamp: now }));
+            } catch (err) {
+              console.error('Error fetching dashboard stats:', err);
+              // Don't throw, just allow the UI to stay with what it has
             }
-          });
-
-          const statsArr = Object.values(latestAnalyses);
-          const stats = {
-            congregations: congSnap.size,
-            groups,
-            substitutes: subSnap.size,
-            analyzedCongregations: analyzedCongs.size,
-            publicadoresAtivos: statsArr.reduce((acc, a: any) => acc + (parseInt(a.pubAtivos) || 0), 0),
-            pioneirosRegulares: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosRegulares?.relatando) || 0), 0),
-            pioneirosEspeciais: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosEspeciais?.relatando) || 0), 0),
-            anciaos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.anciaos || 0), 0),
-            servos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.servos || 0), 0),
           };
-
-          const foundEvent = itinSnap.docs.find(d => isCurrentWeek(d.data().semana))?.data().evento || '';
           
-          setCongStats(stats);
-          setCurrentEvent(foundEvent);
-          sessionStorage.setItem(`stats_${activeUid}`, JSON.stringify({ stats, currentEvent: foundEvent, timestamp: now }));
+          fetchPromise();
         }
 
       } catch (error: any) {
