@@ -1400,7 +1400,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs font-medium text-gray-500 truncate hidden sm:block">
-                {type === 'supt' ? 'Com o Superintendente de Circuito' : 'Com o Representante de Betel'} • Documento A4 Digital
+                {type === 'supt' ? 'Com o Superintendente de Circuito' : 'Com o Representante de Betel'}
               </p>
             </div>
           </div>
@@ -1496,15 +1496,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           </div>
         </div>
 
-        {/* Zoom & Document Viewport Toolbar (A4 Controller) */}
-        <div className="flex items-center justify-between gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-300 px-2 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              Folha A4 Retrato (210 × 297 mm)
-            </span>
-          </div>
-
+        {/* Zoom & Document Viewport Toolbar */}
+        <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
           <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
             {/* Zoom Out */}
             <button
