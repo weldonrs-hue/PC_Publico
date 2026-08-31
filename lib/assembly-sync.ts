@@ -224,7 +224,14 @@ function extractProgramStructure(root: any): { period: string; items: AssemblyIt
       // Item normal com horário (pode fechar uma série ou ser independente)
       const bibleRef = extractBibleRef(rawTitle);
       const title = bibleRef ? rawTitle.replace(`(${bibleRef})`, '').trim() : rawTitle;
-      const noSpeaker = title.toLowerCase().includes('música') || title.toLowerCase().includes('cântico') || title.toLowerCase().includes('intervalo') || title.toLowerCase().includes('anúncios');
+      const lowerT = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const isPrayer = lowerT.includes('oracao') || lowerT.includes('prayer');
+      const noSpeaker = !isPrayer && (
+        lowerT.includes('musica') || 
+        lowerT.includes('cantico') || 
+        lowerT.includes('intervalo') || 
+        lowerT.includes('anuncio')
+      );
 
       const newItem: AssemblyItem = {
         id: `temp_${Math.random().toString(36).substr(2, 9)}`,
@@ -271,7 +278,22 @@ function extractProgramStructure(root: any): { period: string; items: AssemblyIt
 
   if (currentSeries) currentItems.push(currentSeries);
   if (currentPeriod && currentItems.length > 0) sessions.push({ period: currentPeriod, items: currentItems });
-  return sessions;
+  
+  // Garantir que cada sessão tenha o Presidente de Sessão
+  return sessions.map((session, sIdx) => {
+    const hasPresident = session.items.some(i => i.isRole && i.title.toLowerCase().includes('presidente'));
+    if (!hasPresident) {
+      const isMorning = session.period.toLowerCase().includes('manhã') || sIdx === 0;
+      return {
+        ...session,
+        items: [
+          { id: isMorning ? 'm0' : 't0', title: 'PRESIDENTE DE SESSÃO', isRole: true, noSpeaker: false },
+          ...session.items
+        ]
+      };
+    }
+    return session;
+  });
 }
 
 /**

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Store, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download, CheckCircle2, Circle, RefreshCw, Search, Check, ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -25,6 +25,7 @@ interface AssemblyDetails {
   rehearsalDate: string;
   rehearsalLocation: string;
   assemblyTheme: string;
+  customHeaderImage?: string;
 }
 
 interface PartData {
@@ -286,9 +287,54 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const [dynamicProgram, setDynamicProgram] = useState<any>(null);
   
   const staticProgram = (programsByYear as any)[selectedYear]?.[type] || (programsByYear as any)['2026-2027'][type];
-  const assemblyProgram = dynamicProgram 
-    ? { ...staticProgram, ...dynamicProgram } 
-    : staticProgram;
+  
+  const assemblyProgram = useMemo(() => {
+    const base = dynamicProgram 
+      ? { ...staticProgram, ...dynamicProgram } 
+      : staticProgram;
+    
+    if (!base || !base.sessions) return base;
+
+    const normalizedSessions = base.sessions.map((session: any, sIdx: number) => {
+      let items = [...(session.items || [])];
+      
+      // Garantir que o Presidente de Sessão esteja presente no topo de cada sessão
+      const hasPresident = items.some(i => i.isRole && (i.title?.toLowerCase().includes('presidente') || i.id === 'm0' || i.id === 't0'));
+      const isMorning = session.period?.toLowerCase().includes('manhã') || sIdx === 0;
+      
+      if (!hasPresident) {
+        items.unshift({
+          id: isMorning ? 'm0' : 't0',
+          title: 'PRESIDENTE DE SESSÃO',
+          isRole: true,
+          noSpeaker: false
+        });
+      }
+
+      // Garantir que orações e papéis de presidente não tenham noSpeaker: true
+      items = items.map((item: any) => {
+        const titleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const isPrayer = titleNorm.includes('oracao') || titleNorm.includes('prayer');
+        const isPresidentRole = item.isRole || titleNorm.includes('presidente');
+        
+        if (isPrayer || isPresidentRole) {
+          return {
+            ...item,
+            noSpeaker: false,
+            isRole: isPresidentRole ? true : item.isRole
+          };
+        }
+        return item;
+      });
+
+      return { ...session, items };
+    });
+
+    return {
+      ...base,
+      sessions: normalizedSessions
+    };
+  }, [staticProgram, dynamicProgram]);
 
   const { showAlert } = useDialog();
 
@@ -428,7 +474,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
-  // Digital A4 Landscape Zoom & Viewport controls
+  // Digital A4 Portrait Zoom & Viewport controls
   const [zoom, setZoom] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('circuit_assembly_a4_zoom');
@@ -436,32 +482,15 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     }
     return 100;
   });
-  const [sheetHeight, setSheetHeight] = useState<number>(794);
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
-
-  // Measure real rendered sheet height for accurate zoom container height and smooth scrolling
-  useEffect(() => {
-    if (!sheetRef.current) return;
-    const updateHeight = () => {
-      if (sheetRef.current) {
-        setSheetHeight(sheetRef.current.offsetHeight);
-      }
-    };
-    updateHeight();
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(updateHeight);
-      observer.observe(sheetRef.current);
-      return () => observer.disconnect();
-    }
-  }, [partsData, selectedPart, selectedYear, isLoading]);
 
   const handleFitToScreen = () => {
     if (!containerRef.current) return;
     const containerWidth = containerRef.current.clientWidth - 32;
-    // Virtual A4 landscape width is 1122.5px (297mm)
-    const a4LandscapeWidthPx = 1122.5;
-    const fitScale = Math.max(35, Math.min(150, Math.floor((containerWidth / a4LandscapeWidthPx) * 100)));
+    // Virtual A4 portrait width is 793.7px (210mm @ 96dpi)
+    const a4PortraitWidthPx = 793.7;
+    const fitScale = Math.max(35, Math.min(150, Math.floor((containerWidth / a4PortraitWidthPx) * 100)));
     setZoom(fitScale);
   };
 
@@ -472,19 +501,19 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   }, [zoom]);
 
   // Initial zoom calculation on mount:
-  // On smartphones (<1024px), prioritize readability (~80%) with horizontal scroll
+  // On smartphones (<768px), prioritize readability (~80%) with horizontal scroll
   // On larger viewports, calculate fit scale up to 100%
   useEffect(() => {
     if (!containerRef.current) return;
     if (sessionStorage.getItem('circuit_assembly_a4_zoom')) return;
 
-    const isMobileOrTablet = typeof window !== 'undefined' && window.innerWidth < 1024;
+    const isMobileOrTablet = typeof window !== 'undefined' && window.innerWidth < 768;
     if (isMobileOrTablet) {
       setZoom(80);
     } else {
       const containerWidth = containerRef.current.clientWidth - 48;
-      const a4LandscapeWidthPx = 1122.5;
-      const calculatedScale = Math.floor((containerWidth / a4LandscapeWidthPx) * 100);
+      const a4PortraitWidthPx = 793.7;
+      const calculatedScale = Math.floor((containerWidth / a4PortraitWidthPx) * 100);
       const fitScale = Math.max(80, Math.min(100, calculatedScale));
       setZoom(fitScale);
     }
@@ -567,10 +596,32 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         const currentResult = result.results[0];
 
         if (currentResult) {
-          if (currentResult.status === 'UPDATE_AVAILABLE') {
+          if (currentResult.data) {
             setDynamicProgram(currentResult.data);
-            setPartsData(prev => migrateLegacyData(prev, currentResult.data));
-            await showAlert(`✓ Programação ${selectedYear} atualizada com sucesso.`, 'Sincronização');
+            setPartsData(prev => {
+              const migrated = migrateLegacyData(prev, currentResult.data);
+              const updatedParts: Record<number, PartData> = { ...migrated };
+              [0, 1, 2, 3].forEach(partIdx => {
+                if (updatedParts[partIdx]) {
+                  const currentTheme = updatedParts[partIdx].details?.assemblyTheme;
+                  // Se o tema estiver vazio ou for igual ao tema estático anterior, atualiza para o novo tema sincronizado
+                  if (!currentTheme || currentTheme === staticProgram.theme || currentTheme === assemblyProgram.theme) {
+                    updatedParts[partIdx] = {
+                      ...updatedParts[partIdx],
+                      details: {
+                        ...updatedParts[partIdx].details,
+                        assemblyTheme: currentResult.data.theme || currentTheme
+                      }
+                    };
+                  }
+                }
+              });
+              return updatedParts;
+            });
+          }
+
+          if (currentResult.status === 'UPDATE_AVAILABLE') {
+            await showAlert(`✓ Programação ${selectedYear} atualizada com sucesso com dados oficiais do jw.org (título, tema, imagem e partes).`, 'Sincronização');
           } else if (currentResult.status === 'CURRENT_UP_TO_DATE') {
             await showAlert(`✓ Programação ${selectedYear} já está em dia com o jw.org.`, 'Sincronização');
           } else if (currentResult.status === 'SYNC_ERROR') {
@@ -957,21 +1008,25 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     let templateId = '';
     let designation = '';
 
-    const isPrayer = item.title.toLowerCase().includes('cântico') && item.title.toLowerCase().includes('oração');
-    const isPresident = item.isRole && item.title.toLowerCase().includes('presidente');
+    const titleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const isPrayer = titleNorm.includes('oracao') || titleNorm.includes('prayer');
+    const isPresident = item.isRole || titleNorm.includes('presidente') || item.id === 'm0' || item.id === 't0';
 
     if (isPrayer) {
       templateId = 'ass_convite_oracao';
       // Identify which prayer it is based on all items in the program
       const allItems: any[] = [];
-      assemblyProgram.sessions.forEach(s => {
-        s.items.forEach(i => {
+      assemblyProgram.sessions.forEach((s: any) => {
+        s.items.forEach((i: any) => {
           allItems.push(i);
-          if (i.subitems) i.subitems.forEach(si => allItems.push(si));
+          if (i.subitems) i.subitems.forEach((si: any) => allItems.push(si));
         });
       });
-      const prayerItems = allItems.filter(i => i.title.toLowerCase().includes('cântico') && i.title.toLowerCase().includes('oração'));
-      const prayerIndex = prayerItems.findIndex(i => i.id === item.id);
+      const prayerItems = allItems.filter((i: any) => {
+        const t = (i.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return t.includes('oracao') || t.includes('prayer');
+      });
+      const prayerIndex = prayerItems.findIndex((i: any) => i.id === item.id);
       
       if (prayerIndex === 0) designation = 'ORAÇÃO INICIAL';
       else if (prayerIndex === 1) designation = 'ORAÇÃO DA TARDE';
@@ -980,14 +1035,17 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     } else if (isPresident) {
       templateId = 'ass_convite_presidente';
       const allItems: any[] = [];
-      assemblyProgram.sessions.forEach(s => {
-        s.items.forEach(i => {
+      assemblyProgram.sessions.forEach((s: any) => {
+        s.items.forEach((i: any) => {
           allItems.push(i);
-          if (i.subitems) i.subitems.forEach(si => allItems.push(si));
+          if (i.subitems) i.subitems.forEach((si: any) => allItems.push(si));
         });
       });
-      const presidentItems = allItems.filter(i => i.isRole && i.title.toLowerCase().includes('presidente'));
-      const presidentIndex = presidentItems.findIndex(i => i.id === item.id);
+      const presidentItems = allItems.filter((i: any) => {
+        const t = (i.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return i.isRole || t.includes('presidente') || i.id === 'm0' || i.id === 't0';
+      });
+      const presidentIndex = presidentItems.findIndex((i: any) => i.id === item.id);
       
       if (presidentIndex === 0) designation = 'PRESIDENTE DE SESSÃO MANHÃ';
       else if (presidentIndex === 1) designation = 'PRESIDENTE DE SESSÃO TARDE';
@@ -1191,7 +1249,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   }
 
   return (
-    <div id="circuit-assembly-print-content" className="space-y-6 pb-16 print:p-0">
+    <div id="circuit-assembly-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
       <style jsx global>{`
         @media screen {
           .print-only {
@@ -1201,38 +1259,99 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
         @media print {
           @page { 
-            size: A4 landscape; 
-            margin: 8mm 10mm; 
+            size: A4 portrait; 
+            margin: 0; 
           }
           
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 210mm !important;
+            height: auto !important;
+            background: #ffffff !important;
+          }
+
           body * { 
             visibility: hidden; 
           }
           
-          #circuit-assembly-a4-sheet, 
-          #circuit-assembly-a4-sheet * { 
+          #circuit-assembly-print-content,
+          #circuit-assembly-print-content * { 
             visibility: visible !important; 
           }
           
-          #circuit-assembly-a4-sheet { 
-            position: absolute !important; 
+          #circuit-assembly-print-content {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+          }
+          
+          .circuit-assembly-viewport,
+          .circuit-assembly-session-wrapper,
+          .circuit-assembly-scale-wrapper {
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            display: block !important;
+            position: static !important;
+            overflow: visible !important;
+            transform: none !important;
+          }
+
+          .circuit-assembly-a4-page { 
+            position: relative !important; 
             top: 0 !important; 
             left: 0 !important; 
-            width: 100% !important; 
-            min-width: 100% !important;
-            max-width: 100% !important;
-            display: block !important;
+            width: 210mm !important; 
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            max-height: 297mm !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
             background: #ffffff !important;
             color: #111827 !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            padding: 10mm 12mm !important;
+            margin: 0 auto !important;
             border: none !important;
             box-shadow: none !important;
             transform: none !important;
+            zoom: 1 !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+
+          .circuit-assembly-session-wrapper:last-child .circuit-assembly-a4-page,
+          .circuit-assembly-a4-page:last-child,
+          .circuit-assembly-a4-page:last-of-type {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
           
-          .no-print { 
+          .no-print,
+          .no-print * { 
             display: none !important; 
+            visibility: hidden !important;
           }
           
           body {
@@ -1248,6 +1367,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             background: transparent !important;
             padding: 0 !important;
             color: #111827 !important;
+            max-width: 100% !important;
           }
           input::placeholder {
             color: transparent !important;
@@ -1320,7 +1440,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             <button 
               onClick={() => window.print()} 
               className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
-              title="Imprimir folha A4 em modo Paisagem"
+              title="Imprimir folha A4 em modo Retrato"
             >
               <Printer size={15} className="shrink-0 text-gray-500" />
               <span className="hidden md:inline">Imprimir A4</span>
@@ -1381,7 +1501,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-300 px-2 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              Folha A4 Paisagem (297 × 210 mm)
+              Folha A4 Retrato (210 × 297 mm)
             </span>
           </div>
 
@@ -1442,358 +1562,409 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       {/* A4 Document Viewport Container */}
       <div 
         ref={containerRef}
-        className="w-full overflow-x-auto overflow-y-visible bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col items-start shadow-inner custom-scrollbar relative border border-slate-300/80"
+        className="circuit-assembly-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80"
         style={{
           minHeight: '400px',
           touchAction: 'pan-x pan-y',
         }}
       >
-        {/* Scaled Document Wrapper */}
-        <div 
-          className="flex flex-col items-start transition-all duration-150 relative mx-auto shrink-0"
-          style={{
-            width: `${(297 * zoom) / 100}mm`,
-            minWidth: `${(297 * zoom) / 100}mm`,
-            height: `${(sheetHeight * zoom) / 100 + 40}px`,
-            minHeight: `${(sheetHeight * zoom) / 100 + 40}px`,
-          }}
-        >
-          {/* Physical A4 Digital Document Sheet */}
-          <div 
-            id="circuit-assembly-a4-sheet"
-            ref={sheetRef}
-            className="bg-white text-slate-900 shadow-2xl rounded-xs border border-gray-300 print:shadow-none print:border-none print:m-0 flex flex-col box-border select-text"
-            style={{
-              width: '297mm',
-              minWidth: '297mm',
-              minHeight: '210mm',
-              padding: '10mm 12mm',
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: 'top left',
-              position: 'relative',
-              transition: 'transform 0.15s ease-out',
-            }}
-          >
-            {/* Sheet Top Header */}
-            <div className="border-b border-gray-200 pb-2 mb-3">
-              {/* Assembly Program Title & Part Identification */}
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-[9.5pt] font-extrabold uppercase tracking-wide text-gray-600 leading-tight">
-                  {assemblyProgram.title}
-                </p>
-                <span className="text-[9pt] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded shrink-0">
-                  PROGRAMA — PARTE {['A', 'B', 'C', 'D'][selectedPart] || 'A'}
-                </span>
+        {/* Render 2 Physical A4 Pages: Page 1 = Manhã, Page 2 = Tarde */}
+        {assemblyProgram.sessions.map((session: any, pageIdx: number) => {
+          const pageNum = pageIdx + 1;
+          const totalPages = assemblyProgram.sessions.length;
+
+          return (
+            <div key={session.period || pageIdx} className="circuit-assembly-session-wrapper flex flex-col items-center w-full">
+              {/* Screen-only Page Divider / Header Pill */}
+              <div className="no-print mb-2.5 px-3 py-1 bg-slate-800 text-slate-200 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-sm border border-slate-700">
+                <span className="w-2 h-2 rounded-full bg-violet-400"></span>
+                <span>Página {pageNum} de {totalPages} • Sessão da {session.period}</span>
               </div>
 
-              {/* Main Theme Verse */}
-              <h2 className="font-serif italic font-bold text-[14pt] text-gray-950 text-center tracking-tight my-1.5 leading-snug">
-                {details.assemblyTheme || assemblyProgram.theme}
-              </h2>
-
-              {/* Event Metadata Strip (Data, Local, Ensaio) */}
-              <div className="flex items-center justify-between gap-3 text-[8.5pt] text-gray-700 bg-gray-50/80 border border-gray-200/70 rounded px-3 py-1 mt-1 flex-wrap">
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-black text-gray-500 uppercase text-[7.5pt]">DATA:</span>
-                    <span className="font-bold text-gray-900">{details.eventDate || 'A definir'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-black text-gray-500 uppercase text-[7.5pt]">LOCAL:</span>
-                    <span className="font-bold text-gray-900">{details.eventLocation || 'A definir'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-black text-gray-500 uppercase text-[7.5pt]">ENSAIO:</span>
-                    <span className="font-bold text-gray-900">
-                      {details.rehearsalDate ? `${details.rehearsalDate}${details.rehearsalLocation ? ` — ${details.rehearsalLocation}` : ''}` : 'A definir'}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowEditDetailsModal(true)}
-                  className="no-print text-[8pt] font-bold text-amber-700 hover:text-amber-900 hover:underline flex items-center gap-1 cursor-pointer"
-                  title="Editar informações do evento"
+              {/* Scaled Document Wrapper — Strict Proportional Model (A4 Portrait) */}
+              <div 
+                className="circuit-assembly-scale-wrapper mx-auto shrink-0 relative transition-all duration-150"
+                style={{
+                  width: `${(210 * zoom) / 100}mm`,
+                  minWidth: `${(210 * zoom) / 100}mm`,
+                  height: `${(297 * zoom) / 100}mm`,
+                  minHeight: `${(297 * zoom) / 100}mm`,
+                }}
+              >
+                {/* Physical A4 Digital Document Sheet — Rigid Fixed Dimensions (210 x 297 mm) */}
+                <div 
+                  id={`circuit-assembly-a4-page-${pageNum}`}
+                  ref={pageIdx === 0 ? sheetRef : undefined}
+                  className="circuit-assembly-a4-page bg-white text-slate-900 shadow-2xl rounded-xs border border-gray-300 print:shadow-none print:border-none print:m-0 flex flex-col justify-between box-border select-text"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '210mm',
+                    minWidth: '210mm',
+                    maxWidth: '210mm',
+                    height: '297mm',
+                    minHeight: '297mm',
+                    maxHeight: '297mm',
+                    padding: '8mm 10mm',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                    transform: `scale(${zoom / 100})`,
+                    transformOrigin: 'top left',
+                    transition: 'transform 0.15s ease-out',
+                  }}
                 >
-                  <Edit3 size={11} />
-                  <span>Editar</span>
-                </button>
-              </div>
-            </div>
+                  {/* Top Content Block: Header + Session Items */}
+                  <div className="flex flex-col flex-1 min-h-0">
+                    {/* Header Banner with Theme Artwork & Integrated Event Metadata (Equal proportions on all pages) */}
+                    <div className="relative w-full rounded-2xl overflow-hidden mb-3 shadow-md border border-slate-200 bg-slate-900 text-white shrink-0">
+                      {/* Background Image Artwork / Gradient Fallback */}
+                      {(details.customHeaderImage || assemblyProgram.headerImage) ? (
+                        <div className="absolute inset-0 z-0">
+                          <Image 
+                            src={details.customHeaderImage || assemblyProgram.headerImage} 
+                            alt={details.assemblyTheme || assemblyProgram.theme || 'Tema da Assembleia'}
+                            fill
+                            className="object-cover"
+                            style={{ objectPosition: 'center 25%' }}
+                            priority
+                            quality={100}
+                            unoptimized
+                            referrerPolicy="no-referrer"
+                          />
+                          {/* Subtle natural gradient matching SpecialPioneerMeetingView - allows artwork to shine */}
+                          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950" />
+                      )}
 
-            {/* Two Balanced Columns for Landscape (Sessão da Manhã & Sessão da Tarde) */}
-            <div className="grid grid-cols-2 gap-6 items-start flex-1">
-              {assemblyProgram.sessions.map((session: any) => (
-                <div key={session.period} className="flex flex-col">
-                  {/* Session Header Bar */}
-                  <div className="flex items-baseline justify-between border-b-2 border-amber-500 pb-1 mb-2">
-                    <h3 className="text-[11pt] font-black tracking-wider uppercase text-amber-900">
-                      SESSÃO DA {session.period.toUpperCase()}
-                    </h3>
-                    <span className="text-[7.5pt] font-bold tracking-wider uppercase text-gray-400">
-                      HORÁRIO • PROGRAMA • ORADOR
-                    </span>
-                  </div>
-
-                  {/* Session Items List */}
-                  <div className="space-y-1.5">
-                    {session.items.map((item: any) => {
-                      const isSymposium = item.subitems && item.subitems.length > 0;
-                      const hasSpeaker = !item.noSpeaker;
-                      const isRole = item.isRole;
-
-                      if (isSymposium) {
-                        return (
-                          <div key={item.id} className="bg-amber-50/30 rounded p-1.5 border border-amber-100/60 my-1">
-                            {/* Symposium Title Row */}
-                            <div className="flex items-start gap-2 mb-1">
-                              <span className="text-[8.5pt] font-black text-amber-700 w-11 shrink-0 mt-0.5">
-                                {item.time || ''}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <span className="text-[7.5pt] font-extrabold uppercase text-amber-700 tracking-wider mr-1.5 block leading-tight">
-                                  {item.label || 'SÉRIE DE DISCURSOS:'}
-                                </span>
-                                <span className="text-[9.5pt] font-bold text-gray-950 leading-tight">
-                                  {item.title}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Symposium Subitems (Indented with amber border) */}
-                            <div className="ml-11 border-l-2 border-amber-300/80 pl-2.5 space-y-1.5 mt-1">
-                              {item.subitems.map((sub: any, idx: number) => {
-                                const subSpeaker = speakers[sub.id] || '';
-                                const subCong = congregations[sub.id] || '';
-                                const subNote = currentPart.notes?.[sub.id] || '';
-                                const isConfirmed = !!confirmedSpeakers[sub.id];
-
-                                return (
-                                  <div key={sub.id} className="border-b border-amber-100/50 pb-1 last:border-b-0">
-                                    <div className="flex items-start justify-between gap-1.5">
-                                      <div className="flex items-start gap-1 flex-1 min-w-0">
-                                        <span className="text-amber-700 font-black text-[8.5pt] shrink-0 mt-0.5">
-                                          {idx + 1}.
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-1.5 flex-wrap">
-                                            <span className="text-[9pt] font-semibold text-gray-900 leading-tight">
-                                              {sub.title}
-                                            </span>
-                                            {sub.time ? (
-                                              <span className="text-[7.5pt] font-bold text-amber-700 bg-amber-100/60 px-1 py-0.2 rounded">
-                                                {sub.time}
-                                              </span>
-                                            ) : (
-                                              <input
-                                                type="text"
-                                                placeholder="--:--"
-                                                value={currentPart.userTimes?.[sub.id] || ''}
-                                                onChange={e => handleUserTimeChange(sub.id, e.target.value)}
-                                                className="w-8 text-[7.5pt] font-bold text-amber-700 bg-transparent border-b border-amber-200 outline-none text-center"
-                                                title="Horário personalizado"
-                                              />
-                                            )}
-                                          </div>
-
-                                          {/* Speaker & Details Inputs */}
-                                          <div className="mt-0.5 space-y-0.5">
-                                            <div className="relative">
-                                              <input
-                                                type="text"
-                                                placeholder="Nome do orador..."
-                                                value={subSpeaker}
-                                                onChange={e => handleSpeakerChange(sub.id, e.target.value)}
-                                                className={`w-full text-[9pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!subSpeaker ? 'print:hidden' : ''}`}
-                                              />
-                                              {!subSpeaker && (
-                                                <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-600 font-normal">
-                                                  <span className="text-[7.5pt] font-semibold text-gray-400 mr-1.5 shrink-0">Orador:</span>
-                                                  <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
-                                                </div>
-                                              )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              <div className="w-1/2 relative">
-                                                <input
-                                                  type="text"
-                                                  placeholder="Congregação..."
-                                                  value={subCong}
-                                                  onChange={e => handleCongregationChange(sub.id, e.target.value)}
-                                                  className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300 ${!subCong ? 'print:hidden' : ''}`}
-                                                />
-                                                {!subCong && (
-                                                  <div className="hidden print:flex items-baseline w-full text-[7.5pt] text-gray-500 font-normal">
-                                                    <span className="text-[7pt] font-medium text-gray-400 mr-1 shrink-0">Congr:</span>
-                                                    <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
-                                                  </div>
-                                                )}
-                                              </div>
-                                              <div className="w-1/2 relative">
-                                                <input
-                                                  type="text"
-                                                  placeholder="Notas..."
-                                                  value={subNote}
-                                                  onChange={e => handleNotesChange(sub.id, e.target.value)}
-                                                  className="w-1/2 text-[8pt] text-gray-500 italic bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300"
-                                                />
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* Action buttons (Confirmation & Docx letter) */}
-                                      <div className="flex items-center gap-1 shrink-0 no-print mt-1">
-                                        <button
-                                          onClick={() => handleConfirmationToggle(sub.id)}
-                                          className={`p-1 rounded transition-colors cursor-pointer ${
-                                            isConfirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400 hover:text-gray-600'
-                                          }`}
-                                          title={isConfirmed ? 'Confirmado' : 'Marcar confirmação'}
-                                        >
-                                          <CheckCircle2 size={13} />
-                                        </button>
-                                        <button
-                                          onClick={() => generateDocument({ ...sub, time: sub.time || currentPart.userTimes?.[sub.id] || '', title: `${item.title}: ${sub.title}` }, 'docx')}
-                                          className="p-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded transition-colors cursor-pointer"
-                                          title="Gerar Carta de Designação (.docx)"
-                                        >
-                                          <FileText size={13} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                      {/* Overlaid Banner Content */}
+                      <div className="relative z-10 p-3 sm:p-4 flex flex-col justify-between min-h-[40mm]">
+                        {/* Top Bar: Program Title & Part Pill */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[7.5pt] sm:text-[8pt] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                            <span className="truncate">{assemblyProgram.title}</span>
                           </div>
-                        );
-                      }
+                          <span className="text-[7.5pt] font-black uppercase tracking-wider text-amber-950 bg-amber-400 px-2.5 py-0.5 rounded-full shadow-sm shrink-0">
+                            PARTE {['A', 'B', 'C', 'D'][selectedPart] || 'A'}
+                          </span>
+                        </div>
 
-                      const isMusicOrIntermission = !hasSpeaker;
-                      const speakerName = speakers[item.id] || '';
-                      const speakerCong = congregations[item.id] || '';
-                      const speakerNote = currentPart.notes?.[item.id] || '';
-                      const isConfirmed = !!confirmedSpeakers[item.id];
+                        {/* Main Theme Verse Typography */}
+                        <div className="my-1.5 space-y-0.5">
+                          <div className="text-[12.5pt] sm:text-[14pt] font-black uppercase tracking-tight text-amber-300 drop-shadow-md leading-tight">
+                            {details.assemblyTheme || assemblyProgram.theme}
+                          </div>
+                        </div>
 
-                      return (
-                        <div 
-                          key={item.id} 
-                          className={`p-1.5 rounded transition-colors ${
-                            isRole ? 'bg-violet-50/50 border border-violet-100' : 'border-b border-gray-100 hover:bg-gray-50/50'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-start gap-2 flex-1 min-w-0">
-                              {item.time ? (
-                                <span className="text-[8.5pt] font-black text-amber-700 w-11 shrink-0 mt-0.5">
-                                  {item.time}
-                                </span>
-                              ) : (
-                                <span className="w-11 shrink-0"></span>
-                              )}
+                        {/* Bottom Event Metadata Strip with Icons */}
+                        <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <div className="flex items-center gap-1.5 text-[7.5pt] sm:text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <CalendarDays size={13} className="text-amber-400 shrink-0" />
+                              <span>{details.eventDate || 'Data a definir'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[7.5pt] sm:text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <MapPin size={13} className="text-amber-400 shrink-0" />
+                              <span>{details.eventLocation || 'Local a definir'}</span>
+                            </div>
+                            {details.rehearsalDate && (
+                              <div className="flex items-center gap-1.5 text-[7pt] sm:text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
+                                <Clock size={12} className="text-amber-400/80 shrink-0" />
+                                <span>Ensaio: {details.rehearsalDate}{details.rehearsalLocation ? ` — ${details.rehearsalLocation}` : ''}</span>
+                              </div>
+                            )}
+                          </div>
 
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {item.label && (
-                                    <span className="text-[7.5pt] font-extrabold uppercase text-amber-700 tracking-wider">
-                                      {item.label}
-                                    </span>
-                                  )}
-                                  <span className={`text-[9pt] leading-tight ${
-                                    isMusicOrIntermission ? 'font-medium text-gray-500 italic' : isRole ? 'font-black text-violet-900 tracking-wider uppercase' : 'font-bold text-gray-900'
-                                  }`}>
-                                    {item.title}
+                          <button
+                            onClick={() => setShowEditDetailsModal(true)}
+                            className="no-print text-[7pt] font-bold text-amber-200 hover:text-white flex items-center gap-1 cursor-pointer bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded-md transition-all ml-auto drop-shadow-sm"
+                            title="Editar informações e imagem do evento"
+                          >
+                            <Edit3 size={10} />
+                            <span>Editar</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Session Content for this Page */}
+                    <div className="flex flex-col flex-1 min-h-0">
+                      {/* Session Header Bar */}
+                      <div className="flex items-baseline justify-between border-b-2 border-amber-500 pb-1 mb-2">
+                        <h3 className="text-[11pt] font-black tracking-wider uppercase text-amber-900">
+                          SESSÃO DA {session.period.toUpperCase()}
+                        </h3>
+                        <span className="text-[7.5pt] font-bold tracking-wider uppercase text-gray-400">
+                          HORÁRIO • PROGRAMA • ORADOR
+                        </span>
+                      </div>
+
+                      {/* Session Items List */}
+                      <div className="space-y-1.5 flex-1">
+                        {session.items.map((item: any) => {
+                          const isSymposium = item.subitems && item.subitems.length > 0;
+                          const itemTitleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                          const isPrayer = itemTitleNorm.includes('oracao') || itemTitleNorm.includes('prayer');
+                          const isRole = item.isRole || itemTitleNorm.includes('presidente') || item.id === 'm0' || item.id === 't0';
+                          const hasSpeaker = !item.noSpeaker || isPrayer || isRole;
+
+                          if (isSymposium) {
+                            return (
+                              <div key={item.id} className="bg-amber-50/30 rounded p-1.5 border border-amber-100/60 my-1">
+                                {/* Symposium Title Row */}
+                                <div className="flex items-start gap-2 mb-1">
+                                  <span className="text-[8.5pt] font-black text-amber-700 w-11 shrink-0 mt-0.5">
+                                    {item.time || ''}
                                   </span>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-[7.5pt] font-extrabold uppercase text-amber-700 tracking-wider mr-1.5 block leading-tight">
+                                      {item.label || 'SÉRIE DE DISCURSOS:'}
+                                    </span>
+                                    <span className="text-[9.5pt] font-bold text-gray-950 leading-tight">
+                                      {item.title}
+                                    </span>
+                                  </div>
                                 </div>
 
-                                 {hasSpeaker && (
-                                  <div className="mt-1 space-y-0.5">
-                                    <div className="relative">
-                                      <input
-                                        type="text"
-                                        placeholder={isRole ? "Nome do Presidente..." : "Nome do orador..."}
-                                        value={speakerName}
-                                        onChange={e => handleSpeakerChange(item.id, e.target.value)}
-                                        className={`w-full text-[9pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!speakerName ? 'print:hidden' : ''}`}
-                                      />
-                                      {!speakerName && (
-                                        <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-600 font-normal">
-                                          <span className="text-[7.5pt] font-semibold text-gray-400 mr-1.5 shrink-0">
-                                            {isRole ? 'Designado:' : 'Orador:'}
-                                          </span>
-                                          <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-1/2 relative">
-                                        <input
-                                          type="text"
-                                          placeholder="Congregação..."
-                                          value={speakerCong}
-                                          onChange={e => handleCongregationChange(item.id, e.target.value)}
-                                          className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300 ${!speakerCong ? 'print:hidden' : ''}`}
-                                        />
-                                        {!speakerCong && (
-                                          <div className="hidden print:flex items-baseline w-full text-[7.5pt] text-gray-500 font-normal">
-                                            <span className="text-[7pt] font-medium text-gray-400 mr-1 shrink-0">Congr:</span>
-                                            <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
+                                {/* Symposium Subitems (Indented with amber border) */}
+                                <div className="ml-11 border-l-2 border-amber-300/80 pl-2.5 space-y-1.5 mt-1">
+                                  {item.subitems.map((sub: any, idx: number) => {
+                                    const subSpeaker = speakers[sub.id] || '';
+                                    const subCong = congregations[sub.id] || '';
+                                    const subNote = currentPart.notes?.[sub.id] || '';
+                                    const isConfirmed = !!confirmedSpeakers[sub.id];
+
+                                    return (
+                                      <div key={sub.id} className="border-b border-amber-100/50 pb-1 last:border-b-0">
+                                        <div className="flex items-start justify-between gap-1.5">
+                                          <div className="flex items-start gap-1 flex-1 min-w-0">
+                                            <span className="text-amber-700 font-black text-[8.5pt] shrink-0 mt-0.5">
+                                              {idx + 1}.
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="text-[9pt] font-semibold text-gray-900 leading-tight">
+                                                  {sub.title}
+                                                </span>
+                                                {sub.time ? (
+                                                  <span className="text-[7.5pt] font-bold text-amber-700 bg-amber-100/60 px-1 py-0.2 rounded">
+                                                    {sub.time}
+                                                  </span>
+                                                ) : (
+                                                  <input
+                                                    type="text"
+                                                    placeholder="--:--"
+                                                    value={currentPart.userTimes?.[sub.id] || ''}
+                                                    onChange={e => handleUserTimeChange(sub.id, e.target.value)}
+                                                    className="w-8 text-[7.5pt] font-bold text-amber-700 bg-transparent border-b border-amber-200 outline-none text-center"
+                                                    title="Horário personalizado"
+                                                  />
+                                                )}
+                                              </div>
+
+                                              {/* Speaker & Details Inputs */}
+                                              <div className="mt-0.5 space-y-0.5">
+                                                <div className="relative">
+                                                  <input
+                                                    type="text"
+                                                    placeholder="Nome do orador..."
+                                                    value={subSpeaker}
+                                                    onChange={e => handleSpeakerChange(sub.id, e.target.value)}
+                                                    className={`w-full text-[9pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!subSpeaker ? 'print:hidden' : ''}`}
+                                                  />
+                                                  {!subSpeaker && (
+                                                    <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-600 font-normal">
+                                                      <span className="text-[7.5pt] font-semibold text-gray-400 mr-1.5 shrink-0">Orador:</span>
+                                                      <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-1/2 relative">
+                                                    <input
+                                                      type="text"
+                                                      placeholder="Congregação..."
+                                                      value={subCong}
+                                                      onChange={e => handleCongregationChange(sub.id, e.target.value)}
+                                                      className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300 ${!subCong ? 'print:hidden' : ''}`}
+                                                    />
+                                                    {!subCong && (
+                                                      <div className="hidden print:flex items-baseline w-full text-[7.5pt] text-gray-500 font-normal">
+                                                        <span className="text-[7pt] font-medium text-gray-400 mr-1 shrink-0">Congr:</span>
+                                                        <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  <div className="w-1/2 relative">
+                                                    <input
+                                                      type="text"
+                                                      placeholder="Notas..."
+                                                      value={subNote}
+                                                      onChange={e => handleNotesChange(sub.id, e.target.value)}
+                                                      className="w-full text-[8pt] text-gray-500 italic bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
                                           </div>
-                                        )}
+
+                                          {/* Action buttons (Confirmation & Docx letter) */}
+                                          <div className="flex items-center gap-1 shrink-0 no-print mt-1">
+                                            <button
+                                              onClick={() => handleConfirmationToggle(sub.id)}
+                                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                                isConfirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400 hover:text-gray-600'
+                                              }`}
+                                              title={isConfirmed ? 'Confirmado' : 'Marcar confirmação'}
+                                            >
+                                              <CheckCircle2 size={13} />
+                                            </button>
+                                            <button
+                                              onClick={() => generateDocument({ ...sub, time: sub.time || currentPart.userTimes?.[sub.id] || '', title: `${item.title}: ${sub.title}` }, 'docx')}
+                                              className="p-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded transition-colors cursor-pointer"
+                                              title="Gerar Carta de Designação (.docx)"
+                                            >
+                                              <FileText size={13} />
+                                            </button>
+                                          </div>
+                                        </div>
                                       </div>
-                                      <div className="w-1/2 relative">
-                                        <input
-                                          type="text"
-                                          placeholder="Notas..."
-                                          value={speakerNote}
-                                          onChange={e => handleNotesChange(item.id, e.target.value)}
-                                          className="w-full text-[8pt] text-gray-500 italic bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300"
-                                        />
-                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          const isMusicOrIntermission = !hasSpeaker;
+                          const speakerName = speakers[item.id] || '';
+                          const speakerCong = congregations[item.id] || '';
+                          const speakerNote = currentPart.notes?.[item.id] || '';
+                          const isConfirmed = !!confirmedSpeakers[item.id];
+
+                          return (
+                            <div 
+                              key={item.id} 
+                              className={`p-1.5 rounded transition-colors ${
+                                isRole ? 'bg-violet-50/50 border border-violet-100' : isPrayer ? 'bg-amber-50/20 border-b border-gray-100 hover:bg-amber-50/40' : 'border-b border-gray-100 hover:bg-gray-50/50'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2 flex-1 min-w-0">
+                                  {item.time ? (
+                                    <span className="text-[8.5pt] font-black text-amber-700 w-11 shrink-0 mt-0.5">
+                                      {item.time}
+                                    </span>
+                                  ) : (
+                                    <span className="w-11 shrink-0"></span>
+                                  )}
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {item.label && (
+                                        <span className="text-[7.5pt] font-extrabold uppercase text-amber-700 tracking-wider">
+                                          {item.label}
+                                        </span>
+                                      )}
+                                      <span className={`text-[9pt] leading-tight ${
+                                        isRole ? 'font-black text-violet-900 tracking-wider uppercase' : isPrayer ? 'font-bold text-amber-950' : isMusicOrIntermission ? 'font-medium text-gray-500 italic' : 'font-bold text-gray-900'
+                                      }`}>
+                                        {item.title}
+                                      </span>
                                     </div>
+
+                                    {hasSpeaker && (
+                                      <div className="mt-1 space-y-0.5">
+                                        <div className="relative">
+                                          <input
+                                            type="text"
+                                            placeholder={isRole ? "Nome do Presidente..." : isPrayer ? "Nome do irmão (oração)..." : "Nome do orador..."}
+                                            value={speakerName}
+                                            onChange={e => handleSpeakerChange(item.id, e.target.value)}
+                                            className={`w-full text-[9pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!speakerName ? 'print:hidden' : ''}`}
+                                          />
+                                          {!speakerName && (
+                                            <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-600 font-normal">
+                                              <span className="text-[7.5pt] font-semibold text-gray-400 mr-1.5 shrink-0">
+                                                {isRole ? 'Presidente:' : isPrayer ? 'Oração:' : 'Orador:'}
+                                              </span>
+                                              <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-1/2 relative">
+                                            <input
+                                              type="text"
+                                              placeholder="Congregação..."
+                                              value={speakerCong}
+                                              onChange={e => handleCongregationChange(item.id, e.target.value)}
+                                              className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300 ${!speakerCong ? 'print:hidden' : ''}`}
+                                            />
+                                            {!speakerCong && (
+                                              <div className="hidden print:flex items-baseline w-full text-[7.5pt] text-gray-500 font-normal">
+                                                <span className="text-[7pt] font-medium text-gray-400 mr-1 shrink-0">Congr:</span>
+                                                <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="w-1/2 relative">
+                                            <input
+                                              type="text"
+                                              placeholder="Notas..."
+                                              value={speakerNote}
+                                              onChange={e => handleNotesChange(item.id, e.target.value)}
+                                              className="w-full text-[8pt] text-gray-500 italic bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {hasSpeaker && (
+                                  <div className="flex items-center gap-1 shrink-0 no-print mt-1">
+                                    <button
+                                      onClick={() => handleConfirmationToggle(item.id)}
+                                      className={`p-1 rounded transition-colors cursor-pointer ${
+                                        isConfirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400 hover:text-gray-600'
+                                      }`}
+                                      title={isConfirmed ? 'Confirmado' : 'Marcar confirmação'}
+                                    >
+                                      <CheckCircle2 size={13} />
+                                    </button>
+                                    <button
+                                      onClick={() => generateDocument(item, 'docx')}
+                                      className="p-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded transition-colors cursor-pointer"
+                                      title="Gerar Carta de Designação (.docx)"
+                                    >
+                                      <FileText size={13} />
+                                    </button>
                                   </div>
                                 )}
                               </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
 
-                            {hasSpeaker && (
-                              <div className="flex items-center gap-1 shrink-0 no-print mt-1">
-                                <button
-                                  onClick={() => handleConfirmationToggle(item.id)}
-                                  className={`p-1 rounded transition-colors cursor-pointer ${
-                                    isConfirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400 hover:text-gray-600'
-                                  }`}
-                                  title={isConfirmed ? 'Confirmado' : 'Marcar confirmação'}
-                                >
-                                  <CheckCircle2 size={13} />
-                                </button>
-                                <button
-                                  onClick={() => generateDocument(item, 'docx')}
-                                  className="p-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded transition-colors cursor-pointer"
-                                  title="Gerar Carta de Designação (.docx)"
-                                >
-                                  <FileText size={13} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {/* Sheet Bottom Footer */}
+                  <div className="border-t border-gray-200 pt-2 mt-4 flex items-center justify-between text-[7.5pt] font-semibold text-gray-400 uppercase tracking-wider shrink-0">
+                    <span>{assemblyProgram.title}</span>
+                    <span>Página {pageNum} de {totalPages} • Sessão da {session.period}</span>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-
-            {/* Sheet Bottom Footer */}
-            <div className="border-t border-gray-200 pt-2 mt-4 flex items-center justify-between text-[7.5pt] font-semibold text-gray-400 uppercase tracking-wider">
-              <span>{assemblyProgram.title}</span>
-              <span>Temporada {selectedYear} • Parte {['A', 'B', 'C', 'D'][selectedPart] || 'A'}</span>
-            </div>
-          </div>
-        </div>
+          );
+        })}
 
         {/* Orphaned Parts / Revisions Section (Below A4 Sheet) */}
         {Object.keys(currentPart.orphanedParts || {}).length > 0 && (
@@ -2204,6 +2375,44 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                       />
                     </div>
+                  </div>
+
+                  {/* Imagem de Capa / Arte Oficial */}
+                  <div className="space-y-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Imagem do Cabeçalho (URL)</label>
+                      {details.customHeaderImage && (
+                        <button
+                          type="button"
+                          onClick={() => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, customHeaderImage: '' } } }))}
+                          className="text-[10px] font-bold text-amber-600 hover:text-amber-800 hover:underline"
+                        >
+                          Restaurar Imagem Oficial
+                        </button>
+                      )}
+                    </div>
+                    <input 
+                      type="text" 
+                      value={details.customHeaderImage || ''} 
+                      onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, customHeaderImage: e.target.value } } }))}
+                      placeholder={assemblyProgram.headerImage || 'https://...'}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-mono text-gray-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                    />
+                    {(details.customHeaderImage || assemblyProgram.headerImage) && (
+                      <div className="relative h-16 w-full rounded-xl overflow-hidden border border-gray-200 mt-1">
+                        <Image
+                          src={details.customHeaderImage || assemblyProgram.headerImage}
+                          alt="Pré-visualização da Capa"
+                          fill
+                          className="object-cover object-center opacity-85"
+                          unoptimized
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
+                          <span className="text-[9px] text-white font-bold tracking-wide">Pré-visualização da imagem</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
