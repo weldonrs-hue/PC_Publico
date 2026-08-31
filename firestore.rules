@@ -94,6 +94,10 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
+    match /assembly_programs/{id} {
+      allow read, write: if true;
+    }
+
     // Fallback para outras coleções menores
     match /{document=**} {
       allow read, write: if isSignedIn();

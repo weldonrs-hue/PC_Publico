@@ -1,5 +1,5 @@
 'use client';
-
+// Force rebuild - 2026-08-29
 import { useState } from 'react';
 import { Landmark, Store, Users, ChevronLeft, X, ExternalLink, Loader2, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';

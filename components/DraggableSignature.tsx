@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform } from 'motion/react';
-import { Move, RotateCcw, Save, Maximize2, Check } from 'lucide-react';
+import { Move, RotateCcw, Save, Maximize2, Check, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface DraggableSignatureProps {

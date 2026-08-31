@@ -505,7 +505,7 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
               </p>
 
               <div className="flex flex-col items-center justify-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm relative group overflow-hidden">
-                {formData.signatureImage ? (
+                {formData.signatureImage && formData.signatureImage.length > 10 ? (
                   <div className="relative w-full max-w-[300px] mx-auto">
                     <div 
                       className="flex items-end justify-center relative w-full h-[120px] overflow-visible transition-all duration-200"

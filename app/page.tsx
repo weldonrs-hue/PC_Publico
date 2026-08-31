@@ -5,6 +5,10 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/Sidebar';
 import Logo from '@/components/Logo';
+import EventsView from '@/components/EventsView';
+import RegionalConventionView from '@/components/RegionalConventionView';
+import CircuitAssemblyView from '@/components/CircuitAssemblyView';
+import SpecialPioneerMeetingView from '@/components/SpecialPioneerMeetingView';
 
 const DashboardCards = dynamic(() => import('@/components/DashboardCards'), { ssr: false });
 const SecondarySection = dynamic(() => import('@/components/SecondarySection'), { ssr: false });
@@ -20,10 +24,6 @@ const CircuitStatisticsView = dynamic(() => import('@/components/CircuitStatisti
 const SchoolsView = dynamic(() => import('@/components/SchoolsView'), { ssr: false });
 const PioneerSchoolView = dynamic(() => import('@/components/PioneerSchoolView'), { ssr: false });
 const CongregationStatisticsView = dynamic(() => import('@/components/CongregationStatisticsView'), { ssr: false });
-const EventsView = dynamic(() => import('@/components/EventsView'), { ssr: false });
-const RegionalConventionView = dynamic(() => import('@/components/RegionalConventionView'), { ssr: false });
-const CircuitAssemblyView = dynamic(() => import('@/components/CircuitAssemblyView'), { ssr: false });
-const SpecialPioneerMeetingView = dynamic(() => import('@/components/SpecialPioneerMeetingView'), { ssr: false });
 const MiscView = dynamic(() => import('@/components/MiscView'), { 
   ssr: false,
   loading: () => (

@@ -296,6 +296,23 @@
       },
       "required": ["x", "y", "scale"]
     },
+    "assembly_program": {
+      "title": "Assembly Program",
+      "description": "Program and theme for circuit assemblies scraped from jw.org",
+      "type": "object",
+      "properties": {
+        "year": { "type": "string" },
+        "type": { "type": "string", "enum": ["supt", "branch"] },
+        "title": { "type": "string" },
+        "theme": { "type": "string" },
+        "sessions": { "type": "array" },
+        "lastChecked": { "type": "string" },
+        "lastUpdated": { "type": "string" },
+        "hash": { "type": "string" },
+        "sourceUrl": { "type": "string" }
+      },
+      "required": ["year", "type", "title", "theme", "sessions"]
+    },
     "weekly_expense_receipt": {
       "title": "Weekly Expense Receipt",
       "description": "A financial receipt for weekly expenses",
@@ -419,6 +436,10 @@
     "/signature_placements/{placementId}": {
       "schema": "signature_placement",
       "description": "Collection of custom signature positions and scales"
+    },
+    "/assembly_programs/{programId}": {
+      "schema": "assembly_program",
+      "description": "Collection of scraped assembly programs"
     }
   }
 }
