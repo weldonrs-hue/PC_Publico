@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { 
   Store, 
@@ -134,7 +134,9 @@ export default function CongregationsView({
   useEffect(() => {
     if (initialCongregation) {
       setSelectedCong(initialCongregation);
-      setFormData({ ...defaultFormData, ...initialCongregation });
+      const data = { ...defaultFormData, ...initialCongregation };
+      setFormData(data);
+      setInitialFormData(JSON.stringify(data));
       setIsEditing(true);
     }
   }, [initialCongregation]);
@@ -214,6 +216,12 @@ export default function CongregationsView({
   const [importSuccess, setImportSuccess] = useState<{ total: number; updated: number; created: number } | null>(null);
   
   const [formData, setFormData] = useState<Congregation>(defaultFormData);
+  const [initialFormData, setInitialFormData] = useState<string>(JSON.stringify(defaultFormData));
+
+  const hasChanges = useMemo(() => {
+    if (!isEditing) return false;
+    return JSON.stringify(formData) !== initialFormData;
+  }, [isEditing, formData, initialFormData]);
 
   const formatCEP = (value: string) => {
     const numbers = value.replace(/\D/g, '').slice(0, 8);
@@ -434,6 +442,7 @@ export default function CongregationsView({
   const handleAddNew = () => {
     setSelectedCong(null);
     setFormData(defaultFormData);
+    setInitialFormData(JSON.stringify(defaultFormData));
     setGpsStatus(null);
     setIsEditing(true);
   };
@@ -464,7 +473,9 @@ export default function CongregationsView({
 
   const handleEdit = (cong: Congregation) => {
     setSelectedCong(cong);
-    setFormData({ ...defaultFormData, ...cong });
+    const data = { ...defaultFormData, ...cong };
+    setFormData(data);
+    setInitialFormData(JSON.stringify(data));
     setGpsStatus(null);
     setIsEditing(true);
   };
@@ -1216,20 +1227,41 @@ export default function CongregationsView({
             exit={{ opacity: 0, x: -20 }}
             className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-5 text-white flex justify-between items-center">
-              <h3 className="font-bold">
-                {selectedCong ? 'Editar Congregação' : 'Nova Congregação'}
-              </h3>
-              {!selectedCong && (
-                <button 
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-4 sm:p-5 text-white flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <button
                   type="button"
-                  onClick={() => setIsPasting(true)}
-                  className="flex items-center gap-1 text-[10px] font-bold bg-white/20 hover:bg-white/30 px-2 py-1 rounded transition-all"
+                  onClick={() => setIsEditing(false)}
+                  className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition-all text-white flex items-center justify-center cursor-pointer"
+                  title="Voltar para a lista"
                 >
-                  <ClipboardPaste size={12} />
-                  Colar Dados
+                  <ChevronLeft size={18} />
                 </button>
-              )}
+                <h3 className="font-bold text-base sm:text-lg">
+                  {selectedCong ? 'Editar Congregação' : 'Nova Congregação'}
+                </h3>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {!selectedCong && (
+                  <button 
+                    type="button"
+                    onClick={() => setIsPasting(true)}
+                    className="flex items-center gap-1.5 text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-sm"
+                  >
+                    <ClipboardPaste size={14} />
+                    <span>Colar Dados</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition-all text-white flex items-center justify-center cursor-pointer"
+                  title="Fechar edição"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <form id="congregation-form" onSubmit={handleSave} className="p-6 space-y-6 pb-28">
@@ -1672,79 +1704,69 @@ export default function CongregationsView({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
-                <button 
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  disabled={isSaving}
-                  className="px-6 py-2.5 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition-colors text-sm disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-8 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 flex items-center gap-2 active:scale-95 text-sm disabled:opacity-50"
-                >
-                  {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  <span>{isSaving ? 'Salvando...' : 'Salvar Congregação'}</span>
-                </button>
-              </div>
             </form>
 
-            {/* Barra Suspensa / Flutuante de Salvar Congregação */}
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
-            >
-              <div className="flex items-center gap-2.5 shrink-0">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-                </span>
-                <div className="flex flex-col">
-                  <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
-                    {selectedCong ? (formData.nome ? `Editando: ${formData.nome}` : 'Editando Congregação') : 'Nova Congregação'}
-                  </span>
-                  {formData.numero && (
-                    <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
-                      Nº {formData.numero} {formData.circuito ? `• ${formData.circuito}` : ''}
+            {/* Floating Save Bar (só aparece se houver alterações não salvas) */}
+            <AnimatePresence>
+              {hasChanges && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 40 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 40 }}
+                  className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+                >
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
                     </span>
-                  )}
-                </div>
-              </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+                        Alterações não salvas
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                        {formData.nome ? formData.nome : 'Nova Congregação'} {formData.numero ? `• Nº ${formData.numero}` : ''}
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  disabled={isSaving}
-                  className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-gray-300 hover:text-white rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  form="congregation-form"
-                  disabled={isSaving}
-                  className="px-4 sm:px-5 py-2 sm:py-2.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-amber-900/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin shrink-0" />
-                      <span>Salvando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} className="shrink-0" />
-                      <span>Salvar Congregação</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedCong) {
+                          setFormData(JSON.parse(initialFormData));
+                        } else {
+                          setIsEditing(false);
+                        }
+                      }}
+                      disabled={isSaving}
+                      className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {selectedCong ? 'Descartar' : 'Cancelar'}
+                    </button>
+                    <button
+                      type="submit"
+                      form="congregation-form"
+                      disabled={isSaving}
+                      className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin shrink-0" />
+                          <span>Salvando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save size={15} className="shrink-0" />
+                          <span>Salvar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
