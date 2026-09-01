@@ -483,7 +483,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const saved = sessionStorage.getItem('circuit_assembly_a4_zoom');
       if (saved) return parseInt(saved, 10);
     }
-    return 100;
+    return 80;
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -493,7 +493,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     const containerWidth = containerRef.current.clientWidth - 32;
     // Virtual A4 portrait width is 793.7px (210mm @ 96dpi)
     const a4PortraitWidthPx = 793.7;
-    const fitScale = Math.max(35, Math.min(150, Math.floor((containerWidth / a4PortraitWidthPx) * 100)));
+    const fitScale = Math.max(35, Math.min(125, Math.floor((containerWidth / a4PortraitWidthPx) * 100)));
     setZoom(fitScale);
   };
 
@@ -503,23 +503,11 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     }
   }, [zoom]);
 
-  // Initial zoom calculation on mount:
-  // On smartphones (<768px), prioritize readability (~80%) with horizontal scroll
-  // On larger viewports, calculate fit scale up to 100%
+  // Initial zoom calculation on mount: standardized at 80% for identical mobile-like view on all screens
   useEffect(() => {
     if (!containerRef.current) return;
     if (sessionStorage.getItem('circuit_assembly_a4_zoom')) return;
-
-    const isMobileOrTablet = typeof window !== 'undefined' && window.innerWidth < 768;
-    if (isMobileOrTablet) {
-      setZoom(80);
-    } else {
-      const containerWidth = containerRef.current.clientWidth - 48;
-      const a4PortraitWidthPx = 793.7;
-      const calculatedScale = Math.floor((containerWidth / a4PortraitWidthPx) * 100);
-      const fitScale = Math.max(80, Math.min(100, calculatedScale));
-      setZoom(fitScale);
-    }
+    setZoom(80);
   }, [isLoading]);
 
   // Pinch-to-zoom touch gesture listener
@@ -1833,10 +1821,10 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       )}
 
                       {/* Overlaid Banner Content */}
-                      <div className="relative z-10 p-3.5 flex flex-col justify-between min-h-[38mm]">
+                      <div className="relative z-10 p-3 flex flex-col justify-between min-h-[36mm]">
                         {/* Top Bar: Program Title & Part Pill */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[8pt] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
+                          <div className="text-[7.5pt] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
                             <span className="truncate">{assemblyProgram.title}</span>
                           </div>
@@ -1846,32 +1834,32 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                         </div>
 
                         {/* Main Theme Verse Typography */}
-                        <div className="my-1.5 space-y-0.5">
-                          <div className="text-[13pt] font-black uppercase tracking-tight text-amber-300 drop-shadow-md leading-tight">
+                        <div className="my-1 space-y-0.5">
+                          <div className="text-[12.5pt] font-black uppercase tracking-tight text-amber-300 drop-shadow-md leading-tight">
                             {details.assemblyTheme || assemblyProgram.theme}
                           </div>
                         </div>
 
                         {/* Bottom Event Metadata Strip with Icons */}
                         <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
-                              <CalendarDays size={13} className="text-amber-400 shrink-0" />
+                          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
+                            <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <CalendarDays size={12} className="text-amber-400 shrink-0" />
                               <span>{details.eventDate || 'Data a definir'}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
-                              <MapPin size={13} className="text-amber-400 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <MapPin size={12} className="text-amber-400 shrink-0" />
                               <span>{details.eventLocation || 'Local a definir'}</span>
                             </div>
                             {details.rehearsalDate && (
-                              <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
-                                <Clock size={12} className="text-amber-400/80 shrink-0" />
+                              <div className="flex items-center gap-1.5 text-[7pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
+                                <Clock size={11} className="text-amber-400/80 shrink-0" />
                                 <span>Ensaio: {details.rehearsalDate}{details.rehearsalLocation ? ` — ${details.rehearsalLocation}` : ''}</span>
                               </div>
                             )}
                             {details.assemblyAssistant && (
-                              <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-amber-200/90 drop-shadow-sm">
-                                <UserCheck size={12} className="text-amber-400 shrink-0" />
+                              <div className="flex items-center gap-1.5 text-[7pt] font-bold uppercase tracking-wider text-amber-200/90 drop-shadow-sm">
+                                <UserCheck size={11} className="text-amber-400 shrink-0" />
                                 <span>Assistente: {details.assemblyAssistant}</span>
                               </div>
                             )}

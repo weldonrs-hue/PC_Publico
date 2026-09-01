@@ -285,7 +285,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   const [dynamicProgram, setDynamicProgram] = useState<PioneerProgram | null>(null);
 
   // Zoom & Viewport controller state
-  const [zoom, setZoom] = useState<number>(100);
+  const [zoom, setZoom] = useState<number>(80);
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -1526,10 +1526,10 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                       )}
 
                       {/* Overlaid Banner Content */}
-                      <div className="relative z-10 p-3.5 flex flex-col justify-between min-h-[38mm]">
+                      <div className="relative z-10 p-3 flex flex-col justify-between min-h-[36mm]">
                         {/* Top Bar: Program Title & Part Pill */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[8pt] font-black uppercase tracking-widest text-violet-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
+                          <div className="text-[7.5pt] font-black uppercase tracking-widest text-violet-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full bg-violet-400 shrink-0"></span>
                             <span className="truncate">{pioneerProgram.title}</span>
                           </div>
@@ -1539,30 +1539,30 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                         </div>
 
                         {/* Main Theme Verse Typography */}
-                        <div className="my-1.5 space-y-0.5">
-                          <div className="text-[13pt] font-black uppercase tracking-tight text-violet-200 drop-shadow-md leading-tight">
+                        <div className="my-1 space-y-0.5">
+                          <div className="text-[12.5pt] font-black uppercase tracking-tight text-violet-200 drop-shadow-md leading-tight">
                             {details.assemblyTheme || pioneerProgram.theme}
                           </div>
                         </div>
 
                         {/* Bottom Event Metadata Strip with Icons */}
                         <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
-                              <CalendarDays size={13} className="text-violet-300 shrink-0" />
+                          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
+                            <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <CalendarDays size={12} className="text-violet-300 shrink-0" />
                               <span>{details.eventDate || 'Data a definir'}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
-                              <MapPin size={13} className="text-violet-300 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <MapPin size={12} className="text-violet-300 shrink-0" />
                               <span>{details.eventLocation || 'Local a definir'}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
-                              <Clock size={13} className="text-violet-300 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <Clock size={12} className="text-violet-300 shrink-0" />
                               <span>Início: {details.startTime || '09:00'}</span>
                             </div>
                             {details.rehearsalDate && (
-                              <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
-                                <Clock size={12} className="text-violet-300/80 shrink-0" />
+                              <div className="flex items-center gap-1.5 text-[7pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
+                                <Clock size={11} className="text-violet-300/80 shrink-0" />
                                 <span>Ensaio: {details.rehearsalDate}{details.rehearsalLocation ? ` — ${details.rehearsalLocation}` : ''}</span>
                               </div>
                             )}
