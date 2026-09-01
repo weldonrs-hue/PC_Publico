@@ -37,7 +37,8 @@ import {
   setDoc, 
   doc, 
   limit,
-  getDoc
+  getDoc,
+  updateDoc
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { formatBRPhone, formatCEP, formatCircuito } from '@/utils/formatters';
@@ -65,6 +66,7 @@ const defaultData = {
   signatureImage: null as string | null,
   signatureOffset: 0,
   signatureSize: 60,
+  profilePhoto: null as string | null,
   role: '' as 'viajante' | 'pioneiro_especial' | 'pioneiro_regular' | 'secretaria' | ''
 };
 
@@ -328,7 +330,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
               <div className="md:col-span-1 space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
                   Número Pessoal (ID)
-                  <Shield size={10} className="text-emerald-600" title="Identificador da Conta (Protegido)" />
+                  <span title="Identificador da Conta (Protegido)">
+                    <Shield size={10} className="text-emerald-600" />
+                  </span>
                 </label>
                 <input 
                   value={formData.numeroPessoal}

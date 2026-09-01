@@ -508,7 +508,7 @@ export default function PioneerSchoolLetters({
             // Count max columns in any row to fix the grid correctly
             let maxCols = 0;
             const rows = tblInner.match(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g) || [];
-            rows.forEach(row => {
+            rows.forEach((row: string) => {
               const cells = row.match(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g) || [];
               if (cells.length > maxCols) maxCols = cells.length;
             });
@@ -530,7 +530,7 @@ export default function PioneerSchoolLetters({
             });
             
             // 2. Fix Table Properties
-            fixedTbl = fixedTbl.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/, (match, prInner) => {
+            fixedTbl = fixedTbl.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/, (match: string, prInner: string) => {
               let pr = prInner;
               const tblW = '<w:tblW w:w="9638" w:type="dxa"/>';
               const tblInd = '<w:tblInd w:w="0" w:type="dxa"/>';
@@ -541,9 +541,9 @@ export default function PioneerSchoolLetters({
             });
             
             // 3. Fix Rows and Cells
-            fixedTbl = fixedTbl.replace(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g, (trMatch, trInner) => {
+            fixedTbl = fixedTbl.replace(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g, (trMatch: string, trInner: string) => {
               let cCount = 0;
-              const fixedTrInner = trInner.replace(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g, (tcMatch, tcInner) => {
+              const fixedTrInner = trInner.replace(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g, (tcMatch: string, tcInner: string) => {
                 cCount++;
                 if (cCount > maxCols) return tcMatch;
                 
@@ -579,7 +579,7 @@ export default function PioneerSchoolLetters({
         
         // Ensure namespaces present for images
         if (!xmlContent.includes('xmlns:wp=')) {
-          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match: string) => {
             if (match.includes('xmlns:wp=')) return match;
             return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`;
           });
@@ -588,7 +588,7 @@ export default function PioneerSchoolLetters({
         // 3. Surgical replacement of @TAG to [TAG]
         const sigVal = replacements.ASSINATURA;
         const hasImage = sigVal && typeof sigVal === 'string' && sigVal.startsWith('data:image');
-        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
           let newText = text;
           // Handle Signature
           if (hasImage) {
@@ -597,7 +597,7 @@ export default function PioneerSchoolLetters({
             newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
           }
           
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
           return `${opening}${newText}${closing}`;

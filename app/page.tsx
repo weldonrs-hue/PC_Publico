@@ -65,7 +65,7 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal, clearQuotaExceeded } from '@/utils/firestore';
-import { Camera, User, ArrowLeft, AlertCircle, X, Coffee } from 'lucide-react';
+import { Camera, User, ArrowLeft, AlertCircle, X, Coffee, Send, FileText } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -453,7 +453,7 @@ export default function Home() {
         }));
       }
     }, (error) => {
-      handleFirestoreError(error, 'read', `users/${firebaseUser.uid}`);
+      handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
       setQuotaExceeded(isQuotaExceeded());
     });
       } else {
@@ -509,7 +509,7 @@ export default function Home() {
             allowProgramacoesUploadForAll: false,
             allowPSSUploadForAll: false
           }).catch(err => {
-            handleFirestoreError(err, 'write', 'config/app_settings');
+            handleFirestoreError(err, OperationType.WRITE, 'config/app_settings');
           });
         }
         setAppConfig({ 
@@ -524,7 +524,7 @@ export default function Home() {
         });
       }
     }, (err) => {
-      handleFirestoreError(err, 'read', 'config/app_settings');
+      handleFirestoreError(err, OperationType.GET, 'config/app_settings');
       setQuotaExceeded(isQuotaExceeded());
     });
 
@@ -551,7 +551,7 @@ export default function Home() {
         groups: groups
       }));
     }, (error) => {
-      handleFirestoreError(error, 'read', 'congregations');
+      handleFirestoreError(error, OperationType.GET, 'congregations');
       setQuotaExceeded(isQuotaExceeded());
     });
 
@@ -671,11 +671,11 @@ export default function Home() {
                 groups,
                 substitutes: subSnap.size,
                 analyzedCongregations: analyzedCongs.size,
-                publicadoresAtivos: statsArr.reduce((acc, a: any) => acc + (parseInt(a.pubAtivos) || 0), 0),
-                pioneirosRegulares: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosRegulares?.relatando) || 0), 0),
-                pioneirosEspeciais: statsArr.reduce((acc, a: any) => acc + (parseInt(a.ministério?.pioneirosEspeciais?.relatando) || 0), 0),
-                anciaos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.anciaos || 0), 0),
-                servos: statsArr.reduce((acc, a: any) => acc + (a.estatisticas?.servos || 0), 0),
+                publicadoresAtivos: statsArr.reduce((acc: number, a: any) => acc + (parseInt(a.pubAtivos) || 0), 0),
+                pioneirosRegulares: statsArr.reduce((acc: number, a: any) => acc + (parseInt(a.ministério?.pioneirosRegulares?.relatando) || 0), 0),
+                pioneirosEspeciais: statsArr.reduce((acc: number, a: any) => acc + (parseInt(a.ministério?.pioneirosEspeciais?.relatando) || 0), 0),
+                anciaos: statsArr.reduce((acc: number, a: any) => acc + (a.estatisticas?.anciaos || 0), 0),
+                servos: statsArr.reduce((acc: number, a: any) => acc + (a.estatisticas?.servos || 0), 0),
               };
 
               const foundEvent = itinSnap.docs.find(d => isCurrentWeek(d.data().semana))?.data().evento || '';
@@ -693,7 +693,7 @@ export default function Home() {
         }
 
       } catch (error: any) {
-        handleFirestoreError(error, 'read', null);
+        handleFirestoreError(error, OperationType.GET, null);
         setQuotaExceeded(isQuotaExceeded());
       } finally {
         setLoadingPersonalData(false);
@@ -735,7 +735,7 @@ export default function Home() {
           }
         }
       } catch (error) {
-        handleFirestoreError(error, 'read', 'config/app_settings');
+        handleFirestoreError(error, OperationType.GET, 'config/app_settings');
         setQuotaExceeded(isQuotaExceeded());
       }
     };

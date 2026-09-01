@@ -1035,13 +1035,13 @@ export default function PioneerSchoolView({
           }
           
           // 3. Surgical replacement of @TAG to [TAG] ONLY inside text nodes
-          xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
             let newText = text;
             // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
             newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
             // Handle other tags - convert to uppercase, and handle common variations like @NOME_ALUNO
             // We avoid matching emails (e.g. test@email.com) by checking that @ is preceded by start of line or non-word char
-            newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
               return `${p1}[${p2.toUpperCase()}]`;
             });
             return `${opening}${newText}${closing}`;
@@ -1137,15 +1137,9 @@ export default function PioneerSchoolView({
           'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
           'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
           'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
-          'DATATURMA': schoolInfo.dataTurma || '________________',
-          'TURMA_DATA': schoolInfo.dataTurma || '________________',
-          'LOCALESCOLA': schoolInfo.localEscola || '________________',
           'LOCAL_ESCOLA': schoolInfo.localEscola || '________________',
           'ENDERECOESCOLA': schoolInfo.enderecoEscola || '________________',
-          'ENDEREÇOESCOLA': schoolInfo.enderecoEscola || '________________',
           'ENDEREÇO_ESCOLA': schoolInfo.enderecoEscola || '________________',
-          'INSTRUTOR1': schoolInfo.instrutorA || '________________',
-          'INSTRUTOR2': schoolInfo.instrutorB || '________________',
           'INSTRUTORA': schoolInfo.instrutorA || '________________',
           'INSTRUTORB': schoolInfo.instrutorB || '________________',
         };
@@ -1243,7 +1237,7 @@ export default function PioneerSchoolView({
                 </span>
               </button>
               <button
-                onClick={() => setIsBulkDeleteModalOpen(true)}
+                onClick={handleBulkDelete}
                 className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-red-50 text-red-600 rounded-lg sm:rounded-xl hover:bg-red-100 transition-all font-bold shrink-0"
               >
                 <Trash2 size={16} />

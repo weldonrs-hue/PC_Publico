@@ -8,6 +8,7 @@ import {
   CloudDownload, 
   Trash2, 
   Calendar, 
+  CalendarDays,
   Lock, 
   Users,
   FolderPlus,
@@ -68,6 +69,12 @@ interface SettingsViewProps {
     allowAssembleiasUploadForAll: boolean;
     allowProgramacoesUploadForAll: boolean;
     allowPSSUploadForAll: boolean;
+    whatsNew?: {
+      title: string;
+      content: string;
+      version: string;
+      active: boolean;
+    };
   };
 }
 

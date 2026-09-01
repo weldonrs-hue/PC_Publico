@@ -17,8 +17,21 @@ interface CartasSeletorViewProps {
   };
 }
 
+interface CartaOption {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: any;
+  color: string;
+  gradient: string;
+  view: string;
+  active: boolean;
+  uploadKey: string;
+  forceManager?: boolean;
+}
+
 export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: CartasSeletorViewProps) {
-  const options = [
+  const options: CartaOption[] = [
     {
       id: 'esp',
       title: 'Cartas ESP',

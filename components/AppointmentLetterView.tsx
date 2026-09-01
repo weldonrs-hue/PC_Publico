@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, limit, setDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';

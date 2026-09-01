@@ -954,7 +954,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     }));
   };
 
-  const generateDocument = async (item: any, type: 'docx' | 'pdf') => {
+  const generateDocument = async (item: any, format: 'docx' | 'pdf') => {
     const speakerName = speakers[item.id];
     if (!speakerName) {
       await showAlert('Por favor, informe o nome do orador primeiro.', 'Aviso');
@@ -981,7 +981,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     for (const session of assemblyProgram.sessions) {
       for (const pItem of session.items) {
         if (pItem.subitems) {
-          const subTarget = pItem.subitems.find(si => si.id === item.id);
+          const subTarget = pItem.subitems.find((si: any) => si.id === item.id);
           if (subTarget) parentItem = pItem;
           
           for (const sub of pItem.subitems) {
@@ -1088,7 +1088,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           newText = newText.replace(/@Assinatura_Global/gi, '[%ASSINATURA]');
           
           // Generic @TAG replacement
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             const tag = p2.toUpperCase();
             if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
             return `${p1}[${tag}]`;
@@ -1285,7 +1285,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           newText = newText.replace(/@AssinaturaGlobal/gi, '[%ASSINATURA]');
           newText = newText.replace(/@Assinatura_Global/gi, '[%ASSINATURA]');
           
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             const tag = p2.toUpperCase();
             if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
             return `${p1}[${tag}]`;

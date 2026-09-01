@@ -23,9 +23,11 @@ export interface AssemblyItem {
   id: string; // O programItemId persistente
   time: string | null;
   title: string;
+  label?: string;
   bibleRef?: string;
   noSpeaker: boolean;
   type?: string;
+  isRole?: boolean;
   isSeries?: boolean;
   subitems?: AssemblyItem[];
 }
@@ -287,7 +289,7 @@ function extractProgramStructure(root: any): { period: string; items: AssemblyIt
       return {
         ...session,
         items: [
-          { id: isMorning ? 'm0' : 't0', title: 'PRESIDENTE DE SESSÃO', isRole: true, noSpeaker: false },
+          { id: isMorning ? 'm0' : 't0', time: null, title: 'PRESIDENTE DE SESSÃO', isRole: true, noSpeaker: false },
           ...session.items
         ]
       };

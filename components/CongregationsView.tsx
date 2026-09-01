@@ -1466,8 +1466,9 @@ export default function CongregationsView({
                         <button
                           type="button"
                           onClick={() => {
-                            let coords = formData.gps.replace(/\s+/g, ',');
-                            if (formData.gps.includes(',')) coords = formData.gps;
+                            const gpsValue = formData.gps || '';
+                            let coords = gpsValue.replace(/\s+/g, ',');
+                            if (gpsValue.includes(',')) coords = gpsValue;
                             window.open(`https://www.google.com/maps?q=${encodeURIComponent(coords)}`, '_blank');
                           }}
                           className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1"

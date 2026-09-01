@@ -611,7 +611,7 @@ export default function PSSAssignmentLetters({
             // Count max columns in any row to fix the grid correctly
             let maxCols = 0;
             const rows = tblInner.match(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g) || [];
-            rows.forEach(row => {
+            rows.forEach((row: string) => {
               const cells = row.match(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g) || [];
               if (cells.length > maxCols) maxCols = cells.length;
             });
@@ -633,7 +633,7 @@ export default function PSSAssignmentLetters({
             });
             
             // 2. Fix Table Properties
-            fixedTbl = fixedTbl.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/, (match, prInner) => {
+            fixedTbl = fixedTbl.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/, (match: string, prInner: string) => {
               let pr = prInner;
               const tblW = '<w:tblW w:w="9000" w:type="dxa"/>'; // Total width approx 15.8cm
               const tblInd = '<w:tblInd w:w="0" w:type="dxa"/>';
@@ -644,9 +644,9 @@ export default function PSSAssignmentLetters({
             });
             
             // 3. Fix Rows and Cells
-            fixedTbl = fixedTbl.replace(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g, (trMatch, trInner) => {
+            fixedTbl = fixedTbl.replace(/<w:tr(?: [^>]*)?>([\s\S]*?)<\/w:tr>/g, (trMatch: string, trInner: string) => {
               let cCount = 0;
-              const fixedTrInner = trInner.replace(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g, (tcMatch, tcInner) => {
+              const fixedTrInner = trInner.replace(/<w:tc(?: [^>]*)?>([\s\S]*?)<\/w:tc>/g, (tcMatch: string, tcInner: string) => {
                 cCount++;
                 if (cCount > maxCols) return tcMatch;
                 
@@ -702,7 +702,7 @@ export default function PSSAssignmentLetters({
             newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
           }
           
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
           return `${opening}${newText}${closing}`;
@@ -1276,7 +1276,7 @@ export default function PSSAssignmentLetters({
               )}
               {needsProcessing && (
                 <button
-                  onClick={processAndPreview}
+                  onClick={() => processAndPreview()}
                   disabled={isProcessing}
                   className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-none text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                   title="Gerar PDF/Prévia"

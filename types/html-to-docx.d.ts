@@ -10,3 +10,8 @@ declare module 'html-to-docx' {
     footer?: any
   ): Promise<Blob | Buffer>;
 }
+
+declare module 'docxtemplater-image-module-free' {
+  const ImageModule: any;
+  export default ImageModule;
+}
