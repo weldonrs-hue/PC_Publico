@@ -1952,48 +1952,37 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                                 )}
                                               </div>
 
-                                              {/* Speaker & Details Inputs */}
-                                              <div className="mt-0.5 space-y-0.5">
+                                              {/* Speaker & Congregation Inputs */}
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-0.5">
                                                 <div className="relative">
                                                   <input
                                                     type="text"
                                                     placeholder="Nome do orador..."
                                                     value={subSpeaker}
                                                     onChange={e => handleSpeakerChange(sub.id, e.target.value)}
-                                                    className={`w-full text-[9pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!subSpeaker ? 'print:hidden' : ''}`}
+                                                    className={`w-full text-[8.5pt] font-medium text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!subSpeaker ? 'print:hidden' : ''}`}
                                                   />
                                                   {!subSpeaker && (
-                                                    <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-600 font-normal">
-                                                      <span className="text-[7.5pt] font-semibold text-gray-400 mr-1.5 shrink-0">Orador:</span>
+                                                    <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-600 font-normal">
+                                                      <span className="text-[7pt] font-semibold text-gray-400 mr-1 shrink-0">Orador:</span>
                                                       <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
                                                     </div>
                                                   )}
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                  <div className="w-1/2 relative">
-                                                    <input
-                                                      type="text"
-                                                      placeholder="Congregação..."
-                                                      value={subCong}
-                                                      onChange={e => handleCongregationChange(sub.id, e.target.value)}
-                                                      className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300 ${!subCong ? 'print:hidden' : ''}`}
-                                                    />
-                                                    {!subCong && (
-                                                      <div className="hidden print:flex items-baseline w-full text-[7.5pt] text-gray-500 font-normal">
-                                                        <span className="text-[7pt] font-medium text-gray-400 mr-1 shrink-0">Congr:</span>
-                                                        <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                  <div className="w-1/2 relative">
-                                                    <input
-                                                      type="text"
-                                                      placeholder="Notas..."
-                                                      value={subNote}
-                                                      onChange={e => handleNotesChange(sub.id, e.target.value)}
-                                                      className="w-full text-[8pt] text-gray-500 italic bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300"
-                                                    />
-                                                  </div>
+                                                <div className="relative">
+                                                  <input
+                                                    type="text"
+                                                    placeholder="Congregação..."
+                                                    value={subCong}
+                                                    onChange={e => handleCongregationChange(sub.id, e.target.value)}
+                                                    className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!subCong ? 'print:hidden' : ''}`}
+                                                  />
+                                                  {!subCong && (
+                                                    <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-500 font-normal">
+                                                      <span className="text-[7pt] font-semibold text-gray-400 mr-1 shrink-0">Cong:</span>
+                                                      <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
+                                                    </div>
+                                                  )}
                                                 </div>
                                               </div>
                                             </div>
@@ -2065,7 +2054,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                     </div>
 
                                     {hasSpeaker && (
-                                      <div className="mt-1 space-y-0.5">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1">
                                         <div className="relative">
                                           <input
                                             type="text"
@@ -2083,31 +2072,20 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                             </div>
                                           )}
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-1/2 relative">
-                                            <input
-                                              type="text"
-                                              placeholder="Congregação..."
-                                              value={speakerCong}
-                                              onChange={e => handleCongregationChange(item.id, e.target.value)}
-                                              className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300 ${!speakerCong ? 'print:hidden' : ''}`}
-                                            />
-                                            {!speakerCong && (
-                                              <div className="hidden print:flex items-baseline w-full text-[7.5pt] text-gray-500 font-normal">
-                                                <span className="text-[7pt] font-medium text-gray-400 mr-1 shrink-0">Congr:</span>
-                                                <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
-                                              </div>
-                                            )}
-                                          </div>
-                                          <div className="w-1/2 relative">
-                                            <input
-                                              type="text"
-                                              placeholder="Notas..."
-                                              value={speakerNote}
-                                              onChange={e => handleNotesChange(item.id, e.target.value)}
-                                              className="w-full text-[8pt] text-gray-500 italic bg-transparent border-b border-gray-100 focus:border-amber-400 outline-none placeholder:text-gray-300"
-                                            />
-                                          </div>
+                                        <div className="relative">
+                                          <input
+                                            type="text"
+                                            placeholder="Congregação..."
+                                            value={speakerCong}
+                                            onChange={e => handleCongregationChange(item.id, e.target.value)}
+                                            className={`w-full text-[8.5pt] text-gray-600 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!speakerCong ? 'print:hidden' : ''}`}
+                                          />
+                                          {!speakerCong && (
+                                            <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-500 font-normal">
+                                              <span className="text-[7.5pt] font-semibold text-gray-400 mr-1.5 shrink-0">Cong:</span>
+                                              <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     )}

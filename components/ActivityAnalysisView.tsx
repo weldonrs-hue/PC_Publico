@@ -67,6 +67,7 @@ interface AnalysisData {
   estatisticas: {
     mediaEstudos: number;
     dirigemEstudos: number;
+    pioneirosAuxiliaresDiferentes: number;
     irregulares: number;
     novosPublicadores: number;
     reativados: number;
@@ -77,6 +78,7 @@ interface AnalysisData {
     anciaos: number;
     servos: number;
   };
+  observacoes?: string;
   donativos: {
     congregacao: string[];
     obraMundial: string[];
@@ -102,16 +104,18 @@ const defaultData: AnalysisData = {
   estatisticas: {
     mediaEstudos: 0,
     dirigemEstudos: 0,
-    irregulares: 0,
+    pioneirosAuxiliaresDiferentes: 0,
     novosPublicadores: 0,
     reativados: 0,
     readmitidos: 0,
+    batizados: 0,
+    irregulares: 0,
     inativos: 0,
     removidos: 0,
-    batizados: 0,
     anciaos: 0,
     servos: 0,
   },
+  observacoes: '',
   donativos: {
     congregacao: ['', '', '', '', '', ''],
     obraMundial: ['', '', '', '', '', ''],
@@ -695,6 +699,12 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               .pdf-capture .bg-\[\#e7eeff\] {
                 background-color: #e7eeff !important;
               }
+              .pdf-capture textarea {
+                display: none !important;
+              }
+              .pdf-capture .pdf-observacoes-print {
+                display: block !important;
+              }
             `}</style>
 
             {/* Header Section */}
@@ -905,6 +915,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                         {[
                           { id: 'mediaEstudos', label: 'Média mensal de Estudos Bíblicos', color: 'text-[#111c2d]', isAuto: true },
                           { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos', color: 'text-[#111c2d]' },
+                          { id: 'pioneirosAuxiliaresDiferentes', label: 'Pioneiros auxiliares diferentes*', color: 'text-[#3525cd]' },
                           { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES*', color: 'text-[#3525cd]' },
                           { id: 'reativados', label: 'Quantos foram REATIVADOS*', color: 'text-[#3525cd]' },
                           { id: 'readmitidos', label: 'Quantos foram READMITIDOS*', color: 'text-[#3525cd]' },
@@ -915,7 +926,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                           { id: 'anciaos', label: 'Número de ANCIÃOS', color: 'text-[#3525cd]' },
                           { id: 'servos', label: 'Números de SERVOS MINISTERIAIS', color: 'text-[#3525cd]' }
                         ].map((item, idx) => {
-                          const val = item.id === 'mediaEstudos' ? totalEstudos : data.estatisticas[item.id as keyof AnalysisData['estatisticas']];
+                          const val = item.id === 'mediaEstudos' ? totalEstudos : (data.estatisticas[item.id as keyof AnalysisData['estatisticas']] || 0);
                           const perc = pubAtivosNum > 0 ? (val / pubAtivosNum * 100).toFixed(1).replace('.', ',') : '0,0';
                           const average = pubAtivosNum > 0 ? (val / pubAtivosNum).toFixed(1).replace('.', ',') + '/pub' : '0,0/pub';
                           
@@ -959,6 +970,28 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                     </table>
                   </div>
                   <div className="mt-2 text-[10px] text-[#2d2d2d] italic">* Desde a última visita</div>
+                </section>
+
+                {/* Observações */}
+                <section>
+                  <div className="flex items-center mb-3 editorial-line pl-3">
+                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">Observações</h2>
+                  </div>
+                  <div className="bg-[#f0f3ff] border border-[#c7c4d8]/40 rounded-xl p-3 shadow-sm">
+                    <textarea 
+                      value={data.observacoes || ''}
+                      onChange={(e) => {
+                        setIsDirty(true);
+                        setData(prev => ({ ...prev, observacoes: e.target.value }));
+                      }}
+                      placeholder="Adicione observações ou anotações sobre a congregação..."
+                      rows={3}
+                      className="w-full p-2.5 bg-white rounded-lg border border-[#c7c4d8]/40 text-xs text-[#111c2d] placeholder-gray-400 outline-none focus:border-[#3525cd] transition-all resize-y font-normal leading-relaxed print:hidden"
+                    />
+                    <div className="hidden print:block pdf-observacoes-print whitespace-pre-wrap text-xs text-[#111c2d] font-normal leading-relaxed min-h-[48px] p-2.5 bg-white rounded-lg border border-[#c7c4d8]/40">
+                      {data.observacoes ? data.observacoes : <span className="text-gray-400 italic">Nenhuma observação informada.</span>}
+                    </div>
+                  </div>
                 </section>
               </div>
 
