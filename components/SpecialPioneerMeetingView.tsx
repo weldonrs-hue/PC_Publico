@@ -78,7 +78,7 @@ const STATIC_PROGRAMS: Record<string, PioneerProgram> = {
     year: '2026-2027',
     theme: '“Estabeleça alvos para enriquecer seu ministério!” — Prov. 4:25',
     color: '#8B5CF6',
-    headerImage: '/S-312.png',
+    headerImage: '',
     sessions: [
       {
         period: 'Programa',
@@ -132,7 +132,7 @@ function parsePioneerText(rawText: string, year: string, defaultTitle?: string, 
   
   let detectedTitle = defaultTitle || `Programa para a Reunião Especial com os Pioneiros e Missionários de ${year.split('-')[1] || year}`;
   let detectedTheme = defaultTheme || '';
-  const headerImage = '/S-312.png';
+  const headerImage = '';
   
   const items: PioneerItem[] = [];
   let currentSeries: PioneerItem | null = null;
@@ -323,14 +323,14 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   const [updatePastedText, setUpdatePastedText] = useState('');
   const [updateTitle, setUpdateTitle] = useState('');
   const [updateTheme, setUpdateTheme] = useState('');
-  const [updateHeaderImage, setUpdateHeaderImage] = useState('/S-312.png');
+  const [updateHeaderImage, setUpdateHeaderImage] = useState('');
 
   const [showAddNextModal, setShowAddNextModal] = useState(false);
   const [newSeasonYear, setNewSeasonYear] = useState('');
   const [addNextPastedText, setAddNextPastedText] = useState('');
   const [addNextTitle, setAddNextTitle] = useState('');
   const [addNextTheme, setAddNextTheme] = useState('');
-  const [addNextHeaderImage, setAddNextHeaderImage] = useState('/S-312.png');
+  const [addNextHeaderImage, setAddNextHeaderImage] = useState('');
 
   // Active part data
   const currentPart = partsData[selectedPart] || {
@@ -633,7 +633,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   const handleOpenUpdateModal = () => {
     setUpdateTitle(pioneerProgram.title || '');
     setUpdateTheme(pioneerProgram.theme || '');
-    setUpdateHeaderImage(pioneerProgram.headerImage || '/S-312.png');
+    setUpdateHeaderImage(pioneerProgram.headerImage || '');
     setUpdatePastedText('');
     setShowUpdateModal(true);
   };
@@ -697,7 +697,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
     setNewSeasonYear(nextYearStr);
     setAddNextTitle(`Programa para a Reunião Especial com os Pioneiros e Missionários de ${nextYearStr.split('-')[1] || nextYearStr}`);
     setAddNextTheme('');
-    setAddNextHeaderImage('/S-312.png');
+    setAddNextHeaderImage('');
     setAddNextPastedText('');
     setShowAddNextModal(true);
   };
@@ -1526,10 +1526,10 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                       )}
 
                       {/* Overlaid Banner Content */}
-                      <div className="relative z-10 p-3 sm:p-4 flex flex-col justify-between min-h-[40mm]">
+                      <div className="relative z-10 p-3.5 flex flex-col justify-between min-h-[38mm]">
                         {/* Top Bar: Program Title & Part Pill */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[7.5pt] sm:text-[8pt] font-black uppercase tracking-widest text-violet-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
+                          <div className="text-[8pt] font-black uppercase tracking-widest text-violet-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full bg-violet-400 shrink-0"></span>
                             <span className="truncate">{pioneerProgram.title}</span>
                           </div>
@@ -1540,7 +1540,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
 
                         {/* Main Theme Verse Typography */}
                         <div className="my-1.5 space-y-0.5">
-                          <div className="text-[12pt] sm:text-[13.5pt] font-black uppercase tracking-tight text-violet-200 drop-shadow-md leading-tight">
+                          <div className="text-[13pt] font-black uppercase tracking-tight text-violet-200 drop-shadow-md leading-tight">
                             {details.assemblyTheme || pioneerProgram.theme}
                           </div>
                         </div>
@@ -1548,20 +1548,20 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                         {/* Bottom Event Metadata Strip with Icons */}
                         <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            <div className="flex items-center gap-1.5 text-[7.5pt] sm:text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
                               <CalendarDays size={13} className="text-violet-300 shrink-0" />
                               <span>{details.eventDate || 'Data a definir'}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[7.5pt] sm:text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
                               <MapPin size={13} className="text-violet-300 shrink-0" />
                               <span>{details.eventLocation || 'Local a definir'}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[7.5pt] sm:text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
                               <Clock size={13} className="text-violet-300 shrink-0" />
                               <span>Início: {details.startTime || '09:00'}</span>
                             </div>
                             {details.rehearsalDate && (
-                              <div className="flex items-center gap-1.5 text-[7pt] sm:text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
+                              <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
                                 <Clock size={12} className="text-violet-300/80 shrink-0" />
                                 <span>Ensaio: {details.rehearsalDate}{details.rehearsalLocation ? ` — ${details.rehearsalLocation}` : ''}</span>
                               </div>
@@ -1940,7 +1940,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                     type="text"
                     value={details.customHeaderImage || ''}
                     onChange={e => updateDetails(d => ({ ...d, customHeaderImage: e.target.value }))}
-                    placeholder="Deixe em branco para usar a imagem padrão /S-312.png"
+                    placeholder="Ex: https://... (opcional, deixe em branco para gradiente)"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
                   />
                 </div>

@@ -215,17 +215,25 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
     }
   };
 
-  const [inviteView, setInviteView] = useState<'pioneer' | 'congress'>('pioneer');
+  const [inviteView, setInviteView] = useState<'pioneer' | 'congress' | 'caco' | 'cabr'>('pioneer');
   const [pioneerInvites, setPioneerInvites] = useState<any[]>([]);
   const [receivedPioneerInvites, setReceivedPioneerInvites] = useState<any[]>([]);
   const [congressInvites, setCongressInvites] = useState<any[]>([]);
   const [receivedCongressInvites, setReceivedCongressInvites] = useState<any[]>([]);
+  const [cacoInvites, setCacoInvites] = useState<any[]>([]);
+  const [receivedCacoInvites, setReceivedCacoInvites] = useState<any[]>([]);
+  const [cabrInvites, setCabrInvites] = useState<any[]>([]);
+  const [receivedCabrInvites, setReceivedCabrInvites] = useState<any[]>([]);
   const [personalData, setPersonalData] = useState<any>(null);
   const [inviteNumber, setInviteNumber] = useState('');
   const [inviteCongressNumber, setInviteCongressNumber] = useState('');
+  const [inviteCacoNumber, setInviteCacoNumber] = useState('');
+  const [inviteCabrNumber, setInviteCabrNumber] = useState('');
   const [inviteTurma, setInviteTurma] = useState<'1' | '2' | '3' | 'all'>('1');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteCongressLoading, setInviteCongressLoading] = useState(false);
+  const [inviteCacoLoading, setInviteCacoLoading] = useState(false);
+  const [inviteCabrLoading, setInviteCabrLoading] = useState(false);
   const [formatStep, setFormatStep] = useState<'confirm' | 'formatting' | 'success'>('confirm');
   const [formatPassword, setFormatPassword] = useState('');
   const [formatError, setFormatError] = useState<string | null>(null);
@@ -334,12 +342,46 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       console.warn('Settings: Error listening to received congress invites:', error);
     });
 
+    // CAco Invitations (Assembleia com SC)
+    const qCacoSent = query(collection(db, 'circuit_assembly_supt_invitations'), where('ownerId', '==', userId));
+    const unsubscribeCacoSent = onSnapshot(qCacoSent, (snap) => {
+      setCacoInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to sent CAco invites:', error);
+    });
+
+    const qCacoReceived = query(collection(db, 'circuit_assembly_supt_invitations'), where('collaboratorId', '==', userId));
+    const unsubscribeCacoReceived = onSnapshot(qCacoReceived, (snap) => {
+      setReceivedCacoInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to received CAco invites:', error);
+    });
+
+    // CAbr Invitations (Assembleia com Betel)
+    const qCabrSent = query(collection(db, 'circuit_assembly_branch_invitations'), where('ownerId', '==', userId));
+    const unsubscribeCabrSent = onSnapshot(qCabrSent, (snap) => {
+      setCabrInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to sent CAbr invites:', error);
+    });
+
+    const qCabrReceived = query(collection(db, 'circuit_assembly_branch_invitations'), where('collaboratorId', '==', userId));
+    const unsubscribeCabrReceived = onSnapshot(qCabrReceived, (snap) => {
+      setReceivedCabrInvites(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn('Settings: Error listening to received CAbr invites:', error);
+    });
+
     return () => {
       window.removeEventListener('resize', checkDesktop);
       unsubscribeSent();
       unsubscribeReceived();
       unsubscribeCongressSent();
       unsubscribeCongressReceived();
+      unsubscribeCacoSent();
+      unsubscribeCacoReceived();
+      unsubscribeCabrSent();
+      unsubscribeCabrReceived();
     };
   }, [userId]);
 
@@ -663,6 +705,176 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       await deleteDoc(doc(db, 'regional_convention_invitations', inviteId));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'regional_convention_invitations');
+    }
+  };
+
+  const handleInviteCacoAssistant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteCacoNumber.trim()) return;
+
+    setInviteCacoLoading(true);
+    try {
+      const q = query(
+        collection(db, 'personal_data'), 
+        where('numeroPessoal', '==', inviteCacoNumber.trim())
+      );
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        await showAlert('Nenhum usuário encontrado com este Número Pessoal. Certifique-se de que o assistente já cadastrou seus Dados Pessoais.', 'Usuário não encontrado');
+        setInviteCacoLoading(false);
+        return;
+      }
+      
+      const assistantData = snap.docs[0].data();
+      const assistantId = assistantData.userId;
+      
+      if (assistantId === auth.currentUser?.uid) {
+        await showAlert('Você não pode convidar a si mesmo.', 'Aviso');
+        setInviteCacoLoading(false);
+        return;
+      }
+ 
+      const existing = cacoInvites.find(inv => inv.collaboratorId === assistantId);
+      if (existing) {
+        await showAlert('Este usuário já possui um convite pendente ou ativo para a assembleia (CAco).', 'Aviso');
+        setInviteCacoLoading(false);
+        return;
+      }
+ 
+      await addDoc(collection(db, 'circuit_assembly_supt_invitations'), {
+        ownerId: auth.currentUser?.uid,
+        ownerName: personalData?.nome || 'Viajante',
+        collaboratorId: assistantId,
+        collaboratorNumber: inviteCacoNumber.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      setInviteCacoNumber('');
+      await showAlert('Convite para assistente da CAco enviado com sucesso!', 'Sucesso');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'circuit_assembly_supt_invitations');
+    } finally {
+      setInviteCacoLoading(false);
+    }
+  };
+
+  const handleAcceptCacoInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'circuit_assembly_supt_invitations', inviteId), {
+        status: 'accepted',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'circuit_assembly_supt_invitations');
+    }
+  };
+
+  const handleRejectCacoInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'circuit_assembly_supt_invitations', inviteId), {
+        status: 'rejected',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'circuit_assembly_supt_invitations');
+    }
+  };
+
+  const handleRemoveCacoInvite = async (inviteId: string) => {
+    const confirmed = await showConfirm('Tem certeza que deseja remover este acesso/convite?', 'Remover Acesso');
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'circuit_assembly_supt_invitations', inviteId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'circuit_assembly_supt_invitations');
+    }
+  };
+
+  const handleInviteCabrAssistant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteCabrNumber.trim()) return;
+
+    setInviteCabrLoading(true);
+    try {
+      const q = query(
+        collection(db, 'personal_data'), 
+        where('numeroPessoal', '==', inviteCabrNumber.trim())
+      );
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        await showAlert('Nenhum usuário encontrado com este Número Pessoal. Certifique-se de que o assistente já cadastrou seus Dados Pessoais.', 'Usuário não encontrado');
+        setInviteCabrLoading(false);
+        return;
+      }
+      
+      const assistantData = snap.docs[0].data();
+      const assistantId = assistantData.userId;
+      
+      if (assistantId === auth.currentUser?.uid) {
+        await showAlert('Você não pode convidar a si mesmo.', 'Aviso');
+        setInviteCabrLoading(false);
+        return;
+      }
+ 
+      const existing = cabrInvites.find(inv => inv.collaboratorId === assistantId);
+      if (existing) {
+        await showAlert('Este usuário já possui um convite pendente ou ativo para a assembleia (CAbr).', 'Aviso');
+        setInviteCabrLoading(false);
+        return;
+      }
+ 
+      await addDoc(collection(db, 'circuit_assembly_branch_invitations'), {
+        ownerId: auth.currentUser?.uid,
+        ownerName: personalData?.nome || 'Viajante',
+        collaboratorId: assistantId,
+        collaboratorNumber: inviteCabrNumber.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      setInviteCabrNumber('');
+      await showAlert('Convite para assistente da CAbr enviado com sucesso!', 'Sucesso');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'circuit_assembly_branch_invitations');
+    } finally {
+      setInviteCabrLoading(false);
+    }
+  };
+
+  const handleAcceptCabrInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'circuit_assembly_branch_invitations', inviteId), {
+        status: 'accepted',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'circuit_assembly_branch_invitations');
+    }
+  };
+
+  const handleRejectCabrInvite = async (inviteId: string) => {
+    try {
+      await updateDoc(doc(db, 'circuit_assembly_branch_invitations', inviteId), {
+        status: 'rejected',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'circuit_assembly_branch_invitations');
+    }
+  };
+
+  const handleRemoveCabrInvite = async (inviteId: string) => {
+    const confirmed = await showConfirm('Tem certeza que deseja remover este acesso/convite?', 'Remover Acesso');
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'circuit_assembly_branch_invitations', inviteId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'circuit_assembly_branch_invitations');
     }
   };
  
@@ -1005,10 +1217,10 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                   </button>
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                   <button
                     onClick={() => setInviteView('pioneer')}
-                    className={`pb-4 px-4 text-xs font-black uppercase tracking-widest transition-all relative ${
+                    className={`pb-4 px-3 sm:px-4 text-xs font-black uppercase tracking-widest transition-all relative shrink-0 ${
                       inviteView === 'pioneer' ? 'text-[#37616b]' : 'text-gray-400 hover:text-gray-600'
                     }`}
                   >
@@ -1019,13 +1231,35 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                   </button>
                   <button
                     onClick={() => setInviteView('congress')}
-                    className={`pb-4 px-4 text-xs font-black uppercase tracking-widest transition-all relative ${
+                    className={`pb-4 px-3 sm:px-4 text-xs font-black uppercase tracking-widest transition-all relative shrink-0 ${
                       inviteView === 'congress' ? 'text-[#512da8]' : 'text-gray-400 hover:text-gray-600'
                     }`}
                   >
                     Assistente do Congresso
                     {inviteView === 'congress' && (
                       <motion.div layoutId="inviteTab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#512da8] rounded-t-full" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setInviteView('caco')}
+                    className={`pb-4 px-3 sm:px-4 text-xs font-black uppercase tracking-widest transition-all relative shrink-0 ${
+                      inviteView === 'caco' ? 'text-amber-600' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Assistente CAco
+                    {inviteView === 'caco' && (
+                      <motion.div layoutId="inviteTab" className="absolute bottom-0 left-0 right-0 h-1 bg-amber-600 rounded-t-full" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setInviteView('cabr')}
+                    className={`pb-4 px-3 sm:px-4 text-xs font-black uppercase tracking-widest transition-all relative shrink-0 ${
+                      inviteView === 'cabr' ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    Assistente CAbr
+                    {inviteView === 'cabr' && (
+                      <motion.div layoutId="inviteTab" className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-t-full" />
                     )}
                   </button>
                 </div>
@@ -1222,7 +1456,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                       </div>
                     </div>
                   </>
-                ) : (
+                ) : inviteView === 'congress' ? (
                   <>
                     <div className="w-full md:w-80 bg-white p-8 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col items-center">
                       <div className="w-16 h-16 bg-[#512da8]/10 rounded-2xl flex items-center justify-center mb-6">
@@ -1379,6 +1613,266 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                                   </div>
                                   <button 
                                     onClick={() => handleRemoveCongressInvite(inv.id)}
+                                    className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      </div>
+                    </div>
+                  </>
+                ) : inviteView === 'caco' ? (
+                  <>
+                    <div className="w-full md:w-80 bg-white p-8 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col items-center">
+                      <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-6">
+                        <CalendarDays className="text-amber-600" size={32} />
+                      </div>
+                      <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-2 text-center">Assistente CAco</h3>
+                      <p className="text-xs text-gray-400 text-center mb-8">Convide um irmão para colaborar na Assembleia com o Superintendente de Circuito.</p>
+
+                      <form onSubmit={handleInviteCacoAssistant} className="w-full space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Nº Pessoal do Assistente</label>
+                          <input 
+                            type="text"
+                            value={inviteCacoNumber}
+                            onChange={(e) => setInviteCacoNumber(e.target.value)}
+                            placeholder="Ex: 123456"
+                            className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl px-4 text-xs font-bold text-gray-700 outline-none focus:border-amber-600 focus:bg-white transition-all text-center tracking-wider"
+                          />
+                        </div>
+
+                        <button 
+                          type="submit"
+                          disabled={inviteCacoLoading || !inviteCacoNumber.trim()}
+                          className="w-full h-12 bg-amber-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-600/20 hover:bg-amber-700 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+                        >
+                          {inviteCacoLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                          Enviar Convite
+                        </button>
+                      </form>
+                    </div>
+
+                    <div className="flex-1 p-8 overflow-y-auto max-h-[500px]">
+                      <div className="max-w-2xl mx-auto space-y-8">
+                        {/* Received CAco Invites */}
+                        <section>
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Convites Recebidos (CAco)</h4>
+                          {receivedCacoInvites.length === 0 ? (
+                            <div className="bg-white rounded-3xl p-6 border border-gray-100 text-center text-xs text-gray-400 font-bold">
+                              Nenhum convite recebido para a Assembleia com o SC.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {receivedCacoInvites.map((inv) => (
+                                <div key={inv.id} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between shadow-xs">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-black text-xs">
+                                      <CalendarDays size={20} />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-black text-gray-800">Convidado por: {inv.ownerName || 'Superintendente'}</div>
+                                      <div className="text-[10px] font-bold text-gray-400">Assembleia de Circuito (CAco)</div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {inv.status === 'pending' ? (
+                                      <>
+                                        <button 
+                                          onClick={() => handleAcceptCacoInvite(inv.id)}
+                                          className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                                        >
+                                          Aceitar
+                                        </button>
+                                        <button 
+                                          onClick={() => handleRejectCacoInvite(inv.id)}
+                                          className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                                        >
+                                          Recusar
+                                        </button>
+                                      </>
+                                    ) : inv.status === 'accepted' ? (
+                                      <button 
+                                        onClick={() => {
+                                          setIsManagingInvites(false);
+                                          onViewChange(`circuit_assembly_supt_guest:${inv.ownerId}`);
+                                        }}
+                                        className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                                      >
+                                        <CalendarDays size={14} />
+                                        Acessar CAco
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg">Recusado</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+
+                        {/* Sent CAco Invites */}
+                        <section>
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Convites Enviados (CAco)</h4>
+                          {cacoInvites.length === 0 ? (
+                            <div className="bg-white rounded-3xl p-6 border border-gray-100 text-center text-xs text-gray-400 font-bold">
+                              Você ainda não enviou nenhum convite para a Assembleia com o SC.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {cacoInvites.map((inv) => (
+                                <div key={inv.id} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between shadow-xs">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center font-black text-amber-600 text-xs">
+                                      <CalendarDays size={20} />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-black text-gray-800">Usuário: {inv.collaboratorNumber}</div>
+                                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                                        inv.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' : 
+                                        inv.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                                      }`}>
+                                        {inv.status === 'accepted' ? 'Ativo' : inv.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    onClick={() => handleRemoveCacoInvite(inv.id)}
+                                    className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-full md:w-80 bg-white p-8 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col items-center">
+                      <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6">
+                        <CalendarDays className="text-emerald-600" size={32} />
+                      </div>
+                      <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-2 text-center">Assistente CAbr</h3>
+                      <p className="text-xs text-gray-400 text-center mb-8">Convide um irmão para colaborar na Assembleia com Representante de Betel.</p>
+
+                      <form onSubmit={handleInviteCabrAssistant} className="w-full space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Nº Pessoal do Assistente</label>
+                          <input 
+                            type="text"
+                            value={inviteCabrNumber}
+                            onChange={(e) => setInviteCabrNumber(e.target.value)}
+                            placeholder="Ex: 123456"
+                            className="w-full h-12 bg-gray-50 border border-gray-200 rounded-2xl px-4 text-xs font-bold text-gray-700 outline-none focus:border-emerald-600 focus:bg-white transition-all text-center tracking-wider"
+                          />
+                        </div>
+
+                        <button 
+                          type="submit"
+                          disabled={inviteCabrLoading || !inviteCabrNumber.trim()}
+                          className="w-full h-12 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+                        >
+                          {inviteCabrLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                          Enviar Convite
+                        </button>
+                      </form>
+                    </div>
+
+                    <div className="flex-1 p-8 overflow-y-auto max-h-[500px]">
+                      <div className="max-w-2xl mx-auto space-y-8">
+                        {/* Received CAbr Invites */}
+                        <section>
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Convites Recebidos (CAbr)</h4>
+                          {receivedCabrInvites.length === 0 ? (
+                            <div className="bg-white rounded-3xl p-6 border border-gray-100 text-center text-xs text-gray-400 font-bold">
+                              Nenhum convite recebido para a Assembleia com Betel.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {receivedCabrInvites.map((inv) => (
+                                <div key={inv.id} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between shadow-xs">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-xs">
+                                      <CalendarDays size={20} />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-black text-gray-800">Convidado por: {inv.ownerName || 'Superintendente'}</div>
+                                      <div className="text-[10px] font-bold text-gray-400">Assembleia de Circuito (CAbr)</div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {inv.status === 'pending' ? (
+                                      <>
+                                        <button 
+                                          onClick={() => handleAcceptCabrInvite(inv.id)}
+                                          className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                                        >
+                                          Aceitar
+                                        </button>
+                                        <button 
+                                          onClick={() => handleRejectCabrInvite(inv.id)}
+                                          className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                                        >
+                                          Recusar
+                                        </button>
+                                      </>
+                                    ) : inv.status === 'accepted' ? (
+                                      <button 
+                                        onClick={() => {
+                                          setIsManagingInvites(false);
+                                          onViewChange(`circuit_assembly_branch_guest:${inv.ownerId}`);
+                                        }}
+                                        className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                                      >
+                                        <CalendarDays size={14} />
+                                        Acessar CAbr
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg">Recusado</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+
+                        {/* Sent CAbr Invites */}
+                        <section>
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Convites Enviados (CAbr)</h4>
+                          {cabrInvites.length === 0 ? (
+                            <div className="bg-white rounded-3xl p-6 border border-gray-100 text-center text-xs text-gray-400 font-bold">
+                              Você ainda não enviou nenhum convite para a Assembleia com Betel.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {cabrInvites.map((inv) => (
+                                <div key={inv.id} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between shadow-xs">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center font-black text-emerald-600 text-xs">
+                                      <CalendarDays size={20} />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-black text-gray-800">Usuário: {inv.collaboratorNumber}</div>
+                                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                                        inv.status === 'accepted' ? 'bg-emerald-50 text-emerald-600' : 
+                                        inv.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                                      }`}>
+                                        {inv.status === 'accepted' ? 'Ativo' : inv.status === 'rejected' ? 'Recusado' : 'Pendente'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    onClick={() => handleRemoveCabrInvite(inv.id)}
                                     className="p-2 text-gray-300 hover:text-red-500 transition-colors"
                                   >
                                     <Trash2 size={16} />

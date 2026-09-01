@@ -440,6 +440,22 @@
     "/assembly_programs/{programId}": {
       "schema": "assembly_program",
       "description": "Collection of scraped assembly programs"
+    },
+    "/circuit_assembly_supt_speakers/{docId}": {
+      "schema": "circuit_assembly_speakers",
+      "description": "Speaker and details assignments for CAco assemblies"
+    },
+    "/circuit_assembly_branch_speakers/{docId}": {
+      "schema": "circuit_assembly_speakers",
+      "description": "Speaker and details assignments for CAbr assemblies"
+    },
+    "/circuit_assembly_supt_invitations/{invitationId}": {
+      "schema": "circuit_assembly_invitation",
+      "description": "Invitations for CAco assembly assistants"
+    },
+    "/circuit_assembly_branch_invitations/{invitationId}": {
+      "schema": "circuit_assembly_invitation",
+      "description": "Invitations for CAbr assembly assistants"
     }
   }
 }

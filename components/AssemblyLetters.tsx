@@ -41,6 +41,7 @@ const ASSEMBLEIA_TEMPLATES = [
   { id: 'ass_carta_oradores', name: 'Carta aos Oradores' },
   { id: 'ass_convite_presidente', name: 'Convite Presidentes' },
   { id: 'ass_convite_oracao', name: 'Convites Orações' },
+  { id: 'ass_convite_assistente', name: 'Convite Assistentes' },
   { id: 'ass_carta_pioneiros', name: 'Carta aos Pioneiros' },
 ];
 
@@ -257,6 +258,10 @@ export default function AssemblyLetters({
     const circuit = personalData?.circuito || '________________';
     const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
 
+    const isAssistant = selectedTemplate === 'ass_convite_assistente';
+    const isPresident = selectedTemplate === 'ass_convite_presidente';
+    const isPrayer = selectedTemplate === 'ass_convite_oracao';
+
     const replacements = {
       'EVENTO': 'Programa da Assembleia de Circuito de 2027 — com o Superintendente de Circuito',
       'TEMA': '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20',
@@ -265,13 +270,23 @@ export default function AssemblyLetters({
       'ORADOR': '________________',
       'D_ENSAIO': '________________',
       'L_ENSAIO': '________________',
+      'DATA_ENSAIO': '________________',
+      'LOCAL_ENSAIO': '________________',
+      'DATAHORA': '________________',
+      'LOCALTREINO': '________________',
       'HORA': '________________',
       'N': '________________',
-      'TITULO': '________________',
+      'TITULO': isAssistant ? 'ASSISTENTE DA ASSEMBLEIA' : '________________',
+      'DESIGNAÇÃO': isAssistant ? 'ASSISTENTE DA ASSEMBLEIA' : isPresident ? 'PRESIDENTE DE SESSÃO' : isPrayer ? 'ORAÇÃO' : '________________',
+      'DESIGNACAO': isAssistant ? 'ASSISTENTE DA ASSEMBLEIA' : isPresident ? 'PRESIDENTE DE SESSÃO' : isPrayer ? 'ORAÇÃO' : '________________',
       'ANO': '2026',
       'data': hoje,
       'HOJE': hoje,
       'orador': '________________',
+      'NOME_ORADOR': '________________',
+      'DESIGNADO': '________________',
+      'NOME_DESIGNADO': '________________',
+      'ASSISTENTE': '________________',
       'congregacao': '________________',
       'CONGREGACAO': '________________',
       'viajante': travelerName,
@@ -542,7 +557,7 @@ export default function AssemblyLetters({
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             {ASSEMBLEIA_TEMPLATES.map(t => (
               <button
                 key={t.id}

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Store, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download, CheckCircle2, Circle, RefreshCw, Search, Check, ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X } from 'lucide-react';
+import { Store, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download, CheckCircle2, Circle, RefreshCw, Search, Check, ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X, UserCheck, Users, Trash2, Plus, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
@@ -26,6 +26,9 @@ interface AssemblyDetails {
   rehearsalLocation: string;
   assemblyTheme: string;
   customHeaderImage?: string;
+  assemblyAssistants?: string[];
+  assemblyAssistant?: string;
+  assistantCongregations?: Record<number, string>;
 }
 
 interface PartData {
@@ -806,8 +809,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     try {
       const docId = selectedYear === '2026-2027' ? userId : `${userId}_${selectedYear}`;
       const docRef = doc(db, collectionName, docId);
+      const cleanParts = JSON.parse(JSON.stringify(partsData));
       await setDoc(docRef, { 
-        parts: partsData,
+        parts: cleanParts,
         updatedAt: new Date().toISOString(),
         year: selectedYear
       }, { merge: true });
@@ -819,7 +823,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     } catch (error) {
       console.error('Error saving data:', error);
       if (showNotification) {
-        await showAlert('Não foi possível salvar as alterações. Tente novamente.', 'Erro');
+        await showAlert(`Não foi possível salvar as alterações: ${error instanceof Error ? error.message : String(error)}`, 'Erro');
       }
       return false;
     } finally {
@@ -1199,7 +1203,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         'ANO': '2026',
         'DESIGNAÇÃO': designation,
         'DESIGNACAO': designation,
-        'DIA': 'Assembleia',
+        'DIA': type === 'supt' ? 'Assembleia CAco' : 'Assembleia CAbr',
+        'ASSISTENTE': details.assemblyAssistant || '________________',
         'ASSINATURA': signatureImage,
         '%ASSINATURA': signatureImage,
         'VIAJANTE': personalData?.nome || '________________',
@@ -1234,6 +1239,179 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       document.body.removeChild(link);
     } catch (err) {
       console.error('Error generating document:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const generateAssistantDocument = async (assistantName: string, assistantCong?: string) => {
+    if (!assistantName || !assistantName.trim()) {
+      await showAlert('Por favor, informe o nome do assistente.', 'Aviso');
+      return;
+    }
+
+    const trimmedName = assistantName.trim();
+    const assistantDisplayName = assistantCong && assistantCong.trim() 
+      ? `${trimmedName} - ${assistantCong.trim()}` 
+      : trimmedName;
+
+    // Procura por ass_convite_assistente ou templates legados/globais
+    const templateId = 'ass_convite_assistente';
+    const template = templates[templateId] || templates[`${userId}_${templateId}`] || templates['ass_carta_oradores'] || templates[`${userId}_ass_carta_oradores`];
+    
+    if (!template) {
+      await showAlert(`Template de convite para assistentes ("${templateId}") não encontrado. Por favor, carregue-o em Cartas > Gerenciar.`, 'Aviso');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const binaryString = window.atob(template.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const zip = new PizZip(cleanedBuffer);
+      const ImageModule = (await import('docxtemplater-image-module-free')).default;
+      
+      const signatureImage = personalData?.signatureImage || personalData?.signature || '';
+
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      xmlFiles.forEach(xmlResource => {
+        let xmlContent = xmlResource.asText();
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        
+        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
+
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          let newText = text;
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Signature([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@AssinaturaGlobal/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Assinatura_Global/gi, '[%ASSINATURA]');
+          
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m, p1, p2) => {
+            const tag = p2.toUpperCase();
+            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
+            return `${p1}[${tag}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        zip.file(xmlResource.name, xmlContent);
+      });
+
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
+      if (isBase64Image) {
+        const img = new window.Image();
+        const promise = new Promise((resolve) => {
+          img.onload = resolve;
+          img.src = signatureImage;
+        });
+        await promise;
+        const aspectRatio = img.width / img.height;
+        sigHeight = 60;
+        sigWidth = sigHeight * aspectRatio;
+        if (sigWidth > 220) {
+          sigWidth = 220;
+          sigHeight = sigWidth / aspectRatio;
+        }
+      }
+
+      const imgOpts: any = {
+        centered: false,
+        getImage: (tagValue: string) => {
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            const binaryStringArray = window.atob(base64Data);
+            const len = binaryStringArray.length;
+            const bytesArray = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding image:', e);
+            return null;
+          }
+        },
+        getSize: () => [sigWidth, sigHeight],
+      };
+      
+      const themeValue = details.assemblyTheme || assemblyProgram.theme;
+      const designation = 'ASSISTENTE DA ASSEMBLEIA';
+
+      const replacements = {
+        'EVENTO': assemblyProgram.title,
+        'TEMA': themeValue,
+        'DATA': details.eventDate || '________________',
+        'LOCAL': details.eventLocation || '________________',
+        'DATA_EVENTO': details.eventDate || '________________',
+        'LOCAL_EVENTO': details.eventLocation || '________________',
+        'ORADOR': assistantDisplayName,
+        'orador': assistantDisplayName,
+        'NOME_ORADOR': trimmedName,
+        'DESIGNADO': assistantDisplayName,
+        'NOME_DESIGNADO': trimmedName,
+        'ASSISTENTE': trimmedName,
+        'D_ENSAIO': details.rehearsalDate || '________________',
+        'L_ENSAIO': details.rehearsalLocation || '________________',
+        'DATA_ENSAIO': details.rehearsalDate || '________________',
+        'LOCAL_ENSAIO': details.rehearsalLocation || '________________',
+        'DATAHORA': details.rehearsalDate || '________________',
+        'LOCALTREINO': details.rehearsalLocation || '________________',
+        'HORA': '',
+        'N': '',
+        'TITULO': designation,
+        'DESIGNAÇÃO': designation,
+        'DESIGNACAO': designation,
+        'DIA': type === 'supt' ? 'Assembleia com o Superintendente de Circuito' : 'Assembleia com o Representante de Betel',
+        'ANO': '2026',
+        'ASSINATURA': signatureImage,
+        '%ASSINATURA': signatureImage,
+        'VIAJANTE': personalData?.nome || '________________',
+        'NOME': personalData?.nome || '________________',
+        'CIRCUITO': personalData?.circuito || '________________',
+        'CONGREGACAO': assistantCong || '________________',
+        'NOTAS': '',
+        'FONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
+        'TELEFONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
+      };
+
+      const docObj = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: { start: '[', end: ']' },
+        modules: ImageModule ? [new ImageModule(imgOpts)] : []
+      });
+
+      docObj.render(replacements);
+
+      const out = docObj.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      const url = URL.createObjectURL(out);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Convite_Assistente_${trimmedName.replace(/\s+/g, '_')}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error generating assistant document:', err);
+      await showAlert('Erro ao gerar convite do assistente.', 'Erro');
     } finally {
       setIsSaving(false);
     }
@@ -1406,14 +1584,36 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           </div>
 
           {/* Action Bar (Barra de Ações) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
+            {/* Salvar (Se houver alterações) */}
+            {hasChanges && !isGuest && (
+              <button 
+                onClick={() => handleSave(true)} 
+                disabled={isSaving}
+                className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                title="Salvar alterações nas designações e detalhes da assembleia"
+              >
+                {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                <span>Salvar</span>
+              </button>
+            )}
+
             <button 
               onClick={() => setShowEditDetailsModal(true)}
               className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
-              title="Editar dados da assembleia (data, local, ensaio)"
+              title="Editar dados da assembleia (data, local, ensaio, assistentes)"
             >
               <CalendarDays size={15} className="shrink-0 text-amber-600" />
               <span className="hidden md:inline">Dados do Evento</span>
+            </button>
+
+            <button 
+              onClick={() => setShowEditDetailsModal(true)}
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+              title="Gerenciar assistentes da assembleia e gerar convites (.docx)"
+            >
+              <UserCheck size={15} className="shrink-0 text-indigo-600" />
+              <span className="hidden md:inline">Assistentes</span>
             </button>
 
             <button 
@@ -1633,10 +1833,10 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       )}
 
                       {/* Overlaid Banner Content */}
-                      <div className="relative z-10 p-3 sm:p-4 flex flex-col justify-between min-h-[40mm]">
+                      <div className="relative z-10 p-3.5 flex flex-col justify-between min-h-[38mm]">
                         {/* Top Bar: Program Title & Part Pill */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[7.5pt] sm:text-[8pt] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
+                          <div className="text-[8pt] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
                             <span className="truncate">{assemblyProgram.title}</span>
                           </div>
@@ -1647,7 +1847,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
                         {/* Main Theme Verse Typography */}
                         <div className="my-1.5 space-y-0.5">
-                          <div className="text-[12.5pt] sm:text-[14pt] font-black uppercase tracking-tight text-amber-300 drop-shadow-md leading-tight">
+                          <div className="text-[13pt] font-black uppercase tracking-tight text-amber-300 drop-shadow-md leading-tight">
                             {details.assemblyTheme || assemblyProgram.theme}
                           </div>
                         </div>
@@ -1655,18 +1855,24 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                         {/* Bottom Event Metadata Strip with Icons */}
                         <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            <div className="flex items-center gap-1.5 text-[7.5pt] sm:text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
                               <CalendarDays size={13} className="text-amber-400 shrink-0" />
                               <span>{details.eventDate || 'Data a definir'}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[7.5pt] sm:text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                            <div className="flex items-center gap-1.5 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
                               <MapPin size={13} className="text-amber-400 shrink-0" />
                               <span>{details.eventLocation || 'Local a definir'}</span>
                             </div>
                             {details.rehearsalDate && (
-                              <div className="flex items-center gap-1.5 text-[7pt] sm:text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
+                              <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
                                 <Clock size={12} className="text-amber-400/80 shrink-0" />
                                 <span>Ensaio: {details.rehearsalDate}{details.rehearsalLocation ? ` — ${details.rehearsalLocation}` : ''}</span>
+                              </div>
+                            )}
+                            {details.assemblyAssistant && (
+                              <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-amber-200/90 drop-shadow-sm">
+                                <UserCheck size={12} className="text-amber-400 shrink-0" />
+                                <span>Assistente: {details.assemblyAssistant}</span>
                               </div>
                             )}
                           </div>
@@ -2370,6 +2576,184 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                     </div>
                   </div>
 
+                  {/* Assistente(s) da Assembleia */}
+                  <div className="space-y-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <UserCheck size={15} className="text-amber-600" />
+                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                          Assistente(s) da Assembleia ({type === 'supt' ? 'CAco' : 'CAbr'})
+                        </label>
+                      </div>
+                      <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        Convite .docx
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || '']).map((asst, index) => {
+                        const cong = details.assistantCongregations?.[index] || '';
+                        return (
+                          <div key={index} className="p-3 bg-gray-50 border border-gray-100 rounded-2xl space-y-2">
+                            <div className="flex gap-2 items-center">
+                              <input 
+                                type="text" 
+                                placeholder={`Nome do Assistente ${index + 1}`}
+                                value={asst}
+                                disabled={isGuest}
+                                onChange={(e) => {
+                                  const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                                  currentList[index] = e.target.value;
+                                  
+                                  const filteredList = currentList.filter(n => n.trim() !== '');
+                                  let formattedString = '';
+                                  if (filteredList.length === 1) formattedString = filteredList[0];
+                                  else if (filteredList.length > 1) {
+                                    const allButLast = filteredList.slice(0, -1).join(', ');
+                                    formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                                  }
+
+                                  setPartsData(prev => ({
+                                    ...prev,
+                                    [selectedPart]: {
+                                      ...prev[selectedPart],
+                                      details: {
+                                        ...prev[selectedPart].details,
+                                        assemblyAssistants: currentList,
+                                        assemblyAssistant: formattedString
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
+                              />
+
+                              <input 
+                                type="text" 
+                                placeholder="Congregação (opcional)"
+                                value={cong}
+                                disabled={isGuest}
+                                onChange={(e) => {
+                                  const currentCongs = { ...(details.assistantCongregations || {}) };
+                                  currentCongs[index] = e.target.value;
+
+                                  setPartsData(prev => ({
+                                    ...prev,
+                                    [selectedPart]: {
+                                      ...prev[selectedPart],
+                                      details: {
+                                        ...prev[selectedPart].details,
+                                        assistantCongregations: currentCongs
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="w-32 sm:w-40 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
+                              />
+
+                              {!isGuest && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                                    const currentCongs = { ...(details.assistantCongregations || {}) };
+                                    
+                                    if (currentList.length <= 1) {
+                                      setPartsData(prev => ({
+                                        ...prev,
+                                        [selectedPart]: {
+                                          ...prev[selectedPart],
+                                          details: {
+                                            ...prev[selectedPart].details,
+                                            assemblyAssistants: [''],
+                                            assemblyAssistant: '',
+                                            assistantCongregations: {}
+                                          }
+                                        }
+                                      }));
+                                    } else {
+                                      const newList = currentList.filter((_, i) => i !== index);
+                                      const newCongs: Record<number, string> = {};
+                                      let newIdx = 0;
+                                      for (let i = 0; i < currentList.length; i++) {
+                                        if (i !== index) {
+                                          if (currentCongs[i]) newCongs[newIdx] = currentCongs[i];
+                                          newIdx++;
+                                        }
+                                      }
+
+                                      const filteredList = newList.filter(n => n.trim() !== '');
+                                      let formattedString = '';
+                                      if (filteredList.length === 1) formattedString = filteredList[0];
+                                      else if (filteredList.length > 1) {
+                                        const allButLast = filteredList.slice(0, -1).join(', ');
+                                        formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                                      }
+
+                                      setPartsData(prev => ({
+                                        ...prev,
+                                        [selectedPart]: {
+                                          ...prev[selectedPart],
+                                          details: {
+                                            ...prev[selectedPart].details,
+                                            assemblyAssistants: newList,
+                                            assemblyAssistant: formattedString,
+                                            assistantCongregations: newCongs
+                                          }
+                                        }
+                                      }));
+                                    }
+                                  }}
+                                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                  title="Remover assistente"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+
+                            {asst.trim() && (
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => generateAssistantDocument(asst, cong)}
+                                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
+                                  title={`Gerar convite .docx para ${asst}`}
+                                >
+                                  <FileDown size={13} />
+                                  <span>Gerar Convite (.docx)</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {!isGuest && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                            setPartsData(prev => ({
+                              ...prev,
+                              [selectedPart]: {
+                                ...prev[selectedPart],
+                                details: {
+                                  ...prev[selectedPart].details,
+                                  assemblyAssistants: [...currentList, '']
+                                }
+                              }
+                            }));
+                          }}
+                          className="w-full py-2.5 bg-amber-50 hover:bg-amber-100/80 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-dashed border-amber-300"
+                        >
+                          <Plus size={14} />
+                          Adicionar Assistente
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Imagem de Capa / Arte Oficial */}
                   <div className="space-y-2 pt-2 border-t border-gray-100">
                     <div className="flex items-center justify-between">
@@ -2409,12 +2793,27 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => setShowEditDetailsModal(false)}
-                  className="w-full py-4 bg-amber-600 text-white font-bold rounded-2xl shadow-lg shadow-amber-100 hover:bg-amber-700 transition-all active:scale-[0.98] mt-4"
-                >
-                  Concluir Edição
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                  {!isGuest && (
+                    <button 
+                      onClick={async () => {
+                        const ok = await handleSave(true);
+                        if (ok) setShowEditDetailsModal(false);
+                      }}
+                      disabled={isSaving}
+                      className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span>Salvar Alterações</span>
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setShowEditDetailsModal(false)}
+                    className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

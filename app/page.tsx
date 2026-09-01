@@ -74,6 +74,8 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
+  const [guestCacoData, setGuestCacoData] = useState<{ ownerId: string } | null>(null);
+  const [guestCabrData, setGuestCabrData] = useState<{ ownerId: string } | null>(null);
   const [acceptedCongressInvites, setAcceptedCongressInvites] = useState<any[]>([]);
   const [currentView, setCurrentView] = useState<'dashboard' | 'congregations' | 'personal_data' | 'substitutes' | 'itineraries' | 'settings' | 'users' | 'tjsec_accounts' | 'statistics' | 'congregation_statistics' | 'schools' | 'pioneer_school' | 'events' | 'regional_convention_program' | 'misc' | 'field_service_report' | 'aviso_de_visitas' | 'docx_demo' | 'cartas_dashboard' | 'cartas_esp' | 'cartas' | 'cartas_emr' | 'cartas_congresso' | 'cartas_assembleias' | 'cartas_programacoes' | string>('dashboard');
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -179,9 +181,17 @@ export default function Home() {
     } else if (typeof view === 'string' && view.startsWith('regional_convention_guest:')) {
       const [, ownerId] = view.split(':');
       setGuestCongressData({ ownerId });
+    } else if (typeof view === 'string' && view.startsWith('circuit_assembly_supt_guest:')) {
+      const [, ownerId] = view.split(':');
+      setGuestCacoData({ ownerId });
+    } else if (typeof view === 'string' && view.startsWith('circuit_assembly_branch_guest:')) {
+      const [, ownerId] = view.split(':');
+      setGuestCabrData({ ownerId });
     } else {
       setGuestPioneerData(null);
       setGuestCongressData(null);
+      setGuestCacoData(null);
+      setGuestCabrData(null);
     }
 
     setCurrentView(view);
@@ -1200,6 +1210,24 @@ export default function Home() {
               userId={guestCongressData.ownerId}
               isGuest={true}
               onBack={() => changeView('settings')}
+            />
+          )}
+
+          {typeof currentView === 'string' && currentView.startsWith('circuit_assembly_supt_guest') && guestCacoData && (
+            <CircuitAssemblyView 
+              userId={guestCacoData.ownerId}
+              isGuest={true}
+              onBack={() => changeView('settings')}
+              type="supt"
+            />
+          )}
+
+          {typeof currentView === 'string' && currentView.startsWith('circuit_assembly_branch_guest') && guestCabrData && (
+            <CircuitAssemblyView 
+              userId={guestCabrData.ownerId}
+              isGuest={true}
+              onBack={() => changeView('settings')}
+              type="branch"
             />
           )}
 
