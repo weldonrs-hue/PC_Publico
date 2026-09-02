@@ -281,20 +281,31 @@ function extractProgramStructure(root: any): { period: string; items: AssemblyIt
   if (currentSeries) currentItems.push(currentSeries);
   if (currentPeriod && currentItems.length > 0) sessions.push({ period: currentPeriod, items: currentItems });
   
-  // Garantir que cada sessão tenha o Presidente de Sessão
+  // Garantir que cada sessão tenha o Presidente de Sessão com IDs exclusivos (m0 para Manhã, t0 para Tarde)
   return sessions.map((session, sIdx) => {
-    const hasPresident = session.items.some(i => i.isRole && i.title.toLowerCase().includes('presidente'));
-    if (!hasPresident) {
-      const isMorning = session.period.toLowerCase().includes('manhã') || sIdx === 0;
-      return {
-        ...session,
-        items: [
-          { id: isMorning ? 'm0' : 't0', time: null, title: 'PRESIDENTE DE SESSÃO', isRole: true, noSpeaker: false },
-          ...session.items
-        ]
+    const isMorning = session.period.toLowerCase().includes('manhã') || sIdx === 0;
+    const expectedId = isMorning ? 'm0' : 't0';
+    const presIdx = session.items.findIndex(i => i.isRole || i.title.toLowerCase().includes('presidente') || i.id === 'm0' || i.id === 't0');
+    
+    if (presIdx >= 0) {
+      const items = [...session.items];
+      items[presIdx] = {
+        ...items[presIdx],
+        id: expectedId,
+        title: 'PRESIDENTE DE SESSÃO',
+        isRole: true,
+        noSpeaker: false
       };
+      return { ...session, items };
     }
-    return session;
+
+    return {
+      ...session,
+      items: [
+        { id: expectedId, time: null, title: 'PRESIDENTE DE SESSÃO', isRole: true, noSpeaker: false },
+        ...session.items
+      ]
+    };
   });
 }
 
@@ -336,16 +347,22 @@ function calculateMatchScore(oldItem: AssemblyItem, newItem: AssemblyItem, conte
 /**
  * Realiza a correspondência de uma lista de itens (usada recursivamente para subitens)
  */
-function matchItemList(oldItems: AssemblyItem[], newItems: AssemblyItem[], decisions: any[], parentId?: string): AssemblyItem[] {
+function matchItemList(oldItems: AssemblyItem[], newItems: AssemblyItem[], decisions: any[], parentId?: string, sessionPeriod?: string): AssemblyItem[] {
+  const isMorning = sessionPeriod?.toLowerCase().includes('manhã');
+
   if (!oldItems || oldItems.length === 0) {
     return newItems.map((item, idx) => {
-      const id = item.isSeries 
-        ? item.id 
-        : `item_${calculateSHA256(item.title + (item.time || '') + (parentId || '') + idx).substring(0, 8)}`;
+      let id = item.id;
+      const isPresident = item.isRole || item.title?.toLowerCase().includes('presidente') || item.id === 'm0' || item.id === 't0';
+      if (isPresident) {
+        id = (isMorning || item.id === 'm0') ? 'm0' : 't0';
+      } else if (!item.isSeries) {
+        id = `item_${calculateSHA256(item.title + (item.time || '') + (parentId || '') + (sessionPeriod || '') + idx).substring(0, 8)}`;
+      }
       
       const matchedItem = { ...item, id };
       if (item.subitems) {
-        matchedItem.subitems = matchItemList([], item.subitems, decisions, id);
+        matchedItem.subitems = matchItemList([], item.subitems, decisions, id, sessionPeriod);
       }
       return matchedItem;
     });
@@ -414,15 +431,19 @@ function matchItemList(oldItems: AssemblyItem[], newItems: AssemblyItem[], decis
     let finalItem: AssemblyItem;
 
     if (match) {
+      const isPresident = item.isRole || item.title?.toLowerCase().includes('presidente') || item.id === 'm0' || item.id === 't0';
+      const canonicalId = isPresident ? (isMorning ? 'm0' : 't0') : match.item.id;
+      const resolvedItem = { ...match.item, id: canonicalId, ...(isPresident ? { isRole: true, noSpeaker: false } : {}) };
+
       if (match.score >= 80 && (!match.secondScore || (match.score - match.secondScore >= 15))) {
-        finalItem = match.item;
-        decisions.push({ type: 'match', oldId: match.oldId, newId: match.item.id, score: match.score, title: item.title });
+        finalItem = resolvedItem;
+        decisions.push({ type: 'match', oldId: match.oldId, newId: resolvedItem.id, score: match.score, title: item.title });
       } else {
-        finalItem = match.item;
+        finalItem = resolvedItem;
         decisions.push({ 
           type: 'ambiguity', 
           oldId: match.oldId, 
-          newId: match.item.id, 
+          newId: resolvedItem.id, 
           score: match.score, 
           ...(match.secondScore !== undefined ? { secondScore: match.secondScore } : {}), 
           title: item.title 
@@ -432,15 +453,19 @@ function matchItemList(oldItems: AssemblyItem[], newItems: AssemblyItem[], decis
       // Recursão para subitens se for uma série
       if (item.isSeries && item.subitems) {
         const oldItem = oldItems.find(oi => oi.id === match.oldId);
-        finalItem.subitems = matchItemList(oldItem?.subitems || [], item.subitems, decisions, finalItem.id);
+        finalItem.subitems = matchItemList(oldItem?.subitems || [], item.subitems, decisions, finalItem.id, sessionPeriod);
       }
     } else {
-      const id = item.isSeries ? item.id : `item_${calculateSHA256(item.title + (item.time || '') + (parentId || '') + idx).substring(0, 8)}`;
-      finalItem = { ...item, id };
+      const isPresident = item.isRole || item.title?.toLowerCase().includes('presidente') || item.id === 'm0' || item.id === 't0';
+      const id = isPresident 
+        ? (isMorning ? 'm0' : 't0')
+        : (item.isSeries ? item.id : `item_${calculateSHA256(item.title + (item.time || '') + (parentId || '') + (sessionPeriod || '') + idx).substring(0, 8)}`);
+      
+      finalItem = { ...item, id, ...(isPresident ? { isRole: true, noSpeaker: false } : {}) };
       decisions.push({ type: 'new', newId: id, title: item.title });
       
       if (item.isSeries && item.subitems) {
-        finalItem.subitems = matchItemList([], item.subitems, decisions, finalItem.id);
+        finalItem.subitems = matchItemList([], item.subitems, decisions, finalItem.id, sessionPeriod);
       }
     }
     matchedResult.push(finalItem);
@@ -456,10 +481,34 @@ export function matchPrograms(oldSessions: any[], newSessions: any[]): { session
   const matchedSessions: any[] = [];
   const decisions: any[] = [];
 
-  newSessions.forEach(newSession => {
-    const oldSession = oldSessions.find(s => s.period === newSession.period);
-    const matchedItems = matchItemList(oldSession?.items || [], newSession.items, decisions);
-    matchedSessions.push({ ...newSession, items: matchedItems });
+  newSessions.forEach((newSession, sIdx) => {
+    const oldSession = oldSessions.find(s => s.period?.toLowerCase() === newSession.period?.toLowerCase());
+    const isMorning = newSession.period?.toLowerCase().includes('manhã') || sIdx === 0;
+    const matchedItems = matchItemList(oldSession?.items || [], newSession.items, decisions, undefined, newSession.period);
+
+    // Enforce distinct canonical ID for the session president (m0 for morning, t0 for afternoon)
+    const expectedId = isMorning ? 'm0' : 't0';
+    const presIdx = matchedItems.findIndex(i => i.isRole || i.title?.toLowerCase().includes('presidente') || i.id === 'm0' || i.id === 't0');
+    let finalItems = [...matchedItems];
+    if (presIdx >= 0) {
+      finalItems[presIdx] = {
+        ...finalItems[presIdx],
+        id: expectedId,
+        title: 'PRESIDENTE DE SESSÃO',
+        isRole: true,
+        noSpeaker: false
+      };
+    } else {
+      finalItems.unshift({
+        id: expectedId,
+        time: null,
+        title: 'PRESIDENTE DE SESSÃO',
+        isRole: true,
+        noSpeaker: false
+      });
+    }
+
+    matchedSessions.push({ ...newSession, items: finalItems });
   });
 
   return { sessions: matchedSessions, decisions };

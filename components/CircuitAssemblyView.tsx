@@ -300,29 +300,57 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
     const normalizedSessions = base.sessions.map((session: any, sIdx: number) => {
       let items = [...(session.items || [])];
-      
-      // Garantir que o Presidente de Sessão esteja presente no topo de cada sessão
-      const hasPresident = items.some(i => i.isRole && (i.title?.toLowerCase().includes('presidente') || i.id === 'm0' || i.id === 't0'));
       const isMorning = session.period?.toLowerCase().includes('manhã') || sIdx === 0;
-      
-      if (!hasPresident) {
+      const expectedPresidentId = isMorning ? 'm0' : 't0';
+
+      // Localizar qualquer item existente de Presidente de Sessão
+      const presidentIndex = items.findIndex(i => 
+        i.isRole || 
+        (i.title && i.title.toLowerCase().includes('presidente')) || 
+        i.id === 'm0' || 
+        i.id === 't0'
+      );
+
+      if (presidentIndex >= 0) {
+        // Garantir ID canônico e único para cada sessão (m0 para Manhã, t0 para Tarde)
+        items[presidentIndex] = {
+          ...items[presidentIndex],
+          id: expectedPresidentId,
+          title: 'PRESIDENTE DE SESSÃO',
+          isRole: true,
+          noSpeaker: false
+        };
+      } else {
+        // Inserir no topo se ainda não estiver presente
         items.unshift({
-          id: isMorning ? 'm0' : 't0',
+          id: expectedPresidentId,
           title: 'PRESIDENTE DE SESSÃO',
           isRole: true,
           noSpeaker: false
         });
       }
 
+      // Remover quaisquer duplicatas acidentais do presidente nesta sessão
+      let seenPres = false;
+      items = items.filter(item => {
+        const isPres = item.id === expectedPresidentId || (item.isRole && item.title?.toLowerCase().includes('presidente'));
+        if (isPres) {
+          if (seenPres) return false;
+          seenPres = true;
+        }
+        return true;
+      });
+
       // Garantir que orações e papéis de presidente não tenham noSpeaker: true
       items = items.map((item: any) => {
         const titleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const isPrayer = titleNorm.includes('oracao') || titleNorm.includes('prayer');
-        const isPresidentRole = item.isRole || titleNorm.includes('presidente');
+        const isPresidentRole = item.id === 'm0' || item.id === 't0' || item.isRole || titleNorm.includes('presidente');
         
         if (isPrayer || isPresidentRole) {
           return {
             ...item,
+            id: isPresidentRole ? expectedPresidentId : item.id,
             noSpeaker: false,
             isRole: isPresidentRole ? true : item.isRole
           };
@@ -366,8 +394,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       // Se já possui orphanedParts e os IDs parecem modernos, evitamos re-migrar o que já foi migrado
       const hasModernIds = Object.keys(part.speakers || {}).some(id => id.startsWith('item_') || id.startsWith('legacy_'));
       const hasLegacyIndices = Object.keys(part.speakers || {}).some(id => !isNaN(Number(id)) || id.length <= 4);
+      const hasLegacyPresidentCollision = Object.keys(part.speakers || {}).includes('item_abd86e44');
 
-      if (hasModernIds && !hasLegacyIndices) return;
+      if (hasModernIds && !hasLegacyIndices && !hasLegacyPresidentCollision) return;
 
       const migratedSpeakers: Record<string, string> = {};
       const migratedCongregations: Record<string, string> = {};
@@ -376,16 +405,23 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const migratedUserTimes: Record<string, string> = { ...(part.userTimes || {}) };
       const orphanedParts: any = { ...part.orphanedParts };
 
-      // Mapear todos os itens atuais por título e tempo para reconhecimento de migração
+      // Mapear todos os itens atuais por período, título e tempo para reconhecimento sem colisão
       const currentItemsMap: Record<string, string> = {};
       currentProgram.sessions.forEach((s: any) => {
+        const periodKey = s.period?.toLowerCase().includes('manhã') ? 'manha' : 'tarde';
         s.items.forEach((item: any) => {
-          const key = `${item.title.toLowerCase()}_${item.time}`;
+          const key = `${periodKey}_${item.title.toLowerCase()}_${item.time || ''}`;
           currentItemsMap[key] = item.id;
+          if (!currentItemsMap[`${item.title.toLowerCase()}_${item.time || ''}`]) {
+            currentItemsMap[`${item.title.toLowerCase()}_${item.time || ''}`] = item.id;
+          }
           if (item.subitems) {
             item.subitems.forEach((si: any) => {
-              const subKey = `${si.title.toLowerCase()}_${si.time || item.time || ''}`;
+              const subKey = `${periodKey}_${si.title.toLowerCase()}_${si.time || item.time || ''}`;
               currentItemsMap[subKey] = si.id;
+              if (!currentItemsMap[`${si.title.toLowerCase()}_${si.time || item.time || ''}`]) {
+                currentItemsMap[`${si.title.toLowerCase()}_${si.time || item.time || ''}`] = si.id;
+              }
             });
           }
         });
@@ -400,6 +436,17 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           const notes = part.notes?.[oldId] || '';
           const userTime = part.userTimes?.[oldId] || '';
 
+          // Tratar ID legado com colisão de presidente: 'item_abd86e44' -> 'm0'
+          if (oldId === 'item_abd86e44') {
+            if (!part.speakers['m0']) {
+              migratedSpeakers['m0'] = speaker;
+              migratedConfirmations['m0'] = confirmation;
+              migratedCongregations['m0'] = congregation;
+              migratedNotes['m0'] = notes;
+            }
+            return;
+          }
+
           // 1. Tentar encontrar o ID diretamente na nova programação
           let foundId = '';
           currentProgram.sessions.forEach((s: any) => {
@@ -410,7 +457,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             });
           });
 
-          // 2. Se for índice numérico (legado), mapear para o ID estático correspondente
+          // 2. Se for índice numérico (legado), mapear para o ID correspondente
           if (!foundId && !isNaN(Number(oldId)) && Number(oldId) < 100) {
             // Mapeamento heurístico para o programa estático
             const allStaticItems: any[] = [];
@@ -422,8 +469,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             });
             const staticItem = allStaticItems.find(i => i.id === oldId || i.id === `m${oldId}` || i.id === `t${oldId}`);
             if (staticItem) {
-              const key = `${staticItem.title.toLowerCase()}_${staticItem.time || ''}`;
-              foundId = currentItemsMap[key] || '';
+              const periodKey = staticItem.id.startsWith('m') ? 'manha' : staticItem.id.startsWith('t') ? 'tarde' : '';
+              const key = `${periodKey}_${staticItem.title.toLowerCase()}_${staticItem.time || ''}`;
+              foundId = currentItemsMap[key] || currentItemsMap[`${staticItem.title.toLowerCase()}_${staticItem.time || ''}`] || '';
             }
           }
 
@@ -1026,22 +1074,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       else designation = 'ORAÇÃO';
     } else if (isPresident) {
       templateId = 'ass_convite_presidente';
-      const allItems: any[] = [];
-      assemblyProgram.sessions.forEach((s: any) => {
-        s.items.forEach((i: any) => {
-          allItems.push(i);
-          if (i.subitems) i.subitems.forEach((si: any) => allItems.push(si));
-        });
-      });
-      const presidentItems = allItems.filter((i: any) => {
-        const t = (i.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return i.isRole || t.includes('presidente') || i.id === 'm0' || i.id === 't0';
-      });
-      const presidentIndex = presidentItems.findIndex((i: any) => i.id === item.id);
-      
-      if (presidentIndex === 0) designation = 'PRESIDENTE DE SESSÃO MANHÃ';
-      else if (presidentIndex === 1) designation = 'PRESIDENTE DE SESSÃO TARDE';
-      else designation = 'PRESIDENTE DE SESSÃO';
+      if (item.id === 'm0') {
+        designation = 'PRESIDENTE DE SESSÃO MANHÃ';
+      } else if (item.id === 't0') {
+        designation = 'PRESIDENTE DE SESSÃO TARDE';
+      } else {
+        const isMorning = assemblyProgram.sessions[0]?.items?.some((i: any) => i.id === item.id);
+        designation = isMorning ? 'PRESIDENTE DE SESSÃO MANHÃ' : 'PRESIDENTE DE SESSÃO TARDE';
+      }
     } else {
       templateId = 'ass_carta_oradores';
       designation = item.title;
