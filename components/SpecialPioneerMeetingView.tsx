@@ -1728,20 +1728,39 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                               );
                             }
 
-                            // Cântico e Oração (Sem Presidente e Sem Convite para Oração conforme solicitado)
+                            // Cântico e Oração
                             if (isMusicOrPrayer) {
                               runningOffset += itemDuration;
+                              const speakerName = speakers[item.id] || '';
+
                               return (
                                 <div key={item.id} className="p-1.5 rounded border-b border-gray-100 hover:bg-gray-50/50">
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
                                       <span className="text-[8.5pt] font-black text-violet-700 w-11 shrink-0">
                                         {itemStartTime}
                                       </span>
-                                      <span className="text-[9pt] font-semibold text-gray-600 italic flex items-center gap-1.5">
-                                        <Music size={13} className="text-violet-500" />
-                                        {item.title}
-                                      </span>
+                                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 flex-1 min-w-0">
+                                        <span className="text-[9pt] font-semibold text-gray-600 italic flex items-center gap-1.5 shrink-0">
+                                          <Music size={13} className="text-violet-500" />
+                                          {item.title}
+                                        </span>
+                                        
+                                        <div className="flex-1 min-w-[120px] max-w-[250px] relative">
+                                          <input
+                                            type="text"
+                                            placeholder="Nome do orador..."
+                                            value={speakerName}
+                                            onChange={e => handleSpeakerChange(item.id, e.target.value)}
+                                            className={`w-full text-[8.5pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-violet-500 outline-none placeholder:text-gray-300 ${!speakerName ? 'print:hidden' : ''}`}
+                                          />
+                                          {!speakerName && (
+                                            <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-400 font-normal">
+                                              <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
