@@ -911,8 +911,35 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       return;
     }
 
-    const templateId = 'ass_carta_oradores';
-    const template = templates[templateId] || templates[`${userId}_${templateId}`];
+    const titleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const isPrayer = titleNorm.includes('oracao') || titleNorm.includes('prayer');
+
+    let templateId = 'ass_carta_oradores';
+    let designation = item.title;
+
+    if (isPrayer) {
+      templateId = 'ass_convite_oracao';
+      // Identify which prayer it is
+      const allItems: any[] = [];
+      pioneerProgram.sessions.forEach((s: any) => {
+        s.items.forEach((i: any) => {
+          allItems.push(i);
+          if (i.subitems) i.subitems.forEach((si: any) => allItems.push(si));
+        });
+      });
+      const prayerItems = allItems.filter((i: any) => {
+        const t = (i.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return t.includes('oracao') || t.includes('prayer');
+      });
+      const prayerIndex = prayerItems.findIndex((i: any) => i.id === item.id);
+      
+      if (prayerIndex === 0) designation = 'ORAÇÃO INICIAL';
+      else if (prayerIndex === 1) designation = 'ORAÇÃO DA TARDE';
+      else if (prayerIndex === 2) designation = 'ORAÇÃO FINAL';
+      else designation = 'ORAÇÃO';
+    }
+
+    const template = templates[templateId] || templates[`${userId}_${templateId}`] || templates['ass_carta_oradores'] || templates[`${userId}_ass_carta_oradores`];
     if (!template) {
       await showAlert(`Template "${templateId}" não encontrado. Por favor, carregue-o em Cartas > Gerenciar.`, 'Aviso');
       return;
@@ -1073,7 +1100,9 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         'LOCAL_EVENTO': details.eventLocation || '________________',
         'MATERIAL': details.material || '________________',
         'ORADOR': speakerName,
-        'TITULO': tituloValue,
+        'TITULO': isPrayer ? designation : tituloValue,
+        'DESIGNAÇÃO': designation,
+        'DESIGNACAO': designation,
         'HORA': itemStartTime,
         'N': sequentialNumber.toString(),
         'ENSAIOS': details.rehearsalDate || '________________',
@@ -1759,6 +1788,25 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                                               <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
                                             </div>
                                           )}
+                                        </div>
+
+                                        <div className="no-print flex items-center gap-1 shrink-0 ml-auto">
+                                          <button
+                                            onClick={() => handleConfirmationToggle(item.id)}
+                                            className={`p-1 rounded transition-colors cursor-pointer ${
+                                              confirmedSpeakers[item.id] ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-300 hover:text-gray-500'
+                                            }`}
+                                            title={confirmedSpeakers[item.id] ? "Orador Confirmado" : "Clique para marcar como Confirmado"}
+                                          >
+                                            {confirmedSpeakers[item.id] ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                                          </button>
+                                          <button
+                                            onClick={() => generateDocument(item)}
+                                            className="p-1 text-gray-400 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors cursor-pointer"
+                                            title="Gerar carta convite em .docx"
+                                          >
+                                            <FileDown size={13} />
+                                          </button>
                                         </div>
                                       </div>
                                     </div>

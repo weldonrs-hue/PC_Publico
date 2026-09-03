@@ -79,7 +79,7 @@ const regionalConventionProgram = [
         items: [
           { id: 't0', title: 'PRESIDENTE DE SESSÃO', icon: User, isRole: true },
           { id: 't1', time: '1:35', title: 'Vídeo musical', icon: Music, noSpeaker: true },
-          { id: 't2', time: '1:45', title: 'Cântico 23', icon: Music, noSpeaker: true },
+          { id: 't2', time: '1:45', title: 'Cântico 23 e oração', icon: Music },
           { 
             id: 't3', 
             time: '1:50', 
@@ -158,7 +158,7 @@ const regionalConventionProgram = [
         items: [
           { id: 'sat_t0', title: 'PRESIDENTE SÁBADO TARDE', icon: User, isRole: true },
           { id: 'sat_t1', time: '1:35', title: 'Vídeo musical', icon: Music, noSpeaker: true },
-          { id: 'sat_t2', time: '1:45', title: 'Cântico 125', icon: Music, noSpeaker: true },
+          { id: 'sat_t2', time: '1:45', title: 'Cântico 125 e oração', icon: Music },
           { 
             id: 'sat_t3', 
             time: '1:50', 
@@ -226,7 +226,7 @@ const regionalConventionProgram = [
         items: [
           { id: 'sun_t0', title: 'PRESIDENTE DOMINGO TARDE', icon: User, isRole: true },
           { id: 'sun_t1', time: '1:35', title: 'Vídeo musical', icon: Music, noSpeaker: true },
-          { id: 'sun_t2', time: '1:45', title: 'Cântico 108', icon: Music, noSpeaker: true },
+          { id: 'sun_t2', time: '1:45', title: 'Cântico 108 e oração', icon: Music },
           { 
             id: 'sun_t3', 
             time: '1:50', 
