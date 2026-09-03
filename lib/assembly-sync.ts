@@ -349,15 +349,18 @@ function calculateMatchScore(oldItem: AssemblyItem, newItem: AssemblyItem, conte
  */
 function matchItemList(oldItems: AssemblyItem[], newItems: AssemblyItem[], decisions: any[], parentId?: string, sessionPeriod?: string): AssemblyItem[] {
   const isMorning = sessionPeriod?.toLowerCase().includes('manhã');
+  let presidentAssigned = false;
 
   if (!oldItems || oldItems.length === 0) {
     return newItems.map((item, idx) => {
       let id = item.id;
-      const isPresident = item.isRole || item.title?.toLowerCase().includes('presidente') || item.id === 'm0' || item.id === 't0';
+      const isPresident = !presidentAssigned && (item.id === 'm0' || item.id === 't0' || item.title?.trim().toLowerCase() === 'presidente de sessão' || (item.isRole && item.title?.toLowerCase().includes('presidente')));
       if (isPresident) {
         id = (isMorning || item.id === 'm0') ? 'm0' : 't0';
+        presidentAssigned = true;
       } else if (!item.isSeries) {
-        id = `item_${calculateSHA256(item.title + (item.time || '') + (parentId || '') + (sessionPeriod || '') + idx).substring(0, 8)}`;
+        const normTime = (item.time || '').replace(/^0/, '').trim();
+        id = `item_${calculateSHA256(item.title + normTime + (parentId || '') + (sessionPeriod || '') + idx).substring(0, 8)}`;
       }
       
       const matchedItem = { ...item, id };
@@ -415,7 +418,8 @@ function matchItemList(oldItems: AssemblyItem[], newItems: AssemblyItem[], decis
       usedOldIds.add(match.oldItem.id);
       matchedNewIndices.add(match.index);
     } else if (match.score >= 40) {
-      const tempId = match.newItem.isSeries ? match.newItem.id : `item_${calculateSHA256(match.newItem.title + (match.newItem.time || '') + (parentId || '')).substring(0, 8)}`;
+      const normTime = (match.newItem.time || '').replace(/^0/, '').trim();
+      const tempId = match.newItem.isSeries ? match.newItem.id : `item_${calculateSHA256(match.newItem.title + normTime + (parentId || '') + (sessionPeriod || '')).substring(0, 8)}`;
       finalMatches.set(match.index, { 
         item: { ...match.newItem, id: tempId }, 
         score: match.score, 
@@ -456,10 +460,10 @@ function matchItemList(oldItems: AssemblyItem[], newItems: AssemblyItem[], decis
         finalItem.subitems = matchItemList(oldItem?.subitems || [], item.subitems, decisions, finalItem.id, sessionPeriod);
       }
     } else {
-      const isPresident = item.isRole || item.title?.toLowerCase().includes('presidente') || item.id === 'm0' || item.id === 't0';
+      const isPresident = !matchedResult.some(m => m.id === 'm0' || m.id === 't0') && (item.id === 'm0' || item.id === 't0' || item.title?.trim().toLowerCase() === 'presidente de sessão' || (item.isRole && item.title?.toLowerCase().includes('presidente')));
       const id = isPresident 
         ? (isMorning ? 'm0' : 't0')
-        : (item.isSeries ? item.id : `item_${calculateSHA256(item.title + (item.time || '') + (parentId || '') + (sessionPeriod || '') + idx).substring(0, 8)}`);
+        : (item.isSeries ? item.id : `item_${calculateSHA256(item.title + (item.time || '').replace(/^0/, '').trim() + (parentId || '') + (sessionPeriod || '') + idx).substring(0, 8)}`);
       
       finalItem = { ...item, id, ...(isPresident ? { isRole: true, noSpeaker: false } : {}) };
       decisions.push({ type: 'new', newId: id, title: item.title });
@@ -488,7 +492,7 @@ export function matchPrograms(oldSessions: any[], newSessions: any[]): { session
 
     // Enforce distinct canonical ID for the session president (m0 for morning, t0 for afternoon)
     const expectedId = isMorning ? 'm0' : 't0';
-    const presIdx = matchedItems.findIndex(i => i.isRole || i.title?.toLowerCase().includes('presidente') || i.id === 'm0' || i.id === 't0');
+    const presIdx = matchedItems.findIndex(i => i.id === expectedId || i.id === 'm0' || i.id === 't0' || (i.isRole && i.title?.toLowerCase().includes('presidente')) || i.title?.trim().toLowerCase() === 'presidente de sessão');
     let finalItems = [...matchedItems];
     if (presIdx >= 0) {
       finalItems[presIdx] = {
@@ -507,6 +511,14 @@ export function matchPrograms(oldSessions: any[], newSessions: any[]): { session
         noSpeaker: false
       });
     }
+
+    // Deduplicate any items that accidentally share IDs
+    const seenIds = new Set<string>();
+    finalItems = finalItems.filter(item => {
+      if (seenIds.has(item.id)) return false;
+      seenIds.add(item.id);
+      return true;
+    });
 
     matchedSessions.push({ ...newSession, items: finalItems });
   });

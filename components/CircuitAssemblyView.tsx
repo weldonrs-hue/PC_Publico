@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Store, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, ChevronUp, FileDown, FileText, Download, CheckCircle2, Circle, RefreshCw, Search, Check, ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X, UserCheck, Users, Trash2, Plus, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -291,11 +291,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   
   const staticProgram = (programsByYear as any)[selectedYear]?.[type] || (programsByYear as any)['2026-2027'][type];
   
-  const assemblyProgram = useMemo(() => {
-    const base = dynamicProgram 
-      ? { ...staticProgram, ...dynamicProgram } 
-      : staticProgram;
-    
+  const normalizeProgram = useCallback((base: any) => {
     if (!base || !base.sessions) return base;
 
     const normalizedSessions = base.sessions.map((session: any, sIdx: number) => {
@@ -305,10 +301,11 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
       // Localizar qualquer item existente de Presidente de Sessão
       const presidentIndex = items.findIndex(i => 
-        i.isRole || 
-        (i.title && i.title.toLowerCase().includes('presidente')) || 
+        i.id === expectedPresidentId || 
         i.id === 'm0' || 
-        i.id === 't0'
+        i.id === 't0' ||
+        (i.isRole && i.title && i.title.toLowerCase().includes('presidente')) ||
+        (i.title && i.title.toLowerCase().trim() === 'presidente de sessão')
       );
 
       if (presidentIndex >= 0) {
@@ -333,7 +330,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       // Remover quaisquer duplicatas acidentais do presidente nesta sessão
       let seenPres = false;
       items = items.filter(item => {
-        const isPres = item.id === expectedPresidentId || (item.isRole && item.title?.toLowerCase().includes('presidente'));
+        const isPres = item.id === expectedPresidentId;
         if (isPres) {
           if (seenPres) return false;
           seenPres = true;
@@ -341,21 +338,52 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         return true;
       });
 
-      // Garantir que orações e papéis de presidente não tenham noSpeaker: true
+      // Garantir que orações e papéis de presidente não tenham noSpeaker: true, sem sobrescrever IDs de outros itens
       items = items.map((item: any) => {
         const titleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const isPrayer = titleNorm.includes('oracao') || titleNorm.includes('prayer');
-        const isPresidentRole = item.id === 'm0' || item.id === 't0' || item.isRole || titleNorm.includes('presidente');
+        const isCurrentPresident = item.id === expectedPresidentId;
         
-        if (isPrayer || isPresidentRole) {
+        if (isPrayer || isCurrentPresident) {
           return {
             ...item,
-            id: isPresidentRole ? expectedPresidentId : item.id,
             noSpeaker: false,
-            isRole: isPresidentRole ? true : item.isRole
+            isRole: isCurrentPresident ? true : !!item.isRole
           };
         }
         return item;
+      });
+
+      // Garantir unicidade absoluta de todos os IDs de itens e subitens nesta sessão
+      const seenItemIds = new Set<string>();
+      items = items.map((item: any, itemIdx: number) => {
+        let finalId = item.id;
+        if (!finalId || seenItemIds.has(finalId)) {
+          finalId = `${expectedPresidentId === 'm0' ? 'm' : 't'}_item_${itemIdx}_${item.time ? item.time.replace(':', '') : itemIdx}`;
+          if (seenItemIds.has(finalId)) {
+            finalId = `${finalId}_${itemIdx}`;
+          }
+        }
+        seenItemIds.add(finalId);
+
+        let subitems = item.subitems;
+        if (subitems && Array.isArray(subitems)) {
+          const seenSubIds = new Set<string>();
+          subitems = subitems.map((sub: any, subIdx: number) => {
+            let subId = sub.id;
+            if (!subId || seenSubIds.has(subId) || seenItemIds.has(subId)) {
+              subId = `${finalId}_${subIdx + 1}`;
+            }
+            seenSubIds.add(subId);
+            return { ...sub, id: subId };
+          });
+        }
+
+        return {
+          ...item,
+          id: finalId,
+          ...(subitems ? { subitems } : {})
+        };
       });
 
       return { ...session, items };
@@ -365,7 +393,15 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       ...base,
       sessions: normalizedSessions
     };
-  }, [staticProgram, dynamicProgram]);
+  }, []);
+
+  const assemblyProgram = useMemo(() => {
+    const base = dynamicProgram 
+      ? { ...staticProgram, ...dynamicProgram } 
+      : staticProgram;
+    
+    return normalizeProgram(base);
+  }, [staticProgram, dynamicProgram, normalizeProgram]);
 
   const { showAlert } = useDialog();
 
@@ -389,43 +425,48 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
     const newPartsData = { ...data };
     
+    // Mapear todos os IDs válidos no programa atual para verificação rápida
+    const validIds = new Set<string>();
+    const currentItemsMap: Record<string, string> = {};
+    
+    const normalizeText = (text: string) => text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const normalizeTime = (time: string | null) => {
+      if (!time) return '';
+      return time.replace(/^0/, '').trim(); // Remove leading zero (09:00 -> 9:00)
+    };
+
+    currentProgram.sessions.forEach((s: any) => {
+      const periodKey = s.period?.toLowerCase().includes('manhã') ? 'manha' : 'tarde';
+      const processItems = (items: any[]) => {
+        items.forEach((item: any) => {
+          validIds.add(item.id);
+          const normTitle = normalizeText(item.title || '');
+          const normTime = normalizeTime(item.time);
+          
+          // Chaves para busca
+          const fullKey = `${periodKey}_${normTitle}_${normTime}`;
+          const titleKey = `${periodKey}_${normTitle}`;
+          
+          if (!currentItemsMap[fullKey]) currentItemsMap[fullKey] = item.id;
+          if (!currentItemsMap[titleKey]) currentItemsMap[titleKey] = item.id;
+          // Fallback sem período
+          if (!currentItemsMap[`${normTitle}_${normTime}`]) currentItemsMap[`${normTitle}_${normTime}`] = item.id;
+
+          if (item.subitems) processItems(item.subitems);
+        });
+      };
+      processItems(s.items || []);
+    });
+
     Object.keys(newPartsData).forEach((partIndex: any) => {
       const part = newPartsData[partIndex];
-      // Se já possui orphanedParts e os IDs parecem modernos, evitamos re-migrar o que já foi migrado
-      const hasModernIds = Object.keys(part.speakers || {}).some(id => id.startsWith('item_') || id.startsWith('legacy_'));
-      const hasLegacyIndices = Object.keys(part.speakers || {}).some(id => !isNaN(Number(id)) || id.length <= 4);
-      const hasLegacyPresidentCollision = Object.keys(part.speakers || {}).includes('item_abd86e44');
-
-      if (hasModernIds && !hasLegacyIndices && !hasLegacyPresidentCollision) return;
-
+      
       const migratedSpeakers: Record<string, string> = {};
       const migratedCongregations: Record<string, string> = {};
       const migratedNotes: Record<string, string> = {};
       const migratedConfirmations: Record<string, boolean> = {};
       const migratedUserTimes: Record<string, string> = { ...(part.userTimes || {}) };
-      const orphanedParts: any = { ...part.orphanedParts };
-
-      // Mapear todos os itens atuais por período, título e tempo para reconhecimento sem colisão
-      const currentItemsMap: Record<string, string> = {};
-      currentProgram.sessions.forEach((s: any) => {
-        const periodKey = s.period?.toLowerCase().includes('manhã') ? 'manha' : 'tarde';
-        s.items.forEach((item: any) => {
-          const key = `${periodKey}_${item.title.toLowerCase()}_${item.time || ''}`;
-          currentItemsMap[key] = item.id;
-          if (!currentItemsMap[`${item.title.toLowerCase()}_${item.time || ''}`]) {
-            currentItemsMap[`${item.title.toLowerCase()}_${item.time || ''}`] = item.id;
-          }
-          if (item.subitems) {
-            item.subitems.forEach((si: any) => {
-              const subKey = `${periodKey}_${si.title.toLowerCase()}_${si.time || item.time || ''}`;
-              currentItemsMap[subKey] = si.id;
-              if (!currentItemsMap[`${si.title.toLowerCase()}_${si.time || item.time || ''}`]) {
-                currentItemsMap[`${si.title.toLowerCase()}_${si.time || item.time || ''}`] = si.id;
-              }
-            });
-          }
-        });
-      });
+      const orphanedParts: any = { ...(part.orphanedParts || {}) };
 
       // Se existir o formato antigo de speakers por ID ou índice
       if (part.speakers) {
@@ -436,30 +477,35 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           const notes = part.notes?.[oldId] || '';
           const userTime = part.userTimes?.[oldId] || '';
 
-          // Tratar ID legado com colisão de presidente: 'item_abd86e44' -> 'm0'
-          if (oldId === 'item_abd86e44') {
-            if (!part.speakers['m0']) {
-              migratedSpeakers['m0'] = speaker;
-              migratedConfirmations['m0'] = confirmation;
-              migratedCongregations['m0'] = congregation;
-              migratedNotes['m0'] = notes;
-            }
+          // 1. Se o ID já é válido no programa atual, mantemos
+          if (validIds.has(oldId)) {
+            migratedSpeakers[oldId] = speaker;
+            migratedConfirmations[oldId] = confirmation;
+            migratedCongregations[oldId] = congregation;
+            migratedNotes[oldId] = notes;
             return;
           }
 
-          // 1. Tentar encontrar o ID diretamente na nova programação
-          let foundId = '';
-          currentProgram.sessions.forEach((s: any) => {
-            s.items.forEach((item: any) => {
-              if (item.id === oldId) foundId = oldId;
-              const sub = item.subitems?.find((si: any) => si.id === oldId);
-              if (sub) foundId = oldId;
-            });
-          });
+          // 2. Tratar IDs especiais de presidente (retrocompatibilidade)
+          if (oldId === 'item_abd86e44' || oldId === 'm0' || oldId === 't0') {
+            // Decidir se é manhã ou tarde baseado no ID ou contexto se possível
+            // Aqui m0 e t0 são canônicos agora, então se validIds não tem mas part tem, algo está errado
+            // Mas vamos tentar mapear item_abd86e44 especificamente
+            const targetId = oldId === 'item_abd86e44' ? 'm0' : oldId;
+            if (validIds.has(targetId)) {
+              migratedSpeakers[targetId] = speaker;
+              migratedConfirmations[targetId] = confirmation;
+              migratedCongregations[targetId] = congregation;
+              migratedNotes[targetId] = notes;
+              return;
+            }
+          }
 
-          // 2. Se for índice numérico (legado), mapear para o ID correspondente
-          if (!foundId && !isNaN(Number(oldId)) && Number(oldId) < 100) {
-            // Mapeamento heurístico para o programa estático
+          // 3. Tentar encontrar por título e tempo (Migração Heurística)
+          // Precisamos dos metadados do item antigo se for ID legado numérico
+          let foundId = '';
+          
+          if (!isNaN(Number(oldId)) && Number(oldId) < 100) {
             const allStaticItems: any[] = [];
             staticProgram.sessions.forEach((s: any) => {
               s.items.forEach((i: any) => {
@@ -469,9 +515,12 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             });
             const staticItem = allStaticItems.find(i => i.id === oldId || i.id === `m${oldId}` || i.id === `t${oldId}`);
             if (staticItem) {
-              const periodKey = staticItem.id.startsWith('m') ? 'manha' : staticItem.id.startsWith('t') ? 'tarde' : '';
-              const key = `${periodKey}_${staticItem.title.toLowerCase()}_${staticItem.time || ''}`;
-              foundId = currentItemsMap[key] || currentItemsMap[`${staticItem.title.toLowerCase()}_${staticItem.time || ''}`] || '';
+              const periodKey = staticItem.id.startsWith('m') ? 'manha' : 'tarde';
+              const normTitle = normalizeText(staticItem.title || '');
+              const normTime = normalizeTime(staticItem.time);
+              foundId = currentItemsMap[`${periodKey}_${normTitle}_${normTime}`] || 
+                        currentItemsMap[`${periodKey}_${normTitle}`] ||
+                        currentItemsMap[`${normTitle}_${normTime}`] || '';
             }
           }
 
@@ -482,17 +531,19 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             migratedNotes[foundId] = notes;
             if (userTime) migratedUserTimes[foundId] = userTime;
           } else if (speaker) {
-            // Guardar como órfão apenas se houver um orador designado
-            orphanedParts[oldId] = {
-              speaker,
-              congregation,
-              notes,
-              confirmation,
-              userTime,
-              originalTitle: 'Item de Migração',
-              originalTime: userTime || '',
-              reason: 'Vínculo perdido durante atualização de programação'
-            };
+            // Se não encontrou mas tem um orador, move para órfãos para evitar perda de dados
+            // Mas antes, verifica se já não está nos órfãos
+            if (!orphanedParts[oldId]) {
+              orphanedParts[oldId] = {
+                speaker,
+                congregation,
+                notes,
+                confirmation,
+                userTime,
+                originalTitle: 'Item não localizado',
+                reason: 'O ID do item mudou ou o item foi removido da programação'
+              };
+            }
           }
         });
       }
@@ -759,11 +810,19 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         // Load dynamic program from Firestore
         const programRef = doc(db, 'assembly_programs', `${selectedYear}_${type}`);
         const programSnap = await getDoc(programRef);
+        let currentDynamicProgram = null;
         if (programSnap.exists()) {
-          setDynamicProgram(programSnap.data());
+          currentDynamicProgram = programSnap.data();
+          setDynamicProgram(currentDynamicProgram);
         } else {
           setDynamicProgram(null); // Fallback to static
         }
+
+        // Calcular a programação efetiva (normalizada) para usar na migração IMEDIATAMENTE
+        const baseProgram = currentDynamicProgram 
+          ? { ...staticProgram, ...currentDynamicProgram } 
+          : staticProgram;
+        const normalizedProgram = normalizeProgram(baseProgram);
 
         // More robust personal data fetching
         const personalDataRef = collection(db, 'personal_data');
@@ -795,7 +854,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.parts) {
-            const migrated = migrateLegacyData(data.parts, assemblyProgram);
+            const migrated = migrateLegacyData(data.parts, normalizedProgram);
             setPartsData(migrated);
             setInitialPartsData(JSON.stringify(migrated));
           } else {
@@ -1795,7 +1854,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           const totalPages = assemblyProgram.sessions.length;
 
           return (
-            <div key={session.period || pageIdx} className="circuit-assembly-session-wrapper flex flex-col items-center w-full">
+            <div key={`session-${session.period || pageIdx}-${pageIdx}`} className="circuit-assembly-session-wrapper flex flex-col items-center w-full">
               {/* Screen-only Page Divider / Header Pill */}
               <div className="no-print mb-2.5 px-3 py-1 bg-slate-800 text-slate-200 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-sm border border-slate-700">
                 <span className="w-2 h-2 rounded-full bg-violet-400"></span>
@@ -1931,7 +1990,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
                       {/* Session Items List */}
                       <div className="space-y-1.5 flex-1">
-                        {session.items.map((item: any) => {
+                        {session.items.map((item: any, itemIdx: number) => {
                           const isSymposium = item.subitems && item.subitems.length > 0;
                           const itemTitleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                           const isPrayer = itemTitleNorm.includes('oracao') || itemTitleNorm.includes('prayer');
@@ -1940,7 +1999,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
                           if (isSymposium) {
                             return (
-                              <div key={item.id} className="bg-amber-50/30 rounded p-1.5 border border-amber-100/60 my-1">
+                              <div key={`item-${item.id || itemIdx}-${itemIdx}`} className="bg-amber-50/30 rounded p-1.5 border border-amber-100/60 my-1">
                                 {/* Symposium Title Row */}
                                 <div className="flex items-start gap-2 mb-1">
                                   <span className="text-[8.5pt] font-black text-amber-700 w-11 shrink-0 mt-0.5">
@@ -1965,7 +2024,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                     const isConfirmed = !!confirmedSpeakers[sub.id];
 
                                     return (
-                                      <div key={sub.id} className="border-b border-amber-100/50 pb-1 last:border-b-0">
+                                      <div key={`sub-${sub.id || idx}-${itemIdx}-${idx}`} className="border-b border-amber-100/50 pb-1 last:border-b-0">
                                         <div className="flex items-start justify-between gap-1.5">
                                           <div className="flex items-start gap-1 flex-1 min-w-0">
                                             <span className="text-amber-700 font-black text-[8.5pt] shrink-0 mt-0.5">
@@ -2064,7 +2123,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
                           return (
                             <div 
-                              key={item.id} 
+                              key={`item-${item.id || itemIdx}-${itemIdx}`} 
                               className={`p-1.5 rounded transition-colors ${
                                 isRole ? 'bg-violet-50/50 border border-violet-100' : isPrayer ? 'bg-amber-50/20 border-b border-gray-100 hover:bg-amber-50/40' : 'border-b border-gray-100 hover:bg-gray-50/50'
                               }`}
@@ -2188,8 +2247,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(currentPart.orphanedParts || {}).map(([oldId, data]: [string, any]) => (
-                  <div key={oldId} className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm hover:shadow-md transition-all group">
+                {Object.entries(currentPart.orphanedParts || {}).map(([oldId, data]: [string, any], orphanIdx: number) => (
+                  <div key={`orphan-${oldId || orphanIdx}-${orphanIdx}`} className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm hover:shadow-md transition-all group">
                     <div className="flex justify-between items-start mb-4">
                       <div className="min-w-0">
                         <div className="text-[10px] font-black uppercase text-amber-600 mb-1 px-2 py-0.5 bg-amber-50 rounded-full inline-block">
@@ -2365,8 +2424,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
               {/* Target Selection */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {assemblyProgram.sessions.map((session: any) => (
-                  <div key={session.period} className="space-y-3">
+                {assemblyProgram.sessions.map((session: any, sIdx: number) => (
+                  <div key={`modal-session-${session.period || sIdx}-${sIdx}`} className="space-y-3">
                     <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                       <Clock size={12} />
                       Sessão da {session.period}
@@ -2374,14 +2433,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                     <div className="grid grid-cols-1 gap-2">
                       {session.items
                         .filter((item: any) => !item.noSpeaker && !item.isRole)
-                        .map((item: any) => {
+                        .map((item: any, itemIdx: number) => {
                           const hasData = partsData[selectedPart].speakers?.[item.id] || 
                                          partsData[selectedPart].congregations?.[item.id] || 
                                          partsData[selectedPart].notes?.[item.id];
                           
                           return (
                             <button
-                              key={item.id}
+                              key={`modal-item-${item.id || itemIdx}-${itemIdx}`}
                               onClick={() => handleConfirmReassign(item.id)}
                               className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ${
                                 replaceConfirm?.targetId === item.id 
@@ -2408,14 +2467,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       {/* Subitems (Série de discursos) */}
                       {session.items
                         .filter((item: any) => item.subitems)
-                        .flatMap((item: any) => item.subitems.map((sub: any) => {
+                        .flatMap((item: any, itemIdx: number) => item.subitems.map((sub: any, subIdx: number) => {
                           const hasData = partsData[selectedPart].speakers?.[sub.id] || 
                                          partsData[selectedPart].congregations?.[sub.id] || 
                                          partsData[selectedPart].notes?.[sub.id];
                           
                           return (
                             <button
-                              key={sub.id}
+                              key={`modal-sub-${sub.id || subIdx}-${itemIdx}-${subIdx}`}
                               onClick={() => handleConfirmReassign(sub.id)}
                               className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ml-4 border-l-4 ${
                                 replaceConfirm?.targetId === sub.id 
@@ -2440,8 +2499,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                               )}
                             </button>
                           );
-                        }))
-                      }
+                        }))}
                     </div>
                   </div>
                 ))}
