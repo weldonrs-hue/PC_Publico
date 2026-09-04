@@ -121,14 +121,31 @@ const OUTROS_EVENTOS = [
   'Reunião especial com os pioneiros'
 ];
 
+const getLastMonday = () => {
+  const today = new Date();
+  const day = today.getDay(); // 0 (Sun) to 6 (Sat)
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(today.setDate(diff));
+};
+
+const isCurrentWeek = (semanaStr?: string) => {
+  if (!semanaStr || !semanaStr.includes('/')) return false;
+  try {
+    const [day, month, year] = semanaStr.split('/').map(Number);
+    if (!day || !month || !year) return false;
+    const mondayDate = new Date(year, month - 1, day);
+    const nextMonday = new Date(mondayDate);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    
+    const now = new Date();
+    return now >= mondayDate && now < nextMonday;
+  } catch (e) {
+    return false;
+  }
+};
+
 export default function ItinerariesView({ userId, user, onBack }: ItinerariesViewProps) {
   const { showAlert } = useDialog();
-  const getLastMonday = () => {
-    const today = new Date();
-    const day = today.getDay(); // 0 (Sun) to 6 (Sat)
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(today.setDate(diff));
-  };
 
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,6 +213,234 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   
   // Modal states
   const [selectedItem, setSelectedItem] = useState<ItineraryItem | null>(null);
+
+  // Map of the most recent visit date for each congregation (prior to the currently viewed week)
+  const lastVisitMap = useMemo(() => {
+    const map = new Map<string, { timestamp: number; formattedDate: string }>();
+    if (!congregations.length) return map;
+
+    // Reference timestamp of the currently selected/edited week
+    let refTimestamp = Number.MAX_SAFE_INTEGER;
+    if (selectedItem?.semana && selectedItem.semana.includes('/')) {
+      try {
+        const [d, m, y] = selectedItem.semana.split('/').map(Number);
+        if (d && m && y) {
+          refTimestamp = new Date(y, m - 1, d).getTime();
+        }
+      } catch (e) {}
+    }
+
+    itineraries.forEach(item => {
+      // Do not count the visit currently being edited
+      if (selectedItem && item.id === selectedItem.id) return;
+      if (!item.semana || !item.semana.includes('/')) return;
+
+      const isVisit = item.tipoEvento === 'Visita a Congregação' || 
+                      item.tipoEvento === 'Visita a Grupo' || 
+                      item.evento?.toLowerCase().includes('visita') ||
+                      (item.congregacaoId && !item.tipoEvento);
+      if (!isVisit) return;
+
+      const targetId = item.congregacaoId || congregations.find(c => c.nome === item.congregacao)?.id;
+      if (!targetId) return;
+
+      try {
+        const parts = item.semana.split('/');
+        if (parts.length === 3) {
+          const [d, m, y] = parts.map(Number);
+          if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+            const date = new Date(y, m - 1, d);
+            const time = date.getTime();
+            
+            // Prioritize visits occurring before the current week
+            if (time <= refTimestamp) {
+              const current = map.get(targetId);
+              if (!current || time > current.timestamp) {
+                map.set(targetId, {
+                  timestamp: time,
+                  formattedDate: item.semana
+                });
+              }
+            }
+          }
+        }
+      } catch (e) {}
+    });
+
+    // Fallback for congregations that only have visits after the current reference date
+    itineraries.forEach(item => {
+      if (selectedItem && item.id === selectedItem.id) return;
+      if (!item.semana || !item.semana.includes('/')) return;
+
+      const isVisit = item.tipoEvento === 'Visita a Congregação' || 
+                      item.tipoEvento === 'Visita a Grupo' || 
+                      item.evento?.toLowerCase().includes('visita') ||
+                      (item.congregacaoId && !item.tipoEvento);
+      if (!isVisit) return;
+
+      const targetId = item.congregacaoId || congregations.find(c => c.nome === item.congregacao)?.id;
+      if (!targetId || map.has(targetId)) return;
+
+      try {
+        const parts = item.semana.split('/');
+        if (parts.length === 3) {
+          const [d, m, y] = parts.map(Number);
+          if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+            const date = new Date(y, m - 1, d);
+            const time = date.getTime();
+            const current = map.get(targetId);
+            if (!current || time > current.timestamp) {
+              map.set(targetId, {
+                timestamp: time,
+                formattedDate: item.semana
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    });
+
+    return map;
+  }, [congregations, itineraries, selectedItem?.semana, selectedItem?.id]);
+
+  const pendingCongregations = useMemo(() => {
+    if (congregations.length === 0) return [];
+    
+    // Use selectedItem's week if available, otherwise use today's week
+    const referenceSemana = selectedItem?.semana || itineraries.find(i => isCurrentWeek(i.semana))?.semana;
+    if (!referenceSemana) return congregations;
+
+    // Determine Series Range (Setembro a Fevereiro OU Março a Agosto)
+    const [d, m, y] = referenceSemana.split('/').map(Number);
+    const refDate = new Date(y, m - 1, d);
+    const refMonth = refDate.getMonth() + 1; // 1-12
+    const refYear = refDate.getFullYear();
+
+    let seriesStart: Date;
+    let seriesEnd: Date;
+
+    if (refMonth >= 9 || refMonth <= 2) {
+      // Série: Setembro a Fevereiro
+      const startYear = refMonth >= 9 ? refYear : refYear - 1;
+      seriesStart = new Date(startYear, 8, 1); // 1 de Setembro
+      seriesEnd = new Date(startYear + 1, 2, 0); // Último dia de Fevereiro
+    } else {
+      // Série: Março a Agosto
+      seriesStart = new Date(refYear, 2, 1); // 1 de Março
+      seriesEnd = new Date(refYear, 8, 0); // Último dia de Agosto
+    }
+
+    // Get all visits within this specific series
+    const visitsInSeries = itineraries.filter(item => {
+      if (!item.semana) return false;
+      const [id, im, iy] = item.semana.split('/').map(Number);
+      const itemDate = new Date(iy, im - 1, id);
+      return itemDate >= seriesStart && itemDate <= seriesEnd && 
+             (item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo') &&
+             (item.congregacaoId || item.congregacao);
+    });
+
+    const visitedIds = new Set(visitsInSeries.map(item => 
+      item.congregacaoId || congregations.find(c => c.nome === item.congregacao)?.id
+    ).filter(id => id));
+    
+    return congregations.filter(c => !visitedIds.has(c.id));
+  }, [congregations, itineraries, selectedItem?.semana]);
+
+  // Sort pending congregations: never visited first, then oldest visit date first
+  const sortedPendingCongregations = useMemo(() => {
+    return [...pendingCongregations].sort((a, b) => {
+      const timeA = lastVisitMap.get(a.id)?.timestamp ?? 0;
+      const timeB = lastVisitMap.get(b.id)?.timestamp ?? 0;
+      if (timeA !== timeB) return timeA - timeB; // 0 (sem visita) vem primeiro, seguido de datas mais antigas
+      return a.nome.localeCompare(b.nome);
+    });
+  }, [pendingCongregations, lastVisitMap]);
+
+  const visitedCongregations = useMemo(() => {
+    return congregations.filter(c => !pendingCongregations.some(p => p.id === c.id));
+  }, [congregations, pendingCongregations]);
+
+  const sortedVisitedCongregations = useMemo(() => {
+    return [...visitedCongregations].sort((a, b) => {
+      const timeA = lastVisitMap.get(a.id)?.timestamp ?? 0;
+      const timeB = lastVisitMap.get(b.id)?.timestamp ?? 0;
+      if (timeA !== timeB) return timeA - timeB;
+      return a.nome.localeCompare(b.nome);
+    });
+  }, [visitedCongregations, lastVisitMap]);
+
+  const cycleProgress = useMemo(() => {
+    if (congregations.length === 0) return { visited: 0, total: 0, percent: 0, label: '' };
+    
+    const referenceSemana = selectedItem?.semana || itineraries.find(i => isCurrentWeek(i.semana))?.semana;
+    let seriesLabel = '';
+    if (referenceSemana) {
+      const [d, m, y] = referenceSemana.split('/').map(Number);
+      const refDate = new Date(y, m - 1, d);
+      const refMonth = refDate.getMonth() + 1;
+      const refYear = refDate.getFullYear();
+      
+      if (refMonth >= 9 || refMonth <= 2) {
+        const startY = refMonth >= 9 ? refYear : refYear - 1;
+        seriesLabel = `Set/${startY} - Fev/${startY + 1}`;
+      } else {
+        seriesLabel = `Mar/${refYear} - Ago/${refYear}`;
+      }
+    }
+
+    const visitedCount = congregations.length - pendingCongregations.length;
+    return {
+      visited: visitedCount,
+      total: congregations.length,
+      percent: Math.round((visitedCount / congregations.length) * 100),
+      label: seriesLabel
+    };
+  }, [congregations.length, pendingCongregations.length, selectedItem?.semana, itineraries]);
+
+  // Active series progress for the currently viewed month (on the main screen)
+  const mainSeriesProgress = useMemo(() => {
+    if (congregations.length === 0) return { visited: 0, total: 0, percent: 0, label: '' };
+    
+    const refMonth = viewDate.getMonth() + 1;
+    const refYear = viewDate.getFullYear();
+
+    let seriesStart: Date;
+    let seriesEnd: Date;
+    let seriesLabel = '';
+
+    if (refMonth >= 9 || refMonth <= 2) {
+      const startYear = refMonth >= 9 ? refYear : refYear - 1;
+      seriesStart = new Date(startYear, 8, 1);
+      seriesEnd = new Date(startYear + 1, 2, 0);
+      seriesLabel = `Set/${startYear} - Fev/${startYear + 1}`;
+    } else {
+      seriesStart = new Date(refYear, 2, 1);
+      seriesEnd = new Date(refYear, 8, 0);
+      seriesLabel = `Mar/${refYear} - Ago/${refYear}`;
+    }
+
+    const visitsInSeries = itineraries.filter(item => {
+      if (!item.semana) return false;
+      const [id, im, iy] = item.semana.split('/').map(Number);
+      const itemDate = new Date(iy, im - 1, id);
+      return itemDate >= seriesStart && itemDate <= seriesEnd && 
+             (item.tipoEvento === 'Visita a Congregação' || item.tipoEvento === 'Visita a Grupo') &&
+             (item.congregacaoId || item.congregacao);
+    });
+
+    const visitedIds = new Set(visitsInSeries.map(item => 
+      item.congregacaoId || congregations.find(c => c.nome === item.congregacao)?.id
+    ).filter(id => id));
+
+    const visitedCount = visitedIds.size;
+    return {
+      visited: visitedCount,
+      total: congregations.length,
+      percent: Math.round((visitedCount / congregations.length) * 100),
+      label: seriesLabel
+    };
+  }, [congregations, itineraries, viewDate]);
   const [modalMode, setModalMode] = useState<'actions' | 'edit' | 'confirmDelete' | null>(null);
   const defaultEditFormData: Partial<ItineraryItem> = {
     dataEvento: '',
@@ -369,16 +614,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       unsubscribeSubs();
     };
   }, [userId]);
-
-  const isCurrentWeek = (semanaStr: string) => {
-    const [day, month, year] = semanaStr.split('/').map(Number);
-    const mondayDate = new Date(year, month - 1, day);
-    const nextMonday = new Date(mondayDate);
-    nextMonday.setDate(nextMonday.getDate() + 7);
-    
-    const now = new Date();
-    return now >= mondayDate && now < nextMonday;
-  };
 
   const initializeItineraries = useCallback(async (existingItems: ItineraryItem[]) => {
     if (initializingRef.current) return;
@@ -1094,7 +1329,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
       >
         <div className="bg-violet-600 p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
               <button 
                 onClick={handleToday}
@@ -1123,6 +1358,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                 <ChevronsRight size={18} />
               </button>
             </div>
+
+            {mainSeriesProgress.label && (
+              <div className="flex items-center gap-2 bg-violet-700/80 border border-violet-400/40 px-3 py-1.5 rounded-xl text-xs shadow-inner">
+                <span className="font-bold text-amber-300 uppercase tracking-wide">
+                  Série: {mainSeriesProgress.label}
+                </span>
+                <span className="text-violet-200">
+                  • {mainSeriesProgress.visited} de {mainSeriesProgress.total} visitadas ({mainSeriesProgress.percent}%)
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 print:hidden">
@@ -1511,7 +1757,40 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       </div>
                     </div>
 
-                    {/* Conditional Fields based on Event Type */}
+                      {/* Conditional Fields based on Event Type */}
+                    {pendingCongregations.length > 0 && (editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Visita a Grupo') && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                            <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider">
+                              Série: {cycleProgress.label}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-bold text-amber-600">
+                            {cycleProgress.visited} de {cycleProgress.total} completas
+                          </span>
+                        </div>
+                        <div className="w-full bg-amber-200 h-1.5 rounded-full overflow-hidden mb-2">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${cycleProgress.percent}%` }}
+                            className="bg-amber-500 h-full"
+                          />
+                        </div>
+                        {pendingCongregations.length <= 5 && (
+                          <p className="text-[9px] text-amber-600 font-medium leading-tight">
+                            Faltam: {sortedPendingCongregations.map(c => c.nome).join(', ')}
+                          </p>
+                        )}
+                        {pendingCongregations.length > 5 && (
+                          <p className="text-[9px] text-amber-600 font-medium leading-tight">
+                            Faltam {pendingCongregations.length} congregações para completar a série.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {editFormData.evento === 'Visita a Grupo' && (
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
@@ -1573,6 +1852,26 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           onChange={(e) => {
                             const val = e.target.value;
                             const cong = congregations.find(c => c.id === val);
+                            
+                            // Warning if repeating
+                            const isPending = pendingCongregations.some(p => p.id === val);
+                            if (val && !isPending && pendingCongregations.length > 0) {
+                              const alreadyVisited = itineraries.find(i => 
+                                i.congregacaoId === val && 
+                                (i.tipoEvento === 'Visita a Congregação' || i.tipoEvento === 'Visita a Grupo')
+                              );
+                              
+                              // Check if we are not just editing the same visit
+                              const isNotSameItem = selectedItem?.id !== alreadyVisited?.id;
+                              
+                              if (isNotSameItem) {
+                                showAlert(
+                                  `A congregação "${cong?.nome}" já foi visitada nesta série. De acordo com a regra, todas as congregações devem ser visitadas antes de iniciar uma repetição.`,
+                                  'Aviso de Repetição'
+                                );
+                              }
+                            }
+
                             setEditFormData({ 
                               ...editFormData, 
                               congregacao: cong ? cong.nome : '',
@@ -1582,9 +1881,43 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
                         >
                           <option value="">Selecione uma congregação...</option>
-                          {sortedCongregations.map(c => (
-                            <option key={c.id} value={c.id}>{c.nome} - {c.cidade} / {c.estado}</option>
-                          ))}
+                          {/* First show pending, sorted by longest time since last visit */}
+                          {sortedPendingCongregations.length > 0 && (
+                            <optgroup label="Pendentes (Nesta Série - Prioridade por tempo sem visita)">
+                              {sortedPendingCongregations.map(c => {
+                                const lastInfo = lastVisitMap.get(c.id);
+                                const lastStr = lastInfo ? `Última: ${lastInfo.formattedDate}` : 'Sem visita anterior';
+                                return (
+                                  <option key={c.id} value={c.id}>
+                                    📍 {c.nome} - {c.cidade} ({lastStr})
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                          )}
+                          {/* Then show already visited */}
+                          {sortedVisitedCongregations.length > 0 && (
+                            <optgroup label="Já Visitadas (Nesta Série)">
+                              {sortedVisitedCongregations.map(c => {
+                                const lastInfo = lastVisitMap.get(c.id);
+                                const lastStr = lastInfo ? `Última: ${lastInfo.formattedDate}` : 'Sem visita anterior';
+                                return (
+                                  <option key={c.id} value={c.id}>
+                                    ✓ {c.nome} - {c.cidade} ({lastStr})
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                          )}
+                          {pendingCongregations.length === 0 && congregations.map(c => {
+                            const lastInfo = lastVisitMap.get(c.id);
+                            const lastStr = lastInfo ? `Última: ${lastInfo.formattedDate}` : 'Sem visita anterior';
+                            return (
+                              <option key={c.id} value={c.id}>
+                                {c.nome} - {c.cidade} ({lastStr})
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
                     )}
