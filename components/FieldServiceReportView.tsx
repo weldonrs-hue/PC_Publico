@@ -376,7 +376,7 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
                               updateDayData(dateKey, 'hours', `${val}:00`);
                             }
                           }}
-                          placeholder="0:00"
+                          placeholder={isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00"}
                           className="w-full text-center text-xl sm:text-2xl font-black text-[#000666] tracking-tight bg-transparent border-none outline-none p-0 placeholder:text-[#e1e3e4]"
                         />
                         
