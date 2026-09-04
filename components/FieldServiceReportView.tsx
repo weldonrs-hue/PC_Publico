@@ -194,9 +194,13 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
   
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === currentYear && today.getMonth() === currentMonth;
+  const isFutureMonth = (currentYear > today.getFullYear()) || (currentYear === today.getFullYear() && currentMonth > today.getMonth());
+  const isPastMonth = (currentYear < today.getFullYear()) || (currentYear === today.getFullYear() && currentMonth < today.getMonth());
 
   // Shift-based calculation
+  const isShiftPlanningActive = Object.values(report.shifts || {}).some(v => (v as number) > 0);
   let totalRemainingShifts = 0;
+  let remainingDaysCount = 0;
   const startDate = isCurrentMonth ? today.getDate() : 1;
   const daysInMonthArray = Array.from({ length: daysInMonthCount }, (_, i) => i + 1);
 
@@ -204,18 +208,26 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
   const hasHoursToday = report.days[todayDateKey]?.hours && report.days[todayDateKey]?.hours !== '0:00' && report.days[todayDateKey]?.hours !== '00:00';
   const isTodayRemaining = isCurrentMonth && !hasHoursToday;
 
-  for (let d = startDate; d <= daysInMonthCount; d++) {
-    // If it's today and we've already recorded hours, skip it from remaining turns
-    if (isCurrentMonth && d === today.getDate()) {
-      if (hasHoursToday) continue;
+  if (!isPastMonth) {
+    for (let d = startDate; d <= daysInMonthCount; d++) {
+      const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+      const hasHours = report.days[dateKey]?.hours && report.days[dateKey]?.hours !== '0:00' && report.days[dateKey]?.hours !== '00:00';
+      
+      if (hasHours) continue;
+
+      const dObj = new Date(currentYear, currentMonth, d);
+      const dayOfWeek = dObj.getDay();
+      totalRemainingShifts += (report.shifts?.[dayOfWeek] ?? 0);
+      remainingDaysCount++;
     }
-    const dObj = new Date(currentYear, currentMonth, d);
-    const dayOfWeek = dObj.getDay();
-    totalRemainingShifts += (report.shifts?.[dayOfWeek] ?? 0);
   }
 
   const minutesPerShift = totalRemainingShifts > 0 
     ? Math.max(0, minutesRemaining / totalRemainingShifts) 
+    : 0;
+
+  const minutesPerDay = (!isShiftPlanningActive && remainingDaysCount > 0)
+    ? Math.max(0, minutesRemaining / remainingDaysCount)
     : 0;
 
   const roundedPace = Math.round(minutesPerShift);
@@ -237,7 +249,9 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
   }
 
   const shiftsPlannedToday = report.shifts?.[today.getDay()] ?? 0;
-  const minutesTodayTarget = isTodayRemaining ? (minutesPerShift * shiftsPlannedToday) : 0;
+  const minutesTodayTarget = isTodayRemaining 
+    ? (isShiftPlanningActive ? (minutesPerShift * shiftsPlannedToday) : minutesPerDay)
+    : 0;
 
   // Chart data preparation
   const chartData = daysInMonthArray.map(day => {
@@ -344,6 +358,8 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
                   const dObj = new Date(currentYear, currentMonth, day);
                   const dayOfWeek = dObj.getDay();
                   const isPlanned = (report.shifts?.[dayOfWeek] ?? 0) > 0;
+                  const hasHours = dayData.hours && dayData.hours !== '0:00' && dayData.hours !== '00:00';
+                  const isDayRemaining = !isPastMonth && ((isCurrentMonth && day >= today.getDate()) || isFutureMonth) && !hasHours;
                   const isWeekend = (firstDay + day - 1) % 7 >= 5;
                   
                   return (
@@ -376,7 +392,11 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
                               updateDayData(dateKey, 'hours', `${val}:00`);
                             }
                           }}
-                          placeholder={isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00"}
+                          placeholder={
+                            isShiftPlanningActive 
+                              ? (isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00")
+                              : (isDayRemaining ? minutesToTime(Math.round(minutesPerDay)) : "0:00")
+                          }
                           className="w-full text-center text-xl sm:text-2xl font-black text-[#000666] tracking-tight bg-transparent border-none outline-none p-0 placeholder:text-[#e1e3e4]"
                         />
                         
