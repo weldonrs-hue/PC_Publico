@@ -18,7 +18,8 @@ import {
   Trash2,
   Check,
   UserCircle2,
-  ExternalLink
+  ExternalLink,
+  Edit3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -73,7 +74,17 @@ interface MonthlyReport {
 }
 
 export default function FieldServiceReportView({ userId, profileId, isPublic, wifeNameProp, onBack }: FieldServiceReportViewProps) {
-  const resolvedProfileId = profileId || (typeof window !== 'undefined' ? window.location.pathname.split('/public-report/')[1]?.split('/')[0]?.split('?')[0] : '');
+  const getCleanProfileId = () => {
+    if (profileId && profileId.trim()) return profileId.trim();
+    if (typeof window !== 'undefined') {
+      const parts = window.location.pathname.split('/public-report/');
+      if (parts[1]) {
+        return decodeURIComponent(parts[1].split('/')[0].split('?')[0].trim());
+      }
+    }
+    return '';
+  };
+  const resolvedProfileId = getCleanProfileId();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [report, setReport] = useState<MonthlyReport>({ days: {}, goal: 50 });
   const [loading, setLoading] = useState(true);
@@ -88,6 +99,16 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
   const [wifeName, setWifeName] = useState<string>(wifeNameProp || '');
   const [copyingLink, setCopyingLink] = useState(false);
   const [creatingProfile, setCreatingProfile] = useState(false);
+  const [editingDay, setEditingDay] = useState<{
+    day: number;
+    dateKey: string;
+    dayName: string;
+    hours: string;
+    notes: string;
+  } | null>(null);
+  const [savingDay, setSavingDay] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
 
   // Sync wifeName if passed as prop
@@ -289,7 +310,80 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
     return () => unsubscribe();
   }, [userId, resolvedProfileId, reportDocId]);
 
-  const updateDayData = async (dateKey: string, field: keyof DayData, value: string) => {
+  const openDayModal = (day: number) => {
+    const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    const dObj = new Date(currentYear, currentMonth, day);
+    const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const dayData = report.days[dateKey] || { hours: '', notes: '' };
+    setEditingDay({
+      day,
+      dateKey,
+      dayName: dayNames[dObj.getDay()],
+      hours: dayData.hours || '',
+      notes: dayData.notes || ''
+    });
+  };
+
+  const handleSaveDayModal = async () => {
+    if (!editingDay) return;
+    setSavingDay(true);
+    setSaveStatus('saving');
+    try {
+      const activeId = userId || resolvedProfileId || 'shared';
+      const docRef = doc(db, 'service_reports', reportDocId);
+
+      const newDays = {
+        ...report.days,
+        [editingDay.dateKey]: {
+          hours: editingDay.hours,
+          notes: editingDay.notes
+        }
+      };
+
+      setReport(prev => ({ ...prev, days: newDays }));
+
+      await setDoc(docRef, {
+        days: newDays,
+        goal: report.goal,
+        defaultGoal: report.defaultGoal || 50,
+        shifts: report.shifts || {},
+        userId: activeId,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      setSaveStatus('saved');
+      setEditingDay(null);
+    } catch (error) {
+      console.error("Error saving day from modal:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
+      setSaveStatus('error');
+    } finally {
+      setSavingDay(false);
+    }
+  };
+
+  const handleManualSave = async () => {
+    setSaveStatus('saving');
+    try {
+      const activeId = userId || resolvedProfileId || 'shared';
+      const docRef = doc(db, 'service_reports', reportDocId);
+      await setDoc(docRef, {
+        days: report.days,
+        goal: report.goal,
+        defaultGoal: report.defaultGoal || 50,
+        shifts: report.shifts || {},
+        userId: activeId,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      setSaveStatus('saved');
+    } catch (error) {
+      console.error("Error manual saving report:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
+      setSaveStatus('error');
+    }
+  };
+
+  const updateDayData = (dateKey: string, field: keyof DayData, value: string) => {
     const newDays = { ...report.days };
     if (!newDays[dateKey]) {
       newDays[dateKey] = { hours: '', notes: '' };
@@ -297,14 +391,31 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
     newDays[dateKey][field] = value;
 
     setReport(prev => ({ ...prev, days: newDays }));
+    setSaveStatus('saving');
 
-    try {
-      const docRef = doc(db, 'service_reports', reportDocId);
-      await setDoc(docRef, { ...report, days: newDays, userId: userId || resolvedProfileId || 'shared' }, { merge: true });
-    } catch (error) {
-      console.error("Error saving day data:", error);
-      handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const activeId = userId || resolvedProfileId || 'shared';
+        const docRef = doc(db, 'service_reports', reportDocId);
+        await setDoc(docRef, {
+          days: newDays,
+          goal: report.goal,
+          defaultGoal: report.defaultGoal || 50,
+          shifts: report.shifts || {},
+          userId: activeId,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        setSaveStatus('saved');
+      } catch (error) {
+        console.error("Error saving day data:", error);
+        handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
+        setSaveStatus('error');
+      }
+    }, 600);
   };
 
   const handleSaveGoal = async () => {
@@ -481,7 +592,46 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {/* Botão Salvar e Status na Nuvem (Exclusivo para o relatório da esposa no link) */}
+          {isPublic && (
+            <>
+              {saveStatus === 'saving' && (
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200/70 text-amber-700 rounded-2xl text-xs font-bold shadow-sm">
+                  <Loader2 size={14} className="animate-spin text-amber-600" />
+                  <span className="hidden sm:inline">Salvando...</span>
+                </div>
+              )}
+              {saveStatus === 'saved' && (
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200/70 text-emerald-700 rounded-2xl text-xs font-bold shadow-sm" title="Todos os dados estão salvos com segurança">
+                  <Check size={14} strokeWidth={3} className="text-emerald-600" />
+                  <span className="hidden sm:inline">Salvo na nuvem</span>
+                </div>
+              )}
+              {saveStatus === 'error' && (
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 border border-rose-200/70 text-rose-700 rounded-2xl text-xs font-bold shadow-sm">
+                  <X size={14} strokeWidth={3} className="text-rose-600" />
+                  <span className="hidden sm:inline">Erro ao salvar</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleManualSave}
+                disabled={saveStatus === 'saving'}
+                className="p-3 bg-[#000666] hover:bg-[#000666]/90 text-white rounded-2xl shadow-xl shadow-[#000666]/20 flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all active:scale-95 disabled:opacity-70 cursor-pointer"
+                title="Salvar imediatamente todas as atividades no banco de dados"
+              >
+                {saveStatus === 'saving' ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Save size={18} />
+                )}
+                <span className="inline">Salvar</span>
+              </button>
+            </>
+          )}
+
           <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-xl shadow-black/5 border border-gray-50">
             <button
               onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
@@ -506,7 +656,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
           <button
             type="button"
             onClick={() => setShowSettings(true)}
-            className="p-3 bg-white hover:bg-gray-50 rounded-2xl shadow-xl shadow-black/5 border border-gray-50 text-[#000666] flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all"
+            className="p-3 bg-white hover:bg-gray-50 rounded-2xl shadow-xl shadow-black/5 border border-gray-50 text-[#000666] flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
             title={isPublic ? "Configurar Meta e Turnos" : "Configurações do Relatório"}
           >
             <Settings2 size={20} />
@@ -563,10 +713,23 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                       className={`calendar-cell p-4 flex flex-col transition-all duration-200 group relative ${isWeekend ? 'weekend-cell' : 'bg-white'} ${isToday ? 'bg-primary-fixed/30 ring-2 ring-inset ring-[#000666] z-10' : ''}`}
                     >
                       {/* Day Header */}
-                      <div className="w-full flex justify-between items-start mb-2">
-                        <span className={`font-black text-sm ${isToday ? 'text-[#000666]' : 'text-[#454652]'}`}>
-                          {day.toString().padStart(2, '0')}
-                        </span>
+                      <div 
+                        onClick={() => {
+                          if (isPublic) openDayModal(day);
+                        }}
+                        className={`w-full flex justify-between items-start mb-2 ${isPublic ? 'cursor-pointer group/header hover:opacity-80 transition-opacity' : ''}`}
+                        title={isPublic ? "Toque para abrir formulário do dia" : undefined}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-black text-sm ${isToday ? 'text-[#000666]' : 'text-[#454652]'}`}>
+                            {day.toString().padStart(2, '0')}
+                          </span>
+                          {isPublic && (
+                            <span className="opacity-0 group-hover/header:opacity-100 sm:group-hover:opacity-80 transition-opacity text-[#000666]">
+                              <Edit3 size={12} />
+                            </span>
+                          )}
+                        </div>
                         {isPlanned && (
                           <div className="w-2.5 h-2.5 bg-[#88d982] rounded-full shadow-sm ring-2 ring-[#88d982]/30" title="Serviço programado" />
                         )}
@@ -616,8 +779,32 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
               <span className="w-2.5 h-2.5 bg-[#88d982] rounded-full shadow-sm"></span>
               <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">Dias com serviço programado</span>
             </div>
-            <div className="text-[11px] font-medium italic text-gray-400">
-              * Clique em um dia para adicionar notas ou ajustar o horário.
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="text-[11px] font-medium italic text-gray-400 text-center sm:text-right">
+                {isPublic 
+                  ? "* Toque no número do dia para abrir o formulário ou edite diretamente."
+                  : "* Edite as horas e notas diretamente no calendário."}
+              </div>
+              {isPublic && (
+                <button
+                  type="button"
+                  onClick={handleManualSave}
+                  disabled={saveStatus === 'saving'}
+                  className="px-4 py-2 bg-[#000666] hover:bg-[#000666]/90 text-white rounded-xl shadow-md text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 cursor-pointer"
+                >
+                  {saveStatus === 'saving' ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      <span>Salvar Atividades</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </footer>
         </motion.div>
@@ -1084,6 +1271,133 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 >
                   {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                   Salvar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal de Lançamento de Atividade do Dia */}
+        {editingDay && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 border border-gray-100"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#000666]/5 flex items-center justify-center text-[#000666]">
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 tracking-tight">
+                      Lançar Atividade
+                    </h3>
+                    <p className="text-xs text-gray-500 font-medium">
+                      {editingDay.dayName}, {editingDay.day} de {monthNames[currentMonth]}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingDay(null)}
+                  className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                {/* Horas */}
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-[#000666]">
+                    Horas no Ministério (HH:mm)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editingDay.hours}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9:]/g, '');
+                        if (val.length <= 5) setEditingDay(prev => prev ? ({ ...prev, hours: val }) : null);
+                      }}
+                      onBlur={(e) => {
+                        let val = e.target.value;
+                        if (val && !val.includes(':')) {
+                          setEditingDay(prev => prev ? ({ ...prev, hours: `${val}:00` }) : null);
+                        }
+                      }}
+                      placeholder="0:00"
+                      className="w-full text-center text-3xl font-black text-[#000666] tracking-tight bg-gray-50 focus:bg-white border-2 border-gray-100 focus:border-[#000666] rounded-2xl py-3 px-4 outline-none transition-all"
+                    />
+                  </div>
+
+                  {/* Botões Rápidos */}
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                    {[
+                      { label: '+30m', minutes: 30 },
+                      { label: '+1h', minutes: 60 },
+                      { label: '+1h30', minutes: 90 },
+                      { label: '+2h', minutes: 120 },
+                      { label: '+3h', minutes: 180 },
+                    ].map((btn) => (
+                      <button
+                        key={btn.label}
+                        type="button"
+                        onClick={() => {
+                          const currentMins = timeToMinutes(editingDay.hours);
+                          const newMins = currentMins + btn.minutes;
+                          setEditingDay(prev => prev ? ({ ...prev, hours: minutesToTime(newMins) }) : null);
+                        }}
+                        className="px-2.5 py-1.5 bg-gray-100 hover:bg-[#000666] hover:text-white rounded-xl text-[11px] font-bold text-gray-600 transition-all active:scale-95 cursor-pointer"
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setEditingDay(prev => prev ? ({ ...prev, hours: '' }) : null)}
+                      className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Notas / Observações */}
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-[#000666]">
+                    Notas e Observações
+                  </label>
+                  <textarea
+                    value={editingDay.notes}
+                    onChange={(e) => setEditingDay(prev => prev ? ({ ...prev, notes: e.target.value }) : null)}
+                    placeholder="Ex: 2 revisitas, testemunho de carrinho, 1 estudo bíblico..."
+                    rows={3}
+                    className="w-full text-sm text-gray-700 bg-gray-50 focus:bg-white border-2 border-gray-100 focus:border-[#000666] rounded-2xl p-3 outline-none transition-all resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingDay(null)}
+                  className="h-12 text-gray-400 font-bold hover:text-gray-900 transition-all text-xs uppercase tracking-widest border border-gray-100 rounded-2xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDayModal}
+                  disabled={savingDay}
+                  className="h-12 bg-[#000666] text-white font-black rounded-2xl hover:bg-[#000666]/90 transition-all shadow-xl shadow-[#000666]/20 flex items-center justify-center gap-2 text-xs uppercase tracking-widest active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {savingDay ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                  Salvar Atividade
                 </button>
               </div>
             </motion.div>

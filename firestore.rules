@@ -118,11 +118,8 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
 
-    match /service_reports/{id} {
-      // Allow if owner is logged in
-      allow read, write: if isSignedIn();
-      // Allow public access if it's a shared report
-      allow read, write: if id.startsWith('shared_');
+    match /service_reports/{reportId} {
+      allow read, write: if true;
     }
 
     match /assembly_programs/{id} {
