@@ -5,12 +5,13 @@ import FieldServiceReportView from '@/components/FieldServiceReportView';
 
 export default function PublicReportPage() {
   const params = useParams();
-  const profileId = params.profileId as string;
+  const rawProfileId = params?.profileId;
+  const profileId = Array.isArray(rawProfileId) ? rawProfileId[0] : (rawProfileId as string);
 
   return (
     <div className="min-h-screen bg-[#FDFCFB]">
       <FieldServiceReportView 
-        profileId={profileId} 
+        profileId={profileId || ''} 
         isPublic={true} 
       />
     </div>

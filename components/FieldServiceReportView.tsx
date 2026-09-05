@@ -73,6 +73,7 @@ interface MonthlyReport {
 }
 
 export default function FieldServiceReportView({ userId, profileId, isPublic, wifeNameProp, onBack }: FieldServiceReportViewProps) {
+  const resolvedProfileId = profileId || (typeof window !== 'undefined' ? window.location.pathname.split('/public-report/')[1]?.split('/')[0]?.split('?')[0] : '');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [report, setReport] = useState<MonthlyReport>({ days: {}, goal: 50 });
   const [loading, setLoading] = useState(true);
@@ -125,11 +126,11 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
 
   // Load wifeName when in public access mode from shared profile
   useEffect(() => {
-    if (!isPublic || !profileId) return;
+    if (!isPublic || !resolvedProfileId) return;
 
     const loadPublicProfile = async () => {
       try {
-        const pDoc = await getDoc(doc(db, 'shared_report_profiles', profileId));
+        const pDoc = await getDoc(doc(db, 'shared_report_profiles', resolvedProfileId));
         if (pDoc.exists()) {
           const data = pDoc.data();
           if (data?.wifeName) {
@@ -144,7 +145,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
     };
 
     loadPublicProfile();
-  }, [isPublic, profileId]);
+  }, [isPublic, resolvedProfileId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -223,7 +224,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
 
   const monthYearKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
   const reportDocId = isPublic 
-    ? `shared_${profileId}_${monthYearKey}` 
+    ? `shared_${resolvedProfileId}_${monthYearKey}` 
     : `${userId}_${monthYearKey}`;
 
   const monthNames = [
@@ -247,7 +248,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
 
   useEffect(() => {
-    if (!userId && !profileId) return;
+    if (!userId && !resolvedProfileId) return;
 
     setLoading(true);
     const docRef = doc(db, 'service_reports', reportDocId);
@@ -286,7 +287,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
     });
 
     return () => unsubscribe();
-  }, [userId, profileId, reportDocId]);
+  }, [userId, resolvedProfileId, reportDocId]);
 
   const updateDayData = async (dateKey: string, field: keyof DayData, value: string) => {
     const newDays = { ...report.days };
@@ -299,7 +300,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
 
     try {
       const docRef = doc(db, 'service_reports', reportDocId);
-      await setDoc(docRef, { ...report, days: newDays, userId: userId || profileId }, { merge: true });
+      await setDoc(docRef, { ...report, days: newDays, userId: userId || resolvedProfileId || 'shared' }, { merge: true });
     } catch (error) {
       console.error("Error saving day data:", error);
       handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
@@ -309,25 +310,37 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
   const handleSaveGoal = async () => {
     setSaving(true);
     try {
+      const activeId = userId || resolvedProfileId || 'shared';
       const docRef = doc(db, 'service_reports', reportDocId);
 
       const updateData: any = {
-        userId: userId || profileId,
-        shifts: tempShifts
+        userId: activeId,
+        shifts: tempShifts,
+        goal: tempGoal
       };
       if (isSettingAllMonths) {
         updateData.defaultGoal = tempGoal;
-        updateData.goal = tempGoal;
-      } else {
-        updateData.goal = tempGoal;
       }
 
+      // 1. Atualização otimista imediata para feedback instantâneo no calendário
+      setReport(prev => ({
+        ...prev,
+        goal: tempGoal,
+        defaultGoal: isSettingAllMonths ? tempGoal : (prev.defaultGoal || 50),
+        shifts: { ...tempShifts }
+      }));
+
+      // 2. Persistência no Firestore
       await setDoc(docRef, updateData, { merge: true });
+
+      // 3. Fechar modal de configurações
       setShowSettings(false);
       setIsSettingAllMonths(false);
     } catch (error) {
       console.error("Error saving goal:", error);
       handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
+      // Fecha o diálogo para não travar a tela da usuária mesmo em instabilidades de rede
+      setShowSettings(false);
     } finally {
       setSaving(false);
     }
@@ -1055,17 +1068,21 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
 
               <div className="grid grid-cols-2 gap-3 shrink-0 pt-4">
                 <button
+                  type="button"
+                  id="settings-cancel-btn"
                   onClick={() => setShowSettings(false)}
-                  className="h-14 text-gray-400 font-bold hover:text-gray-900 transition-all text-xs uppercase tracking-widest border border-gray-100 rounded-2xl"
+                  className="h-14 text-gray-400 font-bold hover:text-gray-900 transition-all text-xs uppercase tracking-widest border border-gray-100 rounded-2xl cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
+                  type="button"
+                  id="settings-save-btn"
                   onClick={handleSaveGoal}
                   disabled={saving}
-                  className="h-14 bg-[#1A1A1A] text-white font-black rounded-2xl hover:bg-[#000666] transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
+                  className="h-14 bg-[#1A1A1A] text-white font-black rounded-2xl hover:bg-[#000666] transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2 text-xs uppercase tracking-widest cursor-pointer disabled:opacity-50"
                 >
-                  {saving ? <Loader2 className="animate-spin size={16}" /> : <Save size={16} />}
+                  {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                   Salvar
                 </button>
               </div>

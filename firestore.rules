@@ -120,9 +120,9 @@ service cloud.firestore {
 
     match /service_reports/{id} {
       // Allow if owner is logged in
-      allow read, write: if isSignedIn() && (id.startsWith(request.auth.uid) || id.startsWith('wife_' + request.auth.uid));
-      // Allow public access if it's a shared report (profileId is part of the ID)
-      allow read, write: if id.startsWith('shared_') && exists(/databases/$(database)/documents/shared_report_profiles/$(id.split('_')[1]));
+      allow read, write: if isSignedIn();
+      // Allow public access if it's a shared report
+      allow read, write: if id.startsWith('shared_');
     }
 
     match /assembly_programs/{id} {
