@@ -112,6 +112,19 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
+    match /shared_report_profiles/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /service_reports/{id} {
+      // Allow if owner is logged in
+      allow read, write: if isSignedIn() && (id.startsWith(request.auth.uid) || id.startsWith('wife_' + request.auth.uid));
+      // Allow public access if it's a shared report (profileId is part of the ID)
+      allow read, write: if id.startsWith('shared_') && exists(/databases/$(database)/documents/shared_report_profiles/$(id.split('_')[1]));
+    }
+
     match /assembly_programs/{id} {
       allow read, write: if true;
     }

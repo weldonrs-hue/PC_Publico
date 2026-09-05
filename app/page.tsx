@@ -956,7 +956,7 @@ export default function Home() {
             </button>
           </motion.div>
         )}
-        <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto w-full">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none print:space-y-0">
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}

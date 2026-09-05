@@ -57,43 +57,32 @@
 }
 
 @media print {
-  /* Hide UI elements */
+  /* UI elements that should always be hidden in print */
   nav, 
   aside, 
   header, 
   footer, 
   button, 
   .no-print,
+  .print\:hidden,
   .udoc-viewer-toolbar,
   [class*="toolbar"],
   [class*="sidebar"] {
     display: none !important;
   }
 
-  /* Show only udoc content */
+  /* Show only desired content */
   body, html {
     background-color: white !important;
     height: auto !important;
     overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  body * {
-    visibility: hidden;
-  }
-
-  /* Target udoc pages specifically */
-  .udoc-viewer-container,
-  .udoc-viewer-container *,
-  .udoc-pages,
-  .udoc-pages *,
-  .udoc-page,
-  .udoc-page * {
-    visibility: visible;
-  }
-
-  .udoc-viewer-container,
-  .udoc-pages,
-  .udoc-page {
+  /* Specific handling for udoc viewer */
+  .udoc-viewer-container {
+    visibility: visible !important;
     position: absolute;
     left: 0;
     top: 0;

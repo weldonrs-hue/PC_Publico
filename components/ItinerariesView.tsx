@@ -1329,7 +1329,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
+        className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden print:overflow-visible print:shadow-none print:border-none"
       >
         <div className="bg-violet-600 p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
           <div className="flex flex-wrap items-center gap-3">
@@ -1412,8 +1412,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             <Loader2 className="animate-spin text-violet-600" size={48} />
           </div>
         ) : (
-          <div className="overflow-x-auto pb-8" id="itinerary-table-container">
-            <div className="w-full max-w-full bg-white print:w-[210mm] print:mx-auto print:p-[15mm] print:shadow-none">
+          <div className="overflow-x-auto pb-8 print:overflow-visible" id="itinerary-table-container">
+            <div className="w-full max-w-full bg-white print:w-full print:mx-auto print:p-0 print:shadow-none print-visible">
+              {/* Print-only Header */}
+              <div className="hidden print:block mb-6 text-center border-b-2 border-violet-600 pb-4">
+                <h1 className="text-2xl font-black text-violet-600 uppercase tracking-tight">Itinerários do Circuito</h1>
+                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-1">{currentMonthLabel}</p>
+              </div>
+
               <table className="w-full text-left border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-100 border-b border-gray-300">
@@ -2025,7 +2031,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       <style jsx global>{`
         @media print {
           @page {
-            margin: 0;
+            margin: 10mm;
             size: A4;
           }
           body {
@@ -2035,8 +2041,27 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             margin: 0 !important;
             padding: 0 !important;
           }
+          /* Reset transforms for print to avoid animation offsets */
+          * {
+            transform: none !important;
+            transition: none !important;
+          }
           .print\:hidden {
             display: none !important;
+          }
+          .print-visible {
+            visibility: visible !important;
+            display: block !important;
+            width: 100% !important;
+            position: relative !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          /* Hide everything else when printing the itinerary */
+          @media print {
+            body {
+              background: white !important;
+            }
           }
         }
 

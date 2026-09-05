@@ -200,17 +200,31 @@
       },
       "required": ["speakers"]
     },
+    "shared_report_profile": {
+      "title": "Shared Report Profile",
+      "description": "Magic link profile for sharing a specific report without login",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "The UID of the main user" },
+        "profileName": { "type": "string" },
+        "secretKey": { "type": "string", "description": "Unique random string for the magic link" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "profileName", "secretKey"]
+    },
     "service_report": {
       "title": "Field Service Report",
       "description": "Monthly report of field service hours and goals",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
+        "userId": { "type": "string", "description": "The ID of the owner or the shared profile ID" },
         "days": {
           "type": "object",
           "description": "Map of date strings to day data (hours and notes)"
         },
-        "goal": { "type": "integer", "description": "Monthly hour goal" }
+        "goal": { "type": "integer", "description": "Monthly hour goal" },
+        "shifts": { "type": "object" },
+        "defaultGoal": { "type": "number" }
       },
       "required": ["days", "goal"]
     },
@@ -420,6 +434,10 @@
     "/regional_convention_speakers/{userId}": {
       "schema": "regional_convention_speakers",
       "description": "Collection of speaker assignments for regional conventions"
+    },
+    "/shared_report_profiles/{profileId}": {
+      "schema": "shared_report_profile",
+      "description": "Public profiles for shared reports"
     },
     "/service_reports/{reportId}": {
       "schema": "service_report",

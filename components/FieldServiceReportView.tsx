@@ -12,7 +12,12 @@ import {
   TrendingUp,
   Target,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Share2,
+  Copy,
+  Trash2,
+  Check,
+  UserCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -20,7 +25,14 @@ import {
   doc, 
   getDoc, 
   setDoc, 
-  onSnapshot 
+  onSnapshot,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  serverTimestamp 
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { jsPDF } from 'jspdf';
@@ -38,8 +50,10 @@ import {
 } from 'recharts';
 
 interface FieldServiceReportViewProps {
-  userId: string;
-  onBack: () => void;
+  userId?: string;
+  profileId?: string;
+  isPublic?: boolean;
+  onBack?: () => void;
 }
 
 interface DayData {
@@ -54,7 +68,7 @@ interface MonthlyReport {
   shifts?: { [weekday: number]: number }; // 0=Dom, 1=Seg... 6=Sab
 }
 
-export default function FieldServiceReportView({ userId, onBack }: FieldServiceReportViewProps) {
+export default function FieldServiceReportView({ userId, profileId, isPublic, onBack }: FieldServiceReportViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [report, setReport] = useState<MonthlyReport>({ days: {}, goal: 50 });
   const [loading, setLoading] = useState(true);
@@ -65,9 +79,79 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
   const [tempShifts, setTempShifts] = useState<{ [key: number]: number }>({
     1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 0: 1
   });
+  const [wifeProfile, setWifeProfile] = useState<{ id: string; secretKey: string } | null>(null);
+  const [copyingLink, setCopyingLink] = useState(false);
+  const [creatingProfile, setCreatingProfile] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchWifeProfile = async () => {
+      try {
+        const q = query(
+          collection(db, 'shared_report_profiles'), 
+          where('ownerId', '==', userId),
+          where('profileName', '==', 'esposa')
+        );
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const doc = querySnapshot.docs[0];
+          setWifeProfile({ id: doc.id, ...doc.data() } as any);
+        } else {
+          setWifeProfile(null);
+        }
+      } catch (error) {
+        console.error("Error fetching wife profile:", error);
+      }
+    };
+
+    fetchWifeProfile();
+  }, [userId]);
+
+  const createWifeProfile = async () => {
+    setCreatingProfile(true);
+    try {
+      const secretKey = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const profileData = {
+        ownerId: userId,
+        profileName: 'esposa',
+        secretKey,
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'shared_report_profiles'), profileData);
+      setWifeProfile({ id: docRef.id, secretKey });
+    } catch (error) {
+      console.error("Error creating wife profile:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'shared_report_profiles');
+    } finally {
+      setCreatingProfile(false);
+    }
+  };
+
+  const deleteWifeProfile = async () => {
+    if (!wifeProfile) return;
+    if (!confirm("Tem certeza que deseja desativar o link da esposa? O acesso será perdido imediatamente.")) return;
+
+    try {
+      await deleteDoc(doc(db, 'shared_report_profiles', wifeProfile.id));
+      setWifeProfile(null);
+    } catch (error) {
+      console.error("Error deleting wife profile:", error);
+      handleFirestoreError(error, OperationType.DELETE, `shared_report_profiles/${wifeProfile.id}`);
+    }
+  };
+
+  const copyWifeLink = () => {
+    if (!wifeProfile) return;
+    const url = `${window.location.origin}/public-report/${wifeProfile.id}`;
+    navigator.clipboard.writeText(url);
+    setCopyingLink(true);
+    setTimeout(() => setCopyingLink(false), 2000);
+  };
+
   const monthYearKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
+  const reportDocId = isPublic ? `shared_${profileId}_${monthYearKey}` : `${userId}_${monthYearKey}`;
 
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -90,10 +174,10 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId && !profileId) return;
 
     setLoading(true);
-    const docRef = doc(db, 'service_reports', `${userId}_${monthYearKey}`);
+    const docRef = doc(db, 'service_reports', reportDocId);
     
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -119,12 +203,12 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
       setLoading(false);
     }, (error) => {
       console.error("Error loading report:", error);
-      handleFirestoreError(error, OperationType.GET, `service_reports/${userId}_${monthYearKey}`);
+      handleFirestoreError(error, OperationType.GET, `service_reports/${reportDocId}`);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [userId, monthYearKey]);
+  }, [userId, profileId, reportDocId]);
 
   const updateDayData = async (dateKey: string, field: keyof DayData, value: string) => {
     const newDays = { ...report.days };
@@ -136,21 +220,21 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
     setReport(prev => ({ ...prev, days: newDays }));
 
     try {
-      const docRef = doc(db, 'service_reports', `${userId}_${monthYearKey}`);
-      await setDoc(docRef, { ...report, days: newDays, userId }, { merge: true });
+      const docRef = doc(db, 'service_reports', reportDocId);
+      await setDoc(docRef, { ...report, days: newDays, userId: userId || profileId }, { merge: true });
     } catch (error) {
       console.error("Error saving day data:", error);
-      handleFirestoreError(error, OperationType.UPDATE, `service_reports/${userId}_${monthYearKey}`);
+      handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
     }
   };
 
   const handleSaveGoal = async () => {
     setSaving(true);
     try {
-      const docRef = doc(db, 'service_reports', `${userId}_${monthYearKey}`);
+      const docRef = doc(db, 'service_reports', reportDocId);
       
       const updateData: any = { 
-        userId,
+        userId: userId || profileId,
         shifts: tempShifts
       };
       if (isSettingAllMonths) {
@@ -165,7 +249,7 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
       setIsSettingAllMonths(false);
     } catch (error) {
       console.error("Error saving goal:", error);
-      handleFirestoreError(error, OperationType.UPDATE, `service_reports/${userId}_${monthYearKey}`);
+      handleFirestoreError(error, OperationType.UPDATE, `service_reports/${reportDocId}`);
     } finally {
       setSaving(false);
     }
@@ -283,19 +367,21 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
       {/* Top Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 max-w-7xl mx-auto w-full print:hidden">
         <div className="flex items-center gap-6">
-          <button 
-            onClick={onBack}
-            className="p-3 hover:bg-[#000666] hover:text-white rounded-2xl transition-all text-[#000666] bg-white shadow-xl shadow-black/5 border border-gray-100 group"
-          >
-            <ChevronLeft size={28} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" />
-          </button>
+          {!isPublic && onBack && (
+            <button 
+              onClick={onBack}
+              className="p-3 hover:bg-[#000666] hover:text-white rounded-2xl transition-all text-[#000666] bg-white shadow-xl shadow-black/5 border border-gray-100 group"
+            >
+              <ChevronLeft size={28} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" />
+            </button>
+          )}
             <div className="flex flex-col">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-6 h-1 bg-[#000666] rounded-full" />
-                <h2 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#000666]">Gestão Pessoal</h2>
+                <h2 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#000666]">{isPublic ? 'Acesso Externo' : 'Gestão Pessoal'}</h2>
               </div>
               <h1 className="text-4xl font-black tracking-tight text-gray-900 leading-tight">
-                Relatório de <span className="font-serif italic font-normal text-[#000666]">Pregação</span>
+                Relatório de <span className="font-serif italic font-normal text-[#000666]">{isPublic ? 'Esposa' : 'Pregação'}</span>
               </h1>
             </div>
         </div>
@@ -690,6 +776,62 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
                         );
                       })}
                     </div>
+                  </div>
+
+                  {/* Shared Access Section */}
+                  <div className="space-y-4 pt-6 border-t border-orange-50">
+                    <div className="flex items-center gap-2">
+                      <Share2 size={16} className="text-[#000666]" />
+                      <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Acesso Compartilhado</h4>
+                    </div>
+                    
+                    {!wifeProfile ? (
+                      <button 
+                        onClick={createWifeProfile}
+                        disabled={creatingProfile}
+                        className="w-full py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 transition-all group"
+                      >
+                        {creatingProfile ? (
+                          <Loader2 className="animate-spin text-[#000666]" />
+                        ) : (
+                          <>
+                            <UserCircle2 className="text-gray-400 group-hover:text-[#000666] transition-colors" />
+                            <span className="text-xs font-bold text-gray-500 group-hover:text-[#000666]">Criar link para Esposa</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                            <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Link Ativo</span>
+                          </div>
+                          <button 
+                            onClick={deleteWifeProfile}
+                            className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-white p-3 rounded-xl border border-gray-200 text-[10px] font-mono text-gray-400 truncate">
+                            {`${window.location.origin}/public-report/${wifeProfile.id}`}
+                          </div>
+                          <button 
+                            onClick={copyWifeLink}
+                            className={`p-3 rounded-xl transition-all ${copyingLink ? 'bg-emerald-500 text-white' : 'bg-[#000666] text-white'}`}
+                          >
+                            {copyingLink ? <Check size={18} /> : <Copy size={18} />}
+                          </button>
+                        </div>
+                        
+                        <p className="text-[10px] text-gray-400 italic leading-tight">
+                          Envie este link para sua esposa. Ela poderá registrar o relatório dela de forma independente sem precisar logar.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
