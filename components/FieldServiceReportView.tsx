@@ -395,7 +395,7 @@ export default function FieldServiceReportView({ userId, onBack }: FieldServiceR
                           placeholder={
                             isShiftPlanningActive 
                               ? (isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00")
-                              : (isDayRemaining ? minutesToTime(Math.round(minutesPerDay)) : "0:00")
+                              : minutesToTime(Math.round(minutesPerDay))
                           }
                           className="w-full text-center text-xl sm:text-2xl font-black text-[#000666] tracking-tight bg-transparent border-none outline-none p-0 placeholder:text-[#e1e3e4]"
                         />
