@@ -1242,6 +1242,7 @@ export default function Home() {
           {currentView === 'field_service_report' && (
             <FieldServiceReportView 
               userId={user?.id}
+              wifeNameProp={personalData?.nomeEsposa}
               onBack={() => changeView('misc')}
             />
           )}

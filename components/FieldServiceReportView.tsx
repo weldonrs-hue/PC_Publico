@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Settings2, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Settings2,
   X,
   Save,
   Loader2,
@@ -17,14 +17,15 @@ import {
   Copy,
   Trash2,
   Check,
-  UserCircle2
+  UserCircle2,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
   onSnapshot,
   collection,
   query,
@@ -32,18 +33,20 @@ import {
   getDocs,
   addDoc,
   deleteDoc,
-  serverTimestamp 
+  updateDoc,
+  limit,
+  serverTimestamp
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area
@@ -53,6 +56,7 @@ interface FieldServiceReportViewProps {
   userId?: string;
   profileId?: string;
   isPublic?: boolean;
+  wifeNameProp?: string;
   onBack?: () => void;
 }
 
@@ -68,7 +72,7 @@ interface MonthlyReport {
   shifts?: { [weekday: number]: number }; // 0=Dom, 1=Seg... 6=Sab
 }
 
-export default function FieldServiceReportView({ userId, profileId, isPublic, onBack }: FieldServiceReportViewProps) {
+export default function FieldServiceReportView({ userId, profileId, isPublic, wifeNameProp, onBack }: FieldServiceReportViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [report, setReport] = useState<MonthlyReport>({ days: {}, goal: 50 });
   const [loading, setLoading] = useState(true);
@@ -79,10 +83,68 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
   const [tempShifts, setTempShifts] = useState<{ [key: number]: number }>({
     1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 0: 1
   });
-  const [wifeProfile, setWifeProfile] = useState<{ id: string; secretKey: string } | null>(null);
+  const [wifeProfile, setWifeProfile] = useState<{ id: string; secretKey: string; wifeName?: string } | null>(null);
+  const [wifeName, setWifeName] = useState<string>(wifeNameProp || '');
   const [copyingLink, setCopyingLink] = useState(false);
   const [creatingProfile, setCreatingProfile] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
+
+  // Sync wifeName if passed as prop
+  useEffect(() => {
+    if (wifeNameProp && wifeNameProp.trim()) {
+      setWifeName(wifeNameProp.trim());
+    }
+  }, [wifeNameProp]);
+
+  // Load wifeName from personal_data if logged in and not supplied via prop
+  useEffect(() => {
+    if (!userId || (wifeNameProp && wifeNameProp.trim())) return;
+
+    const loadWifeName = async () => {
+      try {
+        const pdDocRef = doc(db, 'personal_data', userId);
+        const pdSnap = await getDoc(pdDocRef);
+        if (pdSnap.exists() && pdSnap.data()?.nomeEsposa) {
+          const name = pdSnap.data().nomeEsposa.trim();
+          if (name) setWifeName(name);
+        } else {
+          const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
+          const qSnap = await getDocs(q);
+          if (!qSnap.empty && qSnap.docs[0].data()?.nomeEsposa) {
+            const name = qSnap.docs[0].data().nomeEsposa.trim();
+            if (name) setWifeName(name);
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching wife name from personal_data:', err);
+      }
+    };
+
+    loadWifeName();
+  }, [userId, wifeNameProp]);
+
+  // Load wifeName when in public access mode from shared profile
+  useEffect(() => {
+    if (!isPublic || !profileId) return;
+
+    const loadPublicProfile = async () => {
+      try {
+        const pDoc = await getDoc(doc(db, 'shared_report_profiles', profileId));
+        if (pDoc.exists()) {
+          const data = pDoc.data();
+          if (data?.wifeName) {
+            setWifeName(data.wifeName);
+          } else if (data?.profileName && data.profileName !== 'esposa') {
+            setWifeName(data.profileName);
+          }
+        }
+      } catch (err) {
+        console.warn('Error loading public profile data:', err);
+      }
+    };
+
+    loadPublicProfile();
+  }, [isPublic, profileId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -90,14 +152,20 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
     const fetchWifeProfile = async () => {
       try {
         const q = query(
-          collection(db, 'shared_report_profiles'), 
+          collection(db, 'shared_report_profiles'),
           where('ownerId', '==', userId),
           where('profileName', '==', 'esposa')
         );
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0];
-          setWifeProfile({ id: doc.id, ...doc.data() } as any);
+          const d = querySnapshot.docs[0];
+          const data = d.data();
+          setWifeProfile({ id: d.id, secretKey: data.secretKey, wifeName: data.wifeName });
+          if (data.wifeName && !wifeName) {
+            setWifeName(data.wifeName);
+          } else if (wifeName && data.wifeName !== wifeName) {
+            updateDoc(doc(db, 'shared_report_profiles', d.id), { wifeName }).catch(() => {});
+          }
         } else {
           setWifeProfile(null);
         }
@@ -107,20 +175,22 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
     };
 
     fetchWifeProfile();
-  }, [userId]);
+  }, [userId, wifeName]);
 
   const createWifeProfile = async () => {
     setCreatingProfile(true);
     try {
       const secretKey = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const displayName = wifeName.trim() || 'Esposa';
       const profileData = {
         ownerId: userId,
         profileName: 'esposa',
+        wifeName: displayName,
         secretKey,
         createdAt: new Date().toISOString()
       };
       const docRef = await addDoc(collection(db, 'shared_report_profiles'), profileData);
-      setWifeProfile({ id: docRef.id, secretKey });
+      setWifeProfile({ id: docRef.id, secretKey, wifeName: displayName });
     } catch (error) {
       console.error("Error creating wife profile:", error);
       handleFirestoreError(error, OperationType.CREATE, 'shared_report_profiles');
@@ -131,7 +201,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
 
   const deleteWifeProfile = async () => {
     if (!wifeProfile) return;
-    if (!confirm("Tem certeza que deseja desativar o link da esposa? O acesso será perdido imediatamente.")) return;
+    const displayName = wifeName?.trim() ? wifeName.trim() : 'sua esposa';
+    if (!confirm(`Tem certeza que deseja desativar o link de ${displayName}? O acesso será perdido imediatamente.`)) return;
 
     try {
       await deleteDoc(doc(db, 'shared_report_profiles', wifeProfile.id));
@@ -151,7 +222,9 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
   };
 
   const monthYearKey = `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
-  const reportDocId = isPublic ? `shared_${profileId}_${monthYearKey}` : `${userId}_${monthYearKey}`;
+  const reportDocId = isPublic 
+    ? `shared_${profileId}_${monthYearKey}` 
+    : `${userId}_${monthYearKey}`;
 
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -178,7 +251,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
 
     setLoading(true);
     const docRef = doc(db, 'service_reports', reportDocId);
-    
+
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -195,10 +268,15 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
         setTempGoal(loadedGoal);
         setTempShifts(fullShifts);
       } else {
-        const defaultShifts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 0: 0 };
-        setReport({ days: {}, goal: 50, defaultGoal: 50, shifts: defaultShifts });
-        setTempGoal(50);
-        setTempShifts(defaultShifts);
+        setReport(prev => {
+          const currentShifts = prev.shifts && Object.values(prev.shifts).some(v => (v as number) > 0)
+            ? prev.shifts
+            : { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 0: 0 };
+          const defaultGoal = prev.defaultGoal || 50;
+          setTempGoal(defaultGoal);
+          setTempShifts(currentShifts);
+          return { days: {}, goal: defaultGoal, defaultGoal, shifts: currentShifts };
+        });
       }
       setLoading(false);
     }, (error) => {
@@ -232,14 +310,14 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
     setSaving(true);
     try {
       const docRef = doc(db, 'service_reports', reportDocId);
-      
-      const updateData: any = { 
+
+      const updateData: any = {
         userId: userId || profileId,
         shifts: tempShifts
       };
       if (isSettingAllMonths) {
         updateData.defaultGoal = tempGoal;
-        updateData.goal = tempGoal; 
+        updateData.goal = tempGoal;
       } else {
         updateData.goal = tempGoal;
       }
@@ -275,7 +353,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
   const totalMinutesDone = Object.values(report.days).reduce((acc, day) => acc + timeToMinutes(day.hours), 0);
   const goalMinutes = report.goal * 60;
   const minutesRemaining = goalMinutes - totalMinutesDone;
-  
+
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === currentYear && today.getMonth() === currentMonth;
   const isFutureMonth = (currentYear > today.getFullYear()) || (currentYear === today.getFullYear() && currentMonth > today.getMonth());
@@ -296,7 +374,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
     for (let d = startDate; d <= daysInMonthCount; d++) {
       const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
       const hasHours = report.days[dateKey]?.hours && report.days[dateKey]?.hours !== '0:00' && report.days[dateKey]?.hours !== '00:00';
-      
+
       if (hasHours) continue;
 
       const dObj = new Date(currentYear, currentMonth, d);
@@ -306,8 +384,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
     }
   }
 
-  const minutesPerShift = totalRemainingShifts > 0 
-    ? Math.max(0, minutesRemaining / totalRemainingShifts) 
+  const minutesPerShift = totalRemainingShifts > 0
+    ? Math.max(0, minutesRemaining / totalRemainingShifts)
     : 0;
 
   const minutesPerDay = (!isShiftPlanningActive && remainingDaysCount > 0)
@@ -333,7 +411,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
   }
 
   const shiftsPlannedToday = report.shifts?.[today.getDay()] ?? 0;
-  const minutesTodayTarget = isTodayRemaining 
+  const minutesTodayTarget = isTodayRemaining
     ? (isShiftPlanningActive ? (minutesPerShift * shiftsPlannedToday) : minutesPerDay)
     : 0;
 
@@ -341,7 +419,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
   const chartData = daysInMonthArray.map(day => {
     const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     const dayMinutes = timeToMinutes(report.days[dateKey]?.hours || '');
-    
+
     // Calculate cumulative hours
     let cumulative = 0;
     for (let d = 1; d <= day; d++) {
@@ -362,75 +440,93 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
 
   const percentComplete = Math.min(100, Math.max(0, (totalMinutesDone / goalMinutes) * 100));
 
+  const wifeDisplayName = wifeName?.trim() ? wifeName.trim() : 'Esposa';
+
   return (
     <div className="bg-[#FDFCFB] min-h-screen flex flex-col font-sans text-[#1A1A1A] p-4 sm:p-6 lg:p-8 space-y-8">
       {/* Top Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 max-w-7xl mx-auto w-full print:hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full print:hidden">
         <div className="flex items-center gap-6">
           {!isPublic && onBack && (
-            <button 
+            <button
               onClick={onBack}
               className="p-3 hover:bg-[#000666] hover:text-white rounded-2xl transition-all text-[#000666] bg-white shadow-xl shadow-black/5 border border-gray-100 group"
             >
               <ChevronLeft size={28} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" />
             </button>
           )}
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-1 bg-[#000666] rounded-full" />
-                <h2 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#000666]">{isPublic ? 'Acesso Externo' : 'Gestão Pessoal'}</h2>
-              </div>
-              <h1 className="text-4xl font-black tracking-tight text-gray-900 leading-tight">
-                Relatório de <span className="font-serif italic font-normal text-[#000666]">{isPublic ? 'Esposa' : 'Pregação'}</span>
-              </h1>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-6 h-1 bg-[#000666] rounded-full" />
+              <h2 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#000666]">
+                {isPublic ? `Acesso de ${wifeDisplayName}` : 'Gestão Pessoal'}
+              </h2>
             </div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900 leading-tight">
+              Relatório de <span className="font-serif italic font-normal text-[#000666]">{isPublic ? wifeDisplayName : 'Pregação'}</span>
+            </h1>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-xl shadow-black/5 border border-gray-50">
-          <button 
-            onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
-            className="p-2.5 rounded-xl hover:bg-gray-50 text-gray-400 transition-colors"
-          >
-            <ChevronLeft size={20} strokeWidth={3} />
-          </button>
-          <div className="px-6 flex flex-col items-center min-w-[160px]">
-            <span className="text-xs font-black uppercase tracking-widest text-[#000666]/40 leading-none mb-1">{currentYear}</span>
-            <span className="text-lg font-black text-gray-900 capitalize font-serif italic">{monthNames[currentMonth]}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-xl shadow-black/5 border border-gray-50">
+            <button
+              onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
+              className="p-2.5 rounded-xl hover:bg-gray-50 text-gray-400 transition-colors"
+              title="Mês Anterior"
+            >
+              <ChevronLeft size={20} strokeWidth={3} />
+            </button>
+            <div className="px-6 flex flex-col items-center min-w-[160px]">
+              <span className="text-xs font-black uppercase tracking-widest text-[#000666]/40 leading-none mb-1">{currentYear}</span>
+              <span className="text-lg font-black text-gray-900 capitalize font-serif italic">{monthNames[currentMonth]}</span>
+            </div>
+            <button
+              onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
+              className="p-2.5 rounded-xl hover:bg-gray-50 text-gray-400 transition-colors"
+              title="Próximo Mês"
+            >
+              <ChevronRight size={20} strokeWidth={3} />
+            </button>
           </div>
-          <button 
-            onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
-            className="p-2.5 rounded-xl hover:bg-gray-50 text-gray-400 transition-colors"
+
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="p-3 bg-white hover:bg-gray-50 rounded-2xl shadow-xl shadow-black/5 border border-gray-50 text-[#000666] flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all"
+            title={isPublic ? "Configurar Meta e Turnos" : "Configurações do Relatório"}
           >
-            <ChevronRight size={20} strokeWidth={3} />
+            <Settings2 size={20} />
+            <span className="hidden sm:inline">Configurar</span>
           </button>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto w-full space-y-10">
         {/* Full Width Calendar - At the top as requested */}
-        <motion.div 
+        <motion.div
           ref={calendarRef}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col w-full overflow-hidden"
         >
-          {/* Calendar Header Navigation */}
-          <div className="overflow-x-auto no-scrollbar pb-2">
-            <header className="mb-4 bg-[#1a237e] rounded-2xl p-1.5 shadow-lg min-w-[600px]" data-purpose="calendar-header">
-              <nav className="grid grid-cols-7 items-center h-12 text-white font-bold text-xs sm:text-sm uppercase tracking-[0.15em]">
-                {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((day, idx) => (
-                  <div key={day} className="text-center py-2">
-                    {day}
-                  </div>
-                ))}
-              </nav>
-            </header>
-          </div>
-
-          {/* Calendar Grid Wrapper for Horizontal Scroll */}
+          {/* Unified Horizontal Scroll Container: weekday headers and calendar grid scroll together */}
           <div className="overflow-x-auto custom-scrollbar-wide pb-4">
-            <div className="calendar-grid bg-white rounded-xl overflow-hidden shadow-2xl border-l border-t border-[#c6c5d4] min-w-[700px]">
-              <div className="grid grid-cols-7">
+            <div className="min-w-[700px] flex flex-col gap-3">
+              {/* Calendar Header Navigation */}
+              <header className="bg-[#1a237e] rounded-2xl p-1.5 shadow-lg" data-purpose="calendar-header">
+                <nav className="grid grid-cols-7 items-center h-12 text-white font-bold text-xs sm:text-sm uppercase tracking-[0.15em]">
+                  {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((day) => (
+                    <div key={day} className="text-center py-2">
+                      {day}
+                    </div>
+                  ))}
+                </nav>
+              </header>
+
+              {/* Calendar Grid */}
+              <div className="calendar-grid bg-white rounded-xl overflow-hidden shadow-2xl border-l border-t border-[#c6c5d4]">
+                <div className="grid grid-cols-7">
                 {/* Empty cells from previous month */}
                 {Array.from({ length: firstDay }).map((_, i) => (
                   <div key={`pad-${i}`} className="calendar-cell bg-gray-50/50 p-4" />
@@ -447,10 +543,10 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
                   const hasHours = dayData.hours && dayData.hours !== '0:00' && dayData.hours !== '00:00';
                   const isDayRemaining = !isPastMonth && ((isCurrentMonth && day >= today.getDate()) || isFutureMonth) && !hasHours;
                   const isWeekend = (firstDay + day - 1) % 7 >= 5;
-                  
+
                   return (
-                    <div 
-                      key={day} 
+                    <div
+                      key={day}
                       className={`calendar-cell p-4 flex flex-col transition-all duration-200 group relative ${isWeekend ? 'weekend-cell' : 'bg-white'} ${isToday ? 'bg-primary-fixed/30 ring-2 ring-inset ring-[#000666] z-10' : ''}`}
                     >
                       {/* Day Header */}
@@ -465,8 +561,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
 
                       {/* Content Area */}
                       <div className="flex-1 flex flex-col items-center justify-between gap-1 overflow-hidden">
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={dayData.hours}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9:]/g, '');
@@ -479,14 +575,14 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
                             }
                           }}
                           placeholder={
-                            isShiftPlanningActive 
+                            isShiftPlanningActive
                               ? (isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00")
                               : minutesToTime(Math.round(minutesPerDay))
                           }
                           className="w-full text-center text-xl sm:text-2xl font-black text-[#000666] tracking-tight bg-transparent border-none outline-none p-0 placeholder:text-[#e1e3e4]"
                         />
-                        
-                        <textarea 
+
+                        <textarea
                           value={dayData.notes}
                           onChange={(e) => updateDayData(dateKey, 'notes', e.target.value)}
                           placeholder="Nota..."
@@ -500,6 +596,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
               </div>
             </div>
           </div>
+        </div>
 
           <footer className="mt-6 flex flex-col sm:flex-row justify-between items-center px-4 gap-4 text-gray-400">
             <div className="flex items-center gap-3">
@@ -518,7 +615,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
           <div className="lg:col-span-12 xl:col-span-4 space-y-8 print:hidden">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-8">
               {/* Progress Card */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-black/5 border border-gray-50 relative overflow-hidden group"
@@ -528,7 +625,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
                     <div className="bg-[#000666]/5 p-3 rounded-2xl text-[#000666]">
                       <Target size={24} />
                     </div>
-                    <button 
+                    <button
                       onClick={() => setShowSettings(true)}
                       className="text-[11px] font-black uppercase tracking-widest text-[#000666] hover:bg-[#000666] hover:text-white px-4 py-2 rounded-full transition-all border border-[#000666]/20"
                     >
@@ -546,7 +643,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
 
                   <div className="space-y-4">
                     <div className="h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                      <motion.div 
+                      <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${percentComplete}%` }}
                         transition={{ duration: 1, ease: "circOut" }}
@@ -558,12 +655,95 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
                       <span className="text-gray-600">{minutesToTime(minutesRemaining)} restantes</span>
                     </div>
                   </div>
+
+                  {/* Link do Relatório de [Esposa] - Abaixo da Linha de Progressão */}
+                  {!isPublic && (
+                    <div className="pt-6 border-t border-gray-100 space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Share2 size={16} className="text-[#000666]" />
+                          <span className="text-xs font-black uppercase tracking-wider text-[#000666]">
+                            Link do Relatório de {wifeDisplayName}
+                          </span>
+                        </div>
+                        {wifeProfile && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Ativo
+                          </span>
+                        )}
+                      </div>
+
+                      {!wifeProfile ? (
+                        <button
+                          type="button"
+                          onClick={createWifeProfile}
+                          disabled={creatingProfile}
+                          className="w-full py-3.5 px-4 bg-gray-50 hover:bg-[#000666] hover:text-white text-gray-700 rounded-2xl border border-dashed border-gray-300 flex items-center justify-center gap-2 transition-all font-bold text-xs group shadow-sm"
+                        >
+                          {creatingProfile ? (
+                            <Loader2 className="animate-spin text-[#000666] group-hover:text-white" size={16} />
+                          ) : (
+                            <>
+                              <UserCircle2 size={18} className="text-gray-400 group-hover:text-white transition-colors" />
+                              <span>Gerar link exclusivo para {wifeDisplayName}</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-200">
+                            <input
+                              type="text"
+                              readOnly
+                              value={typeof window !== 'undefined' ? `${window.location.origin}/public-report/${wifeProfile.id}` : ''}
+                              className="flex-1 bg-transparent text-[11px] font-mono text-gray-600 outline-none px-2 select-all truncate"
+                            />
+                            <button
+                              type="button"
+                              onClick={copyWifeLink}
+                              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                                copyingLink 
+                                  ? 'bg-emerald-600 text-white shadow-sm' 
+                                  : 'bg-[#000666] text-white hover:bg-[#000666]/90'
+                              }`}
+                              title="Copiar link"
+                            >
+                              {copyingLink ? (
+                                <>
+                                  <Check size={14} />
+                                  <span>Copiado!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={14} />
+                                  <span>Copiar</span>
+                                </>
+                              )}
+                            </button>
+                            <a
+                              href={`/public-report/${wifeProfile.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 text-gray-400 hover:text-[#000666] hover:bg-white rounded-xl transition-colors shrink-0"
+                              title={`Abrir relatório de ${wifeDisplayName} em nova aba`}
+                            >
+                              <ExternalLink size={16} />
+                            </a>
+                          </div>
+                          <p className="text-[11px] text-gray-500 italic leading-snug">
+                            Envie este link para {wifeDisplayName}. Ela registrará o relatório dela de forma independente sem precisar fazer login.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#000666] opacity-[0.02] rounded-full -translate-y-1/2 translate-x-1/2" />
               </motion.div>
 
               {/* Dynamic Suggestion Card */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
@@ -616,7 +796,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
           {/* Main Chart Panel */}
           <div className="lg:col-span-12 xl:col-span-8 space-y-8">
             {/* Progress Chart */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-black/5 border border-gray-50 print:hidden h-full min-h-[300px] flex flex-col"
@@ -637,7 +817,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex-1 w-full -ml-8">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
@@ -648,37 +828,37 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fontWeight: 900, fill: '#bbb' }} 
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fontWeight: 900, fill: '#bbb' }}
                       dy={10}
                     />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
                       tick={{ fontSize: 10, fontWeight: 900, fill: '#bbb' }}
                     />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '12px', fontWeight: '900' }}
                       labelStyle={{ color: '#000666', marginBottom: '4px' }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="acumulado" 
-                      stroke="#000666" 
-                      strokeWidth={4} 
-                      fillOpacity={1} 
-                      fill="url(#colorAcumulado)" 
+                    <Area
+                      type="monotone"
+                      dataKey="acumulado"
+                      stroke="#000666"
+                      strokeWidth={4}
+                      fillOpacity={1}
+                      fill="url(#colorAcumulado)"
                       name="Horas Reais"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="meta" 
-                      stroke="#e5e7eb" 
-                      strokeWidth={2} 
-                      strokeDasharray="5 5" 
+                    <Line
+                      type="monotone"
+                      dataKey="meta"
+                      stroke="#e5e7eb"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
                       dot={false}
                       name="Projeção Meta"
                     />
@@ -695,7 +875,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
       <AnimatePresence>
         {showSettings && (
           <div className="fixed inset-0 bg-[#1A1A1A]/90 backdrop-blur-md flex items-center justify-center z-[2000] p-4 sm:p-6 overflow-y-auto">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -713,18 +893,18 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
 
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
                 <div className="relative pt-2">
-                  <input 
-                    type="number" 
-                    value={tempGoal} 
+                  <input
+                    type="number"
+                    value={tempGoal}
                     onChange={(e) => setTempGoal(Number(e.target.value))}
                     className="w-full text-6xl font-black tracking-tighter text-[#000666] p-0 bg-transparent border-none outline-none text-center selection:bg-blue-50 font-mono"
                   />
                   <div className="text-center font-bold text-xs uppercase tracking-[0.2em] text-orange-400 mt-3">Horas {isSettingAllMonths ? 'como Padrão' : 'este Mês'}</div>
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-2">
                   {[30, 50, 70].map(h => (
-                    <button 
+                    <button
                       key={h}
                       onClick={() => setTempGoal(h)}
                       className={`h-12 rounded-xl font-black text-sm transition-all ${tempGoal === h ? 'bg-[#000666] text-white shadow-lg' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
@@ -740,110 +920,147 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, on
                       <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Meta Padrão</h4>
                       <p className="text-[11px] text-gray-400 italic">Aplicar em todos os meses futuros.</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setIsSettingAllMonths(!isSettingAllMonths)}
                       className={`relative w-12 h-6 rounded-full transition-all duration-300 ${isSettingAllMonths ? 'bg-[#000666]' : 'bg-gray-100'}`}
                     >
-                      <motion.div 
+                      <motion.div
                         animate={{ x: isSettingAllMonths ? 24 : 4 }}
                         className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
                       />
                     </button>
                   </div>
 
-                  <div className="space-y-4 pt-6 border-t border-orange-50/50">
+                  {/* Programação de Turnos */}
+                  <div className="space-y-4 pt-6 border-t border-gray-100">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-orange-900">Programação de Turnos</h4>
-                      <span className="text-xs font-serif italic text-orange-400">0-3 por dia</span>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Programação de Turnos</h4>
+                        <p className="text-[11px] text-gray-400 italic">Planeje a rotina de turnos por dia da semana</p>
+                      </div>
+                      <span className="text-xs font-black px-2.5 py-1 rounded-full bg-[#000666]/5 text-[#000666]">
+                        {Object.values(tempShifts).reduce((acc, v) => acc + (Number(v) || 0), 0)} {Object.values(tempShifts).reduce((acc, v) => acc + (Number(v) || 0), 0) === 1 ? 'turno' : 'turnos'}/sem
+                      </span>
                     </div>
+
                     <div className="grid grid-cols-7 gap-2">
-                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((dayName, idx) => {
-                        const dayIdx = idx;
-                        const shifts = tempShifts[dayIdx] || 0;
+                      {[
+                        { idx: 0, name: 'Dom', fullName: 'Domingo' },
+                        { idx: 1, name: 'Seg', fullName: 'Segunda-feira' },
+                        { idx: 2, name: 'Ter', fullName: 'Terça-feira' },
+                        { idx: 3, name: 'Qua', fullName: 'Quarta-feira' },
+                        { idx: 4, name: 'Qui', fullName: 'Quinta-feira' },
+                        { idx: 5, name: 'Sex', fullName: 'Sexta-feira' },
+                        { idx: 6, name: 'Sáb', fullName: 'Sábado' },
+                      ].map((day) => {
+                        const shifts = tempShifts[day.idx] || 0;
                         return (
-                          <div key={idx} className="flex flex-col items-center gap-2">
-                            <span className="text-[10px] font-black text-orange-300 uppercase">{dayName}</span>
-                            <button 
+                          <div key={day.idx} className="flex flex-col items-center gap-1.5">
+                            <span className="text-[10px] font-black text-gray-500 uppercase">{day.name}</span>
+                            <button
+                              type="button"
                               onClick={() => {
                                 const next = (shifts + 1) % 4;
-                                setTempShifts(prev => ({ ...prev, [dayIdx]: next }));
+                                setTempShifts(prev => ({ ...prev, [day.idx]: next }));
                               }}
-                              className={`w-full aspect-square rounded-lg font-mono font-bold text-xs transition-all flex items-center justify-center border-2 ${shifts > 0 ? 'bg-[#000666] border-[#000666] text-white shadow-md' : 'bg-white border-orange-50 text-orange-100'}`}
+                              className={`w-full aspect-square rounded-xl font-mono font-bold text-sm transition-all flex flex-col items-center justify-center border-2 ${
+                                shifts > 0 
+                                  ? 'bg-[#000666] border-[#000666] text-white shadow-md shadow-[#000666]/20' 
+                                  : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-400'
+                              }`}
+                              title={`${day.fullName}: ${shifts} ${shifts === 1 ? 'turno' : 'turnos'}`}
                             >
-                              {shifts}
+                              <span>{shifts}</span>
                             </button>
+                            <span className="text-[9px] font-bold text-gray-400">
+                              {shifts > 0 ? `${shifts}t` : 'livre'}
+                            </span>
                           </div>
                         );
                       })}
                     </div>
+                    <p className="text-[10px] text-gray-400 italic text-center">
+                      Toque em qualquer dia para alternar entre 0, 1, 2 ou 3 turnos.
+                    </p>
                   </div>
 
-                  {/* Shared Access Section */}
-                  <div className="space-y-4 pt-6 border-t border-orange-50">
-                    <div className="flex items-center gap-2">
-                      <Share2 size={16} className="text-[#000666]" />
-                      <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Acesso Compartilhado</h4>
-                    </div>
-                    
-                    {!wifeProfile ? (
-                      <button 
-                        onClick={createWifeProfile}
-                        disabled={creatingProfile}
-                        className="w-full py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 transition-all group"
-                      >
-                        {creatingProfile ? (
-                          <Loader2 className="animate-spin text-[#000666]" />
-                        ) : (
-                          <>
-                            <UserCircle2 className="text-gray-400 group-hover:text-[#000666] transition-colors" />
-                            <span className="text-xs font-bold text-gray-500 group-hover:text-[#000666]">Criar link para Esposa</span>
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                            <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Link Ativo</span>
-                          </div>
-                          <button 
-                            onClick={deleteWifeProfile}
-                            className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-white p-3 rounded-xl border border-gray-200 text-[10px] font-mono text-gray-400 truncate">
-                            {`${window.location.origin}/public-report/${wifeProfile.id}`}
-                          </div>
-                          <button 
-                            onClick={copyWifeLink}
-                            className={`p-3 rounded-xl transition-all ${copyingLink ? 'bg-emerald-500 text-white' : 'bg-[#000666] text-white'}`}
-                          >
-                            {copyingLink ? <Check size={18} /> : <Copy size={18} />}
-                          </button>
-                        </div>
-                        
-                        <p className="text-[10px] text-gray-400 italic leading-tight">
-                          Envie este link para sua esposa. Ela poderá registrar o relatório dela de forma independente sem precisar logar.
-                        </p>
+                  {/* Shared Access Section (Apenas para o titular da conta) */}
+                  {!isPublic && (
+                    <div className="space-y-4 pt-6 border-t border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Share2 size={16} className="text-[#000666]" />
+                        <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Acesso Compartilhado</h4>
                       </div>
-                    )}
-                  </div>
+
+                      {!wifeProfile ? (
+                        <button
+                          type="button"
+                          onClick={createWifeProfile}
+                          disabled={creatingProfile}
+                          className="w-full py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 transition-all group"
+                        >
+                          {creatingProfile ? (
+                            <Loader2 className="animate-spin text-[#000666]" />
+                          ) : (
+                            <>
+                              <UserCircle2 className="text-gray-400 group-hover:text-[#000666] transition-colors" />
+                              <span className="text-xs font-bold text-gray-500 group-hover:text-[#000666]">
+                                Criar link para {wifeDisplayName}
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                              <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
+                                Link de {wifeDisplayName} Ativo
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={deleteWifeProfile}
+                              className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                              title={`Desativar link de ${wifeDisplayName}`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-white p-3 rounded-xl border border-gray-200 text-[10px] font-mono text-gray-400 truncate">
+                              {typeof window !== 'undefined' ? `${window.location.origin}/public-report/${wifeProfile.id}` : ''}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={copyWifeLink}
+                              className={`p-3 rounded-xl transition-all ${copyingLink ? 'bg-emerald-500 text-white' : 'bg-[#000666] text-white'}`}
+                              title="Copiar link"
+                            >
+                              {copyingLink ? <Check size={18} /> : <Copy size={18} />}
+                            </button>
+                          </div>
+
+                          <p className="text-[10px] text-gray-400 italic leading-tight">
+                            Envie este link para {wifeDisplayName}. Ela poderá registrar o relatório dela de forma independente sem precisar logar.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 shrink-0 pt-4">
-                <button 
+                <button
                   onClick={() => setShowSettings(false)}
                   className="h-14 text-gray-400 font-bold hover:text-gray-900 transition-all text-xs uppercase tracking-widest border border-gray-100 rounded-2xl"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={handleSaveGoal}
                   disabled={saving}
                   className="h-14 bg-[#1A1A1A] text-white font-black rounded-2xl hover:bg-[#000666] transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
