@@ -411,10 +411,10 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const [replaceConfirm, setReplaceConfirm] = useState<{ targetId: string, orphanId: string } | null>(null);
 
   const [partsData, setPartsData] = useState<Record<number, PartData>>({
-    0: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-    1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-    2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-    3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+    0: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+    1: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+    2: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+    3: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
   });
 
   /**
@@ -468,41 +468,111 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const migratedUserTimes: Record<string, string> = { ...(part.userTimes || {}) };
       const orphanedParts: any = { ...(part.orphanedParts || {}) };
 
+      // Helper para atribuir valor sem sobrescrever um valor válido existente por string vazia
+      const assignIfBetter = (targetObj: Record<string, any>, key: string, val: any) => {
+        if (val === undefined || val === null) return;
+        if (typeof val === 'string') {
+          // Se o destino já possui um valor não vazio e o novo valor é vazio, mantém o destino
+          if (targetObj[key] && String(targetObj[key]).trim() && !val.trim()) {
+            return;
+          }
+          if (val.trim() || !targetObj[key]) {
+            targetObj[key] = val;
+          }
+        } else if (typeof val === 'boolean') {
+          targetObj[key] = val || targetObj[key] || false;
+        } else {
+          targetObj[key] = val;
+        }
+      };
+
+      // Identificadores conhecidos para Presidentes de Sessão
+      const isMorningPresId = (id: string) => {
+        if (!id) return false;
+        const norm = String(id).toLowerCase();
+        return norm === 'm0' || 
+          norm === 'item_abd86e44' || 
+          norm === 'item_c4613a76' || 
+          norm === 'item_18599ef6' || 
+          norm === 'item_41749199' || 
+          norm === 'item_20b51eb6' || 
+          norm === 'item_0f5fde1b' || 
+          norm === 'item_e49082de' || 
+          norm === 'item_bd40bb57' ||
+          norm === 'item_dac54d50' ||
+          norm === '0' || 
+          norm === 'item_0' || 
+          norm === 'm_item_0' || 
+          norm === 'm_item_0_0' ||
+          norm.includes('m_item_0') ||
+          norm.includes('presidente_manha') ||
+          norm.includes('pres_manha') ||
+          norm.includes('presidente_m');
+      };
+
+      const isAfternoonPresId = (id: string) => {
+        if (!id) return false;
+        const norm = String(id).toLowerCase();
+        return norm === 't0' || 
+          norm === 'item_542b6a50' || 
+          norm === 'item_581fec36' || 
+          norm === 'item_b271d490' || 
+          norm === 'item_04066060' || 
+          norm === 'item_a8f6be4e' || 
+          norm === 't_item_0' || 
+          norm === 't_item_0_0' ||
+          norm.includes('t_item_0') ||
+          norm.includes('presidente_tarde') ||
+          norm.includes('pres_tarde') ||
+          norm.includes('presidente_t');
+      };
+
       // Se existir o formato antigo de speakers por ID ou índice
       if (part.speakers) {
-        Object.keys(part.speakers).forEach(oldId => {
+        // Ordena chaves para priorizar chaves canônicas válidas ('m0', 't0', etc.) antes de aliases legados
+        const sortedKeys = Object.keys(part.speakers).sort((a, b) => {
+          const aValid = validIds.has(a) ? 1 : 0;
+          const bValid = validIds.has(b) ? 1 : 0;
+          return bValid - aValid;
+        });
+
+        sortedKeys.forEach(oldId => {
           const speaker = part.speakers[oldId];
           const confirmation = part.confirmations?.[oldId] || false;
           const congregation = part.congregations?.[oldId] || '';
           const notes = part.notes?.[oldId] || '';
           const userTime = part.userTimes?.[oldId] || '';
 
-          // 1. Se o ID já é válido no programa atual, mantemos
-          if (validIds.has(oldId)) {
-            migratedSpeakers[oldId] = speaker;
-            migratedConfirmations[oldId] = confirmation;
-            migratedCongregations[oldId] = congregation;
-            migratedNotes[oldId] = notes;
+          // 1. Identificar presidentes (retrocompatibilidade e mapeamento canônico estrito)
+          if (isMorningPresId(oldId)) {
+            assignIfBetter(migratedSpeakers, 'm0', speaker);
+            assignIfBetter(migratedConfirmations, 'm0', confirmation);
+            assignIfBetter(migratedCongregations, 'm0', congregation);
+            assignIfBetter(migratedNotes, 'm0', notes);
+            if (userTime) assignIfBetter(migratedUserTimes, 'm0', userTime);
             return;
           }
 
-          // 2. Tratar IDs especiais de presidente (retrocompatibilidade)
-          if (oldId === 'item_abd86e44' || oldId === 'm0' || oldId === 't0') {
-            // Decidir se é manhã ou tarde baseado no ID ou contexto se possível
-            // Aqui m0 e t0 são canônicos agora, então se validIds não tem mas part tem, algo está errado
-            // Mas vamos tentar mapear item_abd86e44 especificamente
-            const targetId = oldId === 'item_abd86e44' ? 'm0' : oldId;
-            if (validIds.has(targetId)) {
-              migratedSpeakers[targetId] = speaker;
-              migratedConfirmations[targetId] = confirmation;
-              migratedCongregations[targetId] = congregation;
-              migratedNotes[targetId] = notes;
-              return;
-            }
+          if (isAfternoonPresId(oldId)) {
+            assignIfBetter(migratedSpeakers, 't0', speaker);
+            assignIfBetter(migratedConfirmations, 't0', confirmation);
+            assignIfBetter(migratedCongregations, 't0', congregation);
+            assignIfBetter(migratedNotes, 't0', notes);
+            if (userTime) assignIfBetter(migratedUserTimes, 't0', userTime);
+            return;
+          }
+
+          // 2. Se o ID já é válido no programa atual, mantemos
+          if (validIds.has(oldId)) {
+            assignIfBetter(migratedSpeakers, oldId, speaker);
+            assignIfBetter(migratedConfirmations, oldId, confirmation);
+            assignIfBetter(migratedCongregations, oldId, congregation);
+            assignIfBetter(migratedNotes, oldId, notes);
+            if (userTime) assignIfBetter(migratedUserTimes, oldId, userTime);
+            return;
           }
 
           // 3. Tentar encontrar por título e tempo (Migração Heurística)
-          // Precisamos dos metadados do item antigo se for ID legado numérico
           let foundId = '';
           
           if (!isNaN(Number(oldId)) && Number(oldId) < 100) {
@@ -525,14 +595,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           }
 
           if (foundId) {
-            migratedSpeakers[foundId] = speaker;
-            migratedConfirmations[foundId] = confirmation;
-            migratedCongregations[foundId] = congregation;
-            migratedNotes[foundId] = notes;
-            if (userTime) migratedUserTimes[foundId] = userTime;
-          } else if (speaker) {
+            assignIfBetter(migratedSpeakers, foundId, speaker);
+            assignIfBetter(migratedConfirmations, foundId, confirmation);
+            assignIfBetter(migratedCongregations, foundId, congregation);
+            assignIfBetter(migratedNotes, foundId, notes);
+            if (userTime) assignIfBetter(migratedUserTimes, foundId, userTime);
+          } else if (speaker && typeof speaker === 'string' && speaker.trim()) {
             // Se não encontrou mas tem um orador, move para órfãos para evitar perda de dados
-            // Mas antes, verifica se já não está nos órfãos
             if (!orphanedParts[oldId]) {
               orphanedParts[oldId] = {
                 speaker,
@@ -547,6 +616,33 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           }
         });
       }
+
+      // 4. Recuperar presidente de sessão caso tenha sido acidentalmente movido para órfãos
+      Object.keys(orphanedParts).forEach(orphanKey => {
+        const orphan = orphanedParts[orphanKey];
+        if (!orphan) return;
+        const origTitle = (orphan.originalTitle || '').toLowerCase();
+        const isMorningPresOrphan = isMorningPresId(orphanKey) || 
+          (origTitle.includes('presidente') && (origTitle.includes('manhã') || origTitle.includes('manha') || orphanKey.startsWith('m')));
+        const isAfternoonPresOrphan = isAfternoonPresId(orphanKey) || 
+          (origTitle.includes('presidente') && (origTitle.includes('tarde') || orphanKey.startsWith('t')));
+
+        if (isMorningPresOrphan) {
+          assignIfBetter(migratedSpeakers, 'm0', orphan.speaker);
+          assignIfBetter(migratedConfirmations, 'm0', orphan.confirmation);
+          assignIfBetter(migratedCongregations, 'm0', orphan.congregation);
+          assignIfBetter(migratedNotes, 'm0', orphan.notes);
+          if (orphan.userTime) assignIfBetter(migratedUserTimes, 'm0', orphan.userTime);
+          delete orphanedParts[orphanKey];
+        } else if (isAfternoonPresOrphan) {
+          assignIfBetter(migratedSpeakers, 't0', orphan.speaker);
+          assignIfBetter(migratedConfirmations, 't0', orphan.confirmation);
+          assignIfBetter(migratedCongregations, 't0', orphan.congregation);
+          assignIfBetter(migratedNotes, 't0', orphan.notes);
+          if (orphan.userTime) assignIfBetter(migratedUserTimes, 't0', orphan.userTime);
+          delete orphanedParts[orphanKey];
+        }
+      });
 
       newPartsData[partIndex] = {
         ...part,
@@ -667,6 +763,18 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const collectionName = type === 'supt' ? 'circuit_assembly_supt_speakers' : 'circuit_assembly_branch_speakers';
 
   const hasChanges = initialPartsData !== JSON.stringify(partsData);
+
+  // Alerta ao sair com alterações não salvas
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -846,6 +954,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         });
         setTemplates(fetchedTemplates);
 
+        const defaultData = {
+          0: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+          1: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+          2: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+          3: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+        };
+
         // Try to load year-specific data
         const docId = selectedYear === '2026-2027' ? userId : `${userId}_${selectedYear}`;
         let docRef = doc(db, collectionName, docId);
@@ -855,13 +970,37 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           const data = docSnap.data();
           if (data.parts) {
             const migrated = migrateLegacyData(data.parts, normalizedProgram);
-            setPartsData(migrated);
-            setInitialPartsData(JSON.stringify(migrated));
+            
+            // Garantir que todas as partes (0-3) existam após a migração
+            const fullData = { ...defaultData };
+            Object.keys(migrated).forEach(k => {
+              const idx = parseInt(k, 10);
+              if (!isNaN(idx)) {
+                fullData[idx] = {
+                  ...fullData[idx],
+                  ...migrated[idx],
+                  // Garantir que sub-objetos existam
+                  speakers: migrated[idx].speakers || {},
+                  congregations: migrated[idx].congregations || {},
+                  notes: migrated[idx].notes || {},
+                  confirmations: migrated[idx].confirmations || {},
+                  details: {
+                    ...fullData[idx].details,
+                    ...(migrated[idx].details || {})
+                  }
+                };
+              }
+            });
+            
+            setPartsData(fullData);
+            setInitialPartsData(JSON.stringify(fullData));
           } else {
             // Migration from old format
-            const migratedData = {
+            const rawParts = {
               0: { 
                 speakers: data.speakers || {}, 
+                congregations: data.congregations || {},
+                notes: data.notes || {},
                 confirmations: data.confirmations || {}, 
                 details: {
                   eventDate: data.details?.eventDate || '',
@@ -871,21 +1010,16 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   assemblyTheme: data.details?.assemblyTheme || assemblyProgram.theme,
                 }
               },
-              1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-              2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-              3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+              1: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+              2: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
+              3: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
             };
+            const migratedData = migrateLegacyData(rawParts, normalizedProgram);
             setPartsData(migratedData);
             setInitialPartsData(JSON.stringify(migratedData));
           }
         } else {
           // Reset data for new year or missing doc
-          const defaultData = {
-            0: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-            1: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-            2: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-            3: { speakers: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: assemblyProgram.theme } },
-          };
           setPartsData(defaultData);
           setInitialPartsData(JSON.stringify(defaultData));
         }
@@ -905,12 +1039,35 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const docId = selectedYear === '2026-2027' ? userId : `${userId}_${selectedYear}`;
       const docRef = doc(db, collectionName, docId);
       const cleanParts = JSON.parse(JSON.stringify(partsData));
+
+      // Limpar chaves legadas obsoletas de presidentes para manter banco de dados consistente
+      const obsoleteKeys = [
+        'item_abd86e44', 'item_c4613a76', 'item_18599ef6', 'item_41749199', 
+        'item_20b51eb6', 'item_0f5fde1b', 'item_e49082de', 'item_bd40bb57', 
+        'item_dac54d50', 'item_542b6a50', 'item_581fec36', 'item_b271d490', 
+        'item_04066060', 'item_a8f6be4e', '0', 'item_0'
+      ];
+
+      Object.keys(cleanParts).forEach(pIdx => {
+        const p = cleanParts[pIdx];
+        if (p) {
+          obsoleteKeys.forEach(obKey => {
+            if (p.speakers) delete p.speakers[obKey];
+            if (p.congregations) delete p.congregations[obKey];
+            if (p.notes) delete p.notes[obKey];
+            if (p.confirmations) delete p.confirmations[obKey];
+            if (p.userTimes) delete p.userTimes[obKey];
+            if (p.orphanedParts) delete p.orphanedParts[obKey];
+          });
+        }
+      });
+
       await setDoc(docRef, { 
         parts: cleanParts,
         updatedAt: new Date().toISOString(),
         year: selectedYear
       }, { merge: true });
-      setInitialPartsData(JSON.stringify(partsData));
+      setInitialPartsData(JSON.stringify(cleanParts));
       if (showNotification) {
         await showAlert('Alterações salvas com sucesso!', 'Sucesso');
       }
@@ -1016,7 +1173,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       ...prev,
       [selectedPart]: {
         ...prev[selectedPart],
-        speakers: { ...prev[selectedPart].speakers, [id]: value }
+        speakers: { ...(prev[selectedPart].speakers || {}), [id]: value }
       }
     }));
   };
@@ -1026,7 +1183,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       ...prev,
       [selectedPart]: {
         ...prev[selectedPart],
-        congregations: { ...prev[selectedPart].congregations, [id]: value }
+        congregations: { ...(prev[selectedPart].congregations || {}), [id]: value }
       }
     }));
   };
@@ -1036,7 +1193,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       ...prev,
       [selectedPart]: {
         ...prev[selectedPart],
-        notes: { ...prev[selectedPart].notes, [id]: value }
+        notes: { ...(prev[selectedPart].notes || {}), [id]: value }
       }
     }));
   };
@@ -1592,7 +1749,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             justify-content: space-between !important;
             background: #ffffff !important;
             color: #111827 !important;
-            padding: 10mm 12mm !important;
+            padding: 8mm 10mm !important;
             margin: 0 auto !important;
             border: none !important;
             box-shadow: none !important;
@@ -1624,17 +1781,32 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             color: #111827 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            font-family: var(--font-sans, "Inter"), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
           }
 
-          input {
+          /* Ensure line spacing, grid alignment and input heights match screen in print */
+          .circuit-assembly-a4-page .session-items-container > * + * {
+            margin-top: 5px !important;
+          }
+
+          .circuit-assembly-a4-page .speaker-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 6px !important;
+            margin-top: 4px !important;
+          }
+
+          .circuit-assembly-a4-page input {
             border: none !important;
             background: transparent !important;
             padding: 0 !important;
+            margin: 0 !important;
             color: #111827 !important;
             max-width: 100% !important;
+            line-height: 1.25 !important;
+            height: auto !important;
           }
-          input::placeholder {
+          .circuit-assembly-a4-page input::placeholder {
             color: transparent !important;
           }
         }
@@ -1672,19 +1844,6 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
           {/* Action Bar (Barra de Ações) */}
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
-            {/* Salvar (Se houver alterações) */}
-            {hasChanges && !isGuest && (
-              <button 
-                onClick={() => handleSave(true)} 
-                disabled={isSaving}
-                className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                title="Salvar alterações nas designações e detalhes da assembleia"
-              >
-                {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                <span>Salvar</span>
-              </button>
-            )}
-
             <button 
               onClick={() => setShowEditDetailsModal(true)}
               className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
@@ -1989,7 +2148,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       </div>
 
                       {/* Session Items List */}
-                      <div className="space-y-1.5 flex-1">
+                      <div className="space-y-1.5 flex-1 session-items-container">
                         {session.items.map((item: any, itemIdx: number) => {
                           const isSymposium = item.subitems && item.subitems.length > 0;
                           const itemTitleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -1999,7 +2158,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
                           if (isSymposium) {
                             return (
-                              <div key={`item-${item.id || itemIdx}-${itemIdx}`} className="bg-amber-50/30 rounded p-1.5 border border-amber-100/60 my-1">
+                              <div key={`item-${item.id || itemIdx}-${itemIdx}`} className="bg-amber-50/30 rounded p-1.5 border border-amber-100/60 my-1 session-item-row symposium-box">
                                 {/* Symposium Title Row */}
                                 <div className="flex items-start gap-2 mb-1">
                                   <span className="text-[8.5pt] font-black text-amber-700 w-11 shrink-0 mt-0.5">
@@ -2024,7 +2183,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                     const isConfirmed = !!confirmedSpeakers[sub.id];
 
                                     return (
-                                      <div key={`sub-${sub.id || idx}-${itemIdx}-${idx}`} className="border-b border-amber-100/50 pb-1 last:border-b-0">
+                                      <div key={`sub-${sub.id || idx}-${itemIdx}-${idx}`} className="border-b border-amber-100/50 pb-1 last:border-b-0 symposium-subitem">
                                         <div className="flex items-start justify-between gap-1.5">
                                           <div className="flex items-start gap-1 flex-1 min-w-0">
                                             <span className="text-amber-700 font-black text-[8.5pt] shrink-0 mt-0.5">
@@ -2052,7 +2211,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                               </div>
 
                                               {/* Speaker & Congregation Inputs */}
-                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-0.5">
+                                              <div className="grid grid-cols-2 gap-1 mt-0.5 speaker-grid">
                                                 <div className="relative">
                                                   <input
                                                     type="text"
@@ -2124,7 +2283,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                           return (
                             <div 
                               key={`item-${item.id || itemIdx}-${itemIdx}`} 
-                              className={`p-1.5 rounded transition-colors ${
+                              className={`p-1.5 rounded transition-colors session-item-row ${
                                 isRole ? 'bg-violet-50/50 border border-violet-100' : isPrayer ? 'bg-amber-50/20 border-b border-gray-100 hover:bg-amber-50/40' : 'border-b border-gray-100 hover:bg-gray-50/50'
                               }`}
                             >
@@ -2153,7 +2312,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                     </div>
 
                                     {hasSpeaker && (
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1">
+                                      <div className="grid grid-cols-2 gap-1.5 mt-1 speaker-grid">
                                         <div className="relative">
                                           <input
                                             type="text"
@@ -2579,8 +2738,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                 </button>
               </div>
 
-              <div className="p-6 space-y-5">
-                <div className="space-y-4">
+              <div className="flex flex-col max-h-[calc(100vh-140px)] sm:max-h-[85vh]">
+                <div className="flex-1 p-6 space-y-5 overflow-y-auto custom-scrollbar scroll-smooth">
+                  <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Tema da Assembleia</label>
@@ -2857,7 +3017,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                </div>
+                <div className="p-4 sm:p-6 bg-amber-50/50 border-t border-amber-100 flex flex-col sm:flex-row gap-3">
                   {!isGuest && (
                     <button 
                       onClick={async () => {
@@ -2889,16 +3050,21 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-20 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
           >
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
-              <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
-                Alterações não salvas
-              </span>
+              <div className="flex flex-col">
+                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+                  Alterações não salvas
+                </span>
+                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                  {selectedYear} • Assembleia {type === 'supt' ? 'CAco' : 'CAbr'}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -2913,8 +3079,17 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                 disabled={isSaving}
                 className="px-3.5 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
-                {isSaving ? <Loader2 size={15} className="animate-spin shrink-0" /> : <Save size={15} className="shrink-0" />}
-                <span>{isSaving ? 'Salvando...' : 'Salvar Agora'}</span>
+                {isSaving ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={15} className="shrink-0" />
+                    <span>Salvar Agora</span>
+                  </>
+                )}
               </button>
             </div>
           </motion.div>

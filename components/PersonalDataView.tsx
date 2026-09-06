@@ -171,6 +171,18 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
   const [showConfirmBack, setShowConfirmBack] = useState(false);
   const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
 
+  // Alerta ao sair com alterações não salvas
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
   const removeSignature = () => {
     setFormData({ ...formData, signatureImage: null });
   };
@@ -561,22 +573,64 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             </div>
 
             <div className="flex justify-end pt-6 border-t border-gray-100">
-              <button 
-                type="submit"
-                disabled={!hasChanges || isProcessing}
-                className={`px-10 py-3 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 ${
-                  hasChanges && !isProcessing
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                }`}
-              >
-                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                {isProcessing ? 'Processando...' : 'Salvar Alterações'}
-              </button>
+              <p className="text-[10px] text-gray-400 font-medium italic">As alterações podem ser salvas através da barra flutuante.</p>
             </div>
           </form>
         )}
       </motion.div>
+
+      {/* Floating Save Bar (quando houver alterações não salvas) */}
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+          >
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+              </span>
+              <div className="flex flex-col">
+                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+                  Alterações não salvas
+                </span>
+                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                  Meus Dados • Perfil
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setFormData(JSON.parse(initialData))}
+                disabled={isProcessing}
+                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Descartar
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={isProcessing}
+                className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={15} className="shrink-0" />
+                    <span>Salvar Agora</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Confirmation Modal */}
       {showConfirmBack && (

@@ -186,6 +186,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [isShowingPrivacy, setIsShowingPrivacy] = useState(false);
   const [isManagingInvites, setIsManagingInvites] = useState(false);
   const [isManagingNews, setIsManagingNews] = useState(false);
+  const [activeTjSecCount, setActiveTjSecCount] = useState<number | null>(null);
   const [newsForm, setNewsForm] = useState({
     title: '',
     content: '',
@@ -277,6 +278,45 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
     const fetchSettings = async () => {
       try {
+        // Fetch active TjSec accounts count
+        if (isAdmin) {
+          const userEmail = auth.currentUser?.email || '';
+          const isCircuitAdmin = userEmail.endsWith('@progcir.app');
+          const isSystemAdmin = ['weldonrs@gmail.com', '2283701@progcir.app', '2283701@progcir.com'].includes(userEmail);
+          
+          const [pubsSnap, congsSnap] = await Promise.all([
+            getDocs(collection(db, 'publishers')),
+            getDocs(collection(db, 'congregations'))
+          ]);
+
+          let targetCongregationIds: string[] = [];
+          
+          if (isSystemAdmin) {
+            // System Admins see everything
+            targetCongregationIds = congsSnap.docs.map(d => d.id);
+          } else if (isCircuitAdmin) {
+            // Filter congregations by this circuit overseer
+            targetCongregationIds = congsSnap.docs
+              .filter(d => d.data().circuitOverseerEmail === userEmail)
+              .map(d => d.id);
+          } else {
+            // For regular users, try to find their congregation first
+            const myPub = pubsSnap.docs.find(d => d.data().email === userEmail);
+            if (myPub) {
+              targetCongregationIds = [myPub.data().userId];
+            }
+          }
+
+          const activePubsWithAccess = pubsSnap.docs.filter(d => {
+            const data = d.data();
+            return targetCongregationIds.includes(data.userId) && 
+                   data.status === 'Ativo' && 
+                   data.hasAppAccess === true;
+          }).length;
+
+          setActiveTjSecCount(activePubsWithAccess);
+        }
+
         const docRef = doc(db, 'personal_data', userId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
@@ -1032,6 +1072,12 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                         <div className={`text-[8px] font-bold uppercase tracking-widest transition-opacity ${isDisabled ? 'text-gray-300' : 'text-gray-400 opacity-60 group-hover:opacity-100'}`}>
                           {btn.subtitle}
                         </div>
+                        {btn.id === 'tjsec_accounts' && activeTjSecCount !== null && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tight">{activeTjSecCount} Contas Ativas</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

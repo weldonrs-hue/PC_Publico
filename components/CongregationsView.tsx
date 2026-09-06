@@ -218,6 +218,18 @@ export default function CongregationsView({
   const [formData, setFormData] = useState<Congregation>(defaultFormData);
   const [initialFormData, setInitialFormData] = useState<string>(JSON.stringify(defaultFormData));
 
+  // Alerta ao sair com alterações não salvas
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
   const hasChanges = useMemo(() => {
     if (!isEditing) return false;
     return JSON.stringify(formData) !== initialFormData;

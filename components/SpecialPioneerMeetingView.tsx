@@ -357,6 +357,18 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   const collectionName = 'special_pioneer_meeting_speakers';
   const hasChanges = initialPartsData !== JSON.stringify(partsData);
 
+  // Alerta ao sair com alterações não salvas
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
   // Helper to add minutes to HH:mm time string
   const calculateTime = (startTime: string, minutesToAdd: number) => {
     if (!startTime) return '';
@@ -470,9 +482,36 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         
         if (docSnap.exists()) {
           const data = docSnap.data();
+          const currentTheme = progSnap.exists() ? progSnap.data().theme : STATIC_PROGRAMS['2026-2027'].theme;
+          const freshData: Record<number, PartData> = {
+            0: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: currentTheme, startTime: '09:00', material: '' } },
+            1: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: currentTheme, startTime: '09:00', material: '' } },
+            2: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: currentTheme, startTime: '09:00', material: '' } },
+            3: { speakers: {}, congregations: {}, notes: {}, confirmations: {}, details: { eventDate: '', eventLocation: '', rehearsalDate: '', rehearsalLocation: '', assemblyTheme: currentTheme, startTime: '09:00', material: '' } },
+          };
+
           if (data.parts) {
-            setPartsData(data.parts);
-            setInitialPartsData(JSON.stringify(data.parts));
+            const loadedParts = data.parts;
+            const mergedParts = { ...freshData };
+            Object.keys(loadedParts).forEach(k => {
+              const idx = parseInt(k, 10);
+              if (!isNaN(idx)) {
+                mergedParts[idx] = {
+                  ...mergedParts[idx],
+                  ...loadedParts[idx],
+                  speakers: loadedParts[idx].speakers || {},
+                  congregations: loadedParts[idx].congregations || {},
+                  notes: loadedParts[idx].notes || {},
+                  confirmations: loadedParts[idx].confirmations || {},
+                  details: {
+                    ...mergedParts[idx].details,
+                    ...(loadedParts[idx].details || {})
+                  }
+                };
+              }
+            });
+            setPartsData(mergedParts);
+            setInitialPartsData(JSON.stringify(mergedParts));
           } else {
             const defaultTheme = progSnap.exists() ? progSnap.data().theme : STATIC_PROGRAMS['2026-2027'].theme;
             const migratedData: Record<number, PartData> = {
@@ -562,7 +601,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       ...prev,
       [selectedPart]: {
         ...prev[selectedPart],
-        speakers: { ...prev[selectedPart].speakers, [id]: value }
+        speakers: { ...(prev[selectedPart].speakers || {}), [id]: value }
       }
     }));
   };
@@ -1239,7 +1278,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             justify-content: space-between !important; 
             background: #ffffff !important; 
             color: #111827 !important; 
-            padding: 10mm 12mm !important; 
+            padding: 8mm 10mm !important; 
             margin: 0 auto !important; 
             border: none !important; 
             box-shadow: none !important; 
@@ -1271,17 +1310,32 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             color: #111827 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            font-family: var(--font-sans, "Inter"), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
           }
 
-          input {
+          /* Ensure line spacing, grid alignment and input heights match screen in print */
+          .pioneer-a4-page .session-items-container > * + * {
+            margin-top: 5px !important;
+          }
+
+          .pioneer-a4-page .speaker-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 6px !important;
+            margin-top: 4px !important;
+          }
+
+          .pioneer-a4-page input {
             border: none !important;
             background: transparent !important;
             padding: 0 !important;
+            margin: 0 !important;
             color: #111827 !important;
             max-width: 100% !important;
+            line-height: 1.25 !important;
+            height: auto !important;
           }
-          input::placeholder {
+          .pioneer-a4-page input::placeholder {
             color: transparent !important;
           }
         }
@@ -1311,19 +1365,6 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
 
           {/* Action Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
-            {/* Salvar (Se houver alterações) */}
-            {hasChanges && !isGuest && (
-              <button 
-                onClick={() => handleSave(true)} 
-                disabled={isSaving}
-                className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                title="Salvar alterações nas designações e detalhes"
-              >
-                {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                <span>Salvar</span>
-              </button>
-            )}
-
             {/* Dados do Evento */}
             <button 
               onClick={() => setShowEditDetailsModal(true)}
@@ -1622,7 +1663,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                       </div>
 
                       {/* Items List */}
-                      <div className="space-y-1.5 flex-1">
+                      <div className="space-y-1.5 flex-1 session-items-container">
                         {(() => {
                           let runningOffset = 0;
 
@@ -1639,7 +1680,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                               runningOffset += itemDuration;
 
                               return (
-                                <div key={item.id} className="bg-violet-50/30 rounded p-1.5 border border-violet-100/60 my-1">
+                                <div key={item.id} className="bg-violet-50/30 rounded p-1.5 border border-violet-100/60 my-1 session-item-row symposium-box">
                                   {/* Symposium Title Row */}
                                   <div className="flex items-start gap-2 mb-1">
                                     <span className="text-[8.5pt] font-black text-violet-700 w-11 shrink-0 mt-0.5">
@@ -1667,7 +1708,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                                       const isConfirmed = !!confirmedSpeakers[sub.id];
 
                                       return (
-                                        <div key={sub.id} className="border-b border-violet-100/50 pb-1 last:border-b-0">
+                                        <div key={sub.id} className="border-b border-violet-100/50 pb-1 last:border-b-0 symposium-subitem">
                                           <div className="flex items-start justify-between gap-1.5">
                                             <div className="flex items-start gap-1 flex-1 min-w-0">
                                               <span className="text-violet-700 font-black text-[8.5pt] shrink-0 mt-0.5">
@@ -1683,29 +1724,38 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                                                   </span>
                                                 </div>
 
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-0.5">
-                                                  <input
-                                                    type="text"
-                                                    placeholder="Nome do orador..."
-                                                    value={subSpeaker}
-                                                    onChange={e => handleSpeakerChange(sub.id, e.target.value)}
-                                                    className={`text-[8.5pt] font-medium text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-violet-500 outline-none placeholder:text-gray-300 ${!subSpeaker ? 'print:hidden' : ''}`}
-                                                  />
-                                                  <input
-                                                    type="text"
-                                                    placeholder="Congregação..."
-                                                    value={subCong}
-                                                    onChange={e => handleCongregationChange(sub.id, e.target.value)}
-                                                    className={`text-[8pt] text-gray-600 bg-transparent border-b border-gray-200/80 focus:border-violet-500 outline-none placeholder:text-gray-300 ${!subCong ? 'print:hidden' : ''}`}
-                                                  />
-                                                </div>
-
-                                                {!subSpeaker && (
-                                                  <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-600 font-normal mt-0.5">
-                                                    <span className="text-[7pt] font-semibold text-gray-400 mr-1 shrink-0">Orador:</span>
-                                                    <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
+                                                <div className="grid grid-cols-2 gap-1 mt-0.5 speaker-grid">
+                                                  <div className="relative">
+                                                    <input
+                                                      type="text"
+                                                      placeholder="Nome do orador..."
+                                                      value={subSpeaker}
+                                                      onChange={e => handleSpeakerChange(sub.id, e.target.value)}
+                                                      className={`w-full text-[8.5pt] font-medium text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-violet-500 outline-none placeholder:text-gray-300 ${!subSpeaker ? 'print:hidden' : ''}`}
+                                                    />
+                                                    {!subSpeaker && (
+                                                      <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-600 font-normal">
+                                                        <span className="text-[7pt] font-semibold text-gray-400 mr-1 shrink-0">Orador:</span>
+                                                        <span className="flex-1 border-b border-dotted border-gray-400 pb-0.5">&nbsp;</span>
+                                                      </div>
+                                                    )}
                                                   </div>
-                                                )}
+                                                  <div className="relative">
+                                                    <input
+                                                      type="text"
+                                                      placeholder="Congregação..."
+                                                      value={subCong}
+                                                      onChange={e => handleCongregationChange(sub.id, e.target.value)}
+                                                      className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-200/80 focus:border-violet-500 outline-none placeholder:text-gray-300 ${!subCong ? 'print:hidden' : ''}`}
+                                                    />
+                                                    {!subCong && (
+                                                      <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-500 font-normal">
+                                                        <span className="text-[7pt] font-semibold text-gray-400 mr-1 shrink-0">Cong:</span>
+                                                        <span className="flex-1 border-b border-dotted border-gray-300 pb-0.5">&nbsp;</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
                                               </div>
                                             </div>
 
@@ -1823,7 +1873,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                             const isConfirmed = !!confirmedSpeakers[item.id];
 
                             return (
-                              <div key={item.id} className="p-1.5 rounded border-b border-gray-100 hover:bg-gray-50/50">
+                              <div key={item.id} className="p-1.5 rounded border-b border-gray-100 hover:bg-gray-50/50 session-item-row">
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-start gap-2 flex-1 min-w-0">
                                     <span className="text-[8.5pt] font-black text-violet-700 w-11 shrink-0 mt-0.5">
@@ -1836,7 +1886,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                                         </span>
                                       </div>
 
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1">
+                                      <div className="grid grid-cols-2 gap-1.5 mt-1 speaker-grid">
                                         <div className="relative">
                                           <input
                                             type="text"
@@ -2197,6 +2247,56 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
 
       {/* CONFIRM MODAL (Sair sem salvar) */}
       <AnimatePresence>
+        {hasChanges && !isGuest && (
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+          >
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+              </span>
+              <div className="flex flex-col">
+                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+                  Alterações não salvas
+                </span>
+                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                  {pioneerProgram.year} • Reunião Especial
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setPartsData(JSON.parse(initialPartsData))}
+                disabled={isSaving}
+                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Descartar
+              </button>
+              <button
+                onClick={() => handleSave(true)}
+                disabled={isSaving}
+                className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={15} className="shrink-0" />
+                    <span>Salvar Agora</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {showConfirmModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100">
