@@ -1477,7 +1477,29 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const url = URL.createObjectURL(out);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Carta_${speakerName.replace(/\s+/g, '_')}.docx`;
+      // Calculate sequential index
+      let allItems: any[] = [];
+      assemblyProgram.sessions.forEach((s: any) => {
+        s.items.forEach((i: any) => {
+          if (i.subitems) {
+            i.subitems.forEach((si: any) => allItems.push(si));
+          } else {
+            allItems.push(i);
+          }
+        });
+      });
+      const itemIndex = allItems.findIndex(i => i.id === item.id) + 1;
+      const indexStr = itemIndex.toString().padStart(2, '0');
+
+      let eventPrefix = 'CA';
+      if (assemblyProgram.title.includes('Superintendente')) {
+        eventPrefix = 'CAco';
+      } else if (assemblyProgram.title.includes('Representante')) {
+        eventPrefix = 'CArb';
+      }
+      const eventYear = assemblyProgram.year || new Date().getFullYear().toString();
+      const safeSpeaker = speakerName.replace(/\s+/g, '_');
+      link.download = `${indexStr}_${eventPrefix}_(${eventYear})_${safeSpeaker}.docx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

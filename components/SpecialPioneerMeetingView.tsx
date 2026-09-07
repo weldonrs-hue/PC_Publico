@@ -1178,7 +1178,23 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       const url = URL.createObjectURL(out);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Convite_${speakerName.replace(/\s+/g, '_')}.docx`;
+      // Calculate sequential index
+      let allItems: any[] = [];
+      pioneerProgram.sessions.forEach((s: any) => {
+        s.items.forEach((i: any) => {
+          if (i.subitems) {
+            i.subitems.forEach((si: any) => allItems.push(si));
+          } else {
+            allItems.push(i);
+          }
+        });
+      });
+      const itemIndex = allItems.findIndex(i => i.id === item.id) + 1;
+      const indexStr = itemIndex.toString().padStart(2, '0');
+
+      const eventYear = pioneerProgram.year || new Date().getFullYear().toString();
+      const safeSpeaker = speakerName.replace(/\s+/g, '_');
+      link.download = `${indexStr}_Pio_(${eventYear})_${safeSpeaker}.docx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
