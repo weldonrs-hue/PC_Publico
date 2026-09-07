@@ -1193,7 +1193,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       const indexStr = itemIndex.toString().padStart(2, '0');
 
       const eventYear = pioneerProgram.year || new Date().getFullYear().toString();
-      const safeSpeaker = speakerName.replace(/\s+/g, '_');
+      const safeSpeaker = speakerName.trim().replace(/\s+/g, '_');
       link.download = `${indexStr}_Pio_(${eventYear})_${safeSpeaker}.docx`;
       document.body.appendChild(link);
       link.click();

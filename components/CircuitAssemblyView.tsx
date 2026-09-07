@@ -1498,7 +1498,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         eventPrefix = 'CArb';
       }
       const eventYear = assemblyProgram.year || new Date().getFullYear().toString();
-      const safeSpeaker = speakerName.replace(/\s+/g, '_');
+      const safeSpeaker = speakerName.trim().replace(/\s+/g, '_');
       link.download = `${indexStr}_${eventPrefix}_(${eventYear})_${safeSpeaker}.docx`;
       document.body.appendChild(link);
       link.click();
