@@ -673,37 +673,64 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // Digital A4 Portrait Zoom & Viewport controls
-  const [zoom, setZoom] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('circuit_assembly_a4_zoom');
-      if (saved) return parseInt(saved, 10);
-    }
-    return 80;
-  });
+  const [zoom, setZoom] = useState<number>(80);
+  const [isFitMode, setIsFitMode] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  const handleFitToScreen = () => {
+  const handleFitToScreen = useCallback(() => {
     if (!containerRef.current) return;
-    const containerWidth = containerRef.current.clientWidth - 32;
-    // Virtual A4 portrait width is 793.7px (210mm @ 96dpi)
+    const containerWidth = containerRef.current.clientWidth - 48; // Padding adjustment
     const a4PortraitWidthPx = 793.7;
-    const fitScale = Math.max(35, Math.min(125, Math.floor((containerWidth / a4PortraitWidthPx) * 100)));
+    const fitScale = Math.max(35, Math.min(150, Math.floor((containerWidth / a4PortraitWidthPx) * 100)));
     setZoom(fitScale);
-  };
+    setIsFitMode(true);
+  }, []);
 
+  // Persistence and initial load
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('circuit_assembly_a4_zoom', zoom.toString());
+      const savedZoom = localStorage.getItem('circuit_assembly_a4_zoom');
+      const savedFit = localStorage.getItem('circuit_assembly_a4_fit');
+      
+      if (savedFit === 'true') {
+        handleFitToScreen();
+      } else if (savedZoom) {
+        setZoom(parseInt(savedZoom, 10));
+      } else {
+        setZoom(80);
+      }
     }
-  }, [zoom]);
+  }, [handleFitToScreen]);
 
-  // Initial zoom calculation on mount: standardized at 80% for identical mobile-like view on all screens
+  // Save changes
   useEffect(() => {
-    if (!containerRef.current) return;
-    if (sessionStorage.getItem('circuit_assembly_a4_zoom')) return;
-    setZoom(80);
-  }, [isLoading]);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('circuit_assembly_a4_zoom', zoom.toString());
+      localStorage.setItem('circuit_assembly_a4_fit', isFitMode.toString());
+    }
+  }, [zoom, isFitMode]);
+
+  // Recalculate on resize if in fit mode
+  useEffect(() => {
+    if (!isFitMode) return;
+
+    const handleResize = () => {
+      handleFitToScreen();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isFitMode, handleFitToScreen]);
+
+  const updateZoom = (newZoom: number | ((prev: number) => number)) => {
+    setIsFitMode(false);
+    if (typeof newZoom === 'function') {
+      setZoom(prev => Math.max(35, Math.min(200, newZoom(prev))));
+    } else {
+      setZoom(Math.max(35, Math.min(200, newZoom)));
+    }
+  };
 
   // Pinch-to-zoom touch gesture listener
   useEffect(() => {
@@ -1969,7 +1996,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
             {/* Zoom Out */}
             <button
-              onClick={() => setZoom(prev => Math.max(35, prev - 10))}
+              onClick={() => updateZoom(prev => prev - 10)}
               className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
               title="Reduzir zoom (-10%)"
               aria-label="Reduzir zoom"
@@ -1982,9 +2009,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               {[60, 80, 100, 125].map(preset => (
                 <button
                   key={preset}
-                  onClick={() => setZoom(preset)}
+                  onClick={() => updateZoom(preset)}
                   className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all ${
-                    zoom === preset ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                    zoom === preset && !isFitMode ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   {preset}%
@@ -1994,7 +2021,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
             {/* Zoom In */}
             <button
-              onClick={() => setZoom(prev => Math.min(200, prev + 10))}
+              onClick={() => updateZoom(prev => prev + 10)}
               className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
               title="Aumentar zoom (+10%)"
               aria-label="Aumentar zoom"
@@ -2005,11 +2032,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             {/* Fit to screen */}
             <button
               onClick={handleFitToScreen}
-              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors"
-              title="Ajustar documento à largura da tela"
+              className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
+                isFitMode ? 'bg-violet-600 text-white shadow-xs' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+              }`}
+              title="Ajustar documento à largura da tela (fica ativo até ser removido)"
             >
               <Maximize2 size={13} />
-              <span className="hidden sm:inline">Ajustar</span>
+              <span className="hidden sm:inline">{isFitMode ? 'Ajustado' : 'Ajustar'}</span>
             </button>
 
             {/* Current Zoom Level */}
@@ -2027,31 +2056,36 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         style={{
           minHeight: '400px',
           touchAction: 'pan-x pan-y',
+          // Fix for "items-center" with overflowing content:
+          // ensure the inner content container has min-width to avoid cutting left edge
+          display: 'grid',
+          placeItems: 'start center',
         }}
       >
-        {/* Render 2 Physical A4 Pages: Page 1 = Manhã, Page 2 = Tarde */}
-        {assemblyProgram.sessions.map((session: any, pageIdx: number) => {
-          const pageNum = pageIdx + 1;
-          const totalPages = assemblyProgram.sessions.length;
+        <div className="flex flex-col items-center gap-8 w-full min-w-max py-4">
+          {/* Render 2 Physical A4 Pages: Page 1 = Manhã, Page 2 = Tarde */}
+          {assemblyProgram.sessions.map((session: any, pageIdx: number) => {
+            const pageNum = pageIdx + 1;
+            const totalPages = assemblyProgram.sessions.length;
 
-          return (
-            <div key={`session-${session.period || pageIdx}-${pageIdx}`} className="circuit-assembly-session-wrapper flex flex-col items-center w-full">
-              {/* Screen-only Page Divider / Header Pill */}
-              <div className="no-print mb-2.5 px-3 py-1 bg-slate-800 text-slate-200 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-sm border border-slate-700">
-                <span className="w-2 h-2 rounded-full bg-violet-400"></span>
-                <span>Página {pageNum} de {totalPages} • Sessão da {session.period}</span>
-              </div>
+            return (
+              <div key={`session-${session.period || pageIdx}-${pageIdx}`} className="circuit-assembly-session-wrapper flex flex-col items-center">
+                {/* Screen-only Page Divider / Header Pill */}
+                <div className="no-print mb-2.5 px-3 py-1 bg-slate-800 text-slate-200 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-sm border border-slate-700">
+                  <span className="w-2 h-2 rounded-full bg-violet-400"></span>
+                  <span>Página {pageNum} de {totalPages} • Sessão da {session.period}</span>
+                </div>
 
-              {/* Scaled Document Wrapper — Strict Proportional Model (A4 Portrait) */}
-              <div 
-                className="circuit-assembly-scale-wrapper mx-auto shrink-0 relative transition-all duration-150"
-                style={{
-                  width: `${(210 * zoom) / 100}mm`,
-                  minWidth: `${(210 * zoom) / 100}mm`,
-                  height: `${(297 * zoom) / 100}mm`,
-                  minHeight: `${(297 * zoom) / 100}mm`,
-                }}
-              >
+                {/* Scaled Document Wrapper — Strict Proportional Model (A4 Portrait) */}
+                <div 
+                  className="circuit-assembly-scale-wrapper shrink-0 relative transition-all duration-150"
+                  style={{
+                    width: `${(210 * zoom) / 100}mm`,
+                    minWidth: `${(210 * zoom) / 100}mm`,
+                    height: `${(297 * zoom) / 100}mm`,
+                    minHeight: `${(297 * zoom) / 100}mm`,
+                  }}
+                >
                 {/* Physical A4 Digital Document Sheet — Rigid Fixed Dimensions (210 x 297 mm) */}
                 <div 
                   id={`circuit-assembly-a4-page-${pageNum}`}
@@ -2410,8 +2444,10 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             </div>
           );
         })}
+        </div>
+      </div>
 
-        {/* Orphaned Parts / Revisions Section (Below A4 Sheet) */}
+      {/* Orphaned Parts / Revisions Section (Below A4 Sheet) */}
         {Object.keys(currentPart.orphanedParts || {}).length > 0 && (
           <div className="mt-8 sm:mt-12 w-full max-w-5xl mx-auto px-4 no-print">
             <div className="bg-amber-50 rounded-[2rem] border border-amber-200 p-6 sm:p-8 shadow-sm">
@@ -2491,7 +2527,6 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             </div>
           </div>
         )}
-      </div>
 
       {/* Discard Changes Modal */}
       {/* Modals e overlays */}
