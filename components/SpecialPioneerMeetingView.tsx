@@ -286,64 +286,8 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
 
   // Zoom & Viewport controller state
   const [zoom, setZoom] = useState<number>(80);
-  const [isFitMode, setIsFitMode] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
-
-  const handleFitToScreen = useCallback(() => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.clientWidth - 48;
-      const a4WidthPx = 793.7;
-      const targetZoom = Math.round((containerWidth / a4WidthPx) * 100);
-      setZoom(Math.min(150, Math.max(40, targetZoom)));
-      setIsFitMode(true);
-    }
-  }, []);
-
-  // Persistence and initial load
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedZoom = localStorage.getItem('pioneer_meeting_a4_zoom');
-      const savedFit = localStorage.getItem('pioneer_meeting_a4_fit');
-      
-      if (savedFit === 'true') {
-        handleFitToScreen();
-      } else if (savedZoom) {
-        setZoom(parseInt(savedZoom, 10));
-      } else {
-        setZoom(80);
-      }
-    }
-  }, [handleFitToScreen]);
-
-  // Save changes
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('pioneer_meeting_a4_zoom', zoom.toString());
-      localStorage.setItem('pioneer_meeting_a4_fit', isFitMode.toString());
-    }
-  }, [zoom, isFitMode]);
-
-  // Recalculate on resize if in fit mode
-  useEffect(() => {
-    if (!isFitMode) return;
-
-    const handleResize = () => {
-      handleFitToScreen();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isFitMode, handleFitToScreen]);
-
-  const updateZoom = (newZoom: number | ((prev: number) => number)) => {
-    setIsFitMode(false);
-    if (typeof newZoom === 'function') {
-      setZoom(prev => Math.max(35, Math.min(200, newZoom(prev))));
-    } else {
-      setZoom(Math.max(35, Math.min(200, newZoom)));
-    }
-  };
 
   const staticProgram = STATIC_PROGRAMS[selectedYear] || STATIC_PROGRAMS['2026-2027'];
   
@@ -411,6 +355,88 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   };
 
   const collectionName = 'special_pioneer_meeting_speakers';
+  const hasChanges = initialPartsData !== JSON.stringify(partsData);
+
+  // Alerta ao sair com alterações não salvas
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
+  // Helper to add minutes to HH:mm time string
+  const calculateTime = (startTime: string, minutesToAdd: number) => {
+    if (!startTime) return '';
+    const [hours, mins] = startTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, mins, 0, 0);
+    date.setMinutes(date.getMinutes() + minutesToAdd);
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Pinch-to-zoom and wheel zoom handling
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let initialDistance = 0;
+    let currentZoom = zoom;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        initialDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        currentZoom = zoom;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && initialDistance > 0) {
+        e.preventDefault();
+        const newDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = newDistance / initialDistance;
+        const targetZoom = Math.round(Math.min(200, Math.max(35, currentZoom * factor)));
+        setZoom(targetZoom);
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        initialDistance = 0;
+      }
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [zoom]);
+
+  const handleFitToScreen = () => {
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.clientWidth - 48;
+      const a4WidthPx = 793.7;
+      const targetZoom = Math.round((containerWidth / a4WidthPx) * 100);
+      setZoom(Math.min(125, Math.max(40, targetZoom)));
+    }
+  };
 
   // Load Firestore data
   useEffect(() => {
@@ -1461,7 +1487,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
             {/* Zoom Out */}
             <button
-              onClick={() => updateZoom(prev => prev - 10)}
+              onClick={() => setZoom(prev => Math.max(35, prev - 10))}
               className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
               title="Reduzir zoom (-10%)"
               aria-label="Reduzir zoom"
@@ -1474,9 +1500,9 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
               {[60, 80, 100, 125].map(preset => (
                 <button
                   key={preset}
-                  onClick={() => updateZoom(preset)}
+                  onClick={() => setZoom(preset)}
                   className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                    zoom === preset && !isFitMode ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                    zoom === preset ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   {preset}%
@@ -1486,7 +1512,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
 
             {/* Zoom In */}
             <button
-              onClick={() => updateZoom(prev => prev + 10)}
+              onClick={() => setZoom(prev => Math.min(200, prev + 10))}
               className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
               title="Aumentar zoom (+10%)"
               aria-label="Aumentar zoom"
@@ -1497,13 +1523,11 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             {/* Fit to screen */}
             <button
               onClick={handleFitToScreen}
-              className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all cursor-pointer ${
-                isFitMode ? 'bg-violet-600 text-white shadow-xs' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-              }`}
-              title="Ajustar documento à largura da tela (fica ativo até ser removido)"
+              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+              title="Ajustar documento à largura da tela"
             >
               <Maximize2 size={13} />
-              <span className="hidden sm:inline">{isFitMode ? 'Ajustado' : 'Ajustar'}</span>
+              <span className="hidden sm:inline">Ajustar</span>
             </button>
 
             {/* Current Zoom Level */}
@@ -1521,28 +1545,25 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         style={{
           minHeight: '400px',
           touchAction: 'pan-x pan-y',
-          display: 'grid',
-          placeItems: 'start center',
         }}
       >
-        <div className="flex flex-col items-center gap-8 w-full min-w-max py-4">
-          {/* Render A4 Page */}
-          {pioneerProgram.sessions.map((session, pageIdx) => {
-            const pageNum = pageIdx + 1;
-            const totalPages = pioneerProgram.sessions.length;
+        {/* Render A4 Page */}
+        {pioneerProgram.sessions.map((session, pageIdx) => {
+          const pageNum = pageIdx + 1;
+          const totalPages = pioneerProgram.sessions.length;
 
-            return (
-              <div key={session.period || pageIdx} className="pioneer-session-wrapper flex flex-col items-center">
-                {/* Scaled Document Wrapper — Strict Proportional Model (A4 Portrait) */}
-                <div 
-                  className="pioneer-scale-wrapper shrink-0 relative transition-all duration-150"
-                  style={{
-                    width: `${(210 * zoom) / 100}mm`,
-                    minWidth: `${(210 * zoom) / 100}mm`,
-                    height: `${(297 * zoom) / 100}mm`,
-                    minHeight: `${(297 * zoom) / 100}mm`,
-                  }}
-                >
+          return (
+            <div key={session.period || pageIdx} className="pioneer-session-wrapper flex flex-col items-center w-full">
+              {/* Scaled Document Wrapper — Strict Proportional Model (A4 Portrait) */}
+              <div 
+                className="pioneer-scale-wrapper mx-auto shrink-0 relative transition-all duration-150"
+                style={{
+                  width: `${(210 * zoom) / 100}mm`,
+                  minWidth: `${(210 * zoom) / 100}mm`,
+                  height: `${(297 * zoom) / 100}mm`,
+                  minHeight: `${(297 * zoom) / 100}mm`,
+                }}
+              >
                 {/* Physical A4 Digital Document Sheet — Rigid Fixed Dimensions (210 x 297 mm) */}
                 <div 
                   id={`pioneer-meeting-a4-page-${pageNum}`}
@@ -1961,7 +1982,6 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             </div>
           );
         })}
-        </div>
       </div>
 
       {/* MODAL: EDITAR DADOS DO EVENTO */}
