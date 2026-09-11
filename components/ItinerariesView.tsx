@@ -1437,6 +1437,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     const isCongregation = item.tipoEvento === 'Visita a Congregação' || 
                                           item.tipoEvento === 'Visita a Grupo' ||
                                           (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - ')));
+                    
+                    const eventUpper = item.evento?.toUpperCase() || '';
+                    const isExcluded = eventUpper === 'SEMANA LIVRE' || eventUpper === 'LICENÇA';
+                    const canNotify = item.evento?.trim() && !isExcluded;
+                    
                     return (
                       <tr 
                         key={item.id} 
@@ -1492,11 +1497,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!item.evento?.trim()) return;
+                                  if (!canNotify) return;
                                   handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
                                 }}
-                                disabled={!item.evento?.trim()}
-                                className={`transition-colors ${!item.evento?.trim() ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.escritorioNotificado ? 'text-green-600' : 'text-gray-400'}`}
+                                disabled={!canNotify}
+                                className={`transition-colors ${!canNotify ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.escritorioNotificado ? 'text-green-600' : 'text-gray-400'}`}
                               >
                                 {item.escritorioNotificado ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                               </button>
@@ -1506,11 +1511,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!item.evento?.trim() || !isCongregation) return;
+                                  if (!canNotify) return;
                                   handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
                                 }}
-                                disabled={!item.evento?.trim() || !isCongregation}
-                                className={`transition-colors ${(!item.evento?.trim() || !isCongregation) ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
+                                disabled={!canNotify}
+                                className={`transition-colors ${!canNotify ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
                               >
                                 {item.congregacaoNotificada ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                               </button>
