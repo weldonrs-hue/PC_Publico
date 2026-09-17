@@ -2090,12 +2090,25 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end gap-2">
+              <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3 border-t border-gray-100 pt-5">
+                {!isGuest && (
+                  <button
+                    onClick={async () => {
+                      const ok = await handleSave();
+                      if (ok) setShowEditDetailsModal(false);
+                    }}
+                    disabled={isSaving}
+                    className="flex-[2] flex items-center justify-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-all shadow-lg shadow-violet-100 active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span>Salvar Parte {['A', 'B', 'C', 'D'][selectedPart]}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowEditDetailsModal(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-colors"
+                  className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-colors"
                 >
-                  Concluir
+                  Fechar
                 </button>
               </div>
             </motion.div>
@@ -2263,7 +2276,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
 
       {/* CONFIRM MODAL (Sair sem salvar) */}
       <AnimatePresence>
-        {hasChanges && !isGuest && (
+        {hasChanges && !isGuest && !showEditDetailsModal && (
           <motion.div 
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}

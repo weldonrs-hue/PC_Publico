@@ -2769,7 +2769,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       <input 
                         type="text" 
                         value={details.assemblyTheme} 
-                        onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, assemblyTheme: e.target.value } } }))}
+                        onChange={e => setPartsData(prev => ({ 
+                          ...prev, 
+                          [selectedPart]: { 
+                            ...prev[selectedPart], 
+                            details: { ...prev[selectedPart].details, assemblyTheme: e.target.value } 
+                          } 
+                        }))}
                         placeholder="Ex: 'Encontre a Mais Plena Alegria em Jeová'"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                       />
@@ -2782,7 +2788,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       <input 
                         type="text" 
                         value={details.eventDate} 
-                        onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, eventDate: e.target.value } } }))}
+                        onChange={e => setPartsData(prev => ({ 
+                          ...prev, 
+                          [selectedPart]: { 
+                            ...prev[selectedPart], 
+                            details: { ...prev[selectedPart].details, eventDate: e.target.value } 
+                          } 
+                        }))}
                         placeholder="Ex: 15 de Outubro"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                       />
@@ -2792,7 +2804,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       <input 
                         type="text" 
                         value={details.eventLocation} 
-                        onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, eventLocation: e.target.value } } }))}
+                        onChange={e => setPartsData(prev => ({ 
+                          ...prev, 
+                          [selectedPart]: { 
+                            ...prev[selectedPart], 
+                            details: { ...prev[selectedPart].details, eventLocation: e.target.value } 
+                          } 
+                        }))}
                         placeholder="Ex: Salão de Assembleias"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                       />
@@ -2805,7 +2823,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       <input 
                         type="text" 
                         value={details.rehearsalDate} 
-                        onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, rehearsalDate: e.target.value } } }))}
+                        onChange={e => setPartsData(prev => ({ 
+                          ...prev, 
+                          [selectedPart]: { 
+                            ...prev[selectedPart], 
+                            details: { ...prev[selectedPart].details, rehearsalDate: e.target.value } 
+                          } 
+                        }))}
                         placeholder="Ex: Sábado, 14:00"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                       />
@@ -2815,7 +2839,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       <input 
                         type="text" 
                         value={details.rehearsalLocation} 
-                        onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, rehearsalLocation: e.target.value } } }))}
+                        onChange={e => setPartsData(prev => ({ 
+                          ...prev, 
+                          [selectedPart]: { 
+                            ...prev[selectedPart], 
+                            details: { ...prev[selectedPart].details, rehearsalLocation: e.target.value } 
+                          } 
+                        }))}
                         placeholder="Ex: Congregação Central"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                       />
@@ -3007,7 +3037,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       {details.customHeaderImage && (
                         <button
                           type="button"
-                          onClick={() => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, customHeaderImage: '' } } }))}
+                          onClick={() => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, customHeaderImage: '' } 
+                            } 
+                          }))}
                           className="text-[10px] font-bold text-amber-600 hover:text-amber-800 hover:underline"
                         >
                           Restaurar Imagem Oficial
@@ -3017,7 +3053,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                     <input 
                       type="text" 
                       value={details.customHeaderImage || ''} 
-                      onChange={e => setPartsData(prev => ({ ...prev, [selectedPart]: { ...prev[selectedPart], details: { ...prev[selectedPart].details, customHeaderImage: e.target.value } } }))}
+                      onChange={e => setPartsData(prev => ({ 
+                        ...prev, 
+                        [selectedPart]: { 
+                          ...prev[selectedPart], 
+                          details: { ...prev[selectedPart].details, customHeaderImage: e.target.value } 
+                        } 
+                      }))}
                       placeholder={assemblyProgram.headerImage || 'https://...'}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-mono text-gray-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
                     />
@@ -3067,7 +3109,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         )}
 
         {/* Floating Save Bar (quando houver alterações não salvas) */}
-        {hasChanges && !isGuest && (
+        {hasChanges && !isGuest && !showEditDetailsModal && (
           <motion.div 
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
