@@ -1510,6 +1510,153 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     }
   };
 
+  const generateAnciaosLetter = async () => {
+    const templateId = 'ass_carta_anciaos';
+    const template = templates[templateId] || templates[`${userId}_${templateId}`];
+    
+    if (!template) {
+      await showAlert(`Template de Carta aos Anciãos ("${templateId}") não encontrado. Por favor, carregue-o em Cartas > Gerenciar.`, 'Aviso');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const binaryString = window.atob(template.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
+      const zip = new PizZip(cleanedBuffer);
+      const ImageModule = (await import('docxtemplater-image-module-free')).default;
+      
+      const signatureImage = personalData?.signatureImage || personalData?.signature || '';
+
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      xmlFiles.forEach(xmlResource => {
+        let xmlContent = xmlResource.asText();
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+        }
+        
+        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
+
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
+          let newText = text;
+          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
+            const tag = p2.toUpperCase();
+            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
+            return `${p1}[${tag}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        zip.file(xmlResource.name, xmlContent);
+      });
+
+      let sigWidth = 150;
+      let sigHeight = 60;
+      
+      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
+      if (isBase64Image) {
+        const img = new window.Image();
+        const promise = new Promise((resolve) => {
+          img.onload = resolve;
+          img.src = signatureImage;
+        });
+        await promise;
+        const aspectRatio = img.width / img.height;
+        sigHeight = 60;
+        sigWidth = sigHeight * aspectRatio;
+        if (sigWidth > 220) {
+          sigWidth = 220;
+          sigHeight = sigWidth / aspectRatio;
+        }
+      }
+
+      const imgOpts: any = {
+        centered: false,
+        getImage: (tagValue: string) => {
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            const binaryStringArray = window.atob(base64Data);
+            const len = binaryStringArray.length;
+            const bytesArray = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding image:', e);
+            return null;
+          }
+        },
+        getSize: () => [sigWidth, sigHeight],
+      };
+      
+      const themeValue = details.assemblyTheme || assemblyProgram.theme;
+      const now = new Date();
+      const hoje = new Intl.DateTimeFormat('pt-BR', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      }).format(now);
+
+      const replacements = {
+        'EVENTO': assemblyProgram.title,
+        'TEMA': themeValue,
+        'DATA': details.eventDate || '________________',
+        'LOCAL': details.eventLocation || '________________',
+        'DATA_EVENTO': details.eventDate || '________________',
+        'LOCAL_EVENTO': details.eventLocation || '________________',
+        'HOJE': hoje,
+        'data': hoje,
+        'DATA_ATUAL': hoje,
+        'ASSINATURA': signatureImage,
+        '%ASSINATURA': signatureImage,
+        'VIAJANTE': personalData?.nome || '________________',
+        'NOME': personalData?.nome || '________________',
+        'CIRCUITO': personalData?.circuito || '________________',
+        'FONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
+        'TELEFONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
+      };
+
+      const docObj = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: { start: '[', end: ']' },
+        modules: ImageModule ? [new ImageModule(imgOpts)] : []
+      });
+
+      docObj.render(replacements);
+
+      const out = docObj.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      const url = URL.createObjectURL(out);
+      const link = document.createElement('a');
+      link.href = url;
+      const eventYear = assemblyProgram.year || new Date().getFullYear().toString();
+      const partLetter = ['A', 'B', 'C', 'D'][selectedPart] || 'A';
+      link.download = `Carta_Anciaos_${type === 'supt' ? 'CAco' : 'CAbr'}_${eventYear}_Parte_${partLetter}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error generating anciaos letter:', err);
+      await showAlert('Erro ao gerar carta aos anciãos.', 'Erro');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const generateAssistantDocument = async (assistantName: string, assistantCong?: string) => {
     if (!assistantName || !assistantName.trim()) {
       await showAlert('Por favor, informe o nome do assistente.', 'Aviso');
@@ -1903,6 +2050,15 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               {isCheckingNext ? <Loader2 size={15} className="animate-spin shrink-0" /> : <Search size={15} className="shrink-0" />}
               <span className="hidden lg:inline">{isCheckingNext ? 'Verificando...' : 'Verificar próxima'}</span>
               <span className="hidden md:inline lg:hidden">{isCheckingNext ? '...' : 'Próxima'}</span>
+            </button>
+
+            <button 
+              onClick={generateAnciaosLetter}
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+              title="Gerar Carta aos Anciãos para esta assembleia (.docx)"
+            >
+              <Mail size={15} className="shrink-0 text-emerald-600" />
+              <span className="hidden md:inline">Carta Anciãos</span>
             </button>
 
             <button 

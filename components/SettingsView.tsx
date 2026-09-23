@@ -24,10 +24,12 @@ import {
   Mail,
   UserCheck,
   Landmark,
-  Coffee
+  Coffee,
+  MailCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
+import MicrosoftConnectionSettings from '@/components/MicrosoftConnectionSettings';
 import { 
   collection,
   query,
@@ -136,6 +138,14 @@ const settingsButtons = [
     gradient: 'from-[#059669] to-[#047857]'
   },
   {
+    id: 'microsoft',
+    icon: MailCheck,
+    title: 'CONTA MICROSOFT',
+    subtitle: 'CONEXÃO JW / OAUTH',
+    color: '#2b579a',
+    gradient: 'from-[#2b579a] to-[#1e3a63]'
+  },
+  {
     id: 'senha',
     icon: Lock,
     title: 'ALTERAR SENHA',
@@ -179,6 +189,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isIframe, setIsIframe] = useState(false);
+  const [isManagingMicrosoft, setIsManagingMicrosoft] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isFormattingAccount, setIsFormattingAccount] = useState(false);
@@ -493,6 +504,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       onViewChange('users');
     } else if (id === 'tjsec_accounts') {
       onViewChange('tjsec_accounts');
+    } else if (id === 'microsoft') {
+      setIsManagingMicrosoft(true);
     } else if (id === 'senha') {
       setIsChangingPassword(true);
     } else if (id === 'invites') {
@@ -2038,6 +2051,48 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                   </div>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Microsoft Connection Modal */}
+      <AnimatePresence>
+        {isManagingMicrosoft && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsManagingMicrosoft(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-gray-50 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-white/20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-8 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Conexão Microsoft</h3>
+                  <button 
+                    onClick={() => setIsManagingMicrosoft(false)}
+                    className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+                
+                <MicrosoftConnectionSettings />
+
+                <button
+                  onClick={() => setIsManagingMicrosoft(false)}
+                  className="w-full py-4 text-sm font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
