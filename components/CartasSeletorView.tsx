@@ -107,24 +107,32 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {options.map((option, index) => {
           const canManage = isAdmin || (option.uploadKey && (appConfig as any)?.[option.uploadKey]) || (option.id === 'esp' || option.id === 'congresso');
           
           return (
             <motion.div
               key={option.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className={`group relative flex flex-col bg-white rounded-none transition-all duration-500 overflow-hidden border ${
-                option.active 
-                  ? 'shadow-xl border-gray-100 hover:shadow-2xl' 
-                  : 'opacity-60 grayscale border-gray-200'
+              className={`relative group h-16 ${
+                !option.active 
+                  ? 'cursor-not-allowed opacity-60 grayscale' 
+                  : 'cursor-pointer'
               }`}
             >
-              {/* Main Button Area */}
-              <button
+              {/* Background Glow */}
+              {option.active && (
+                <div 
+                  className="absolute -inset-0.5 blur-md opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-3xl"
+                  style={{ backgroundColor: option.color }}
+                />
+              )}
+              
+              <div 
+                className="relative flex bg-white rounded-[24px] overflow-hidden shadow-sm border border-gray-200 hover:border-transparent transition-all duration-300 h-full group"
                 onClick={() => {
                   if (option.active) {
                     if (option.forceManager) {
@@ -134,44 +142,40 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
                     }
                   }
                 }}
-                disabled={!option.active}
-                className={`flex-1 p-8 flex flex-col items-center justify-center text-center w-full relative h-full ${!option.active ? 'cursor-not-allowed' : 'cursor-pointer'}`}
               >
-                {/* Background Accent */}
-                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${option.gradient} opacity-5 rounded-none ${option.active ? 'group-hover:scale-150 transition-transform duration-700' : ''}`} />
+                <div className={`w-1.5 h-full bg-gradient-to-b ${option.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
                 
-                <div className={`w-20 h-20 rounded-none flex items-center justify-center bg-gradient-to-br ${option.gradient} text-white shadow-lg shadow-black/10 transition-all duration-500 mb-6 ${option.active ? 'group-hover:scale-110 group-hover:rotate-6' : ''}`}>
-                  <option.icon size={40} strokeWidth={2.5} />
-                </div>
-
-                <div className="relative z-10">
-                  <h3 className={`text-xl font-black uppercase tracking-tight transition-colors ${option.active ? 'text-gray-900 group-hover:text-emerald-600' : 'text-gray-400'}`}>
-                    {option.title}
-                  </h3>
-                  <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-2 opacity-70 ${option.active ? 'text-gray-400' : 'text-gray-300'}`}>
-                    {option.subtitle}
-                  </p>
-                </div>
-              </button>
-
-              {/* Status Indicator */}
-              {option.active && (
-                <div className="border-t border-gray-50 p-4 bg-gray-50/30 flex items-center justify-between px-8">
-                  <div className="flex items-center gap-1.5 font-black uppercase text-gray-400 tracking-wider">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px]">Ativo</span>
+                <div className="flex-1 flex items-center px-3 gap-3">
+                  <div 
+                    className={`w-10 h-10 rounded-[14px] flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
+                      !option.active 
+                        ? 'bg-gray-100 text-gray-400' 
+                        : `bg-gradient-to-br ${option.gradient} group-hover:scale-105 group-hover:rotate-2`
+                    }`}
+                  >
+                    <option.icon size={22} strokeWidth={2.5} className={`${!option.active ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
                   </div>
-                  {canManage && (
+
+                  <div className="flex-1 text-left flex flex-col justify-center overflow-hidden pr-2">
+                    <div className={`font-black text-[11px] leading-tight uppercase mb-0 transition-colors ${!option.active ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
+                      {option.title}
+                    </div>
+                    <div className={`text-[7px] font-bold uppercase tracking-widest transition-opacity ${!option.active ? 'text-gray-300' : 'text-gray-400 opacity-60 group-hover:opacity-100'}`}>
+                      {option.subtitle}
+                    </div>
+                  </div>
+
+                  {option.active && canManage && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); onViewChange(`${option.view}:manager`); }}
-                      className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-white border border-gray-100 shadow-sm text-emerald-600 hover:shadow-md hover:bg-emerald-50 transition-all text-[9px] font-black uppercase tracking-widest group/btn"
+                      className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100 group/btn shrink-0"
+                      title="Gerenciar Templates"
                     >
-                      <Settings2 size={12} className="group-hover/btn:rotate-90 transition-transform duration-500" />
-                      Gerenciar
+                      <Settings2 size={16} className="group-hover/btn:rotate-90 transition-transform duration-500" />
                     </button>
                   )}
                 </div>
-              )}
+              </div>
             </motion.div>
           );
         })}

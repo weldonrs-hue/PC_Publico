@@ -1047,280 +1047,203 @@ export default function PSSAssignmentLetters({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-6">
-        {/* Top: Lista de Templates em Grid */}
-        <div className="bg-gray-50 p-4 rounded-none border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-blue-50 text-blue-700 px-4 py-2 rounded-none border border-blue-100">
-              <Mail size={20} />
-              Selecione o Modelo de Carta PSS
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px]">
+      {/* Sidebar: Selection & Settings */}
+      <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-black text-gray-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
+              <Mail size={14} className="text-amber-600" />
+              Designações
             </h3>
             
-            {canManage && isAdmin && initialMode !== 'manager' && (
+            {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                className={`p-2 rounded-xl transition-all shadow-sm ${
                   isManaging 
-                    ? 'bg-amber-500 text-white border-amber-400' 
-                    : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'
+                    ? 'bg-amber-600 text-white shadow-amber-200 ring-2 ring-amber-600 ring-offset-2' 
+                    : 'bg-amber-100 text-amber-600 hover:bg-amber-200'
                 }`}
+                title="Configurar Templates"
               >
-                <Settings2 size={14} />
-                {isManaging ? 'Fechar Gerenciador' : 'Gerenciar Templates'}
+                <Settings2 size={18} />
               </button>
             )}
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col gap-2">
             {TEMPLATE_NAMES.map(name => (
-              <div key={name} className="relative group/card">
-                <button
-                  onClick={() => setSelectedTemplate(name)}
-                  className={`w-full text-left p-4 rounded-none h-20 transition-all border-2 flex items-center gap-3 ${
-                    selectedTemplate === name 
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
-                      : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-blue-50'
-                  }`}
-                >
-                  <div className={`p-2 rounded-none transition-colors shrink-0 ${selectedTemplate === name ? 'bg-white/20' : 'bg-blue-50'}`}>
-                    <Mail size={20} className={selectedTemplate === name ? 'text-white' : 'text-blue-600'} />
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center justify-between gap-1 w-full">
-                      <span className="truncate font-black uppercase tracking-tighter text-[13px]">{name.replace('PSS assignment letter_T_', 'WS ')}</span>
-                      {templates[name] && <CheckCircle2 size={12} className={selectedTemplate === name ? 'text-white' : 'text-green-500'} />}
-                    </div>
-                    {templates[name] && (
-                      <span className={`text-[7px] px-1.5 py-0.5 rounded-none font-black uppercase tracking-widest leading-none ${
-                        templates[name].isPrivate 
-                          ? (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700')
-                          : (selectedTemplate === name ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700')
-                      }`}>
-                        {templates[name].isPrivate ? 'SEU MODELO' : 'GLOBAL'}
+              <button
+                key={name}
+                onClick={() => setSelectedTemplate(name)}
+                className={`flex items-center gap-3 px-3 py-2.5 transition-all border rounded-2xl text-left group relative overflow-hidden ${
+                   selectedTemplate === name
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-md scale-[1.02]'
+                    : 'bg-gray-50/50 text-gray-600 border-gray-100 hover:border-amber-200 hover:bg-white'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${selectedTemplate === name ? 'bg-white/20' : 'bg-amber-100/50'}`}>
+                  <FileText size={16} className={selectedTemplate === name ? 'text-white' : 'text-amber-600'} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block font-black uppercase tracking-tight text-[10px] leading-tight truncate">
+                    {name.replace('PSS assignment letter_', '')}
+                  </span>
+                  {templates[name] && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <CheckCircle2 size={8} className={selectedTemplate === name ? 'text-white' : 'text-emerald-500'} />
+                      <span className={`text-[6px] font-black uppercase tracking-widest ${selectedTemplate === name ? 'text-white/80' : 'text-gray-400'}`}>
+                        {templates[name].isPrivate ? 'PRIVADO' : 'GLOBAL'}
                       </span>
-                    )}
-                  </div>
-                </button>
-
-                {canManage && isAdmin && (
-                  <button
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      if (selectedTemplate === name) {
-                        setIsManaging(!isManaging);
-                      } else {
-                        setSelectedTemplate(name); 
-                        setIsManaging(true);
-                      }
-                    }}
-                    className={`absolute -top-1.5 -right-1.5 p-1.5 rounded-full shadow-lg border transition-all z-20 ${
-                      isManaging && selectedTemplate === name
-                        ? 'bg-amber-500 text-white border-amber-400 rotate-90'
-                        : 'bg-white text-gray-400 border-gray-100 hover:text-amber-600'
-                    }`}
-                  >
-                    <Settings2 size={10} />
-                  </button>
-                )}
-              </div>
+                    </div>
+                  )}
+                </div>
+              </button>
             ))}
           </div>
         </div>
 
-        {isManaging && canManage && (
-          <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
-                <FileUp size={16} />
-                Gerenciar Modelo: {selectedTemplate.replace('PSS assignment letter_', '')}
-              </h4>
-              <button onClick={() => setIsManaging(false)} className="text-amber-400 hover:text-amber-600 transition-colors">
-                <Trash2 size={16} />
+        {/* Quick Actions Panel */}
+        {status === 'success' && !isProcessing && (
+          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Baixar Documento</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={downloadAsDocx}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-amber-700 rounded-2xl border border-gray-100 hover:bg-amber-50 hover:border-amber-200 transition-all group"
+              >
+                <FileDown size={18} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">DOCX</span>
               </button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                {isAdmin && (
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-100">
-                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
-                    <button
-                      onClick={() => setSaveAsGlobal(!saveAsGlobal)}
-                      className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-emerald-500' : 'bg-gray-300'}`}
-                    >
-                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
-                    </button>
-                  </div>
-                )}
-
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
-                <div className="relative group">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`w-full flex flex-col items-center justify-center p-6 rounded-xl text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
-                      file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
-                    }`}
-                  >
-                    <FileUp size={24} className={file ? 'text-emerald-500' : 'text-gray-300'} />
-                    <span className="mt-2 truncate max-w-full">{file ? file.name : 'CARREGAR NOVO MODELO DOCX'}</span>
-                  </button>
-                  {file && (
-                    <button 
-                      onClick={() => setFile(null)} 
-                      className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-md hover:bg-red-600 transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {file && (
-                  <div className="space-y-3">
-                    {missingTags.length > 0 ? (
-                      <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-1">
-                        <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
-                          <AlertCircle size={12} /> Marcadores Faltantes
-                        </p>
-                        <p className="text-[8px] font-bold text-red-500 leading-tight">
-                          Recomendado: {missingTags.join(', ')}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1">
-                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Status: OK
-                        </p>
-                        <p className="text-[8px] font-bold text-emerald-500 leading-tight">Documento validado!</p>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={saveTemplate}
-                      disabled={isSaving}
-                      className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
-                        saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      } disabled:opacity-50`}
-                    >
-                      {isSaving ? <RefreshCw className="animate-spin" size={14} /> : saveStatus === 'success' ? <CheckCircle2 size={14} /> : <Save size={14} />}
-                      {isSaving ? 'SALVANDO...' : saveStatus === 'success' ? 'SALVO!' : 'SALVAR MODELO'}
-                    </button>
-                  </div>
-                )}
-                {!file && templates[selectedTemplate]?.isPrivate && (
-                   <button
-                    onClick={deletePrivateTemplate}
-                    disabled={isSaving}
-                    className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
-                  >
-                    {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <Trash2 size={14} />}
-                    {isSaving ? 'EXCLUINDO...' : 'EXCLUIR MINHA VERSÃO'}
-                  </button>
-                )}
-                {!file && !templates[selectedTemplate]?.isPrivate && (
-                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-xl border border-amber-50">
-                    <p className="text-[9px] text-amber-600 font-black text-center uppercase tracking-widest leading-relaxed">
-                      Selecione um arquivo .docx para atualizar o modelo <br/> deste documento no servidor.
-                    </p>
-                  </div>
-                )}
-                {saveStatus === 'error' && (
-                  <p className="text-[9px] text-red-500 font-bold text-center uppercase mt-2">{errorMessage || 'Erro ao salvar'}</p>
-                )}
-              </div>
+              <button
+                onClick={downloadAsPdf}
+                disabled={generating}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-900 text-white rounded-2xl shadow-lg shadow-black/10 hover:bg-black transition-all group disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform" />}
+                <span className="text-[8px] font-black uppercase tracking-tighter">PDF</span>
+              </button>
             </div>
           </div>
         )}
 
-        {/* Lado Direito: Preview e Ações */}
-        <div className="w-full space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <FileText className="text-blue-600" size={20} />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between w-full">
-                  <h3 className="font-black text-gray-800 text-sm uppercase tracking-widest">Visualização</h3>
-                </div>
-                <p className="text-[14px] text-gray-500 font-bold uppercase truncate max-w-[200px]">
-                  {selectedTemplate.replace('PSS assignment letter_', '')}
-                </p>
-              </div>
-            </div>
+        {needsProcessing && (
+          <button
+            onClick={() => processAndPreview()}
+            disabled={isProcessing}
+            className="w-full flex items-center justify-center gap-3 p-4 bg-amber-600 text-white rounded-3xl shadow-xl shadow-amber-200 hover:bg-amber-700 active:scale-[0.98] transition-all disabled:opacity-50 font-black text-[10px] uppercase tracking-widest"
+          >
+            {isProcessing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            Gerar Carta Agora
+          </button>
+        )}
+      </div>
 
-            <div className="flex items-center gap-2">
-              {status === 'success' && !isProcessing && (
-                <>
-                  <button
-                    onClick={downloadAsDocx}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 rounded-none text-[10px] font-black uppercase tracking-widest shadow-sm hover:text-blue-600 hover:border-blue-100 border border-transparent transition-all"
-                    title="Baixar Original (.docx)"
-                  >
-                    <FileDown size={14} />
-                    BAIXAR DOCX
-                  </button>
-
-                  <button
-                    onClick={downloadAsPdf}
-                    disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#3e5e66] text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
-                    title="Baixar PDF"
-                  >
-                    {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} className="text-[#facc15]" />}
-                    BAIXAR PDF
-                  </button>
-                </>
-              )}
-              {needsProcessing && (
-                <button
-                  onClick={() => processAndPreview()}
-                  disabled={isProcessing}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-none text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                  title="Gerar PDF/Prévia"
-                >
-                  {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  GERAR DOCUMENTO
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="relative group">
-            <div 
-              className="w-full h-[750px] bg-[#1A1B1E] border border-[#2c2e33] rounded-none shadow-inner-lg overflow-hidden relative"
+      {/* Main Content: Management & Viewer */}
+      <div className="flex-1 flex flex-col gap-4 min-w-0 h-full overflow-hidden">
+        <AnimatePresence mode="wait">
+          {isManaging ? (
+            <motion.div
+              key="management"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-amber-50/50 p-5 rounded-3xl border border-amber-100 shadow-sm shrink-0"
             >
-              <div 
-                ref={previewRef} 
-                className="w-full h-full" 
-                style={{ display: processedDocBuffer ? 'block' : 'block', visibility: processedDocBuffer ? 'visible' : 'hidden', position: processedDocBuffer ? 'relative' : 'absolute' }}
-              />
-
-              {!processedDocBuffer && !isProcessing && (
-                <div 
-                  className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center text-center p-8 text-gray-500 font-bold uppercase tracking-widest text-xs"
-                  dangerouslySetInnerHTML={{ __html: previewHtml || 'Selecione um template para visualizar' }}
-                />
-              )}
-            </div>
-            {isProcessing && (
-              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-none pointer-events-none">
-                <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                    <FileUp size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">
+                      Configurar Modelo
+                    </h4>
+                    <p className="text-[8px] font-bold text-amber-600 uppercase tracking-widest">
+                      {selectedTemplate.replace('PSS assignment letter_', '')}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsManaging(false)} 
+                  className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-red-500 shadow-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2 relative">
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full h-24 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl transition-all ${
+                      file ? 'bg-white border-emerald-300 text-emerald-700 shadow-inner' : 'bg-white border-gray-200 text-gray-400 hover:border-amber-300'
+                    }`}
+                  >
+                    <FileUp size={24} className={file ? 'text-emerald-500' : ''} />
+                    <span className="font-black uppercase text-[9px] tracking-[0.2em] px-4 truncate w-full text-center">{file ? file.name : 'Selecionar Novo DOCX'}</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col justify-between gap-2">
+                  {isAdmin && (
+                    <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 cursor-pointer hover:bg-amber-50 transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={saveAsGlobal} 
+                        onChange={e => setSaveAsGlobal(e.target.checked)}
+                        className="w-4 h-4 accent-amber-600"
+                      />
+                      <span className="text-[9px] font-black text-gray-600 uppercase tracking-tight">Definir como GLOBAL</span>
+                    </label>
+                  )}
+                  <button
+                    onClick={saveTemplate}
+                    disabled={!file || isSaving}
+                    className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
+                    {isSaving ? 'SALVANDO...' : 'SALVAR MODELO'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
+        {/* Viewer Section */}
+        <div className="flex-1 bg-white border border-gray-100 rounded-3xl shadow-inner relative overflow-hidden flex flex-col">
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Visualização do Documento</span>
+          </div>
+          
+          <div className="flex-1 w-full bg-[#1A1B1E] relative overflow-hidden">
+            <div 
+              ref={previewRef} 
+              className="w-full h-full" 
+              style={{ visibility: processedDocBuffer ? 'visible' : 'hidden' }}
+            />
+
+            {!processedDocBuffer && !isProcessing && (
+              <div 
+                className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center text-center p-8 text-gray-400 font-bold uppercase tracking-widest text-[10px]"
+                dangerouslySetInnerHTML={{ __html: previewHtml || 'Clique em "Gerar Carta" para visualizar' }}
+              />
             )}
-            {status === 'error' && (
-              <div className="absolute top-4 right-4 bg-red-50 p-3 rounded-none border border-red-100 flex items-center space-x-2 text-red-700 shadow-lg">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span className="text-[10px] font-bold uppercase">Erro no documento</span>
+
+            {isProcessing && (
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 border-4 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-white font-black text-[10px] uppercase tracking-[0.2em]">Processando...</span>
+                </div>
               </div>
             )}
           </div>
-
-          <p className="text-[9px] text-gray-400 text-center italic">
-            * As substituições são automáticas. Use marcadores no formato [TAG] nos arquivos Word. Por exemplo: [NOME], [DATA], [ASSINATURA]. Para negrito, formate o marcador como negrito no Word.
-          </p>
         </div>
       </div>
 
@@ -1330,37 +1253,30 @@ export default function PSSAssignmentLetters({
           height: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f1f1;
+          background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #d1d5db;
+          background: #e2e8f0;
           border-radius: 10px;
         }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
         
-        /* DocMentis Modal Print Fix */
-        .udoc-modal-footer button {
-          position: relative;
+        .udoc-viewer-container {
+          border-radius: 0 !important;
+          height: 100% !important;
         }
-        .udoc-modal-footer button:after {
-          content: attr(title);
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #333;
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 10px;
-          white-space: nowrap;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.2s;
-          margin-bottom: 5px;
-          z-index: 9999;
+        .udoc-pages {
+          background-color: transparent !important;
+          padding: 1.5rem !important;
+          height: 100% !important;
+          overflow-y: auto !important;
         }
-        .udoc-modal-footer button:hover:after {
-          opacity: 1;
+        .udoc-page {
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
+          margin: 0 auto 1.5rem auto !important;
+          max-width: 100% !important;
         }
       `}</style>
     </div>

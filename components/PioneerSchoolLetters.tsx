@@ -962,55 +962,56 @@ export default function PioneerSchoolLetters({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-6">
-        <div className="bg-gray-50 p-6 rounded-none border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-emerald-50 text-emerald-700 px-4 py-2 rounded-none border border-emerald-100">
-              <Mail size={20} />
-              Selecione o Modelo de Carta
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px]">
+      {/* Sidebar: Selection & Settings Toggle */}
+      <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-black text-gray-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
+              <Mail size={14} className="text-emerald-600" />
+              Modelos
             </h3>
             
             {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                className={`p-1.5 rounded-xl transition-all ${
                   isManaging 
-                    ? 'bg-amber-500 text-white border-amber-400' 
-                    : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
+                    : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
                 }`}
+                title="Configurar Templates"
               >
-                <Settings2 size={14} />
-                {isManaging ? 'Fechar Gerenciador' : 'Gerenciar Templates'}
+                <Settings2 size={16} />
               </button>
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-2">
             {ESP_TEMPLATES.map(template => (
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
-                className={`flex items-center gap-4 p-4 transition-all border-2 rounded-none h-24 text-left ${
+                className={`flex items-center gap-3 px-3 py-2.5 transition-all border rounded-2xl text-left group relative overflow-hidden ${
                    selectedTemplate === template.id
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xl scale-[1.02]'
-                    : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md scale-[1.02]'
+                    : 'bg-gray-50/50 text-gray-600 border-gray-100 hover:border-emerald-200 hover:bg-white'
                 }`}
               >
-                <div className={`p-3 rounded-none transition-colors shrink-0 ${selectedTemplate === template.id ? 'bg-white/20' : 'bg-emerald-50'}`}>
-                  <Mail size={24} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-600'} />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${selectedTemplate === template.id ? 'bg-white/20' : 'bg-emerald-100/50'}`}>
+                  <Mail size={16} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-600'} />
                 </div>
-                <div className="flex-1 space-y-1 overflow-hidden">
-                  <span className="block font-black uppercase tracking-tight text-sm leading-tight truncate">{template.name}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="block font-black uppercase tracking-tight text-[10px] leading-tight truncate">{template.name}</span>
                   {templates[template.id] ? (
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 size={12} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />
-                      <span className={`text-[8px] font-black uppercase tracking-widest ${selectedTemplate === template.id ? 'text-white/80' : 'text-gray-400'}`}>
-                        {templates[template.id].isPrivate ? 'SEU MODELO' : 'GLOBAL'}
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <CheckCircle2 size={8} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />
+                      <span className={`text-[6px] font-black uppercase tracking-widest ${selectedTemplate === template.id ? 'text-white/80' : 'text-gray-400'}`}>
+                        {templates[template.id].isPrivate ? 'PRIVADO' : 'GLOBAL'}
                       </span>
                     </div>
                   ) : (
-                    <span className="text-[8px] font-black uppercase tracking-widest text-red-500">
+                    <span className="text-[6px] font-black uppercase tracking-widest text-red-500 leading-none mt-1 block">
                       Não configurado
                     </span>
                   )}
@@ -1020,147 +1021,123 @@ export default function PioneerSchoolLetters({
           </div>
         </div>
 
-        {isManaging && canManage && (
-          <div className="bg-amber-50 p-6 rounded-none border border-amber-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
-                <FileUp size={16} />
-                Gerenciar Modelo: {ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
-              </h4>
-              <button onClick={() => setIsManaging(false)} className="text-amber-400 hover:text-amber-600 transition-colors">
-                <Trash2 size={16} />
+        {/* Quick Actions Panel */}
+        {status === 'success' && !isProcessing && (
+          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Ações do Documento</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={downloadAsDocx}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-emerald-700 rounded-2xl border border-gray-100 hover:bg-emerald-50 hover:border-emerald-200 transition-all group"
+              >
+                <FileDown size={18} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">DOCX</span>
               </button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                {isAdmin && (
-                  <div className="flex items-center justify-between p-3 bg-white rounded-none border border-amber-100">
-                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Salvar para todos?</span>
-                    <button
-                      onClick={() => setSaveAsGlobal(!saveAsGlobal)}
-                      className={`w-10 h-5 rounded-full transition-all relative ${saveAsGlobal ? 'bg-emerald-500' : 'bg-gray-300'}`}
-                    >
-                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-none transition-all ${saveAsGlobal ? 'left-6' : 'left-1'}`} />
-                    </button>
-                  </div>
-                )}
+              <button
+                onClick={downloadAsPdf}
+                disabled={generating}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all group disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform" />}
+                <span className="text-[8px] font-black uppercase tracking-tighter">PDF</span>
+              </button>
 
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-full flex flex-col items-center justify-center p-6 rounded-none text-[10px] font-black uppercase tracking-tighter border-2 border-dashed transition-all ${
-                    file ? 'bg-white text-emerald-700 border-emerald-300 shadow-inner' : 'bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600'
-                  }`}
-                >
-                  <FileUp size={24} className={file ? 'text-emerald-500' : 'text-gray-300'} />
-                  <span className="mt-2 truncate max-w-full">{file ? file.name : 'CARREGAR NOVO MODELO DOCX'}</span>
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {file && (
-                  <div className="space-y-3">
-                    {missingTags.length > 0 ? (
-                      <div className="p-3 bg-red-50 border border-red-100 rounded-none space-y-1">
-                        <p className="text-[9px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1">
-                          <AlertCircle size={12} /> Marcadores Faltantes
-                        </p>
-                        <p className="text-[8px] font-bold text-red-500 leading-tight">
-                          Recomendado: {missingTags.join(', ')}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-none space-y-1">
-                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Status: OK
-                        </p>
-                        <p className="text-[8px] font-bold text-emerald-500 leading-tight">Documento validado!</p>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={saveTemplate}
-                      disabled={isSaving}
-                      className={`w-full py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${
-                        saveStatus === 'success' ? 'bg-green-600 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      } disabled:opacity-50`}
-                    >
-                      {isSaving ? <RefreshCw className="animate-spin" size={14} /> : saveStatus === 'success' ? <CheckCircle2 size={14} /> : <Save size={14} />}
-                      {isSaving ? 'SALVANDO...' : saveStatus === 'success' ? 'SALVO!' : 'SALVAR MODELO'}
-                    </button>
-                    
-                    {!file && templates[selectedTemplate]?.isPrivate && (
-                      <button
-                        onClick={deletePrivateTemplate}
-                        disabled={isSaving}
-                        className="w-full py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
-                      >
-                        {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <Trash2 size={14} />}
-                        {isSaving ? 'EXCLUINDO...' : 'EXCLUIR MINHA VERSÃO'}
-                      </button>
-                    )}
-                    
-                    {saveStatus === 'error' && (
-                      <p className="text-[9px] text-red-500 font-bold text-center uppercase">{errorMessage || 'Erro ao salvar'}</p>
-                    )}
-                  </div>
-                )}
-                {!file && (
-                  <div className="h-full flex flex-col items-center justify-center p-4 bg-white/50 rounded-none border border-amber-50">
-                    <p className="text-[9px] text-amber-600 font-black text-center uppercase tracking-widest leading-relaxed">
-                      Selecione um arquivo .docx para atualizar o modelo <br/> deste documento no servidor.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => viewerRef.current?.print()}
+                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-gray-900 text-white rounded-2xl shadow-lg shadow-black/20 hover:bg-black transition-all font-black text-[10px] uppercase tracking-widest"
+              >
+                <Printer size={16} />
+                Imprimir Agora
+              </button>
             </div>
           </div>
         )}
+      </div>
 
-        {/* Preview Section */}
-        <div className="flex flex-col space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="bg-emerald-600 p-3 rounded-none text-white">
-                <FileText size={24} />
+      {/* Main Content: Management & Viewer */}
+      <div className="flex-1 flex flex-col gap-4 min-w-0 h-full overflow-hidden">
+        <AnimatePresence mode="wait">
+          {isManaging ? (
+            <motion.div
+              key="management"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-emerald-50/50 p-5 rounded-3xl border border-emerald-100 shadow-sm shrink-0"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <FileUp size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">
+                      Configurar Template
+                    </h4>
+                    <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">
+                      {ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsManaging(false)} 
+                  className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-red-500 shadow-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <div>
-                <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
-                <p className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-tight bg-emerald-50 px-2 py-0.5 rounded-none border border-emerald-100 w-fit">
-                  {ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
-                </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2 relative">
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full h-24 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl transition-all ${
+                      file ? 'bg-white border-emerald-300 text-emerald-700 shadow-inner' : 'bg-white border-gray-200 text-gray-400 hover:border-emerald-300'
+                    }`}
+                  >
+                    <FileUp size={24} className={file ? 'text-emerald-500' : ''} />
+                    <span className="font-black uppercase text-[9px] tracking-[0.2em] px-4 truncate w-full text-center">{file ? file.name : 'Selecionar Novo DOCX'}</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col justify-between gap-2">
+                  {isAdmin && (
+                    <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 cursor-pointer hover:bg-emerald-50 transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={saveAsGlobal} 
+                        onChange={e => setSaveAsGlobal(e.target.checked)}
+                        className="w-4 h-4 accent-emerald-600"
+                      />
+                      <span className="text-[9px] font-black text-gray-600 uppercase tracking-tight">Definir como GLOBAL</span>
+                    </label>
+                  )}
+                  <button
+                    onClick={saveTemplate}
+                    disabled={!file || isSaving}
+                    className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
+                    {isSaving ? 'SALVANDO...' : 'SALVAR MODELO'}
+                  </button>
+                </div>
               </div>
-            </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-            <div className="flex items-center gap-3">
-              {status === 'success' && !isProcessing && (
-                <>
-                  <button
-                    onClick={downloadAsDocx}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-emerald-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-all font-sans"
-                  >
-                    <FileDown size={14} />
-                    BAIXAR DOCX
-                  </button>
-
-                  <button
-                    onClick={downloadAsPdf}
-                    disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all disabled:opacity-50"
-                  >
-                    {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                    BAIXAR PDF
-                  </button>
-                </>
-              )}
-            </div>
+        {/* Viewer Section */}
+        <div className="flex-1 bg-white border border-gray-100 rounded-3xl shadow-inner relative overflow-hidden flex flex-col">
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Prévia em Tempo Real</span>
           </div>
-
+          
           <div 
             ref={previewRef} 
-            className="w-full bg-white border border-gray-200 rounded-none overflow-hidden"
-            style={{ height: '800px' }}
+            className="flex-1 w-full overflow-hidden"
           />
         </div>
       </div>
@@ -1168,14 +1145,31 @@ export default function PioneerSchoolLetters({
       <style jsx global>{`
         .udoc-viewer-container {
           border-radius: 0 !important;
+          height: 100% !important;
         }
         .udoc-pages {
-          background-color: #f3f4f6 !important;
-          padding: 2rem !important;
+          background-color: #f8fafc !important;
+          padding: 1.5rem !important;
+          height: 100% !important;
+          overflow-y: auto !important;
         }
         .udoc-page {
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-          margin-bottom: 2rem !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+          margin: 0 auto 1.5rem auto !important;
+          max-width: 100% !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
         }
       `}</style>
     </div>

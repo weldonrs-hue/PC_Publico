@@ -68,39 +68,40 @@ export default function CartasDashboard({ onViewChange }: CartasDashboardProps) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {cards.map((card, index) => (
           <motion.div
             key={card.id}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: index * 0.05 }}
             onClick={() => !card.inactive && onViewChange(card.view)}
-            className={`relative group ${card.inactive ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
+            className={`relative group h-16 ${card.inactive ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
           >
-            {/* Static Background Glow */}
-            <div 
-              className="absolute -inset-0.5 blur-md opacity-10 group-hover:opacity-30 transition-opacity duration-500 rounded-[2rem]"
-              style={{ backgroundColor: card.color }}
-            />
+            {/* Background Glow */}
+            {!card.inactive && (
+              <div 
+                className="absolute -inset-0.5 blur-md opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-3xl"
+                style={{ backgroundColor: card.color }}
+              />
+            )}
             
-            <div className="relative flex bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:border-transparent transition-all duration-300 h-28 group">
-              {/* Vibrant Vertical Accent */}
-              <div className={`w-2 h-full bg-gradient-to-b ${card.gradient}`}></div>
+            <div className="relative flex bg-white rounded-[24px] overflow-hidden shadow-sm border border-gray-200 hover:border-transparent transition-all duration-300 h-full group">
+              <div className={`w-1.5 h-full bg-gradient-to-b ${card.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
               
-              <div className="flex-1 flex items-center px-6 gap-5">
+              <div className="flex-1 flex items-center px-3 gap-3">
                 <div 
-                   className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 bg-gradient-to-br ${card.gradient} ${!card.inactive && 'group-hover:scale-110 group-hover:rotate-3'}`}
+                   className={`w-10 h-10 rounded-[14px] flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 bg-gradient-to-br ${card.gradient} ${!card.inactive && 'group-hover:scale-105 group-hover:rotate-2'}`}
                 >
-                  <card.icon size={30} strokeWidth={2.5} className="text-white drop-shadow-md" />
+                  <card.icon size={22} strokeWidth={2.5} className="text-white drop-shadow-md" />
                 </div>
 
                 <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
-                  <div className="font-black text-[13px] md:text-sm leading-tight text-gray-900 uppercase truncate mb-1 group-hover:text-black transition-colors">
+                  <div className="font-black text-[11px] leading-tight text-gray-900 uppercase truncate mb-0 transition-colors">
                     {card.title}
                   </div>
                   
-                  <p className="text-[9px] font-bold text-gray-500 uppercase tracking-tighter line-clamp-2">
+                  <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity line-clamp-1">
                     {card.inactive ? 'EM DESENVOLVIMENTO' : card.description}
                   </p>
                 </div>

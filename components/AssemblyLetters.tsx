@@ -16,7 +16,8 @@ import {
   X,
   FileUp,
   AlertCircle,
-  Printer
+  Printer,
+  ChevronDown
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { 
@@ -67,6 +68,13 @@ export default function AssemblyLetters({
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+  const [needsProcessing, setNeedsProcessing] = useState(true);
+  
+  // Event selection state
+  const [availableAssemblies, setAvailableAssemblies] = useState<any[]>([]);
+  const [selectedAssemblyId, setSelectedAssemblyId] = useState<string>('');
+  const [assemblyData, setAssemblyData] = useState<any>(null);
+  const [userSpeakerData, setUserSpeakerData] = useState<any>(null);
   
   // Management state
   const [isManaging, setIsManaging] = useState(initialMode === 'manager' && (isAdmin || canManage));
@@ -79,6 +87,56 @@ export default function AssemblyLetters({
   const viewerRef = useRef<any>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch available assemblies
+  useEffect(() => {
+    const fetchAssemblies = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'assembly_programs'));
+        const programs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setAvailableAssemblies(programs);
+        if (programs.length > 0) {
+          setSelectedAssemblyId(programs[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching assemblies:', error);
+      }
+    };
+    fetchAssemblies();
+  }, []);
+
+  // Fetch selected assembly data and user speaker data
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!selectedAssemblyId) return;
+      
+      try {
+        // Get program details
+        const programSnap = await getDoc(doc(db, 'assembly_programs', selectedAssemblyId));
+        if (programSnap.exists()) {
+          setAssemblyData(programSnap.data());
+        }
+
+        // Get user's speaker assignments for this assembly
+        const [year, type] = selectedAssemblyId.split('_');
+        const collectionName = type === 'supt' ? 'circuit_assembly_supt_speakers' : 'circuit_assembly_branch_speakers';
+        const docId = year === '2026-2027' ? userId : `${userId}_${year}`;
+        
+        const speakersSnap = await getDoc(doc(db, collectionName, docId));
+        if (speakersSnap.exists()) {
+          setUserSpeakerData(speakersSnap.data());
+        } else {
+          setUserSpeakerData(null);
+        }
+      } catch (error) {
+        console.error('Error fetching assembly details:', error);
+      }
+    };
+    fetchData();
+  }, [selectedAssemblyId, userId]);
 
   // Initialize viewer once
   useEffect(() => {
@@ -234,17 +292,30 @@ export default function AssemblyLetters({
     fetchData();
   }, [userId]);
 
-  // Auto-load template when selectedTemplate or templates changes
+  // Auto-load raw template when selectedTemplate or templates changes
   useEffect(() => {
-    if (localFileBuffer) {
-      processAndPreview(localFileBuffer);
-    } else if (templates[selectedTemplate]) {
-      processAndPreview();
-    } else {
-      setProcessedDocBuffer(null);
-      setStatus('idle');
-    }
-  }, [selectedTemplate, templates, localFileBuffer, personalData]);
+    const loadRaw = async () => {
+      if (localFileBuffer) {
+        setProcessedDocBuffer(localFileBuffer);
+        setStatus('success');
+      } else if (templates[selectedTemplate]) {
+        const template = templates[selectedTemplate];
+        const binaryString = window.atob(template.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        setProcessedDocBuffer(bytes.buffer);
+        setStatus('success');
+      } else {
+        setProcessedDocBuffer(null);
+        setStatus('idle');
+      }
+      setNeedsProcessing(true);
+    };
+    
+    loadRaw();
+  }, [selectedTemplate, templates, localFileBuffer]);
 
   const getReplacements = (signatureImage: string) => {
     const now = new Date();
@@ -262,24 +333,27 @@ export default function AssemblyLetters({
     const isPresident = selectedTemplate === 'ass_convite_presidente';
     const isPrayer = selectedTemplate === 'ass_convite_oracao';
 
+    const firstPart = userSpeakerData?.parts?.[0] || userSpeakerData?.parts?.['0'];
+    const details = firstPart?.details;
+
     const replacements = {
-      'EVENTO': 'Programa da Assembleia de Circuito de 2027 — com o Superintendente de Circuito',
-      'TEMA': '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20',
-      'DATA': hoje,
-      'LOCAL': '________________',
+      'EVENTO': assemblyData?.title || 'Programa da Assembleia de Circuito — com o Superintendente de Circuito',
+      'TEMA': details?.assemblyTheme || assemblyData?.theme || '“Feliz É Aquele Que Confia em Jeová” — Provérbios 16:20',
+      'DATA': details?.eventDate || hoje,
+      'LOCAL': details?.eventLocation || '________________',
       'ORADOR': '________________',
-      'D_ENSAIO': '________________',
-      'L_ENSAIO': '________________',
-      'DATA_ENSAIO': '________________',
-      'LOCAL_ENSAIO': '________________',
-      'DATAHORA': '________________',
-      'LOCALTREINO': '________________',
+      'D_ENSAIO': details?.rehearsalDate || '________________',
+      'L_ENSAIO': details?.rehearsalLocation || '________________',
+      'DATA_ENSAIO': details?.rehearsalDate || '________________',
+      'LOCAL_ENSAIO': details?.rehearsalLocation || '________________',
+      'DATAHORA': details?.eventDate || '________________',
+      'LOCALTREINO': details?.rehearsalLocation || '________________',
       'HORA': '________________',
       'N': '________________',
       'TITULO': isAssistant ? 'ASSISTENTE DA ASSEMBLEIA' : '________________',
       'DESIGNAÇÃO': isAssistant ? 'ASSISTENTE DA ASSEMBLEIA' : isPresident ? 'PRESIDENTE DE SESSÃO' : isPrayer ? 'ORAÇÃO' : '________________',
       'DESIGNACAO': isAssistant ? 'ASSISTENTE DA ASSEMBLEIA' : isPresident ? 'PRESIDENTE DE SESSÃO' : isPrayer ? 'ORAÇÃO' : '________________',
-      'ANO': '2026',
+      'ANO': selectedAssemblyId.split('_')[0] || '2027',
       'data': hoje,
       'HOJE': hoje,
       'orador': '________________',
@@ -412,6 +486,7 @@ export default function AssemblyLetters({
       });
       setProcessedDocBuffer(outReal);
       setStatus('success');
+      setNeedsProcessing(false);
     } catch (err: any) {
       console.error('Error processing DOCX:', err);
       setStatus('error');
@@ -533,51 +608,80 @@ export default function AssemblyLetters({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-6">
-        <div className="bg-gray-50 p-6 rounded-none border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-extrabold text-gray-900 flex items-center gap-3 text-sm uppercase tracking-widest bg-amber-50 text-amber-700 px-4 py-2 rounded-none border border-amber-100">
-              <Mail size={20} />
-              Selecione o Modelo de Carta
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px]">
+      {/* Sidebar: Selection & Settings Toggle */}
+      <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-black text-gray-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
+              <Mail size={14} className="text-amber-600" />
+              Modelos
             </h3>
             
             {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                className={`p-2 rounded-xl transition-all shadow-sm ${
                   isManaging 
-                    ? 'bg-amber-600 text-white border-amber-500' 
-                    : 'bg-white text-amber-600 border-amber-100 hover:bg-amber-50'
+                    ? 'bg-amber-600 text-white shadow-amber-200 ring-2 ring-amber-600 ring-offset-2' 
+                    : 'bg-amber-100 text-amber-600 hover:bg-amber-200'
                 }`}
+                title="Configurar Templates"
               >
-                <Settings2 size={14} />
-                {isManaging ? 'Fechar Gerenciador' : 'Gerenciar Templates'}
+                <Settings2 size={18} />
               </button>
             )}
           </div>
+
+          {/* Event Selector */}
+          <div className="px-1 space-y-1.5">
+            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Vincular Evento</label>
+            <div className="relative group">
+              <select
+                value={selectedAssemblyId}
+                onChange={(e) => setSelectedAssemblyId(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2.5 text-[10px] font-black text-gray-700 outline-none focus:border-amber-500 transition-all appearance-none cursor-pointer"
+              >
+                {availableAssemblies.map(assembly => (
+                  <option key={assembly.id} value={assembly.id}>
+                    {assembly.title || assembly.id}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-amber-600 transition-colors">
+                <ChevronDown size={14} />
+              </div>
+            </div>
+            {assemblyData && (
+              <div className="bg-amber-50/50 p-2 rounded-xl border border-amber-100/50">
+                <p className="text-[8px] font-bold text-amber-600 uppercase tracking-tighter truncate leading-tight">
+                  {assemblyData.theme || 'Sem Tema Definido'}
+                </p>
+              </div>
+            )}
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          <div className="flex flex-col gap-2">
             {ASSEMBLEIA_TEMPLATES.map(t => (
               <button
                 key={t.id}
                 onClick={() => setSelectedTemplate(t.id)}
-                className={`flex items-center gap-4 p-4 transition-all border-2 rounded-none h-24 text-left ${
+                className={`flex items-center gap-3 px-3 py-2.5 transition-all border rounded-2xl text-left group relative overflow-hidden ${
                    selectedTemplate === t.id
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-xl scale-[1.02]'
-                    : 'bg-white text-gray-600 border-gray-100 hover:border-amber-200 hover:bg-amber-50'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-md scale-[1.02]'
+                    : 'bg-gray-50/50 text-gray-600 border-gray-100 hover:border-amber-200 hover:bg-white'
                 }`}
               >
-                <div className={`p-3 rounded-none transition-colors shrink-0 ${selectedTemplate === t.id ? 'bg-white/20' : 'bg-amber-50'}`}>
-                  <Mail size={24} className={selectedTemplate === t.id ? 'text-white' : 'text-amber-600'} />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${selectedTemplate === t.id ? 'bg-white/20' : 'bg-amber-100/50'}`}>
+                  <Mail size={16} className={selectedTemplate === t.id ? 'text-white' : 'text-amber-600'} />
                 </div>
-                <div className="flex-1 space-y-1 overflow-hidden">
-                  <span className="block font-black uppercase tracking-tight text-[11px] leading-tight truncate">{t.name}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="block font-black uppercase tracking-tight text-[10px] leading-tight truncate">{t.name}</span>
                   {templates[t.id] && (
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 size={12} className={selectedTemplate === t.id ? 'text-white' : 'text-emerald-500'} />
-                      <span className={`text-[8px] font-black uppercase tracking-widest ${selectedTemplate === t.id ? 'text-white/80' : 'text-gray-400'}`}>
-                        {templates[t.id].isPrivate ? 'SEU MODELO' : 'GLOBAL'}
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <CheckCircle2 size={8} className={selectedTemplate === t.id ? 'text-white' : 'text-emerald-500'} />
+                      <span className={`text-[6px] font-black uppercase tracking-widest ${selectedTemplate === t.id ? 'text-white/80' : 'text-gray-400'}`}>
+                        {templates[t.id].isPrivate ? 'PRIVADO' : 'GLOBAL'}
                       </span>
                     </div>
                   )}
@@ -587,119 +691,134 @@ export default function AssemblyLetters({
           </div>
         </div>
 
-        <AnimatePresence>
-          {isManaging && (
+        {needsProcessing && (
+          <button
+            onClick={() => processAndPreview()}
+            disabled={isProcessing}
+            className="w-full flex items-center justify-center gap-3 p-4 bg-amber-600 text-white rounded-3xl shadow-xl shadow-amber-200 hover:bg-amber-700 active:scale-[0.98] transition-all disabled:opacity-50 font-black text-[10px] uppercase tracking-widest"
+          >
+            {isProcessing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            Gerar Carta Agora
+          </button>
+        )}
+
+        {/* Quick Actions Panel */}
+        {status === 'success' && !isProcessing && (
+          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Ações do Documento</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={downloadAsDocx}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-amber-700 rounded-2xl border border-gray-100 hover:bg-amber-50 hover:border-amber-200 transition-all group"
+              >
+                <FileDown size={18} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[8px] font-black uppercase tracking-tighter">DOCX</span>
+              </button>
+
+              <button
+                onClick={downloadAsPdf}
+                disabled={generating}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-amber-700 rounded-2xl border border-gray-100 hover:bg-amber-50 hover:border-amber-200 transition-all group disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform" />}
+                <span className="text-[8px] font-black uppercase tracking-tighter">PDF</span>
+              </button>
+
+              <button
+                onClick={() => viewerRef.current?.print()}
+                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-amber-600 text-white rounded-2xl shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all font-black text-[10px] uppercase tracking-widest"
+              >
+                <Printer size={16} />
+                Imprimir Agora
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content: Management & Viewer */}
+      <div className="flex-1 flex flex-col gap-4 min-w-0 h-full overflow-hidden">
+        <AnimatePresence mode="wait">
+          {isManaging ? (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
+              key="management"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-amber-50/50 p-5 rounded-3xl border border-amber-100 shadow-sm shrink-0"
             >
-              <div className="bg-amber-50 p-6 rounded-none border border-amber-200 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
-                    <FileUp size={16} />
-                    Gerenciar Modelo: {ASSEMBLEIA_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
-                  </h4>
-                  <button onClick={() => setIsManaging(false)} className="text-amber-400 hover:text-amber-600">
-                    <X size={20} />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    {isAdmin && (
-                      <div className="flex items-center justify-between p-4 bg-white border border-amber-100">
-                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Tornar este modelo GLOBAL?</span>
-                        <input 
-                          type="checkbox" 
-                          checked={saveAsGlobal} 
-                          onChange={e => setSaveAsGlobal(e.target.checked)}
-                          className="w-5 h-5 accent-emerald-500"
-                        />
-                      </div>
-                    )}
-
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`w-full flex flex-col items-center justify-center p-10 border-2 border-dashed transition-all ${
-                        file ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-white border-gray-200 text-gray-400 hover:border-amber-300'
-                      }`}
-                    >
-                      <FileUp size={32} />
-                      <span className="mt-4 font-black uppercase text-xs tracking-widest">{file ? file.name : 'CARREGAR NOVO MODELO DOCX'}</span>
-                    </button>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                    <FileUp size={20} />
                   </div>
-
-                  <div className="flex flex-col justify-center">
-                    <button
-                      onClick={saveTemplate}
-                      disabled={!file || isSaving}
-                      className="w-full h-16 bg-amber-600 text-white font-black uppercase tracking-widest disabled:opacity-50 hover:bg-amber-700 shadow-lg"
-                    >
-                      {isSaving ? 'SALVANDO...' : 'ATUALIZAR MODELO'}
-                    </button>
-                    <p className="mt-4 text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-loose">
-                      * Certifique-se de que o arquivo DOCX contém marcadores como [NOME], [CIRCUITO], [DATA], etc.
+                  <div>
+                    <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">
+                      Configurar Template
+                    </h4>
+                    <p className="text-[8px] font-bold text-amber-600 uppercase tracking-widest">
+                      {ASSEMBLEIA_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
                     </p>
                   </div>
                 </div>
+                <button 
+                  onClick={() => setIsManaging(false)} 
+                  className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-red-500 shadow-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2 relative">
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".docx" className="hidden" />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full h-24 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl transition-all ${
+                      file ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-white border-gray-200 text-gray-400 hover:border-amber-300'
+                    }`}
+                  >
+                    <FileUp size={24} className={file ? 'text-emerald-500' : ''} />
+                    <span className="font-black uppercase text-[9px] tracking-[0.2em]">{file ? file.name : 'Selecionar Novo DOCX'}</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col justify-between gap-2">
+                  {isAdmin && (
+                    <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 cursor-pointer hover:bg-amber-50 transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={saveAsGlobal} 
+                        onChange={e => setSaveAsGlobal(e.target.checked)}
+                        className="w-4 h-4 accent-amber-600"
+                      />
+                      <span className="text-[9px] font-black text-gray-600 uppercase tracking-tight">Definir como GLOBAL</span>
+                    </label>
+                  )}
+                  <button
+                    onClick={saveTemplate}
+                    disabled={!file || isSaving}
+                    className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                    {isSaving ? 'SALVANDO...' : 'SALVAR MODELO'}
+                  </button>
+                </div>
               </div>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
 
-        <div className="flex flex-col space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="bg-amber-600 p-3 rounded-none text-white">
-                <FileText size={24} />
-              </div>
-              <div>
-                <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none mb-1">Carga e Prévia</h3>
-                <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-tight bg-amber-50 px-2 py-0.5 rounded-none border border-amber-100 w-fit">
-                  {ASSEMBLEIA_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {status === 'success' && !isProcessing && (
-                <>
-                  <button
-                    onClick={downloadAsDocx}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-amber-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-amber-100 hover:bg-amber-100 transition-all font-sans"
-                  >
-                    <FileDown size={14} />
-                    BAIXAR DOCX
-                  </button>
-
-                  <button
-                    onClick={downloadAsPdf}
-                    disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-amber-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-amber-100 hover:bg-amber-100 transition-all font-sans"
-                  >
-                    {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                    BAIXAR PDF
-                  </button>
-
-                  <button
-                    onClick={() => viewerRef.current?.print()}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-none text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-amber-700 transition-all"
-                  >
-                    <Printer size={14} />
-                    IMPRIMIR
-                  </button>
-                </>
-              )}
-            </div>
+        {/* Viewer Section */}
+        <div className="flex-1 bg-white border border-gray-100 rounded-3xl shadow-inner relative overflow-hidden flex flex-col">
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Prévia em Tempo Real</span>
           </div>
-
+          
           <div 
             ref={previewRef} 
-            className="w-full bg-white border border-gray-200 rounded-none overflow-hidden"
-            style={{ height: '800px' }}
+            className="flex-1 w-full overflow-hidden"
           />
         </div>
       </div>
@@ -707,14 +826,31 @@ export default function AssemblyLetters({
       <style jsx global>{`
         .udoc-viewer-container {
           border-radius: 0 !important;
+          height: 100% !important;
         }
         .udoc-pages {
-          background-color: #f3f4f6 !important;
-          padding: 2rem !important;
+          background-color: #f8fafc !important;
+          padding: 1.5rem !important;
+          height: 100% !important;
+          overflow-y: auto !important;
         }
         .udoc-page {
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-          margin-bottom: 2rem !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+          margin: 0 auto 1.5rem auto !important;
+          max-width: 100% !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
         }
       `}</style>
     </div>
