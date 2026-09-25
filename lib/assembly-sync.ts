@@ -281,7 +281,8 @@ function extractProgramStructure(root: any): { period: string; items: AssemblyIt
   if (currentSeries) currentItems.push(currentSeries);
   if (currentPeriod && currentItems.length > 0) sessions.push({ period: currentPeriod, items: currentItems });
   
-    // Garantir que cada sessão tenha o Presidente de Sessão com IDs exclusivos (m0 para Manhã, t0 para Tarde)
+  // Garantir que cada sessão tenha o Presidente de Sessão com IDs exclusivos (m0 para Manhã, t0 para Tarde)
+  return sessions.map((session, sIdx) => {
     const isMorning = session.period.toLowerCase().includes('manhã') || sIdx === 0;
     const expectedId = isMorning ? 'm0' : 't0';
     
