@@ -2,6 +2,7 @@ import 'server-only';
 import { getApps, initializeApp, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 let adminApp: App | null = null;
 let adminAuth: Auth | null = null;
@@ -15,9 +16,13 @@ function getFirebaseAdmin() {
     adminApp = apps[0];
   } else {
     try {
-      adminApp = initializeApp();
-    } catch (error) {
-      console.error('[Firebase Admin] Initialization failed:', error);
+      console.log('[Firebase Admin] Initializing with projectId:', firebaseConfig.projectId);
+      adminApp = initializeApp({
+        projectId: firebaseConfig.projectId,
+      });
+      console.log('[Firebase Admin] Initialization successful');
+    } catch (error: any) {
+      console.error('[Firebase Admin] Initialization failed:', error.message);
       throw new Error('Firebase Admin could not be initialized. Check your credentials.');
     }
   }

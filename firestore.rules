@@ -126,6 +126,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Microsoft OAuth - PROTECTED (Server-side access only via Admin SDK)
+    match /microsoft_connections/{id} {
+      allow read, write: if false;
+    }
+    match /oauth_attempts/{id} {
+      allow read, write: if false;
+    }
+
     // Fallback para outras coleções menores
     match /{document=**} {
       allow read, write: if isSignedIn();

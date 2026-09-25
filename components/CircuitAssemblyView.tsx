@@ -300,13 +300,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       const expectedPresidentId = isMorning ? 'm0' : 't0';
 
       // Localizar qualquer item existente de Presidente de Sessão
-      const presidentIndex = items.findIndex(i => 
-        i.id === expectedPresidentId || 
-        i.id === 'm0' || 
-        i.id === 't0' ||
-        (i.isRole && i.title && i.title.toLowerCase().includes('presidente')) ||
-        (i.title && i.title.toLowerCase().trim() === 'presidente de sessão')
-      );
+      const presidentIndex = items.findIndex(i => {
+        const titleNorm = (i.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return i.id === expectedPresidentId || 
+               i.id === 'm0' || 
+               i.id === 't0' ||
+               (i.isRole && titleNorm.includes('presidente')) ||
+               titleNorm.trim() === 'presidente de sessao';
+      });
 
       if (presidentIndex >= 0) {
         // Garantir ID canônico e único para cada sessão (m0 para Manhã, t0 para Tarde)
@@ -330,10 +331,20 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       // Remover quaisquer duplicatas acidentais do presidente nesta sessão
       let seenPres = false;
       items = items.filter(item => {
-        const isPres = item.id === expectedPresidentId;
+        const itemTitleNorm = (item.title || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const isPres = item.id === expectedPresidentId || 
+                       item.id === 'm0' || 
+                       item.id === 't0' || 
+                       (item.isRole && itemTitleNorm.includes('presidente')) ||
+                       itemTitleNorm.trim() === 'presidente de sessao';
+        
         if (isPres) {
           if (seenPres) return false;
           seenPres = true;
+          // Se for o presidente encontrado, garantimos que tenha o ID correto se já não tiver
+          if (item.id !== expectedPresidentId && (item.id === 'm0' || item.id === 't0' || item.isRole)) {
+             item.id = expectedPresidentId;
+          }
         }
         return true;
       });
@@ -2278,24 +2289,24 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
                         {/* Bottom Event Metadata Strip with Icons */}
                         <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-                          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-                            <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
-                              <CalendarDays size={12} className="text-amber-400 shrink-0" />
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                            <div className="flex items-center gap-2 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <CalendarDays size={13} className="text-amber-400 shrink-0" />
                               <span>{details.eventDate || 'Data a definir'}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[7.5pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
-                              <MapPin size={12} className="text-amber-400 shrink-0" />
+                            <div className="flex items-center gap-2 text-[8pt] font-bold uppercase tracking-wider text-white/95 drop-shadow-sm">
+                              <MapPin size={13} className="text-amber-400 shrink-0" />
                               <span>{details.eventLocation || 'Local a definir'}</span>
                             </div>
                             {details.rehearsalDate && (
-                              <div className="flex items-center gap-1.5 text-[7pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
-                                <Clock size={11} className="text-amber-400/80 shrink-0" />
+                              <div className="flex items-center gap-2 text-[7.5pt] font-bold uppercase tracking-wider text-white/80 drop-shadow-sm">
+                                <Clock size={12} className="text-amber-400/80 shrink-0" />
                                 <span>Ensaio: {details.rehearsalDate}{details.rehearsalLocation ? ` — ${details.rehearsalLocation}` : ''}</span>
                               </div>
                             )}
                             {details.assemblyAssistant && (
-                              <div className="flex items-center gap-1.5 text-[7pt] font-bold uppercase tracking-wider text-amber-200/90 drop-shadow-sm">
-                                <UserCheck size={11} className="text-amber-400 shrink-0" />
+                              <div className="flex items-center gap-2 text-[7.5pt] font-bold uppercase tracking-wider text-amber-200/90 drop-shadow-sm">
+                                <UserCheck size={12} className="text-amber-400 shrink-0" />
                                 <span>Assistente: {details.assemblyAssistant}</span>
                               </div>
                             )}
@@ -2303,10 +2314,10 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
 
                           <button
                             onClick={() => setShowEditDetailsModal(true)}
-                            className="no-print text-[7pt] font-bold text-amber-200 hover:text-white flex items-center gap-1 cursor-pointer bg-white/15 hover:bg-white/25 px-2 py-0.5 rounded-md transition-all ml-auto drop-shadow-sm"
+                            className="no-print text-[8pt] font-black text-amber-200 hover:text-white flex items-center gap-1.5 cursor-pointer bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-all ml-auto drop-shadow-sm border border-white/10 active:scale-95"
                             title="Editar informações e imagem do evento"
                           >
-                            <Edit3 size={10} />
+                            <Edit3 size={12} />
                             <span>Editar</span>
                           </button>
                         </div>
@@ -2396,7 +2407,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                                     placeholder="Nome do orador..."
                                                     value={subSpeaker}
                                                     onChange={e => handleSpeakerChange(sub.id, e.target.value)}
-                                                    className={`w-full text-[8.5pt] font-medium text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!subSpeaker ? 'print:hidden' : ''}`}
+                                                    className={`w-full text-[8.5pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 hover:bg-amber-50/30 px-1 rounded-t-sm outline-none placeholder:text-gray-300 transition-colors ${!subSpeaker ? 'print:hidden' : ''}`}
                                                   />
                                                   {!subSpeaker && (
                                                     <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-600 font-normal">
@@ -2411,7 +2422,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                                     placeholder="Congregação..."
                                                     value={subCong}
                                                     onChange={e => handleCongregationChange(sub.id, e.target.value)}
-                                                    className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!subCong ? 'print:hidden' : ''}`}
+                                                    className={`w-full text-[8pt] text-gray-600 bg-transparent border-b border-gray-100 focus:border-amber-500 hover:bg-amber-50/30 px-1 rounded-t-sm outline-none placeholder:text-gray-300 transition-colors ${!subCong ? 'print:hidden' : ''}`}
                                                   />
                                                   {!subCong && (
                                                     <div className="hidden print:flex items-baseline w-full text-[8pt] text-gray-500 font-normal">
@@ -2428,19 +2439,19 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                           <div className="flex items-center gap-1 shrink-0 no-print mt-1">
                                             <button
                                               onClick={() => handleConfirmationToggle(sub.id)}
-                                              className={`p-1 rounded transition-colors cursor-pointer ${
-                                                isConfirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400 hover:text-gray-600'
+                                              className={`p-1.5 rounded-lg transition-all cursor-pointer shadow-xs active:scale-90 ${
+                                                isConfirmed ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-gray-100 text-gray-400 hover:text-gray-600 hover:bg-gray-200'
                                               }`}
                                               title={isConfirmed ? 'Confirmado' : 'Marcar confirmação'}
                                             >
-                                              <CheckCircle2 size={13} />
+                                              <CheckCircle2 size={14} />
                                             </button>
                                             <button
                                               onClick={() => generateDocument({ ...sub, time: sub.time || currentPart.userTimes?.[sub.id] || '', title: `${item.title}: ${sub.title}` }, 'docx')}
-                                              className="p-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded transition-colors cursor-pointer"
+                                              className="p-1.5 bg-amber-500 text-white hover:bg-amber-600 rounded-lg shadow-xs shadow-amber-200 transition-all cursor-pointer active:scale-90"
                                               title="Gerar Carta de Designação (.docx)"
                                             >
-                                              <FileText size={13} />
+                                              <FileText size={14} />
                                             </button>
                                           </div>
                                         </div>
@@ -2497,7 +2508,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                             placeholder={isRole ? "Nome do Presidente..." : isPrayer ? "Nome do irmão (oração)..." : "Nome do orador..."}
                                             value={speakerName}
                                             onChange={e => handleSpeakerChange(item.id, e.target.value)}
-                                            className={`w-full text-[9pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!speakerName ? 'print:hidden' : ''}`}
+                                            className={`w-full text-[9pt] font-bold text-gray-900 bg-transparent border-b border-gray-200/80 focus:border-amber-500 hover:bg-amber-50/30 px-1 rounded-t-sm outline-none placeholder:text-gray-300 transition-colors ${!speakerName ? 'print:hidden' : ''}`}
                                           />
                                           {!speakerName && (
                                             <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-600 font-normal">
@@ -2514,7 +2525,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                             placeholder="Congregação..."
                                             value={speakerCong}
                                             onChange={e => handleCongregationChange(item.id, e.target.value)}
-                                            className={`w-full text-[8.5pt] text-gray-600 bg-transparent border-b border-gray-200/80 focus:border-amber-500 outline-none placeholder:text-gray-300 ${!speakerCong ? 'print:hidden' : ''}`}
+                                            className={`w-full text-[8.5pt] text-gray-600 bg-transparent border-b border-gray-200/80 focus:border-amber-500 hover:bg-amber-50/30 px-1 rounded-t-sm outline-none placeholder:text-gray-300 transition-colors ${!speakerCong ? 'print:hidden' : ''}`}
                                           />
                                           {!speakerCong && (
                                             <div className="hidden print:flex items-baseline w-full text-[8.5pt] text-gray-500 font-normal">
@@ -2529,22 +2540,22 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                                 </div>
 
                                 {hasSpeaker && (
-                                  <div className="flex items-center gap-1 shrink-0 no-print mt-1">
+                                  <div className="flex items-center gap-1.5 shrink-0 no-print mt-1">
                                     <button
                                       onClick={() => handleConfirmationToggle(item.id)}
-                                      className={`p-1 rounded transition-colors cursor-pointer ${
-                                        isConfirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400 hover:text-gray-600'
+                                      className={`p-1.5 rounded-lg transition-all cursor-pointer shadow-xs active:scale-90 ${
+                                        isConfirmed ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-gray-100 text-gray-400 hover:text-gray-600 hover:bg-gray-200'
                                       }`}
                                       title={isConfirmed ? 'Confirmado' : 'Marcar confirmação'}
                                     >
-                                      <CheckCircle2 size={13} />
+                                      <CheckCircle2 size={14} />
                                     </button>
                                     <button
                                       onClick={() => generateDocument(item, 'docx')}
-                                      className="p-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded transition-colors cursor-pointer"
+                                      className="p-1.5 bg-amber-500 text-white hover:bg-amber-600 rounded-lg shadow-xs shadow-amber-200 transition-all cursor-pointer active:scale-90"
                                       title="Gerar Carta de Designação (.docx)"
                                     >
-                                      <FileText size={13} />
+                                      <FileText size={14} />
                                     </button>
                                   </div>
                                 )}

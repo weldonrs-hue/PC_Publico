@@ -8,6 +8,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    console.log('[Microsoft Connect] Request headers:', Array.from(req.headers.keys()));
+    const authHeader = req.headers.get('Authorization');
+    console.log('[Microsoft Connect] Auth header present:', !!authHeader);
+    
     // 1. Validate Firebase User
     const user = await validateAuth(req);
     if (!user) {

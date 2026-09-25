@@ -16,16 +16,18 @@ export async function validateAuth(req: NextRequest): Promise<AuthUser | null> {
   const authHeader = req.headers.get('Authorization');
 
   if (!authHeader) {
+    console.warn('[validateAuth] No Authorization header found');
     return null;
   }
 
-  // Robustly parse "Bearer <token>"
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+  // Robustly parse "Bearer <token>" case-insensitively
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    console.warn('[validateAuth] Invalid Authorization header format');
     return null;
   }
 
-  const token = parts[1].trim();
+  const token = match[1].trim();
   if (!token) {
     return null;
   }
@@ -35,13 +37,20 @@ export async function validateAuth(req: NextRequest): Promise<AuthUser | null> {
     // verifyIdToken automatically checks for expiration and validity
     const decodedToken = await adminAuth.verifyIdToken(token);
     
+    // Safe logs for debugging
+    console.log('[validateAuth] Token verified successfully:', {
+      uid: decodedToken.uid,
+      aud: decodedToken.aud,
+      iss: decodedToken.iss
+    });
+    
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,
       decodedToken
     };
-  } catch (error) {
-    // Do not log the token itself
+  } catch (error: any) {
+    console.error('[validateAuth] Firebase verifyIdToken failed:', error.code, error.message);
     return null;
   }
 }

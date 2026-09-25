@@ -281,14 +281,14 @@ function extractProgramStructure(root: any): { period: string; items: AssemblyIt
   if (currentSeries) currentItems.push(currentSeries);
   if (currentPeriod && currentItems.length > 0) sessions.push({ period: currentPeriod, items: currentItems });
   
-  // Garantir que cada sessão tenha o Presidente de Sessão com IDs exclusivos (m0 para Manhã, t0 para Tarde)
-  return sessions.map((session, sIdx) => {
+    // Garantir que cada sessão tenha o Presidente de Sessão com IDs exclusivos (m0 para Manhã, t0 para Tarde)
     const isMorning = session.period.toLowerCase().includes('manhã') || sIdx === 0;
     const expectedId = isMorning ? 'm0' : 't0';
-    const presIdx = session.items.findIndex(i => i.isRole || i.title.toLowerCase().includes('presidente') || i.id === 'm0' || i.id === 't0');
+    
+    let items = [...session.items];
+    const presIdx = items.findIndex(i => i.isRole || i.title.toLowerCase().includes('presidente') || i.id === 'm0' || i.id === 't0');
     
     if (presIdx >= 0) {
-      const items = [...session.items];
       items[presIdx] = {
         ...items[presIdx],
         id: expectedId,
@@ -296,16 +296,24 @@ function extractProgramStructure(root: any): { period: string; items: AssemblyIt
         isRole: true,
         noSpeaker: false
       };
-      return { ...session, items };
+    } else {
+      items.unshift({ id: expectedId, time: null, title: 'PRESIDENTE DE SESSÃO', isRole: true, noSpeaker: false });
     }
 
-    return {
-      ...session,
-      items: [
-        { id: expectedId, time: null, title: 'PRESIDENTE DE SESSÃO', isRole: true, noSpeaker: false },
-        ...session.items
-      ]
-    };
+    // Remover quaisquer duplicatas de presidente que possam ter restado com outros IDs
+    let seenPres = false;
+    items = items.filter(item => {
+      const isPres = item.id === expectedId || 
+                    (item.isRole && item.title.toLowerCase().includes('presidente')) || 
+                    item.title.toLowerCase().trim() === 'presidente de sessão';
+      if (isPres) {
+        if (seenPres) return false;
+        seenPres = true;
+      }
+      return true;
+    });
+
+    return { ...session, items };
   });
 }
 
@@ -512,9 +520,20 @@ export function matchPrograms(oldSessions: any[], newSessions: any[]): { session
       });
     }
 
-    // Deduplicate any items that accidentally share IDs
+    // Deduplicate any items that accidentally share IDs or duplicate president roles
     const seenIds = new Set<string>();
+    let seenPres = false;
     finalItems = finalItems.filter(item => {
+      const isPres = item.id === expectedId || 
+                    (item.isRole && item.title.toLowerCase().includes('presidente')) || 
+                    item.title.toLowerCase().trim() === 'presidente de sessão';
+      
+      if (isPres) {
+        if (seenPres) return false;
+        seenPres = true;
+        return true;
+      }
+
       if (seenIds.has(item.id)) return false;
       seenIds.add(item.id);
       return true;
