@@ -95,7 +95,7 @@ export default function Sidebar({
       return ['events', 'regional_convention_program', 'circuit_assembly_supt_program', 'circuit_assembly_branch_program'].includes(currentView) || currentView.startsWith('regional_convention_guest');
     }
     if (itemView === 'misc') {
-      const miscViews = ['misc', 'field_service_report', 'file_viewer', 'weekly_expenses'];
+      const miscViews = ['misc', 'field_service_report', 'file_viewer', 'weekly_expenses', 'inbox'];
       return miscViews.includes(currentView);
     }
     if (itemView === 'cartas') {
@@ -254,6 +254,10 @@ export default function Sidebar({
               Sair
             </span>
           </button>
+
+          <div className="portrait:flex landscape:hidden items-center justify-center px-4 opacity-20 select-none">
+            <span className="text-[8px] font-black tracking-widest">v0.1.1</span>
+          </div>
         </nav>
 
         {/* Right Scroll Arrow (Portrait only) */}
@@ -286,6 +290,9 @@ export default function Sidebar({
               <span className="font-bold text-[10px] lg:text-xs landscape:block lg:block hidden tracking-wide">Finalizar Sessão</span>
             </button>
           </div>
+        </div>
+        <div className="px-6 py-2 text-[9px] text-white/20 font-black uppercase tracking-[0.2em] text-center bg-black/30 border-t border-white/5">
+          v0.1.1
         </div>
       </div>
       {imageToCrop && (

@@ -59,8 +59,12 @@ export default function ImageCropper({
       return '';
     }
 
-    canvas.width = pixelCrop.width;
-    canvas.height = pixelCrop.height;
+    // Optimize: For profile mode, limit maximum resolution and use JPEG compression
+    const finalWidth = isProfileMode ? Math.min(pixelCrop.width, 256) : pixelCrop.width;
+    const finalHeight = isProfileMode ? Math.min(pixelCrop.height, 256) : pixelCrop.height;
+
+    canvas.width = finalWidth;
+    canvas.height = finalHeight;
 
     ctx.drawImage(
       image,
@@ -70,9 +74,14 @@ export default function ImageCropper({
       pixelCrop.height,
       0,
       0,
-      pixelCrop.width,
-      pixelCrop.height
+      finalWidth,
+      finalHeight
     );
+
+    // Use JPEG with 0.6 quality for profile photos to reduce Firestore payload
+    if (isProfileMode) {
+      return canvas.toDataURL('image/jpeg', 0.6);
+    }
 
     return canvas.toDataURL('image/png');
   };

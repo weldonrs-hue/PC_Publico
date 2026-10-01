@@ -287,6 +287,7 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
               <p className="text-[9px] text-gray-400/80 flex items-center justify-center gap-1">
                 <Shield size={10} /> Sistema Seguro e Protegido
               </p>
+              <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.2em] mt-2">v0.1.1</p>
             </div>
           </div>
         </div>

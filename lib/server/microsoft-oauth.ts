@@ -101,7 +101,7 @@ export async function exchangeCodeForTokens(code: string, codeVerifier: string) 
     code_verifier: codeVerifier,
     redirect_uri: REDIRECT_URI!,
     grant_type: 'authorization_code',
-    scope: 'openid email offline_access https://outlook.office.com/SMTP.Send'
+    scope: 'openid email offline_access https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/Mail.ReadWrite'
   });
 
   const response = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
@@ -114,6 +114,35 @@ export async function exchangeCodeForTokens(code: string, codeVerifier: string) 
     const errorData = await response.json();
     console.error('[Microsoft OAuth] Token exchange failed:', errorData);
     throw new Error(`Failed to exchange code for tokens: ${errorData.error_description || errorData.error}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Refreshes the Access Token using a Refresh Token
+ */
+export async function refreshAccessToken(refreshToken: string) {
+  verifyMicrosoftConfig();
+
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID!,
+    client_secret: CLIENT_SECRET!,
+    refresh_token: refreshToken,
+    grant_type: 'refresh_token',
+    scope: 'openid email offline_access https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/Mail.ReadWrite'
+  });
+
+  const response = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error('[Microsoft OAuth] Token refresh failed:', errorData);
+    throw new Error(`Failed to refresh token: ${errorData.error_description || errorData.error}`);
   }
 
   return response.json();

@@ -29,6 +29,7 @@ import {
 } from 'firebase/firestore';
 import { useMemo } from 'react';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 interface Congregation {
   id: string;
@@ -59,6 +60,7 @@ interface SubstitutesViewProps {
 }
 
 export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps) {
+  const { showAlert, showConfirm, showDeleteConfirm } = useDialog();
   const [substitutes, setSubstitutes] = useState<Substitute[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
@@ -162,7 +164,6 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
   const [isEditing, setIsEditing] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Substitute | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   
   const defaultFormData: Substitute = {
     id: '', nome: '', congregacaoId: '', congregacaoNome: '', cidade: '', estado: ''
@@ -206,10 +207,10 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
   const handleDelete = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'substitutes', id));
+      showAlert('Substituto excluído com sucesso.', 'Sucesso');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'substitutes');
     }
-    setShowDeleteConfirm(null);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -314,7 +315,12 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                             <Edit2 size={16} />
                           </button>
                           <button 
-                            onClick={() => setShowDeleteConfirm(sub.id)}
+                            onClick={async () => {
+                              const confirmed = await showDeleteConfirm('Tem certeza que deseja excluir este substituto? Esta ação não pode ser desfeita.', 'Excluir Substituto');
+                              if (confirmed) {
+                                handleDelete(sub.id);
+                              }
+                            }}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Excluir"
                           >
@@ -435,39 +441,6 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-4">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4"
-          >
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-              <Trash2 size={24} />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-bold text-gray-800">Excluir Substituto</h3>
-              <p className="text-gray-600">Tem certeza que deseja excluir este substituto? Esta ação não pode ser desfeita.</p>
-            </div>
-            <div className="flex flex-col gap-2 pt-2">
-              <button 
-                onClick={() => handleDelete(showDeleteConfirm)}
-                className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors"
-              >
-                Confirmar Exclusão
-              </button>
-              <button 
-                onClick={() => setShowDeleteConfirm(null)}
-                className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

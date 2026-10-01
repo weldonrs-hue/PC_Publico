@@ -57,6 +57,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 
 interface Congregation {
   id: string;
@@ -127,6 +128,7 @@ export default function CongregationsView({
   initialCongregation,
   userRole = 'viajante'
 }: CongregationsViewProps) {
+  const { showAlert, showConfirm, showDeleteConfirm } = useDialog();
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [loading, setLoading] = useState(true);
   const isPioneer = userRole === 'pioneiro_especial' || userRole === 'pioneiro_regular';
@@ -206,7 +208,6 @@ export default function CongregationsView({
     details?: string;
     precision?: 'street' | 'neighborhood' | 'postcode' | 'city' | 'unknown';
   } | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -495,10 +496,10 @@ export default function CongregationsView({
   const handleDelete = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'congregations', id));
+      showAlert('Congregação excluída com sucesso.', 'Sucesso');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'congregations');
     }
-    setShowDeleteConfirm(null);
   };
 
   // Helper to split multi-congregation text into distinct blocks
@@ -938,7 +939,7 @@ export default function CongregationsView({
     if (e) e.preventDefault();
     
     if (!formData.nome.trim() || !formData.numero.trim()) {
-      alert('Por favor, preencha ao menos o Nome e o Número da congregação.');
+      showAlert('Por favor, preencha ao menos o Nome e o Número da congregação.', 'Campos Obrigatórios');
       return;
     }
 
@@ -1133,7 +1134,12 @@ export default function CongregationsView({
                               <FileText size={16} />
                             </button>
                             <button 
-                              onClick={() => setShowDeleteConfirm(cong.id)}
+                              onClick={async () => {
+                                const confirmed = await showDeleteConfirm('Tem certeza que deseja excluir esta congregação? Esta ação não pode ser desfeita.', 'Excluir Congregação');
+                                if (confirmed) {
+                                  handleDelete(cong.id);
+                                }
+                              }}
                               className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Excluir"
                             >
@@ -1783,39 +1789,6 @@ export default function CongregationsView({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-4">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4"
-          >
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-              <Trash2 size={24} />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-bold text-gray-800">Excluir Congregação</h3>
-              <p className="text-gray-600">Tem certeza que deseja excluir esta congregação? Esta ação não pode ser desfeita.</p>
-            </div>
-            <div className="flex flex-col gap-2 pt-2">
-              <button 
-                onClick={() => handleDelete(showDeleteConfirm)}
-                className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors"
-              >
-                Confirmar Exclusão
-              </button>
-              <button 
-                onClick={() => setShowDeleteConfirm(null)}
-                className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {/* Modal Importar em Massa */}
       <AnimatePresence>

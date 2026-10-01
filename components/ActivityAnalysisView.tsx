@@ -127,7 +127,7 @@ const defaultData: AnalysisData = {
 };
 
 export default function ActivityAnalysisView({ userId, congregationName, congregationId, visitDate, onBack }: ActivityAnalysisViewProps) {
-  const { showAlert, showConfirm } = useDialog();
+  const { showAlert, showConfirm, showDeleteConfirm } = useDialog();
   const [data, setData] = useState<AnalysisData>({
     ...defaultData,
     congregacao: congregationName,
@@ -541,7 +541,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
   };
 
   const handleDeletePioneer = async (id: string) => {
-    const confirmed = await showConfirm('Tem certeza que deseja excluir esta média individual?', 'Excluir Média');
+    const confirmed = await showDeleteConfirm('Tem certeza que deseja excluir esta média individual?', 'Excluir Média');
     if (confirmed) {
       setIsDirty(true);
       setData(prev => ({

@@ -95,49 +95,52 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const fetchUsers = async () => {
     setRefreshing(true);
     try {
-      // Fetch users and personal data in parallel - ONLY essential collections
-      const [usersSnapshot, personalDataSnapshot] = await Promise.all([
+      // Fetch users, personal data and publishers in parallel
+      const [usersSnapshot, personalDataSnapshot, publishersSnapshot] = await Promise.all([
         getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'personal_data'))
+        getDocs(collection(db, 'personal_data')),
+        getDocs(collection(db, 'publishers'))
       ]);
 
       const usersDocs = usersSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
       const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const pubDocs = publishersSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
-      // Create a set of all unique UIDs. 
-      // We prioritize the UID (users document ID or personal_data userId field)
-      // And we explicitly include all IDs from personal_data to capture TJSec and other pre-registered accounts
+      // Create a set of all unique identifiers (UIDs or emails)
       const allUids = Array.from(new Set([
         ...usersDocs.map(u => u.id),
         ...pdDocs.map(p => p.userId).filter(Boolean),
-        ...pdDocs.map(p => p.id)
+        ...pdDocs.map(p => p.id),
+        ...pubDocs.filter(p => p.hasAppAccess).map(p => p.email).filter(Boolean)
       ]));
       
       const usersData = allUids.map(uid => {
-        const userData = usersDocs.find(u => u.id === uid);
-        const pdData = pdDocs.find(p => p.id === uid || p.userId === uid);
+        const userData = usersDocs.find(u => u.id === uid || u.email === uid);
+        const pdData = pdDocs.find(p => p.id === uid || p.userId === uid || p.emailPessoal === uid || p.emailJwpub === uid);
+        const pubData = pubDocs.find(p => p.email === uid || (userData?.email && p.email === userData.email));
         
         // Use UID as fallback for email if it looks like an email (TJSec pattern)
-        const email = (userData?.email || (userData?.usuario?.includes('@') ? userData.usuario : '') || pdData?.emailPessoal || pdData?.emailJwpub || (uid.includes('@') ? uid : '')).trim();
-        const isTjSec = /@tjsec\.app$/i.test(email) || pdData?.role === 'secretaria' || userData?.role === 'secretaria';
+        const email = (userData?.email || (userData?.usuario?.includes('@') ? userData.usuario : '') || pdData?.emailPessoal || pdData?.emailJwpub || pubData?.email || (uid.includes('@') ? uid : '')).trim();
+        
+        // Account identification (visual tags only, does not grant permission)
+        const isTjSec = /@tjsec\.app$/i.test(email) || pdData?.role === 'secretaria' || userData?.role === 'secretaria' || (pubData && pubData.hasAppAccess);
         
         // If it's a TJSec account, we try to extract the congregation number from the email or use other fields
         const tjSecNumber = isTjSec ? (email.includes('@') ? email.split('@')[0] : (pdData?.numeroPessoal || userData?.usuario || '')) : '';
         
-        // Check if this account should be shown (must exist in Auth/users OR be a TJSec account OR have personal data)
-        // This ensures pre-registered TJSec accounts and users with personal data but no auth record yet are shown
-        const isRealUser = !!userData || isTjSec || !!pdData;
+        // Check if this account should be shown
+        const isRealUser = !!userData || !!pdData || (pubData && pubData.hasAppAccess);
 
         return {
           id: uid,
           ...userData,
-          nome: pdData?.nome || userData?.nome || (isTjSec ? `Secretaria ${tjSecNumber}` : (userData?.displayName || (userData?.usuario && userData?.usuario.length > 5 ? userData?.usuario : 'Sem nome'))),
-          role: pdData?.role || userData?.role || (isTjSec ? 'secretaria' : 'user'),
+          nome: pdData?.nome || pubData?.name || userData?.nome || (userData?.displayName || (userData?.usuario && userData?.usuario.length > 5 ? userData?.usuario : 'Sem nome')),
+          role: pdData?.role || userData?.role || 'user',
           numeroPessoal: pdData?.numeroPessoal || userData?.usuario || tjSecNumber || '---',
           photoURL: pdData?.profilePhoto || userData?.photoURL || null,
           isInactive: !!userData?.isInactive,
           email: email,
-          isRealUser: isRealUser // Track if it's a real user for filtering
+          isRealUser: isRealUser 
         } as UserMetadata;
       });
 
@@ -448,6 +451,8 @@ export default function UsersView({ onBack }: UsersViewProps) {
                   
                   if (pd && (pd.nome || pd.role)) {
                     const update: any = {};
+                    // SYNC Logic: Only update from personal_data (explicit source)
+                    // We DO NOT infer roles from other collections here.
                     if (pd.nome && pd.nome !== uData.nome) update.nome = pd.nome;
                     if (pd.role && pd.role !== uData.role) update.role = pd.role;
                     if (pd.profilePhoto && pd.profilePhoto !== uData.photoURL) update.photoURL = pd.profilePhoto;

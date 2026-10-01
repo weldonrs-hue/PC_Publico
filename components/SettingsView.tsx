@@ -55,6 +55,7 @@ import { auth } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
 import { createCircuitFolderStructure } from '@/utils/fileSystem';
+import Logo from '@/components/Logo';
 const RoleChangeRequestModal = dynamic(() => import('@/components/RoleChangeRequestModal'), { ssr: false });
 
 interface SettingsViewProps {
@@ -1153,6 +1154,11 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             </div>
           </section>
         )}
+
+        <div className="pt-10 flex flex-col items-center justify-center space-y-2 opacity-30 select-none no-print">
+          <Logo iconSize="w-6 h-6" textSize="text-sm" showText={true} />
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v0.1.1</p>
+        </div>
       </motion.div>
       
       {/* Manage News Modal */}

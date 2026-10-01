@@ -37,20 +37,13 @@ export async function validateAuth(req: NextRequest): Promise<AuthUser | null> {
     // verifyIdToken automatically checks for expiration and validity
     const decodedToken = await adminAuth.verifyIdToken(token);
     
-    // Safe logs for debugging
-    console.log('[validateAuth] Token verified successfully:', {
-      uid: decodedToken.uid,
-      aud: decodedToken.aud,
-      iss: decodedToken.iss
-    });
-    
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,
       decodedToken
     };
   } catch (error: any) {
-    console.error('[validateAuth] Firebase verifyIdToken failed:', error.code, error.message);
+    console.error('[validateAuth] Firebase verifyIdToken failed. Code:', error.code, 'Message:', error.message);
     return null;
   }
 }

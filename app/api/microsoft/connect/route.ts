@@ -26,28 +26,31 @@ export async function GET(req: NextRequest) {
     const codeVerifier = generateRandomString(64);
     const codeChallenge = generateCodeChallenge(codeVerifier);
 
-    // 4. Store State and Verifier in Firestore (Temporary)
-    // We link the OAuth process to the Firebase UID that started it.
-    const db = getAdminDb();
-    await db.collection('oauth_attempts').doc(state).set({
-      uid: user.uid,
-      codeVerifier: codeVerifier,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes expiry
-    });
-
-    // 5. Build Microsoft Auth URL
-    const authUrl = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
+    // 4. Build Microsoft Auth URL
+    const authUrl = new URL('https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize');
     authUrl.searchParams.set('client_id', process.env.MICROSOFT_CLIENT_ID!);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', process.env.MICROSOFT_REDIRECT_URI!);
-    authUrl.searchParams.set('scope', 'openid email offline_access https://outlook.office.com/SMTP.Send');
+    authUrl.searchParams.set('scope', 'openid email offline_access https://graph.microsoft.com/Mail.Send');
     authUrl.searchParams.set('response_mode', 'query');
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
-    authUrl.searchParams.set('prompt', 'select_account');
+    authUrl.searchParams.set('domain_hint', 'jwpub.org');
 
-    return NextResponse.json({ url: authUrl.toString() });
+    // 5. Create Response and Set Cookie
+    const response = NextResponse.json({ url: authUrl.toString() });
+    
+    // Store state and verifier in a secure cookie to bypass Firestore permission issues
+    const cookieValue = JSON.stringify({ state, codeVerifier, uid: user.uid });
+    response.cookies.set('microsoft_oauth_state', cookieValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600 // 10 minutes
+    });
+
+    return response;
   } catch (error: any) {
     console.error('[Microsoft Connect] Error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

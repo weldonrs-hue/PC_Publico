@@ -1,6 +1,6 @@
 'use client';
 // Force rebuild - 2026-05-02
-import { FileText, Shapes, Calendar, Receipt } from 'lucide-react';
+import { FileText, Shapes, Calendar, Receipt, Inbox } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface MiscViewProps {
@@ -35,6 +35,14 @@ const miscItems = [
     color: '#10B981', // Emerald
     gradient: 'from-emerald-500 to-teal-600',
     icon: Receipt,
+  },
+  {
+    id: 'inbox',
+    title: 'CAIXA DE ENTRADA',
+    subtitle: 'RASCUNHOS E ENVIO DE E-MAIL',
+    color: '#6366F1', // Indigo
+    gradient: 'from-indigo-500 to-blue-600',
+    icon: Inbox,
   },
 ];
 

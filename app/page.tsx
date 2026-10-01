@@ -45,10 +45,12 @@ const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ss
 const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
 const FloatingStopwatch = dynamic(() => import('@/components/FloatingStopwatch'), { ssr: false });
 const DonationView = dynamic(() => import('@/components/DonationView'), { ssr: false });
+const InboxView = dynamic(() => import('@/components/InboxView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
 import { auth, db } from '@/lib/firebase';
+import { useDialog } from '@/hooks/useDialog';
 import { 
   collection, 
   query, 
@@ -71,6 +73,7 @@ const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
 
 export default function Home() {
+  const { showAlert, showConfirm } = useDialog();
   const [user, setUser] = useState<any>(null);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
@@ -956,7 +959,7 @@ export default function Home() {
             </button>
           </motion.div>
         )}
-        <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none print:space-y-0">
+        <div className={`${currentView === 'inbox' ? 'p-1 sm:p-3 md:p-6' : 'p-4 md:p-6'} space-y-4 md:space-y-6 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none print:space-y-0`}>
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}
@@ -964,6 +967,7 @@ export default function Home() {
                 <div className="border-2 border-blue-400 p-2 md:p-4 rounded-sm flex-1 md:flex-initial bg-white/50 flex items-center gap-3 md:gap-4">
                   <div 
                     className="relative w-12 h-12 md:w-16 md:h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner cursor-pointer group/avatar overflow-hidden flex-shrink-0"
+                    style={{ width: '64px', height: '64px', minWidth: '64px', position: 'relative' }}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {user?.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
@@ -995,7 +999,24 @@ export default function Home() {
                   />
                   <div>
                     <h1 className="text-base md:text-xl font-bold text-blue-600 uppercase tracking-tight">Olá, {personalData?.nome || personalData?.numeroPessoal || user?.usuario || ''}</h1>
-                    <p className="text-blue-400 font-medium uppercase tracking-widest text-[8px] md:text-xs">Seja bem-vindo ao ProgCir Web</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-blue-400 font-medium uppercase tracking-widest text-[8px] md:text-xs">Seja bem-vindo ao ProgCir Web</p>
+                      {user?.photoURL && (
+                        <button 
+                          onClick={async () => {
+                            const confirmed = await showConfirm('Deseja remover sua foto de perfil?', 'Remover Foto');
+                            if (confirmed) {
+                              const userDocRef = doc(db, 'users', user.id);
+                              await updateDoc(userDocRef, { photoURL: null });
+                              setUser((prev: any) => ({ ...prev, photoURL: null }));
+                            }
+                          }}
+                          className="text-[7px] md:text-[9px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full hover:bg-red-100 transition-colors font-black uppercase tracking-tighter"
+                        >
+                          Limpar Foto
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1255,6 +1276,12 @@ export default function Home() {
 
           {currentView === 'weekly_expenses' && (
             <WeeklyExpensesReceipt 
+              onBack={() => changeView('misc')}
+            />
+          )}
+
+          {currentView === 'inbox' && (
+            <InboxView 
               onBack={() => changeView('misc')}
             />
           )}

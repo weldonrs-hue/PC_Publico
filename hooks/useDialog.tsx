@@ -22,6 +22,7 @@ interface DialogState extends DialogOptions {
 interface DialogContextType {
   showAlert: (message: string, title?: string) => Promise<void>;
   showConfirm: (message: string, title?: string) => Promise<boolean>;
+  showDeleteConfirm: (message: string, title?: string) => Promise<boolean>;
 }
 
 const DialogContext = createContext<DialogContextType | undefined>(undefined);
@@ -62,8 +63,25 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
   }, []);
 
+  const showDeleteConfirm = useCallback((message: string, title: string = 'Excluir') => {
+    return new Promise<boolean>((resolve) => {
+      setDialog({
+        isOpen: true,
+        type: 'confirm',
+        title,
+        message,
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        resolve: (value: boolean) => {
+          setDialog(null);
+          resolve(value);
+        },
+      });
+    });
+  }, []);
+
   return (
-    <DialogContext.Provider value={{ showAlert, showConfirm }}>
+    <DialogContext.Provider value={{ showAlert, showConfirm, showDeleteConfirm }}>
       {children}
       <AnimatePresence>
         {dialog && (

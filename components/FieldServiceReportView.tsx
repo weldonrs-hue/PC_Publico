@@ -39,6 +39,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import { useDialog } from '@/hooks/useDialog';
 import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
 import {
@@ -74,6 +75,7 @@ interface MonthlyReport {
 }
 
 export default function FieldServiceReportView({ userId, profileId, isPublic, wifeNameProp, onBack }: FieldServiceReportViewProps) {
+  const { showAlert, showConfirm } = useDialog();
   const getCleanProfileId = () => {
     if (profileId && profileId.trim()) return profileId.trim();
     if (typeof window !== 'undefined') {
@@ -224,7 +226,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
   const deleteWifeProfile = async () => {
     if (!wifeProfile) return;
     const displayName = wifeName?.trim() ? wifeName.trim() : 'sua esposa';
-    if (!confirm(`Tem certeza que deseja desativar o link de ${displayName}? O acesso será perdido imediatamente.`)) return;
+    const confirmed = await showConfirm(`Tem certeza que deseja desativar o link de ${displayName}? O acesso será perdido imediatamente.`, 'Desativar Link');
+    if (!confirmed) return;
 
     try {
       await deleteDoc(doc(db, 'shared_report_profiles', wifeProfile.id));

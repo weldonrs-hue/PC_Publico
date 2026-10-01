@@ -16,6 +16,7 @@ function getFirebaseAdmin() {
     adminApp = apps[0];
   } else {
     try {
+      // Initialize with config to specify the correct project ID
       console.log('[Firebase Admin] Initializing with projectId:', firebaseConfig.projectId);
       adminApp = initializeApp({
         projectId: firebaseConfig.projectId,
@@ -38,7 +39,15 @@ export function getAdminAuth(): Auth {
 
 export function getAdminDb(): Firestore {
   if (!adminDb) {
-    adminDb = getFirestore(getFirebaseAdmin());
+    const app = getFirebaseAdmin();
+    const databaseId = firebaseConfig.firestoreDatabaseId;
+    
+    if (databaseId) {
+      console.log('[Firebase Admin] Using Firestore with databaseId:', databaseId);
+      adminDb = getFirestore(app, databaseId);
+    } else {
+      adminDb = getFirestore(app);
+    }
   }
   return adminDb;
 }

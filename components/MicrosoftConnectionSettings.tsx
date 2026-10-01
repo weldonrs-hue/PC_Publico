@@ -2,31 +2,49 @@
 
 import React, { useState, useEffect } from 'react';
 import { auth } from '@/lib/firebase';
+import { useDialog } from '@/hooks/useDialog';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Link as LinkIcon, Unlink, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Link as LinkIcon, Unlink, CheckCircle2, AlertCircle, Loader2, ExternalLink, Globe, X as CloseIcon } from 'lucide-react';
 
 export default function MicrosoftConnectionSettings() {
+  const { showAlert, showConfirm } = useDialog();
   const [status, setStatus] = useState<{ connected: boolean; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [iframeError, setIframeError] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'microsoft_auth_failed') {
+      setError('A sua organização (jwpub.org) exige aprovação de um administrador para este aplicativo. Por favor, solicite a aprovação na tela da Microsoft ou tente uma conta pessoal para testar.');
+    }
+  }, []);
 
   const fetchStatus = async () => {
     try {
       const user = auth.currentUser;
       if (!user) return;
 
-      const token = await user.getIdToken();
-      const res = await fetch('/api/microsoft/status', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Check status directly on client side to avoid server-side IAM issues
+      const { doc, getDoc } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+      
+      const docRef = doc(db, 'microsoft_connections', user.uid);
+      const docSnap = await getDoc(docRef);
 
-      if (res.ok) {
-        const data = await res.json();
-        setStatus(data);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setStatus({
+          connected: true,
+          email: data.email
+        });
+      } else {
+        setStatus({ connected: false });
       }
     } catch (err) {
       console.error('Error fetching Microsoft connection status:', err);
+      setError('Erro ao verificar conexão. Tente recarregar a página.');
     } finally {
       setLoading(false);
     }
@@ -44,12 +62,34 @@ export default function MicrosoftConnectionSettings() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'microsoft_connected') {
+        fetchStatus();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   const handleConnect = async () => {
+    // Open standard browser tab (not a popup window) immediately to avoid popup blockers
+    // Browsers require window.open to be directly in the click handler
+    const win = window.open('about:blank', '_blank');
+    
+    if (!win) {
+      setError('O bloqueador de janelas impediu a abertura. Por favor, permita abas para este site e tente novamente.');
+      return;
+    }
+
     try {
       setActionLoading(true);
       setError(null);
       const user = auth.currentUser;
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        win.close();
+        throw new Error('User not authenticated');
+      }
 
       const token = await user.getIdToken();
       const res = await fetch('/api/microsoft/connect', {
@@ -58,21 +98,31 @@ export default function MicrosoftConnectionSettings() {
 
       const data = await res.json();
       if (data.url) {
-        // Redirect to Microsoft
-        window.location.href = data.url;
+        // Update the location of the already opened window
+        win.location.href = data.url;
+
+        // Monitor connection status
+        const checkInterval = setInterval(async () => {
+          if (win.closed) {
+            clearInterval(checkInterval);
+            await fetchStatus();
+          }
+        }, 2000);
       } else {
+        win.close();
         throw new Error(data.error || 'Failed to get connection URL');
       }
     } catch (err: any) {
       setError(err.message);
       setActionLoading(false);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleDisconnect = async () => {
-    if (!confirm('Tem certeza que deseja desconectar sua conta Microsoft/JW? Isso impedirá o envio automático de relatórios.')) {
-      return;
-    }
+    const confirmed = await showConfirm('Tem certeza que deseja desconectar sua conta Microsoft/JW? Isso impedirá o envio preparado de e-mails.', 'Desconectar Conta');
+    if (!confirmed) return;
 
     try {
       setActionLoading(true);
@@ -80,20 +130,14 @@ export default function MicrosoftConnectionSettings() {
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
-      const token = await user.getIdToken();
-      const res = await fetch('/api/microsoft/disconnect', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        setStatus({ connected: false });
-      } else {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to disconnect');
-      }
+      // Disconnect directly on client side to avoid server-side IAM issues
+      const { doc, deleteDoc } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
+      
+      await deleteDoc(doc(db, 'microsoft_connections', user.uid));
+      setStatus({ connected: false });
     } catch (err: any) {
-      setError(err.message);
+      setError('Erro ao desconectar: ' + err.message);
     } finally {
       setActionLoading(false);
     }
@@ -154,29 +198,58 @@ export default function MicrosoftConnectionSettings() {
               <span className="text-sm font-medium text-gray-900">{status.email}</span>
             </div>
             
-            <button
-              onClick={handleDisconnect}
-              disabled={actionLoading}
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-100 disabled:opacity-50"
-            >
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlink className="w-4 h-4" />}
-              Desconectar conta
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <a
+                href="https://mail.jwpub.org/owa/?path=/mail/action/compose&to=SouzaL1@jwpub.org&subject=Aviso%20de%20visita%20do%20SC"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-xl transition-all hover:bg-gray-50"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Novo E-mail
+              </a>
+              <button
+                onClick={handleDisconnect}
+                disabled={actionLoading}
+                className="flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-100 disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlink className="w-4 h-4" />}
+                Desconectar
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Conecte sua conta JW (Microsoft) para permitir que o ProgCir envie relatórios automaticamente através do seu e-mail institucional.
+            <p className="text-sm text-gray-600 leading-relaxed mb-1">
+              Escolha uma das opções abaixo para configurar seu acesso:
             </p>
             
-            <button
-              onClick={handleConnect}
-              disabled={actionLoading}
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-200 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
-            >
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
-              Conectar minha conta JW
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Versão 1: Direto para o E-mail */}
+              <a
+                href="https://mail.jwpub.org/owa/?path=/mail/action/compose&to=SouzaL1@jwpub.org&subject=Aviso%20de%20visita%20do%20SC"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-white border-2 border-gray-100 hover:border-blue-200 text-gray-700 text-sm font-bold rounded-2xl transition-all shadow-sm active:scale-95"
+              >
+                <ExternalLink className="w-4 h-4 text-blue-500" />
+                1. Abrir Webmail (Novo E-mail)
+              </a>
+
+              {/* Versão 2: Autorização Entra */}
+              <button
+                onClick={handleConnect}
+                disabled={actionLoading}
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
+                2. Autorizar ProgCir
+              </button>
+            </div>
+
+            <p className="text-[10px] text-gray-400 font-medium leading-tight">
+              <b>Dica:</b> Abra o Webmail primeiro para herdar o login, depois clique em Autorizar.
+            </p>
           </div>
         )}
 
