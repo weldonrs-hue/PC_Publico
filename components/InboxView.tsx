@@ -10,6 +10,8 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
+  getDocs,
+  getDoc,
   doc, 
   serverTimestamp,
   orderBy
@@ -65,12 +67,22 @@ interface Attachment {
 interface Draft {
   id: string;
   recipient: string;
+  cc?: string;
   subject: string;
   content: string;
   createdAt: any;
   updatedAt: any;
   userId: string;
   attachments?: Attachment[];
+  folder?: 'drafts' | 'sent';
+  sentAt?: any;
+}
+
+interface Contact {
+  name: string;
+  email: string;
+  type: 'Congregação' | 'Coordenador' | 'Secretário';
+  congName: string;
 }
 
 interface InboxViewProps {
@@ -93,6 +105,11 @@ export default function InboxView({ onBack }: InboxViewProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default to false for better mobile/narrow experience
   const [showCc, setShowCc] = useState(false);
   const [isMicrosoftConnected, setIsMicrosoftConnected] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [recipientSuggestions, setRecipientSuggestions] = useState<Contact[]>([]);
+  const [ccSuggestions, setCcSuggestions] = useState<Contact[]>([]);
+  const [activeSuggestionField, setActiveSuggestionField] = useState<'recipient' | 'cc' | null>(null);
+  const [personalData, setPersonalData] = useState<any>(null);
   
   // Set initial sidebar state based on screen size
   useEffect(() => {
@@ -151,6 +168,181 @@ export default function InboxView({ onBack }: InboxViewProps) {
 
     return () => unsubscribe();
   }, []);
+
+  // Fetch personal data for signature
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const docRef = doc(db, 'personal_data', user.uid);
+    getDoc(docRef).then(snap => {
+      if (snap.exists()) {
+        setPersonalData(snap.data());
+      }
+    }).catch(err => console.warn('InboxView: Error fetching personal data:', err));
+  }, []);
+
+  // Fetch congregations to build contacts list
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const q = query(collection(db, 'congregations'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const contactsList: Contact[] = [];
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        const congName = data.nome || '';
+        
+        // Add Congregation email
+        if (data.emailJWPub) {
+          contactsList.push({
+            name: congName,
+            email: data.emailJWPub,
+            type: 'Congregação',
+            congName: congName
+          });
+        }
+        
+        // Add Coordinator
+        if (data.coordenadorEmail) {
+          contactsList.push({
+            name: data.coordenador || 'Coordenador',
+            email: data.coordenadorEmail,
+            type: 'Coordenador',
+            congName: congName
+          });
+        }
+        
+        // Add Secretary
+        if (data.secretarioEmail) {
+          contactsList.push({
+            name: data.secretario || 'Secretário',
+            email: data.secretarioEmail,
+            type: 'Secretário',
+            congName: congName
+          });
+        }
+      });
+      setContacts(contactsList);
+    }, (err) => {
+      console.error('Error fetching contacts:', err);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Seeding logic for default drafts
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user || loading || !personalData) return;
+
+    const seedVersion = 'v4_progcir_defaults'; // Change this to trigger new seeds
+    const seeded = localStorage.getItem(`progcir_drafts_seeded_${user.uid}`);
+    
+    if (seeded !== seedVersion) {
+      const seedDefaults = async () => {
+        try {
+          // Cleanup: Remove previous default drafts if they exist
+          const oldSubjects = [
+            'ProgCir: Carta de Designação - Discurso Público',
+            'ProgCir: Relatório de Visita à Congregação',
+            'ProgCir: Circular - Próxima Assembleia',
+            'ProgCir: Relatório de Atividades S-302',
+            'ProgCir: Formulário S-62',
+            'ProgCir: Relatório da Visita (S-303)',
+            'ProgCir: Aviso de Visita (S-302)',
+            'ProgCir: Carta de Designação e Remoção',
+            'ProgCir: Aviso de Assembleia (S-307)'
+          ];
+          
+          const existingDraftsSnap = await getDocs(
+            query(
+              collection(db, 'email_drafts'),
+              where('userId', '==', user.uid),
+              where('folder', '==', 'drafts')
+            )
+          );
+
+          for (const docSnap of existingDraftsSnap.docs) {
+            const data = docSnap.data();
+            if (oldSubjects.includes(data.subject)) {
+              await deleteDoc(doc(db, 'email_drafts', docSnap.id));
+            }
+          }
+
+          const userName = personalData?.nome || 'Weldon Rodrigues da Silva';
+          const circuit = personalData?.circuito || 'PB-003';
+          const whatsapp = personalData?.celular || '(84) 99929-0128';
+          const landline = personalData?.telefone || '(98) 98766-3875';
+
+          const signature = `Seu irmão,\n${userName}, ${circuit}\n📱 ${whatsapp} – WhatsApp\n📞 ${landline} – Convencional`;
+
+          const defaultDrafts = [
+            {
+              subject: 'ProgCir: Formulário S-62',
+              content: `Prezados Irmãos:\n\nSegue em anexo o formulário S-62 referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
+              recipient: '',
+              folder: 'drafts',
+              userId: user.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              attachments: []
+            },
+            {
+              subject: 'ProgCir: Relatório da Visita (S-303)',
+              content: `Prezados Irmãos:\n\nSegue em anexo o relatório da visita (S-303) referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
+              recipient: '',
+              folder: 'drafts',
+              userId: user.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              attachments: []
+            },
+            {
+              subject: 'ProgCir: Aviso de Visita (S-302)',
+              content: `Prezados Irmãos:\n\nSegue em anexo o aviso de visita (S-302) referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
+              recipient: '',
+              folder: 'drafts',
+              userId: user.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              attachments: []
+            },
+            {
+              subject: 'ProgCir: Carta de Designação e Remoção',
+              content: `Prezados Irmãos:\n\nSegue em anexo a carta de designação e remoção referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
+              recipient: '',
+              folder: 'drafts',
+              userId: user.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              attachments: []
+            },
+            {
+              subject: 'ProgCir: Aviso de Assembleia (S-307)',
+              content: `Prezados Irmãos:\n\nSegue em anexo o aviso de assembleia (S-307) para conhecimento de todos os anciãos do circuito ${circuit}.\n\n${signature}`,
+              recipient: '',
+              folder: 'drafts',
+              userId: user.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              attachments: []
+            }
+          ];
+
+          for (const d of defaultDrafts) {
+            await addDoc(collection(db, 'email_drafts'), d);
+          }
+          localStorage.setItem(`progcir_drafts_seeded_${user.uid}`, seedVersion);
+        } catch (err) {
+          console.error('Error seeding drafts:', err);
+        }
+      };
+
+      seedDefaults();
+    }
+  }, [loading, personalData]);
 
   useEffect(() => {
     if (selectedDraft) {
@@ -254,6 +446,32 @@ export default function InboxView({ onBack }: InboxViewProps) {
     // Optimistic update
     setForm(prev => ({ ...prev, [field]: value }));
 
+    // Handle suggestions
+    if (field === 'recipient' || field === 'cc') {
+      const val = value as string;
+      const lastPart = val.split(/[,;]\s*/).pop() || '';
+      
+      if (lastPart.length >= 2) {
+        const filtered = contacts.filter(c => 
+          c.name.toLowerCase().includes(lastPart.toLowerCase()) || 
+          c.email.toLowerCase().includes(lastPart.toLowerCase()) ||
+          c.congName.toLowerCase().includes(lastPart.toLowerCase())
+        ).slice(0, 8);
+        
+        if (field === 'recipient') {
+          setRecipientSuggestions(filtered);
+          setActiveSuggestionField('recipient');
+        } else {
+          setCcSuggestions(filtered);
+          setActiveSuggestionField('cc');
+        }
+      } else {
+        if (field === 'recipient') setRecipientSuggestions([]);
+        else setCcSuggestions([]);
+        setActiveSuggestionField(null);
+      }
+    }
+
     try {
       await updateDoc(doc(db, 'email_drafts', selectedId), {
         [field]: value,
@@ -267,6 +485,19 @@ export default function InboxView({ onBack }: InboxViewProps) {
         showAlert('Erro ao sincronizar rascunho com o servidor.', 'Erro');
       }
     }
+  };
+
+  const selectSuggestion = (field: 'recipient' | 'cc', contact: Contact) => {
+    const currentVal = form[field];
+    const parts = currentVal.split(/[,;]\s*/);
+    parts.pop(); // Remove the typed part
+    parts.push(contact.email);
+    const newValue = parts.join(', ') + (parts.length > 0 ? ', ' : '');
+    
+    handleUpdate(field, newValue);
+    if (field === 'recipient') setRecipientSuggestions([]);
+    else setCcSuggestions([]);
+    setActiveSuggestionField(null);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -874,17 +1105,49 @@ export default function InboxView({ onBack }: InboxViewProps) {
                 {/* Recipient Headers */}
                 <section className="p-3 md:p-4 border-b border-gray-100 flex-shrink-0 space-y-2.5 bg-white">
                   {/* "Para" row */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 relative">
                     <span className="w-12 py-1 px-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded text-center select-none flex-shrink-0">
                       Para
                     </span>
-                    <input 
-                      type="text"
-                      placeholder="destinatario@jwpub.org"
-                      value={form.recipient}
-                      onChange={(e) => handleUpdate('recipient', e.target.value)}
-                      className="flex-1 bg-transparent border border-transparent hover:border-gray-200 focus:border-[#de4b39] rounded px-2 py-1 text-xs md:text-sm font-normal text-gray-800 focus:ring-0 placeholder:text-gray-400"
-                    />
+                    <div className="flex-1 relative">
+                      <input 
+                        type="text"
+                        placeholder="destinatario@jwpub.org"
+                        value={form.recipient}
+                        onChange={(e) => handleUpdate('recipient', e.target.value)}
+                        onBlur={() => setTimeout(() => setActiveSuggestionField(null), 200)}
+                        className="w-full bg-transparent border border-transparent hover:border-gray-200 focus:border-[#de4b39] rounded px-2 py-1 text-xs md:text-sm font-normal text-gray-800 focus:ring-0 placeholder:text-gray-400"
+                      />
+                      
+                      <AnimatePresence>
+                        {activeSuggestionField === 'recipient' && recipientSuggestions.length > 0 && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"
+                          >
+                            {recipientSuggestions.map((c, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => selectSuggestion('recipient', c)}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-none"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-gray-800">{c.name}</span>
+                                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">{c.type}</span>
+                                </div>
+                                <div className="flex justify-between items-center mt-0.5">
+                                  <span className="text-[11px] text-gray-500 font-mono">{c.email}</span>
+                                  <span className="text-[10px] text-[#de4b39] font-semibold">{c.congName}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                     <button 
                       onClick={() => setShowCc(!showCc)}
                       className={`text-xs px-2 py-1 rounded transition-colors flex-shrink-0 ${showCc ? 'bg-red-50 text-[#de4b39] font-bold' : 'text-gray-500 hover:text-gray-800'}`}
@@ -895,17 +1158,49 @@ export default function InboxView({ onBack }: InboxViewProps) {
 
                   {/* Optional "Cc" row */}
                   {showCc && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 relative">
                       <span className="w-12 py-1 px-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded text-center select-none flex-shrink-0">
                         Cc
                       </span>
-                      <input 
-                        type="text"
-                        placeholder="copia@jwpub.org"
-                        value={form.cc}
-                        onChange={(e) => handleUpdate('cc', e.target.value)}
-                        className="flex-1 bg-transparent border border-transparent hover:border-gray-200 focus:border-[#de4b39] rounded px-2 py-1 text-xs md:text-sm font-normal text-gray-800 focus:ring-0 placeholder:text-gray-400"
-                      />
+                      <div className="flex-1 relative">
+                        <input 
+                          type="text"
+                          placeholder="copia@jwpub.org"
+                          value={form.cc}
+                          onChange={(e) => handleUpdate('cc', e.target.value)}
+                          onBlur={() => setTimeout(() => setActiveSuggestionField(null), 200)}
+                          className="w-full bg-transparent border border-transparent hover:border-gray-200 focus:border-[#de4b39] rounded px-2 py-1 text-xs md:text-sm font-normal text-gray-800 focus:ring-0 placeholder:text-gray-400"
+                        />
+
+                        <AnimatePresence>
+                          {activeSuggestionField === 'cc' && ccSuggestions.length > 0 && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"
+                            >
+                              {ccSuggestions.map((c, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => selectSuggestion('cc', c)}
+                                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-none"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-gray-800">{c.name}</span>
+                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">{c.type}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center mt-0.5">
+                                    <span className="text-[11px] text-gray-500 font-mono">{c.email}</span>
+                                    <span className="text-[10px] text-[#de4b39] font-semibold">{c.congName}</span>
+                                  </div>
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
                   )}
 

@@ -77,6 +77,7 @@ interface Congregation {
   secretario?: string;
   secretarioTelefone?: string;
   secretarioEmail?: string;
+  emailJWPub?: string;
   reuniaoMeioSemana?: string;
   reuniaoFimSemana?: string;
   reunioes?: string;
@@ -112,6 +113,7 @@ const defaultFormData: Congregation = {
   secretario: '',
   secretarioTelefone: '',
   secretarioEmail: '',
+  emailJWPub: '',
   reuniaoMeioSemana: '',
   reuniaoFimSemana: '',
   reunioes: '',
@@ -164,6 +166,7 @@ export default function CongregationsView({
           secretario: data.secretario || '',
           secretarioTelefone: data.secretarioTelefone || '',
           secretarioEmail: data.secretarioEmail || '',
+          emailJWPub: data.emailJWPub || '',
           reuniaoMeioSemana: data.reuniaoMeioSemana || '',
           reuniaoFimSemana: data.reuniaoFimSemana || '',
           reunioes: data.reunioes || '',
@@ -555,6 +558,7 @@ export default function CongregationsView({
     let secretario = '';
     let secretarioTelefone = '';
     let secretarioEmail = '';
+    let emailJWPub = '';
     let reuniaoMeioSemana = '';
     let reuniaoFimSemana = '';
     let reunioes = '';
@@ -737,6 +741,16 @@ export default function CongregationsView({
       gps = gpsMatch[1] && gpsMatch[2] ? `${gpsMatch[1]}, ${gpsMatch[2]}` : `${gpsMatch[3]}, ${gpsMatch[4]}`;
     }
 
+    // 10. E-mail da Congregação (Geral)
+    const allEmails = block.match(/[a-zA-Z0-9._%+-]+@jwpub\.org/g);
+    if (allEmails) {
+      // Pega o primeiro e-mail jwpub que não seja do coordenador ou secretário
+      const congEmail = allEmails.find(email => 
+        email !== coordenadorEmail && email !== secretarioEmail
+      );
+      if (congEmail) emailJWPub = congEmail;
+    }
+
     if (!nome && !numero) return null;
 
     return {
@@ -749,6 +763,7 @@ export default function CongregationsView({
       estado: estado || '',
       cep: cep || '',
       gps: gps || '',
+      emailJWPub: emailJWPub || '',
       coordenador: coordenador || '',
       telefone: coordenadorTelefone || '',
       coordenadorTelefone: coordenadorTelefone || '',
@@ -1154,6 +1169,13 @@ export default function CongregationsView({
                             <span className="truncate">{cong.cidade || 'Cidade não informada'}{cong.estado ? ` - ${cong.estado}` : ''}</span>
                           </div>
 
+                          {cong.emailJWPub && (
+                            <div className="flex items-center gap-2 text-amber-600 font-medium">
+                              <Mail size={13} className="shrink-0" />
+                              <span className="truncate">{cong.emailJWPub}</span>
+                            </div>
+                          )}
+
                           {/* Reuniões */}
                           {(cong.reuniaoMeioSemana || cong.reuniaoFimSemana || cong.reunioes) && (
                             <div className="flex items-start gap-2 bg-amber-50/50 p-2 rounded-lg text-amber-900">
@@ -1359,6 +1381,19 @@ export default function CongregationsView({
                       onChange={(e) => setFormData({...formData, circuito: e.target.value.toUpperCase()})}
                       className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm font-mono"
                       placeholder="PB-003 A"
+                    />
+                  </div>
+
+                  <div className="md:col-span-12 space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1.5">
+                      <Mail size={14} className="text-amber-600" />
+                      E-mail da Congregação (JWPub)
+                    </label>
+                    <input 
+                      value={formData.emailJWPub || ''}
+                      onChange={(e) => setFormData({...formData, emailJWPub: e.target.value.toLowerCase().trim()})}
+                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm font-mono"
+                      placeholder="congregação@jwpub.org"
                     />
                   </div>
                 </div>

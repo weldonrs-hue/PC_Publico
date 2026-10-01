@@ -1157,7 +1157,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
         <div className="pt-10 flex flex-col items-center justify-center space-y-2 opacity-30 select-none no-print">
           <Logo iconSize="w-6 h-6" textSize="text-sm" showText={true} />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v0.1.1</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v1.2.0</p>
         </div>
       </motion.div>
       
