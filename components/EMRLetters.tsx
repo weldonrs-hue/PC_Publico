@@ -561,7 +561,9 @@ export default function EMRLetters({
       'ASSINATURA_GLOBAL': signatureValue,
       'assinatura_global': signatureValue,
       '%ASSINATURA': hasImage ? signatureValue : '',
+      '%assinatura': hasImage ? signatureValue : '',
       '%ASSINATURA_GLOBAL': hasImage ? signatureValue : '',
+      '%assinatura_global': hasImage ? signatureValue : '',
     };
   };
 
@@ -621,15 +623,15 @@ export default function EMRLetters({
           try {
             const base64Data = tagValue.split(',')[1];
             if (!base64Data) return null;
-            const binaryStringArray = window.atob(base64Data);
-            const len = binaryStringArray.length;
-            const bytesArray = new Uint8Array(len);
+            const binaryString = window.atob(base64Data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
             for (let i = 0; i < len; i++) {
-              bytesArray[i] = binaryStringArray.charCodeAt(i);
+              bytes[i] = binaryString.charCodeAt(i);
             }
-            return bytesArray.buffer;
+            return bytes;
           } catch (e) {
-            console.error('Error decoding image:', e);
+            console.error('Error decoding signature image in EMR:', e);
             return null;
           }
         },
@@ -644,12 +646,27 @@ export default function EMRLetters({
       xmlFiles.forEach(xmlResource => {
         let xmlContent = xmlResource.asText();
 
-        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
-          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
-            if (match.includes('xmlns:wp=')) return match;
-            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`;
+        // Safely inject required namespaces for images without duplication
+        const requiredNamespaces = [
+          { prefix: 'xmlns:wp=', value: 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"' },
+          { prefix: 'xmlns:wps=', value: 'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"' },
+          { prefix: 'xmlns:wpc=', value: 'xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"' },
+          { prefix: 'xmlns:wpg=', value: 'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"' },
+          { prefix: 'xmlns:v=', value: 'xmlns:v="urn:schemas-microsoft-com:vml"' },
+          { prefix: 'xmlns:o=', value: 'xmlns:o="urn:schemas-microsoft-com:office:office"' },
+          { prefix: 'xmlns:a=', value: 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"' },
+          { prefix: 'xmlns:pic=', value: 'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"' }
+        ];
+
+        xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+          let newMatch = match;
+          requiredNamespaces.forEach(ns => {
+            if (!newMatch.includes(ns.prefix)) {
+              newMatch += ` ${ns.value}`;
+            }
           });
-        }
+          return newMatch;
+        });
 
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
@@ -661,18 +678,22 @@ export default function EMRLetters({
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
           let newText = text;
+          
+          // Unified Signature Handling
+          const sigRegex = /@Assinatura(?:[\s\_]Global)?|\[%?ASSINATURA(?:[\s\_]Global)?\]/gi;
           if (hasImage) {
-            newText = newText.replace(/\[ASSINATURA\]/gi, '[%ASSINATURA]');
-            newText = newText.replace(/\[ASSINATURA_GLOBAL\]/gi, '[%ASSINATURA]');
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+            newText = newText.replace(sigRegex, '[%ASSINATURA]');
           } else {
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
-            newText = newText.replace(/\[%ASSINATURA\]/gi, '[ASSINATURA]');
-            newText = newText.replace(/\[ASSINATURA_GLOBAL\]/gi, '[ASSINATURA]');
+            newText = newText.replace(sigRegex, '[ASSINATURA]');
           }
+          
+          // Replace other @TAGs
           newText = newText.replace(/(^|[\s\W])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
-            return `${p1}[${p2.toUpperCase()}]`;
+            const tagName = p2.toUpperCase();
+            if (tagName === 'ASSINATURA') return m; // Already handled
+            return `${p1}[${tagName}]`;
           });
+          
           return `${opening}${newText}${closing}`;
         });
         zip.file(xmlResource.name, xmlContent);
@@ -684,7 +705,7 @@ export default function EMRLetters({
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
-        modules: hasImage && ImageModule ? [new ImageModule(imgOpts)] : [],
+        modules: ImageModule ? [new ImageModule(imgOpts)] : [],
         nullGetter: () => ''
       });
 

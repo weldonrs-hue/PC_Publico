@@ -256,7 +256,7 @@ export default function Sidebar({
           </button>
 
           <div className="portrait:flex landscape:hidden items-center justify-center px-4 opacity-20 select-none">
-            <span className="text-[8px] font-black tracking-widest">v1.3.0</span>
+            <span className="text-[8px] font-black tracking-widest">v1.4.0</span>
           </div>
         </nav>
 
@@ -292,7 +292,7 @@ export default function Sidebar({
           </div>
         </div>
         <div className="px-6 py-2 text-[9px] text-white/20 font-black uppercase tracking-[0.2em] text-center bg-black/30 border-t border-white/5">
-          v1.3.0
+          v1.4.0
         </div>
       </div>
       {imageToCrop && (

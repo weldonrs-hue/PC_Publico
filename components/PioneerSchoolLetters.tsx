@@ -452,11 +452,15 @@ export default function PioneerSchoolLetters({
         'NOME DO INSTRUTOR': signatureText,
         'instrutor': signatureText,
         'INSTRUTOR': signatureText,
-        'ASSINATURA': signatureText,
-        'assinatura': signatureText,
-        'ASSINATURA_GLOBAL': signatureText,
-        'ASSINATURA GLOBAL': signatureText,
-        '%ASSINATURA': hasImage ? signatureImage : '',
+        'ASSINATURA': signatureValue,
+        'assinatura': signatureValue,
+        'ASSINATURA_GLOBAL': signatureValue,
+        'assinatura_global': signatureValue,
+        'ASSINATURA GLOBAL': signatureValue,
+        '%ASSINATURA': hasImage ? signatureValue : '',
+        '%assinatura': hasImage ? signatureValue : '',
+        '%ASSINATURA_GLOBAL': hasImage ? signatureValue : '',
+        '%assinatura_global': hasImage ? signatureValue : '',
         'VIAJANTE': signatureName,
         'viajante': signatureName,
         'NOME_VIAJANTE': signatureName,
@@ -598,38 +602,59 @@ export default function PioneerSchoolLetters({
         }
 
         
-        // Ensure namespaces present for images
-        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
-          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match: string) => {
-            if (match.includes('xmlns:wp=')) return match;
-            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
-          });
-        }
+        // Safely inject required namespaces for images without duplication
+        const requiredNamespaces = [
+          { prefix: 'xmlns:wp=', value: 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"' },
+          { prefix: 'xmlns:wps=', value: 'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"' },
+          { prefix: 'xmlns:wpc=', value: 'xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"' },
+          { prefix: 'xmlns:wpg=', value: 'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"' },
+          { prefix: 'xmlns:v=', value: 'xmlns:v="urn:schemas-microsoft-com:vml"' },
+          { prefix: 'xmlns:o=', value: 'xmlns:o="urn:schemas-microsoft-com:office:office"' },
+          { prefix: 'xmlns:a=', value: 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"' },
+          { prefix: 'xmlns:pic=', value: 'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"' }
+        ];
 
+        xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+          let newMatch = match;
+          requiredNamespaces.forEach(ns => {
+            if (!newMatch.includes(ns.prefix)) {
+              newMatch += ` ${ns.value}`;
+            }
+          });
+          return newMatch;
+        });
+
+        // 1. Clean up common Word junk
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
 
+        // 2. Join split tags
         for (let i = 0; i < 6; i++) {
           xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
-        // 3. Surgical replacement of @TAG to [TAG]
+        // 3. Surgical replacement of @TAG to [TAG] and handle signature tags
         const sigVal = replacements.ASSINATURA;
-        const hasImage = sigVal && typeof sigVal === 'string' && sigVal.startsWith('data:image');
+        const hasImageInLoop = Boolean(sigVal && typeof sigVal === 'string' && sigVal.startsWith('data:image'));
+        
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
           let newText = text;
-          // Handle Signature
-          if (hasImage) {
-            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
-            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
+          
+          // Unified Signature Handling
+          const sigRegex = /@Assinatura(?:[\s\_]Global)?|\[%?ASSINATURA(?:[\s\_]Global)?\]/gi;
+          if (hasImageInLoop) {
+            newText = newText.replace(sigRegex, '[%ASSINATURA]');
           } else {
-            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[ASSINATURA]');
-            newText = newText.replace(/\[%ASSINATURA\]/gi, '[ASSINATURA]');
+            newText = newText.replace(sigRegex, '[ASSINATURA]');
           }
           
+          // Replace other @TAGs
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
-            return `${p1}[${p2.toUpperCase()}]`;
+            const tagName = p2.toUpperCase();
+            if (tagName === 'ASSINATURA') return m; // Already handled
+            return `${p1}[${tagName}]`;
           });
+          
           return `${opening}${newText}${closing}`;
         });
 
@@ -673,15 +698,21 @@ export default function PioneerSchoolLetters({
       const opts: any = {
         centered: false,
         getImage: (tagValue: string) => {
-          if (!tagValue || !tagValue.startsWith('data:image')) return null;
-          const base64Data = tagValue.split(',')[1];
-          const binaryStringArray = window.atob(base64Data);
-          const len = binaryStringArray.length;
-          const bytesArray = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            if (!base64Data) return null;
+            const binaryStringArray = window.atob(base64Data);
+            const len = binaryStringArray.length;
+            const bytesArray = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding signature image in ESP:', e);
+            return null;
           }
-          return bytesArray.buffer;
         },
         getSize: () => [sigWidth, sigHeight],
       };

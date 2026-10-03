@@ -1,6 +1,6 @@
 {
   "name": "ProgCir - Programador de Atividades do Circuito",
-  "description": "Sistema de gestão e programação das atividades do circuito v1.3.0, com controle de usuários, suporte para rascunhos inteligentes e aplicativo desktop Windows via Tauri.",
+  "description": "Sistema de gestão e programação das atividades do circuito v1.4.0, com controle de usuários, suporte para rascunhos inteligentes e aplicativo desktop Windows via Tauri.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
