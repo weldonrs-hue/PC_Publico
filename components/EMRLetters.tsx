@@ -76,6 +76,7 @@ const AVAILABLE_TAGS = [
 const EMR_ANCIANS_PROGRAM = {
   sessions: [
     { period: 'Parte 1', items: [
+      { id: 'p1_1', time: '8:00', title: 'Cântico 101 e oração' },
       { id: 'p1_2', num: '1', time: '8:05', title: 'Bem-vindos à Escola do Ministério do Reino de 2027', duration: '15 min' },
       { id: 'p1_3', num: '2', time: '8:20', title: 'Vocês são “dignos de dupla honra”', duration: '25 min' },
       { id: 'p1_4_1', num: '3', time: '8:45', title: 'Jeová', duration: '25 min' },
@@ -93,6 +94,7 @@ const EMR_ANCIANS_PROGRAM = {
       { id: 'p2_2_4', num: '13', time: '2:05', title: 'Peça e aceite conselhos práticos', duration: '20 min' },
       { id: 'p2_4', num: '14', time: '2:45', title: 'Mulheres de grande fé', duration: '35 min' },
       { id: 'p2_5', num: '15', time: '3:20', title: 'O que Jesus vê em você?', duration: '35 min' },
+      { id: 'p2_6', time: '3:55', title: 'Cântico 107 e oração' },
     ]}
   ]
 };
@@ -100,6 +102,7 @@ const EMR_ANCIANS_PROGRAM = {
 const EMR_SERVANTS_PROGRAM = {
   sessions: [
     { period: 'Parte 1', items: [
+      { id: 's1_1', time: '8:00', title: 'Cântico 101 e oração' },
       { id: 's1_2', num: '1', time: '8:05', title: 'Bem-vindos à Escola do Ministério do Reino de 2027', duration: '15 min' },
       { id: 's1_3', num: '2', time: '8:20', title: 'Vocês são homens “cheios de espírito e de sabedoria”', duration: '25 min' },
       { id: 's1_4_1', num: '3', time: '8:45', title: 'Jeová', duration: '25 min' },
@@ -117,6 +120,7 @@ const EMR_SERVANTS_PROGRAM = {
       { id: 's2_2_4', num: '13', time: '2:05', title: 'Peça e aceite conselhos práticos', duration: '20 min' },
       { id: 's2_4', num: '14', time: '2:45', title: 'Mulheres de grande fé', duration: '35 min' },
       { id: 's2_5', num: '15', time: '3:20', title: 'O que Jesus vê em você?', duration: '35 min' },
+      { id: 's2_6', time: '3:55', title: 'Cântico 107 e oração' },
     ]}
   ]
 };
@@ -457,12 +461,20 @@ export default function EMRLetters({
 
     const instrutor1 = selectedSchoolType === 'ancians' ? (speakers['p1_2'] || '') : (speakers['s1_2'] || '');
     const instrutor2 = selectedSchoolType === 'ancians' ? (speakers['p1_3'] || '') : (speakers['s1_3'] || '');
+    const cong1 = selectedSchoolType === 'ancians' ? (turmaData.congregations?.['p1_2'] || '') : (turmaData.congregations?.['s1_2'] || '');
+    const cong2 = selectedSchoolType === 'ancians' ? (turmaData.congregations?.['p1_3'] || '') : (turmaData.congregations?.['s1_3'] || '');
 
     const allSpeakersList = Object.values(speakers).filter(Boolean) as string[];
+    const uniqueSpeakersWithCong = Array.from(new Set(Object.keys(speakers).filter(k => speakers[k]).map(k => {
+      const s = speakers[k];
+      const c = turmaData.congregations?.[k];
+      return c ? `${s} — ${c}` : s;
+    })));
+
     const uniqueSpeakers = Array.from(new Set(allSpeakersList));
-    const instrutoresLista = uniqueSpeakers.length > 0
-      ? uniqueSpeakers.join(', ')
-      : (instrutor1 && instrutor2 ? `${instrutor1} e ${instrutor2}` : (instrutor1 || instrutor2 || '________________'));
+    const instrutoresLista = uniqueSpeakersWithCong.length > 0
+      ? uniqueSpeakersWithCong.join(', ')
+      : (instrutor1 && instrutor2 ? `${instrutor1}${cong1 ? ` — ${cong1}` : ''} e ${instrutor2}${cong2 ? ` — ${cong2}` : ''}` : (instrutor1 || instrutor2 || '________________'));
 
     // Speaker specific data
     let speakerName = '________________';
@@ -526,8 +538,8 @@ export default function EMRLetters({
       'HORARIO_ESPOSAS': horarioEsposas,
       'HORARIO': `${horarioInicio} às ${horarioFim}`,
       'INSTRUTORES': instrutoresLista,
-      'ORADOR': speakerName,
-      'INSTRUTOR': speakerName,
+      'ORADOR': speakerCongregation && speakerCongregation !== '________________' ? `${speakerName} — ${speakerCongregation}` : speakerName,
+      'INSTRUTOR': speakerCongregation && speakerCongregation !== '________________' ? `${speakerName} — ${speakerCongregation}` : speakerName,
       'CONGREGACAO': speakerCongregation,
       'CONGREGAÇÃO': speakerCongregation,
       'CONGREGACAO_INSTRUTOR': speakerCongregation,
@@ -540,10 +552,10 @@ export default function EMRLetters({
       'NUMERO_DISCURSO': partNum,
       'HORARIO_DISCURSO': partTime,
       'DURACAO_DISCURSO': partDuration,
-      'INSTRUTOR1': instrutor1 || '________________',
-      'INSTRUTOR2': instrutor2 || '________________',
-      'INSTRUTORA': instrutor1 || '________________',
-      'INSTRUTORB': instrutor2 || '________________',
+      'INSTRUTOR1': instrutor1 ? (cong1 ? `${instrutor1} — ${cong1}` : instrutor1) : '________________',
+      'INSTRUTOR2': instrutor2 ? (cong2 ? `${instrutor2} — ${cong2}` : instrutor2) : '________________',
+      'INSTRUTORA': instrutor1 ? (cong1 ? `${instrutor1} — ${cong1}` : instrutor1) : '________________',
+      'INSTRUTORB': instrutor2 ? (cong2 ? `${instrutor2} — ${cong2}` : instrutor2) : '________________',
       'VIAJANTE': travelerName,
       'viajante': travelerName,
       'NOME': travelerName,

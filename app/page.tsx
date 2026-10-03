@@ -1391,6 +1391,7 @@ export default function Home() {
               initialSchoolType={emrLetterSelection?.schoolType}
               initialTurma={emrLetterSelection?.turma}
               initialPartId={emrLetterSelection?.partId}
+              personalData={personalData}
               onBack={() => {
                 setEmrLetterSelection(null);
                 changeView('cartas');

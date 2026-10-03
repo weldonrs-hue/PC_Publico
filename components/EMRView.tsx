@@ -114,7 +114,7 @@ export const EMR_ANCIANS_CONFIG: EMRProgramConfig = {
       period: 'Parte 1 (Manhã)',
       subtitle: 'Fortaleça o seu amor e cumpra seu ministério com dedicação',
       items: [
-        { id: 'p1_1', time: '8:00', title: 'Cântico 101 e oração', noSpeaker: true },
+        { id: 'p1_1', time: '8:00', title: 'Cântico 101 e oração' },
         { id: 'p1_2', num: '1', time: '8:05', title: 'Bem-vindos à Escola do Ministério do Reino de 2027', duration: '15 min', sigla: 'IA/SC*' },
         { id: 'p1_3', num: '2', time: '8:20', title: 'Vocês são “dignos de dupla honra”', duration: '25 min', sigla: 'SC/A#' },
         { 
@@ -157,7 +157,7 @@ export const EMR_ANCIANS_CONFIG: EMRProgramConfig = {
         { id: 'p2_3', time: '2:25', title: 'INTERVALO', duration: '20 min', noSpeaker: true, isInterval: true },
         { id: 'p2_4', num: '14', time: '2:45', title: 'Mulheres de grande fé', duration: '35 min', sigla: 'SC/A#', note: 'Esposas convidadas a assistir' },
         { id: 'p2_5', num: '15', time: '3:20', title: 'O que Jesus vê em você?', duration: '35 min', sigla: 'IA/SC*', note: 'Esposas convidadas a assistir' },
-        { id: 'p2_6', time: '3:55', title: 'Cântico 107 e oração', noSpeaker: true }
+        { id: 'p2_6', time: '3:55', title: 'Cântico 107 e oração' }
       ]
     }
   ]
@@ -177,7 +177,7 @@ export const EMR_SERVANTS_CONFIG: EMRProgramConfig = {
       period: 'Parte 1 (Manhã)',
       subtitle: 'Fortaleça o seu amor e cumpra suas responsabilidades espirituais',
       items: [
-        { id: 's1_1', time: '8:00', title: 'Cântico 101 e oração', noSpeaker: true },
+        { id: 's1_1', time: '8:00', title: 'Cântico 101 e oração' },
         { id: 's1_2', num: '1', time: '8:05', title: 'Bem-vindos à Escola do Ministério do Reino de 2027', duration: '15 min', sigla: 'IA/SC*' },
         { id: 's1_3', num: '2', time: '8:20', title: 'Vocês são homens “cheios de espírito e de sabedoria”', duration: '25 min', sigla: 'SC/A#' },
         { 
@@ -220,7 +220,7 @@ export const EMR_SERVANTS_CONFIG: EMRProgramConfig = {
         { id: 's2_3', time: '2:25', title: 'INTERVALO', duration: '20 min', noSpeaker: true, isInterval: true },
         { id: 's2_4', num: '14', time: '2:45', title: 'Mulheres de grande fé', duration: '35 min', sigla: 'SC/A#', note: 'Esposas convidadas a assistir' },
         { id: 's2_5', num: '15', time: '3:20', title: 'O que Jesus vê em você?', duration: '35 min', sigla: 'IA/SC*', note: 'Esposas convidadas a assistir' },
-        { id: 's2_6', time: '3:55', title: 'Cântico 107 e oração', noSpeaker: true }
+        { id: 's2_6', time: '3:55', title: 'Cântico 107 e oração' }
       ]
     }
   ]
@@ -230,7 +230,6 @@ const createEmptyTurmas = (): Record<number, EMRPartData> => ({
   0: { speakers: {}, congregations: {}, confirmations: {}, notes: {}, details: { data: '', local: '', endereco: '', anfitria: '', horarioInicio: '08:00', horarioFim: '16:00', horarioEsposas: '14:45 às 16:00' } },
   1: { speakers: {}, congregations: {}, confirmations: {}, notes: {}, details: { data: '', local: '', endereco: '', anfitria: '', horarioInicio: '08:00', horarioFim: '16:00', horarioEsposas: '14:45 às 16:00' } },
   2: { speakers: {}, congregations: {}, confirmations: {}, notes: {}, details: { data: '', local: '', endereco: '', anfitria: '', horarioInicio: '08:00', horarioFim: '16:00', horarioEsposas: '14:45 às 16:00' } },
-  3: { speakers: {}, congregations: {}, confirmations: {}, notes: {}, details: { data: '', local: '', endereco: '', anfitria: '', horarioInicio: '08:00', horarioFim: '16:00', horarioEsposas: '14:45 às 16:00' } },
 });
 
 export default function EMRView({ 
@@ -493,8 +492,8 @@ export default function EMRView({
         'HORARIO_FIM': details.horarioFim || '________________',
         'HORARIO_ESPOSAS': details.horarioEsposas || '________________',
         'HORARIO': `${details.horarioInicio || '08:00'} às ${details.horarioFim || '16:00'}`,
-        'ORADOR': speakerName,
-        'INSTRUTOR': speakerName,
+        'ORADOR': speakerCongregation && speakerCongregation !== '________________' ? `${speakerName} — ${speakerCongregation}` : speakerName,
+        'INSTRUTOR': speakerCongregation && speakerCongregation !== '________________' ? `${speakerName} — ${speakerCongregation}` : speakerName,
         'CONGREGACAO': speakerCongregation,
         'CONGREGAÇÃO': speakerCongregation,
         'CONGREGACAO_INSTRUTOR': speakerCongregation,
@@ -688,11 +687,20 @@ export default function EMRView({
 
       const instrutor1 = (speakers['p1_2'] || speakers['s1_2'] || '');
       const instrutor2 = (speakers['p1_3'] || speakers['s1_3'] || '');
+      const cong1 = (speakerCongs['p1_2'] || speakerCongs['s1_2'] || '');
+      const cong2 = (speakerCongs['p1_3'] || speakerCongs['s1_3'] || '');
+      
       const allSpeakersList = Object.values(speakers).filter(Boolean) as string[];
+      const uniqueSpeakersWithCong = Array.from(new Set(Object.keys(speakers).filter(k => speakers[k]).map(k => {
+        const s = speakers[k];
+        const c = speakerCongs[k];
+        return c ? `${s} — ${c}` : s;
+      })));
+
       const uniqueSpeakers = Array.from(new Set(allSpeakersList));
-      const instrutoresLista = uniqueSpeakers.length > 0
-        ? uniqueSpeakers.join(', ')
-        : (instrutor1 && instrutor2 ? `${instrutor1} e ${instrutor2}` : (instrutor1 || instrutor2 || '________________'));
+      const instrutoresLista = uniqueSpeakersWithCong.length > 0
+        ? uniqueSpeakersWithCong.join(', ')
+        : (instrutor1 && instrutor2 ? `${instrutor1}${cong1 ? ` — ${cong1}` : ''} e ${instrutor2}${cong2 ? ` — ${cong2}` : ''}` : (instrutor1 || instrutor2 || '________________'));
 
       const replacements = {
         'TURMA': `Turma ${selectedTurma + 1}`,
@@ -715,8 +723,8 @@ export default function EMRView({
         'HORARIO': `${details.horarioInicio || '08:00'} às ${details.horarioFim || '16:00'}`,
         'HORARIOS': `${details.horarioInicio || '08:00'} às ${details.horarioFim || '16:00'}`,
         'INSTRUTORES': instrutoresLista,
-        'INSTRUTOR1': instrutor1 || '________________',
-        'INSTRUTOR2': instrutor2 || '________________',
+        'INSTRUTOR1': instrutor1 ? (cong1 ? `${instrutor1} — ${cong1}` : instrutor1) : '________________',
+        'INSTRUTOR2': instrutor2 ? (cong2 ? `${instrutor2} — ${cong2}` : instrutor2) : '________________',
         'HOJE': hoje,
         'ANO': currentConfig.year,
         'VIAJANTE': travelerName,
@@ -1095,9 +1103,9 @@ export default function EMRView({
             </button>
           </div>
 
-          {/* Seletor de Turmas (1, 2, 3, 4) */}
+          {/* Seletor de Turmas (1, 2, 3) */}
           <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-gray-200/60 shadow-2xs shrink-0 ml-auto">
-            {[0, 1, 2, 3].map((turma) => {
+            {[0, 1, 2].map((turma) => {
               const isActive = selectedTurma === turma;
               return (
                 <button
