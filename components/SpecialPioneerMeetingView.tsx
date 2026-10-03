@@ -14,7 +14,7 @@ import { doc, getDoc, setDoc, collection, getDocs, query, where, onSnapshot } fr
 import { useDialog } from '@/hooks/useDialog';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import { cleanPSSMetadata } from '@/lib/docxUtils';
+import { cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
 
 interface SpecialPioneerMeetingViewProps {
   userId: string;
@@ -808,28 +808,45 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         bytes[i] = binaryString.charCodeAt(i);
       }
       
+      const signatureImage = personalData?.signatureImage || personalData?.signature || '';
+      const hasImage = Boolean(signatureImage && typeof signatureImage === 'string' && signatureImage.startsWith('data:image'));
+
       const cleanedBuffer = cleanPSSMetadata(bytes.buffer);
       const zip = new PizZip(cleanedBuffer);
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       
-      const signatureImage = personalData?.signatureImage || personalData?.signature || '';
-
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       xmlFiles.forEach(xmlResource => {
         let xmlContent = xmlResource.asText();
+
+        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
+          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+            if (match.includes('xmlns:wp=')) return match;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+          });
+        }
+
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
           let newText = text;
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
+          if (hasImage) {
+            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
+          } else {
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[ASSINATURA]');
+            newText = newText.replace(/\[%ASSINATURA\]/gi, '[ASSINATURA]');
+          }
+          newText = newText.replace(/(^|[\s\W])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             const tag = p2.toUpperCase();
-            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
+            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) {
+               return hasImage ? `${p1}[%ASSINATURA]` : `${p1}[ASSINATURA]`;
+            }
             return `${p1}[${tag}]`;
           });
           return `${opening}${newText}${closing}`;
@@ -840,20 +857,23 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       let sigWidth = 150;
       let sigHeight = 60;
       
-      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
-      if (isBase64Image) {
-        const img = new window.Image();
-        const promise = new Promise((resolve) => {
-          img.onload = resolve;
-          img.src = signatureImage;
-        });
-        await promise;
-        const aspectRatio = img.width / img.height;
-        sigHeight = 60;
-        sigWidth = sigHeight * aspectRatio;
-        if (sigWidth > 220) {
-          sigWidth = 220;
-          sigHeight = sigWidth / aspectRatio;
+      if (hasImage) {
+        try {
+          const img = new window.Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = signatureImage;
+          });
+          const aspectRatio = img.width / img.height;
+          sigHeight = 60;
+          sigWidth = sigHeight * aspectRatio;
+          if (sigWidth > 220) {
+            sigWidth = 220;
+            sigHeight = sigWidth / aspectRatio;
+          }
+        } catch (e) {
+          console.warn('Could not determine signature dimensions:', e);
         }
       }
 
@@ -863,6 +883,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
           try {
             const base64Data = tagValue.split(',')[1];
+            if (!base64Data) return null;
             const binaryStringArray = window.atob(base64Data);
             const len = binaryStringArray.length;
             const bytesArray = new Uint8Array(len);
@@ -902,15 +923,18 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         'ENSAIOS': details.eventDate || '________________',
         'ENDEREÇO': details.eventLocation || '________________',
         'MATERIAL': details.material || '________________',
-        'ASSINATURA': signatureImage,
+        'ASSINATURA': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA_GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
         '%ASSINATURA': signatureImage,
       };
 
       const doc = new Docxtemplater(zip, {
-        modules: [new ImageModule(opts)],
+        modules: hasImage && ImageModule ? [new ImageModule(opts)] : [],
         paragraphLoop: true,
         linebreaks: true,
-        delimiters: { start: '[', end: ']' }
+        delimiters: { start: '[', end: ']' },
+        nullGetter: () => ''
       });
 
       doc.render(replacements);
@@ -935,8 +959,8 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         window.URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error('Error generating S-302:', error);
-      await showAlert('Erro ao gerar o documento. Verifique o template.', 'Erro');
+      console.error('Error generating S-312:', formatDocxError(error), error);
+      await showAlert('Erro ao gerar o documento: ' + formatDocxError(error), 'Erro');
     } finally {
       setIsSaving(false);
     }
@@ -996,25 +1020,42 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       const zip = new PizZip(cleanedBuffer);
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       const signatureImage = personalData?.signatureImage || personalData?.signature || '';
+      const hasImage = Boolean(signatureImage && typeof signatureImage === 'string' && signatureImage.startsWith('data:image'));
 
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       xmlFiles.forEach(xmlResource => {
         let xmlContent = xmlResource.asText();
+
+        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
+          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+            if (match.includes('xmlns:wp=')) return match;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+          });
+        }
+
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
         xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
           let newText = text;
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
+          if (hasImage) {
+            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
+          } else {
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[ASSINATURA]');
+            newText = newText.replace(/\[%ASSINATURA\]/gi, '[ASSINATURA]');
+          }
+          newText = newText.replace(/(^|[\s\W])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             const tag = p2.toUpperCase();
-            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
+            if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) {
+              return hasImage ? `${p1}[%ASSINATURA]` : `${p1}[ASSINATURA]`;
+            }
             return `${p1}[${tag}]`;
           });
           return `${opening}${newText}${closing}`;
@@ -1025,20 +1066,23 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       let sigWidth = 150;
       let sigHeight = 60;
       
-      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
-      if (isBase64Image) {
-        const img = new window.Image();
-        const promise = new Promise((resolve) => {
-          img.onload = resolve;
-          img.src = signatureImage;
-        });
-        await promise;
-        const aspectRatio = img.width / img.height;
-        sigHeight = 60;
-        sigWidth = sigHeight * aspectRatio;
-        if (sigWidth > 220) {
-          sigWidth = 220;
-          sigHeight = sigWidth / aspectRatio;
+      if (hasImage) {
+        try {
+          const img = new window.Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = signatureImage;
+          });
+          const aspectRatio = img.width / img.height;
+          sigHeight = 60;
+          sigWidth = sigHeight * aspectRatio;
+          if (sigWidth > 220) {
+            sigWidth = 220;
+            sigHeight = sigWidth / aspectRatio;
+          }
+        } catch (e) {
+          console.warn('Could not determine signature dimensions:', e);
         }
       }
 
@@ -1048,6 +1092,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
           try {
             const base64Data = tagValue.split(',')[1];
+            if (!base64Data) return null;
             const binaryStringArray = window.atob(base64Data);
             const len = binaryStringArray.length;
             const bytesArray = new Uint8Array(len);
@@ -1157,7 +1202,9 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         'NOME': personalData?.nome || '________________',
         'FONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
         'TELEFONE': personalData?.telefoneCircuito || personalData?.telefone || '________________',
-        'ASSINATURA': signatureImage,
+        'ASSINATURA': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA_GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
         '%ASSINATURA': signatureImage,
       };
 
@@ -1165,7 +1212,8 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
-        modules: ImageModule ? [new ImageModule(imgOpts)] : []
+        modules: hasImage && ImageModule ? [new ImageModule(imgOpts)] : [],
+        nullGetter: () => ''
       });
 
       docObj.render(replacements);
@@ -1199,8 +1247,8 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error('Error generating document:', err);
-      await showAlert('Erro ao gerar documento. Verifique os dados.', 'Erro');
+      console.error('Error generating document:', formatDocxError(err), err);
+      await showAlert('Erro ao gerar documento: ' + formatDocxError(err), 'Erro');
     } finally {
       setIsSaving(false);
     }

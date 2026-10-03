@@ -27,6 +27,11 @@ import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDo
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
 
+interface Template {
+  id: string;
+  name: string;
+}
+
 interface PioneerSchoolLettersProps {
   userId: string;
   isAdmin?: boolean;
@@ -46,9 +51,14 @@ interface PioneerSchoolLettersProps {
     confirmacaoEmailB: string;
     confirmacaoWhatsappB: string;
   };
+  customTemplates?: Template[];
+  category: 'esp' | 'emr';
+  color?: string;
+  gradient?: string;
+  initialMode?: 'geracao' | 'manager';
 }
 
-const ESP_TEMPLATES = [
+const DEFAULT_TEMPLATES = [
   { id: 'esp_anfitria', name: 'Carta à anfitriã' },
   { id: 'esp_refeicoes', name: 'Carta convites refeições' },
   { id: 'esp_pioneiros', name: 'Carta convite pioneiros' },
@@ -59,10 +69,16 @@ export default function PioneerSchoolLetters({
   isAdmin,
   canManage,
   selectedTurma, 
-  schoolInfo
+  schoolInfo,
+  customTemplates,
+  category,
+  color = '#10B981',
+  gradient = 'from-emerald-500 to-teal-600',
+  initialMode = 'geracao'
 }: PioneerSchoolLettersProps) {
   const { showAlert, showConfirm } = useDialog();
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(ESP_TEMPLATES[0].id);
+  const templatesList = customTemplates || DEFAULT_TEMPLATES;
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(templatesList[0].id);
   const [templates, setTemplates] = useState<Record<string, { content: string, updatedAt: string, isPrivate?: boolean }>>({});
   const [personalData, setPersonalData] = useState<any>(null);
   const [previewHtml, setPreviewHtml] = useState<string>('');
@@ -73,7 +89,7 @@ export default function PioneerSchoolLetters({
   const [generating, setGenerating] = useState(false);
   
   // Management state
-  const [isManaging, setIsManaging] = useState(false);
+  const [isManaging, setIsManaging] = useState(initialMode === 'manager' && (isAdmin || canManage));
   const [file, setFile] = useState<File | null>(null);
   const [localFileBuffer, setLocalFileBuffer] = useState<ArrayBuffer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -89,6 +105,10 @@ export default function PioneerSchoolLetters({
 
   const viewerRef = useRef<any>(null);
   const [isViewerReady, setIsViewerReady] = useState(false);
+
+  // Determine current colors based on status/category
+  const activeColor = color;
+  const activeGradient = gradient;
 
   // Initialize viewer once
   useEffect(() => {
@@ -212,7 +232,7 @@ export default function PioneerSchoolLetters({
   // Real-time templates listener
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, 'document_templates'), where('category', '==', 'esp'));
+    const q = query(collection(db, 'document_templates'), where('category', '==', category));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedTemplates: Record<string, any> = {};
@@ -221,7 +241,7 @@ export default function PioneerSchoolLetters({
       });
 
       const consolidated: Record<string, any> = {};
-      ESP_TEMPLATES.forEach(t => {
+      templatesList.forEach(t => {
         const privateId = `${userId}_${t.id}`;
         const globalId = t.id;
         
@@ -432,10 +452,11 @@ export default function PioneerSchoolLetters({
         'NOME DO INSTRUTOR': signatureText,
         'instrutor': signatureText,
         'INSTRUTOR': signatureText,
-        'ASSINATURA': signatureValue,
-        'assinatura': signatureValue,
-        '%ASSINATURA': hasImage ? signatureValue : '',
-        'ASSINATURA_GLOBAL': signatureValue,
+        'ASSINATURA': signatureText,
+        'assinatura': signatureText,
+        'ASSINATURA_GLOBAL': signatureText,
+        'ASSINATURA GLOBAL': signatureText,
+        '%ASSINATURA': hasImage ? signatureImage : '',
         'VIAJANTE': signatureName,
         'viajante': signatureName,
         'NOME_VIAJANTE': signatureName,
@@ -488,9 +509,9 @@ export default function PioneerSchoolLetters({
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
-        // Join split tags (more robust version from CongressLetters)
+        // Join split tags
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
         // Final cleaning of common split patterns
@@ -578,11 +599,18 @@ export default function PioneerSchoolLetters({
 
         
         // Ensure namespaces present for images
-        if (!xmlContent.includes('xmlns:wp=')) {
+        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
           xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match: string) => {
             if (match.includes('xmlns:wp=')) return match;
-            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
           });
+        }
+
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
         // 3. Surgical replacement of @TAG to [TAG]
@@ -592,9 +620,11 @@ export default function PioneerSchoolLetters({
           let newText = text;
           // Handle Signature
           if (hasImage) {
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
           } else {
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[ASSINATURA]');
+            newText = newText.replace(/\[%ASSINATURA\]/gi, '[ASSINATURA]');
           }
           
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
@@ -689,7 +719,7 @@ export default function PioneerSchoolLetters({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
+    const templateName = templatesList.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
     link.download = `${templateName}_Turma${selectedTurma}.docx`;
     document.body.appendChild(link);
     link.click();
@@ -701,7 +731,7 @@ export default function PioneerSchoolLetters({
     
     setGenerating(true);
     try {
-      const templateName = ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
+      const templateName = templatesList.find(t => t.id === selectedTemplate)?.name || selectedTemplate;
       const filename = `${templateName}_Turma${selectedTurma}.pdf`;
 
       const viewer = viewerRef.current;
@@ -892,7 +922,7 @@ export default function PioneerSchoolLetters({
         name: selectedTemplate,
         content: base64,
         updatedAt: new Date().toISOString(),
-        category: 'esp',
+        category: category,
         isGlobal: isGlobal,
         ownerId: isGlobal ? 'admin' : userId
       });
@@ -988,7 +1018,7 @@ export default function PioneerSchoolLetters({
           </div>
           
           <div className="flex flex-col gap-2">
-            {ESP_TEMPLATES.map(template => (
+            {templatesList.map(template => (
               <button
                 key={template.id}
                 onClick={() => setSelectedTemplate(template.id)}
@@ -1076,7 +1106,7 @@ export default function PioneerSchoolLetters({
                       Configurar Template
                     </h4>
                     <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">
-                      {ESP_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
+                      {templatesList.find(t => t.id === selectedTemplate)?.name}
                     </p>
                   </div>
                 </div>

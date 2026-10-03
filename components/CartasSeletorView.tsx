@@ -46,12 +46,12 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'emr',
       title: 'Cartas EMR',
-      subtitle: 'EM BREVE',
+      subtitle: 'ANCIÃOS E SERVOS',
       icon: Mail,
       color: '#3B82F6', // Blue
-      gradient: 'from-blue-200 to-indigo-300',
+      gradient: 'from-blue-500 to-indigo-600',
       view: 'cartas_emr',
-      active: false,
+      active: true,
       uploadKey: 'allowEMRUploadForAll'
     },
     {
@@ -109,7 +109,7 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {options.map((option, index) => {
-          const canManage = isAdmin || (option.uploadKey && (appConfig as any)?.[option.uploadKey]) || (option.id === 'esp' || option.id === 'congresso');
+          const canManage = isAdmin || (option.uploadKey && (appConfig as any)?.[option.uploadKey]) || (option.id === 'esp' || option.id === 'congresso' || option.id === 'emr' || option.id === 'assembleias');
           
           return (
             <motion.div

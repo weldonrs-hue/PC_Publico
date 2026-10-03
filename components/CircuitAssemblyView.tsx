@@ -1341,16 +1341,17 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
         xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
-          // Handle @Assinatura specially as an image tag
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          newText = newText.replace(/@Signature([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          // Handle [ASSINATURA] and @Assinatura specially as an image tag
+          newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Signature([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
           newText = newText.replace(/@AssinaturaGlobal/gi, '[%ASSINATURA]');
           newText = newText.replace(/@Assinatura_Global/gi, '[%ASSINATURA]');
           
@@ -1460,7 +1461,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         'DESIGNACAO': designation,
         'DIA': type === 'supt' ? 'Assembleia CAco' : 'Assembleia CAbr',
         'ASSISTENTE': details.assemblyAssistant || '________________',
-        'ASSINATURA': signatureImage,
+        'ASSINATURA': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA_GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
         '%ASSINATURA': signatureImage,
         'VIAJANTE': personalData?.nome || '________________',
         'NOME': personalData?.nome || '________________',
@@ -1551,14 +1554,15 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
         xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             const tag = p2.toUpperCase();
             if (tag.includes('ASSINATURA') || tag.includes('SIGNATURE')) return `${p1}[%ASSINATURA]`;
@@ -1628,7 +1632,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         'HOJE': hoje,
         'data': hoje,
         'DATA_ATUAL': hoje,
-        'ASSINATURA': signatureImage,
+        'ASSINATURA': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA_GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
         '%ASSINATURA': signatureImage,
         'VIAJANTE': personalData?.nome || '________________',
         'NOME': personalData?.nome || '________________',
@@ -1709,15 +1715,16 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
         xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          newText = newText.replace(/@Signature([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Signature([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
           newText = newText.replace(/@AssinaturaGlobal/gi, '[%ASSINATURA]');
           newText = newText.replace(/@Assinatura_Global/gi, '[%ASSINATURA]');
           
@@ -1801,7 +1808,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         'DESIGNACAO': designation,
         'DIA': type === 'supt' ? 'Assembleia com o Superintendente de Circuito' : 'Assembleia com o Representante de Betel',
         'ANO': '2026',
-        'ASSINATURA': signatureImage,
+        'ASSINATURA': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA_GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+        'ASSINATURA GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
         '%ASSINATURA': signatureImage,
         'VIAJANTE': personalData?.nome || '________________',
         'NOME': personalData?.nome || '________________',

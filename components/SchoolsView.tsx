@@ -25,20 +25,20 @@ const schools = [
     inactive: false
   },
   {
-    id: 'elders',
+    id: 'emr_ancians_program',
     title: 'ESCOLA DO MINISTÉRIO DO REINO PARA ANCIÃOS',
-    color: '#F59E0B', // Amber
-    gradient: 'from-amber-500 to-orange-600',
+    color: '#37616b', // Blue-gray
+    gradient: 'from-[#37616b] to-[#2c4d55]',
     icon: Presentation,
-    inactive: true
+    inactive: false
   },
   {
-    id: 'servants',
+    id: 'emr_servants_program',
     title: 'ESCOLA DO MINISTÉRIO DO REINO PARA SERVOS',
     color: '#F43F5E', // Rose
     gradient: 'from-rose-500 to-pink-600',
     icon: Presentation,
-    inactive: true
+    inactive: false
   },
 ];
 

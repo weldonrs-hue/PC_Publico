@@ -35,7 +35,7 @@ import {
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
 import { AnimatePresence, motion } from 'motion/react';
-import { cleanPSSMetadata } from '@/lib/docxUtils';
+import { cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
 
 const ASSEMBLEIA_TEMPLATES = [
   { id: 'ass_carta_anciaos', name: 'Carta aos Anciãos' },
@@ -371,7 +371,9 @@ export default function AssemblyLetters({
       'FONE': telefoneCircuito,
       'TELEFONE': telefoneCircuito,
       'assinatura': `${travelerName} (${circuit})`,
-      'ASSINATURA': signatureImage,
+      'ASSINATURA': `${travelerName} (${circuit})`,
+      'ASSINATURA_GLOBAL': `${travelerName} (${circuit})`,
+      'ASSINATURA GLOBAL': `${travelerName} (${circuit})`,
       '%ASSINATURA': signatureImage,
     };
 
@@ -402,51 +404,28 @@ export default function AssemblyLetters({
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       
       const signatureImage = personalData?.signatureImage || '';
-      
-      const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
-      const zip = new PizZip(cleanedBuffer);
-
-      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
-      xmlFiles.forEach(xmlResource => {
-        let xmlContent = xmlResource.asText();
-        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
-        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
-        
-        for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
-        }
-        
-        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
-
-        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
-          let newText = text;
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
-            return `${p1}[${p2.toUpperCase()}]`;
-          });
-          return `${opening}${newText}${closing}`;
-        });
-        zip.file(xmlResource.name, xmlContent);
-      });
+      const hasImage = Boolean(signatureImage && typeof signatureImage === 'string' && signatureImage.startsWith('data:image'));
 
       let sigWidth = 150;
       let sigHeight = 60;
       
-      const isBase64Image = signatureImage && signatureImage.startsWith('data:image');
-      
-      if (isBase64Image) {
-        const img = new window.Image();
-        const promise = new Promise((resolve) => {
-          img.onload = resolve;
-          img.src = signatureImage;
-        });
-        await promise;
-        const aspectRatio = img.width / img.height;
-        sigHeight = 60;
-        sigWidth = sigHeight * aspectRatio;
-        if (sigWidth > 220) {
-          sigWidth = 220;
-          sigHeight = sigWidth / aspectRatio;
+      if (hasImage) {
+        try {
+          const img = new window.Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = signatureImage;
+          });
+          const aspectRatio = img.width / img.height;
+          sigHeight = 60;
+          sigWidth = sigHeight * aspectRatio;
+          if (sigWidth > 220) {
+            sigWidth = 220;
+            sigHeight = sigWidth / aspectRatio;
+          }
+        } catch (e) {
+          console.warn('Could not determine signature dimensions:', e);
         }
       }
 
@@ -456,6 +435,7 @@ export default function AssemblyLetters({
           if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
           try {
             const base64Data = tagValue.split(',')[1];
+            if (!base64Data) return null;
             const binaryStringArray = window.atob(base64Data);
             const len = binaryStringArray.length;
             const bytesArray = new Uint8Array(len);
@@ -470,14 +450,55 @@ export default function AssemblyLetters({
         },
         getSize: () => [sigWidth, sigHeight],
       };
-      
+
+      const cleanedBuffer = cleanPSSMetadata(sourceBuffer);
+      const zip = new PizZip(cleanedBuffer);
+
+      const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+      xmlFiles.forEach(xmlResource => {
+        let xmlContent = xmlResource.asText();
+
+        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
+          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+            if (match.includes('xmlns:wp=')) return match;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+          });
+        }
+
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+        
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
+        }
+        
+        xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\_]*)(<\/w:t><\/w:r><w:r><w:t>)/g, "$1");
+
+        xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
+          let newText = text;
+          if (hasImage) {
+            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
+          } else {
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[ASSINATURA]');
+            newText = newText.replace(/\[%ASSINATURA\]/gi, '[ASSINATURA]');
+          }
+          newText = newText.replace(/(^|[\s\W])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
+            return `${p1}[${p2.toUpperCase()}]`;
+          });
+          return `${opening}${newText}${closing}`;
+        });
+        zip.file(xmlResource.name, xmlContent);
+      });
+
       const replacements = getReplacements(signatureImage);
       
       const docReal = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
-        modules: ImageModule ? [new ImageModule(imgOpts)] : []
+        modules: hasImage && ImageModule ? [new ImageModule(imgOpts)] : [],
+        nullGetter: () => ''
       });
 
       docReal.render(replacements);
@@ -488,7 +509,7 @@ export default function AssemblyLetters({
       setStatus('success');
       setNeedsProcessing(false);
     } catch (err: any) {
-      console.error('Error processing DOCX:', err);
+      console.error('Error processing DOCX:', formatDocxError(err), err);
       setStatus('error');
     } finally {
       setIsProcessing(false);

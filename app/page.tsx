@@ -40,12 +40,15 @@ const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { 
 const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
 const CartasCongressoView = dynamic(() => import('@/components/CartasCongressoView'), { ssr: false });
 const CartasAssembleiasView = dynamic(() => import('@/components/CartasAssembleiasView'), { ssr: false });
+const CartasEMRView = dynamic(() => import('@/components/CartasEMRView'), { ssr: false });
 const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
 const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
 const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
 const FloatingStopwatch = dynamic(() => import('@/components/FloatingStopwatch'), { ssr: false });
 const DonationView = dynamic(() => import('@/components/DonationView'), { ssr: false });
 const InboxView = dynamic(() => import('@/components/InboxView'), { ssr: false });
+const EMRView = dynamic(() => import('@/components/EMRView'), { ssr: false });
+const EMRServosView = dynamic(() => import('@/components/EMRServosView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 
@@ -67,7 +70,7 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal, clearQuotaExceeded } from '@/utils/firestore';
-import { Camera, User, ArrowLeft, AlertCircle, X, Coffee, Send, FileText } from 'lucide-react';
+import { Camera, User, ArrowLeft, AlertCircle, X, Coffee, Send, FileText, Sparkles, Check } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -88,6 +91,7 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
+  const [emrLetterSelection, setEmrLetterSelection] = useState<{ schoolType: 'ancians' | 'servants', turma: string, partId: string } | null>(null);
 
   const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com';
 
@@ -360,7 +364,7 @@ export default function Home() {
       setLastSubViews(prev => ({ ...prev, events: currentView }));
     } else if (['settings', 'users', 'tjsec_accounts'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, settings: currentView }));
-    } else if (['schools', 'pioneer_school'].includes(currentView)) {
+    } else if (['schools', 'pioneer_school', 'emr_ancians_program', 'emr_servants_program'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, schools: currentView }));
     } else if (['misc', 'field_service_report', 'file_viewer', 'weekly_expenses'].includes(currentView)) {
       setLastSubViews(prev => ({ ...prev, misc: currentView }));
@@ -794,50 +798,82 @@ export default function Home() {
       {/* Novidades Modal */}
       <AnimatePresence>
         {showWhatsNew && newsContent && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+          <div 
+            className="fixed inset-0 z-[2000] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeNews();
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2rem] shadow-2xl max-w-lg w-full overflow-hidden border border-amber-100"
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden border border-amber-200/80 my-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-amber-600 p-8 text-white relative">
-                <div className="absolute top-0 right-0 p-4">
+              {/* Header - Fixed / Non-collapsing */}
+              <div className="bg-gradient-to-br from-amber-600 via-amber-500 to-amber-600 p-4 sm:p-5 text-white relative shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md shadow-sm shrink-0">
+                      <Sparkles size={22} className="text-amber-100" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest leading-none">
+                          Novidades!
+                        </h2>
+                        {newsContent.version && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-amber-50 border border-white/30 truncate max-w-[120px]">
+                            {newsContent.version}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-amber-100/90 font-bold uppercase tracking-wider text-[10px] mt-0.5 truncate">
+                        Confira o que há de novo no aplicativo
+                      </p>
+                    </div>
+                  </div>
                   <button 
                     onClick={closeNews}
-                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors shrink-0 text-white/90 hover:text-white cursor-pointer active:scale-95"
+                    title="Fechar"
+                    aria-label="Fechar novidades"
                   >
                     <X size={20} />
                   </button>
                 </div>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                    <AlertCircle size={32} />
-                  </div>
-                  <h2 className="text-2xl font-black uppercase tracking-widest leading-none">
-                    Novidades!
-                  </h2>
-                </div>
-                <p className="text-amber-100 font-bold uppercase tracking-widest text-[10px]">Confira o que há de novo no app</p>
               </div>
               
-              <div className="p-8 space-y-6">
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+              {/* Content Body - Smooth independent scrolling */}
+              <div className="p-5 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white overscroll-contain">
+                <div className="space-y-1.5">
+                  <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-snug">
                     {newsContent.title}
                   </h3>
-                  <div className="w-12 h-1.5 bg-amber-500 rounded-full" />
+                  <div className="w-10 h-1 bg-amber-500 rounded-full" />
                 </div>
                 
-                <p className="text-gray-600 font-bold text-sm leading-relaxed whitespace-pre-wrap">
+                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-amber-50/40 p-3.5 sm:p-4 rounded-2xl border border-amber-100/70">
                   {newsContent.content}
-                </p>
+                </div>
+              </div>
 
+              {/* Sticky Footer Bar - ALWAYS visible and accessible */}
+              <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5 shrink-0">
                 <button
                   onClick={closeNews}
-                  className="w-full py-4 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg hover:bg-amber-700 transition-all active:scale-95"
+                  className="px-4 py-2.5 sm:py-3 bg-white hover:bg-gray-100 active:scale-95 text-gray-600 font-bold text-xs uppercase tracking-wider rounded-xl border border-gray-200 transition-all cursor-pointer"
                 >
-                  Entendido
+                  Fechar
+                </button>
+                <button
+                  onClick={closeNews}
+                  className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Check size={16} strokeWidth={3} />
+                  <span>Entendido</span>
                 </button>
               </div>
             </motion.div>
@@ -882,7 +918,7 @@ export default function Home() {
               }
             } else if (view === 'schools') {
               // If already in a Schools sub-view, reset to main schools
-              if (['schools', 'pioneer_school'].includes(currentView)) {
+              if (['schools', 'pioneer_school', 'emr_ancians_program'].includes(currentView)) {
                 changeView('schools');
               } else {
                 // Restore last visited sub-view in Schools
@@ -1226,6 +1262,22 @@ export default function Home() {
             />
           )}
 
+          {currentView === 'emr_ancians_program' && (
+            <EMRView 
+              userId={user.id}
+              onBack={() => changeView('schools')}
+              congregations={congregations}
+            />
+          )}
+
+          {currentView === 'emr_servants_program' && (
+            <EMRServosView 
+              userId={user.id}
+              onBack={() => changeView('schools')}
+              congregations={congregations}
+            />
+          )}
+
           {typeof currentView === 'string' && currentView.startsWith('regional_convention_guest') && guestCongressData && (
             <RegionalConventionView 
               userId={guestCongressData.ownerId}
@@ -1331,21 +1383,19 @@ export default function Home() {
           )}
 
           {currentView === 'cartas_emr' && (
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
-              <div className="bg-blue-100 p-6 rounded-full text-blue-600 shadow-inner">
-                <Send size={64} />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Cartas EMR</h2>
-                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
-              </div>
-              <button 
-                onClick={() => changeView('cartas')}
-                className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 uppercase tracking-widest text-xs"
-              >
-                Voltar para Cartas
-              </button>
-            </div>
+            <CartasEMRView 
+              userId={user.id}
+              isAdmin={user.role === 'admin'}
+              canManage={isAdminUser || Boolean((appConfig as any)?.allowEMRUploadForAll)}
+              initialMode={emrInitialMode}
+              initialSchoolType={emrLetterSelection?.schoolType}
+              initialTurma={emrLetterSelection?.turma}
+              initialPartId={emrLetterSelection?.partId}
+              onBack={() => {
+                setEmrLetterSelection(null);
+                changeView('cartas');
+              }}
+            />
           )}
 
           {currentView === 'cartas_congresso' && (

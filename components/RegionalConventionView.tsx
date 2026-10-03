@@ -518,19 +518,30 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
         bytes[i] = binaryString.charCodeAt(i);
       }
       
+      const signatureImage = personalData?.signatureImage || '';
+      const hasImage = Boolean(signatureImage && typeof signatureImage === 'string' && signatureImage.startsWith('data:image'));
+      
       const zip = new PizZip(bytes.buffer);
       
       // Pre-process all XML files in the zip to handle Word-specific tag splitting and @TAG replacement
       const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
       xmlFiles.forEach(file => {
         let xmlContent = file.asText();
+
+        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
+          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+            if (match.includes('xmlns:wp=')) return match;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+          });
+        }
+
         // Remove spell check tags that often split @TAGS
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
         
         // Join split tags
         for (let i = 0; i < 6; i++) {
-          xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
         
         // Final cleaning of common split patterns
@@ -538,8 +549,9 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
 
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
           let newText = text;
-          // Handle @Assinatura specially as an image tag
-          newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+          // Handle [ASSINATURA] and @Assinatura specially as an image tag
+          newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+          newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
           // Generic @TAG replacement
           newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             return `${p1}[${p2.toUpperCase()}]`;
@@ -549,7 +561,6 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
         zip.file(file.name, xmlContent);
       });
 
-      const signatureImage = personalData?.signatureImage || '';
       const signatureName = personalData?.nome || '________________';
       const circuito = personalData?.circuito || '________________';
       const telefoneCircuito = personalData?.telefoneCircuito || personalData?.telefone || '________________';
@@ -563,7 +574,9 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
         'DESIGNACAO': designation,
         'DIA': currentDay.day.split('-')[0],
         'ORADOR': speakerName,
-        'ASSINATURA': signatureImage,
+        'ASSINATURA': `${signatureName} (${circuito})`,
+        'ASSINATURA_GLOBAL': `${signatureName} (${circuito})`,
+        'ASSINATURA GLOBAL': `${signatureName} (${circuito})`,
         '%ASSINATURA': signatureImage,
         'VIAJANTE': signatureName,
         'CIRCUITO': circuito,

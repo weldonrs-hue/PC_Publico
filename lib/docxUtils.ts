@@ -173,3 +173,18 @@ export function cleanPSSMetadata(buffer: ArrayBuffer): ArrayBuffer {
     return buffer;
   }
 }
+
+/**
+ * Extracts a readable error description from docxtemplater Multi error or standard errors.
+ */
+export function formatDocxError(error: any): string {
+  if (error?.properties?.errors && Array.isArray(error.properties.errors)) {
+    const errorDetails = error.properties.errors
+      .map((e: any) => e.properties?.explanation || e.message)
+      .filter(Boolean);
+    if (errorDetails.length > 0) {
+      return errorDetails.join('\n');
+    }
+  }
+  return error?.message || 'Erro desconhecido ao processar modelo Word.';
+}

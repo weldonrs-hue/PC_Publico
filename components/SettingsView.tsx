@@ -25,7 +25,10 @@ import {
   UserCheck,
   Landmark,
   Coffee,
-  MailCheck
+  MailCheck,
+  Eye,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -198,6 +201,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [isShowingPrivacy, setIsShowingPrivacy] = useState(false);
   const [isManagingInvites, setIsManagingInvites] = useState(false);
   const [isManagingNews, setIsManagingNews] = useState(false);
+  const [showNewsPreview, setShowNewsPreview] = useState(false);
   const [activeTjSecCount, setActiveTjSecCount] = useState<number | null>(null);
   const [newsForm, setNewsForm] = useState({
     title: '',
@@ -1111,17 +1115,26 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
             <div className="space-y-4">
               <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 mb-6">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <h4 className="font-bold text-gray-900">Gerenciar Novidades</h4>
                     <p className="text-xs text-gray-500 max-w-md">Configure a mensagem que os usuários verão ao abrir o app pela primeira vez após uma atualização.</p>
                   </div>
-                  <button 
-                    onClick={() => setIsManagingNews(true)}
-                    className="px-6 py-2 bg-amber-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
-                  >
-                    Configurar
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => setShowNewsPreview(true)}
+                      className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 font-bold uppercase tracking-wider text-[10px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <Eye size={14} />
+                      Visualizar
+                    </button>
+                    <button 
+                      onClick={() => setIsManagingNews(true)}
+                      className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
+                    >
+                      Configurar
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1157,7 +1170,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
         <div className="pt-10 flex flex-col items-center justify-center space-y-2 opacity-30 select-none no-print">
           <Logo iconSize="w-6 h-6" textSize="text-sm" showText={true} />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v1.2.0</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v1.3.0</p>
         </div>
       </motion.div>
       
@@ -1168,89 +1181,212 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 sm:p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsManagingNews(false);
+            }}
           >
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]"
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] my-auto border border-amber-200/60"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-amber-600 p-6 sm:p-8 text-white flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-xl">
-                    <AlertCircle size={24} />
+              <form onSubmit={handleUpdateNews} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-amber-600 to-amber-500 p-4 sm:p-5 text-white flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md">
+                      <AlertCircle size={22} />
+                    </div>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black uppercase tracking-widest leading-none">Configurar Novidades</h2>
+                      <p className="text-[10px] text-amber-100/90 font-bold uppercase tracking-wider mt-0.5">Mensagem exibida aos usuários após atualizações</p>
+                    </div>
                   </div>
-                  <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest">Configurar Novidades</h2>
+                  <button 
+                    type="button"
+                    onClick={() => setIsManagingNews(false)} 
+                    className="hover:bg-white/20 p-2 rounded-full transition-colors cursor-pointer text-white/90 hover:text-white"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
-                <button onClick={() => setIsManagingNews(false)} className="hover:bg-white/20 p-2 rounded-full transition-colors">
-                  <X size={24} />
-                </button>
-              </div>
 
-              <div className="overflow-y-auto custom-scrollbar flex-1">
-                <form onSubmit={handleUpdateNews} className="p-6 sm:p-8 space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Título da Novidade</label>
+                {/* Form fields with independent scrolling */}
+                <div className="overflow-y-auto custom-scrollbar flex-1 p-5 sm:p-6 space-y-5 bg-white overscroll-contain">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Título da Novidade</label>
                     <input 
                       type="text" 
                       value={newsForm.title}
                       onChange={(e) => setNewsForm(prev => ({ ...prev, title: e.target.value }))}
                       placeholder="Ex: Nova Função Adicionada!"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Conteúdo da Mensagem</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Conteúdo da Mensagem</label>
                     <textarea 
                       value={newsForm.content}
                       onChange={(e) => setNewsForm(prev => ({ ...prev, content: e.target.value }))}
                       placeholder="Descreva as novidades aqui..."
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all min-h-[150px] resize-none"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-amber-500 outline-none transition-all min-h-[120px] max-h-[220px] resize-y"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Versão / ID Único</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Versão / ID Único</label>
                     <input 
                       type="text" 
                       value={newsForm.version}
                       onChange={(e) => setNewsForm(prev => ({ ...prev, version: e.target.value }))}
-                      placeholder="Ex: v1.1.0 ou reunião-especial"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
+                      placeholder="Ex: v1.1.0 ou reuniao-especial"
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:border-amber-500 outline-none transition-all"
                     />
-                    <p className="text-[9px] text-gray-400 font-bold ml-1 italic leading-tight">Mude este ID para que a mensagem apareça novamente para quem já viu.</p>
+                    <p className="text-[10px] text-gray-400 font-medium ml-1">Mude este ID para que a mensagem reapareça para quem já viu a versão anterior.</p>
                   </div>
 
-                  <div className="flex items-center justify-between bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                  <div className="flex items-center justify-between bg-amber-50/70 p-4 rounded-2xl border border-amber-200/60">
                     <div className="space-y-0.5 pr-4">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-900">Mensagem Ativa</p>
-                      <p className="text-[9px] font-bold text-amber-700/60 leading-tight">Define se a mensagem será exibida ou não.</p>
+                      <p className="text-[11px] font-black uppercase tracking-wider text-amber-950">Exibir Mensagem (Ativa)</p>
+                      <p className="text-[10px] font-medium text-amber-800/80 leading-tight">Define se a janela de novidades será exibida automaticamente no app.</p>
                     </div>
                     <button 
                       type="button"
                       onClick={() => setNewsForm(prev => ({ ...prev, active: !prev.active }))}
-                      className={`relative w-12 h-6 rounded-full transition-colors duration-300 flex-shrink-0 ${newsForm.active ? 'bg-amber-500' : 'bg-gray-200'}`}
+                      className={`relative w-12 h-6 rounded-full transition-colors duration-300 shrink-0 cursor-pointer ${newsForm.active ? 'bg-amber-500' : 'bg-gray-300'}`}
                     >
                       <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${newsForm.active ? 'translate-x-6' : 'translate-x-0'} shadow-sm`} />
                     </button>
                   </div>
+                </div>
 
-                  <button 
-                    type="submit"
-                    disabled={newsLoading}
-                    className="w-full py-4 bg-amber-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-500/20 hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                {/* Sticky Footer Action Bar */}
+                <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewsPreview(true)}
+                    className="px-4 py-2.5 bg-white hover:bg-gray-100 active:scale-95 text-amber-800 font-bold text-xs uppercase tracking-wider rounded-xl border border-gray-200 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    {newsLoading ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-                    Salvar Novidades
+                    <Eye size={15} />
+                    <span className="hidden sm:inline">Visualizar</span> Prévia
                   </button>
-                </form>
-              </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setIsManagingNews(false)}
+                      className="px-4 py-2.5 bg-white hover:bg-gray-100 active:scale-95 text-gray-600 font-bold text-xs uppercase tracking-wider rounded-xl border border-gray-200 transition-all cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={newsLoading}
+                      className="px-5 sm:px-6 py-2.5 bg-amber-600 text-white font-black uppercase tracking-wider text-xs rounded-xl shadow-md shadow-amber-600/20 hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {newsLoading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />}
+                      <span>Salvar Novidades</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Preview News Modal */}
+      <AnimatePresence>
+        {showNewsPreview && (
+          <div 
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/70 backdrop-blur-sm overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowNewsPreview(false);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-3xl sm:rounded-[2rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden border border-amber-200/80 my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-br from-amber-600 via-amber-500 to-amber-600 p-4 sm:p-5 text-white relative shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md shadow-sm shrink-0">
+                      <Sparkles size={22} className="text-amber-100" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest leading-none">
+                          Novidades!
+                        </h2>
+                        {newsForm.version && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-amber-50 border border-white/30 truncate max-w-[120px]">
+                            {newsForm.version}
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-black/20 text-amber-100">
+                          Prévia
+                        </span>
+                      </div>
+                      <p className="text-amber-100/90 font-bold uppercase tracking-wider text-[10px] mt-0.5 truncate">
+                        Confira o que há de novo no aplicativo
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowNewsPreview(false)}
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors shrink-0 text-white/90 hover:text-white cursor-pointer active:scale-95"
+                    title="Fechar Prévia"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Body */}
+              <div className="p-5 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white overscroll-contain">
+                <div className="space-y-1.5">
+                  <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-snug">
+                    {newsForm.title || 'Título da Novidade'}
+                  </h3>
+                  <div className="w-10 h-1 bg-amber-500 rounded-full" />
+                </div>
+                
+                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-amber-50/40 p-3.5 sm:p-4 rounded-2xl border border-amber-100/70">
+                  {newsForm.content || 'Nenhum conteúdo inserido ainda. Escreva o texto no formulário para visualizar.'}
+                </div>
+              </div>
+
+              {/* Sticky Footer */}
+              <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5 shrink-0">
+                <button
+                  onClick={() => setShowNewsPreview(false)}
+                  className="px-4 py-2.5 sm:py-3 bg-white hover:bg-gray-100 active:scale-95 text-gray-600 font-bold text-xs uppercase tracking-wider rounded-xl border border-gray-200 transition-all cursor-pointer"
+                >
+                  Fechar Prévia
+                </button>
+                <button
+                  onClick={() => setShowNewsPreview(false)}
+                  className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Check size={16} strokeWidth={3} />
+                  <span>Entendido</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

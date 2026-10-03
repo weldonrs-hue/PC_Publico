@@ -1024,21 +1024,28 @@ export default function PioneerSchoolView({
         xmlFiles.forEach(file => {
           let xmlContent = file.asText();
           
+          if (signatureImage && !xmlContent.includes('xmlns:wp=')) {
+            xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match: string) => {
+              if (match.includes('xmlns:wp=')) return match;
+              return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+            });
+          }
+
           // 1. Clean up common Word junk that splits tags
           xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
           xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
           
           // 2. Join split tag characters together into the first text node of the tag. 
-          // We include spaces in the join to handle tags like "@Assinatura Global" that Word often splits
           for (let i = 0; i < 6; i++) {
-            xmlContent = xmlContent.replace(/(@[A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_\s]+)/g, "$1$3$2");
+            xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
           }
           
           // 3. Surgical replacement of @TAG to [TAG] ONLY inside text nodes
           xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
             let newText = text;
             // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
             // Handle other tags - convert to uppercase, and handle common variations like @NOME_ALUNO
             // We avoid matching emails (e.g. test@email.com) by checking that @ is preceded by start of line or non-word char
             newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
@@ -1120,9 +1127,10 @@ export default function PioneerSchoolView({
           'EMAILB': emailB,
           'CONTATO_B': contatoB,
           'CONTATOB': contatoB,
-          'ASSINATURA': signatureImage,
+          'ASSINATURA': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+          'ASSINATURA_GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+          'ASSINATURA GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
           '%ASSINATURA': signatureImage,
-          'ASSINATURA_GLOBAL': signatureImage,
           'VIAJANTE': personalData?.nome || '________________',
           'NOME_VIAJANTE': personalData?.nome || '________________',
           'CIRCUITO': personalData?.circuito || '________________',

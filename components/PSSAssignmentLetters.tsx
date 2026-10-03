@@ -22,7 +22,7 @@ import {
   Save,
   Printer
 } from 'lucide-react';
-import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
+import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
 import { 
   collection, 
@@ -493,6 +493,8 @@ export default function PSSAssignmentLetters({
       'INSTRUTOR': instructorName,
       'assinatura': signatureText,
       'ASSINATURA': signatureText,
+      'ASSINATURA_GLOBAL': signatureText,
+      'ASSINATURA GLOBAL': signatureText,
       'VIAJANTE': travelerName,
       'viajante': travelerName,
       'NOME': travelerName,
@@ -540,10 +542,12 @@ export default function PSSAssignmentLetters({
       const ImageModule = (await import('docxtemplater-image-module-free')).default;
       
       const signatureImage = personalData?.signatureImage || '';
+      const hasImage = Boolean(signatureImage && typeof signatureImage === 'string' && signatureImage.startsWith('data:image'));
+
       let sigWidth = 150;
       let sigHeight = 60;
       
-      if (signatureImage && signatureImage.startsWith('data:image')) {
+      if (hasImage) {
         try {
           const img = new window.Image();
           await new Promise((resolve, reject) => {
@@ -566,15 +570,21 @@ export default function PSSAssignmentLetters({
       const imgOpts: any = {
         centered: false,
         getImage: (tagValue: string) => {
-          if (!tagValue || !tagValue.startsWith('data:image')) return null;
-          const base64Data = tagValue.split(',')[1];
-          const binaryStringArray = window.atob(base64Data);
-          const len = binaryStringArray.length;
-          const bytesArray = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          if (!tagValue || typeof tagValue !== 'string' || !tagValue.startsWith('data:image')) return null;
+          try {
+            const base64Data = tagValue.split(',')[1];
+            if (!base64Data) return null;
+            const binaryStringArray = window.atob(base64Data);
+            const len = binaryStringArray.length;
+            const bytesArray = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytesArray[i] = binaryStringArray.charCodeAt(i);
+            }
+            return bytesArray.buffer;
+          } catch (e) {
+            console.error('Error decoding image:', e);
+            return null;
           }
-          return bytesArray.buffer;
         },
         getSize: () => [sigWidth, sigHeight],
       };
@@ -589,14 +599,19 @@ export default function PSSAssignmentLetters({
       
       xmlFiles.forEach(file => {
         let xmlContent = file.asText();
+
+        if (hasImage && !xmlContent.includes('xmlns:wp=')) {
+          xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
+            if (match.includes('xmlns:wp=')) return match;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+          });
+        }
+
         xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
         xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
-                // Safer joined split tag logic - reduces structural risk
-        for (let i = 0; i < 5; i++) {
-          const prevContent = xmlContent;
-          // Only join text nodes if they are within the same text block, to avoid breaking XML
-          xmlContent = xmlContent.replace(/(<w:t[^>]*>[^<]*?)<\/w:t>(?:<w:[^>]+>)*?<w:t[^>]*>/g, "$1");
-          if (prevContent === xmlContent) break;
+        
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
         }
 
         // Forceful layout fix for tables containing our form labels
@@ -687,22 +702,29 @@ export default function PSSAssignmentLetters({
         if (!xmlContent.includes('xmlns:wp=')) {
           xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match) => {
             if (match.includes('xmlns:wp=')) return match;
-            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`;
+            return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
           });
         }
         
+        xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+        xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+
+        for (let i = 0; i < 6; i++) {
+          xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
+        }
+        
         // Convert @TAG to [TAG] or [%TAG]
-        const hasImage = signatureImage && signatureImage.startsWith('data:image');
         xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match, opening, text, closing) => {
           let newText = text;
-          // Handle Signature specifically
           if (hasImage) {
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[%ASSINATURA]');
+            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
           } else {
-            newText = newText.replace(/@Assinatura([A-Za-z0-9À-ÿ\_]*\s*Global|_Global)?/gi, '[ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[ASSINATURA]');
+            newText = newText.replace(/\[%ASSINATURA\]/gi, '[ASSINATURA]');
           }
           
-          newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
+          newText = newText.replace(/(^|[\s\W])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
             return `${p1}[${p2.toUpperCase()}]`;
           });
           return `${opening}${newText}${closing}`;
@@ -716,7 +738,8 @@ export default function PSSAssignmentLetters({
         paragraphLoop: true,
         linebreaks: true,
         delimiters: { start: '[', end: ']' },
-        modules: ImageModule ? [new ImageModule(imgOpts)] : []
+        modules: hasImage && ImageModule ? [new ImageModule(imgOpts)] : [],
+        nullGetter: () => ''
       });
       docReal.render(replacements);
       const outReal = docReal.getZip().generate({
@@ -727,9 +750,9 @@ export default function PSSAssignmentLetters({
       setStatus('success');
       setNeedsProcessing(false);
     } catch (err: any) {
-      console.error('Error processing DOCX:', err);
+      console.error('Error processing PSS DOCX:', formatDocxError(err), err);
       setStatus('error');
-      setPreviewHtml(`<div class="text-red-500 p-4 font-bold">Erro ao processar template: ${err.message}</div>`);
+      setPreviewHtml(`<div class="text-red-500 p-4 font-bold">Erro ao processar template: ${formatDocxError(err)}</div>`);
     } finally {
       setIsProcessing(false);
     }

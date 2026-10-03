@@ -129,6 +129,8 @@ export default function CartasESPView({ userId, isAdmin, canManage, onBack }: Ca
               canManage={canManage}
               selectedTurma={selectedTurma}
               schoolInfo={schoolInfo}
+              category="esp"
+              initialMode={initialMode}
             />
           )}
         </motion.div>
