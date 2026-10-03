@@ -96,6 +96,15 @@ export default function MicrosoftConnectionSettings() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // Check if the response is JSON before parsing
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('[Microsoft Connect] Non-JSON response received:', text.substring(0, 200));
+        win.close();
+        throw new Error(`O servidor retornou um erro inesperado (${res.status}). Verifique se as variáveis de ambiente MICROSOFT_* estão configuradas no Vercel.`);
+      }
+
       const data = await res.json();
       if (data.url) {
         // Update the location of the already opened window

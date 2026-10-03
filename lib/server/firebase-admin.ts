@@ -18,9 +18,23 @@ function getFirebaseAdmin() {
     try {
       // Initialize with config to specify the correct project ID
       console.log('[Firebase Admin] Initializing with projectId:', firebaseConfig.projectId);
-      adminApp = initializeApp({
-        projectId: firebaseConfig.projectId,
-      });
+      
+      const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+      
+      if (serviceAccountJson) {
+        console.log('[Firebase Admin] Using credentials from environment variable');
+        const { cert } = await import('firebase-admin/app');
+        const serviceAccount = JSON.parse(serviceAccountJson);
+        adminApp = initializeApp({
+          credential: cert(serviceAccount),
+          projectId: firebaseConfig.projectId,
+        });
+      } else {
+        console.log('[Firebase Admin] No service account JSON found, falling back to default credentials');
+        adminApp = initializeApp({
+          projectId: firebaseConfig.projectId,
+        });
+      }
       console.log('[Firebase Admin] Initialization successful');
     } catch (error: any) {
       console.error('[Firebase Admin] Initialization failed:', error.message);

@@ -19,7 +19,15 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Verify Config
-    verifyMicrosoftConfig();
+    try {
+      verifyMicrosoftConfig();
+    } catch (configError: any) {
+      console.error('[Microsoft Connect] Config Error:', configError.message);
+      return NextResponse.json({ 
+        error: 'Configuração do Microsoft OAuth incompleta no servidor.',
+        details: configError.message 
+      }, { status: 500 });
+    }
 
     // 3. Generate OAuth Params
     const state = generateRandomString(32);
@@ -27,10 +35,17 @@ export async function GET(req: NextRequest) {
     const codeChallenge = generateCodeChallenge(codeVerifier);
 
     // 4. Build Microsoft Auth URL
+    const clientId = process.env.MICROSOFT_CLIENT_ID;
+    const redirectUri = process.env.MICROSOFT_REDIRECT_URI;
+    
+    if (!clientId || !redirectUri) {
+       return NextResponse.json({ error: 'MICROSOFT_CLIENT_ID ou MICROSOFT_REDIRECT_URI não configurados.' }, { status: 500 });
+    }
+
     const authUrl = new URL('https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize');
-    authUrl.searchParams.set('client_id', process.env.MICROSOFT_CLIENT_ID!);
+    authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('redirect_uri', process.env.MICROSOFT_REDIRECT_URI!);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', 'openid email offline_access https://graph.microsoft.com/Mail.Send');
     authUrl.searchParams.set('response_mode', 'query');
     authUrl.searchParams.set('state', state);
