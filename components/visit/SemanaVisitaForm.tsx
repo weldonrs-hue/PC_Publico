@@ -316,27 +316,39 @@ export default function SemanaVisitaForm({
           </div>
 
           {/* CAMPO DE HORÁRIO DA REFEIÇÃO CONFIGURÁVEL PELO VIAJANTE */}
-          <div className="bg-red-50/70 border border-red-200 rounded-2xl p-3.5 flex items-center justify-between gap-3">
-            <div>
-              <label className="text-xs font-bold text-red-900 block">
-                Horário Padrão das Refeições
-              </label>
-              <p className="text-[11px] text-red-700/80">
-                Defina o horário que prefere almoçar durante a semana da visita.
-              </p>
+          {!elderMode ? (
+            <div className="bg-red-50/70 border border-red-200 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+              <div>
+                <label className="text-xs font-bold text-red-900 block">
+                  Horário Padrão das Refeições
+                </label>
+                <p className="text-[11px] text-red-700/80">
+                  Defina o horário que prefere almoçar durante a semana da visita.
+                </p>
+              </div>
+              <div className="flex items-center gap-1 bg-white border border-red-300 rounded-xl px-2.5 py-1.5 shadow-2xs">
+                <Clock size={14} className="text-[#c0392b]" />
+                <input
+                  type="text"
+                  placeholder="(11:30)"
+                  value={data.mealsHeaderTime || ''}
+                  onChange={(e) => update((prev) => ({ ...prev, mealsHeaderTime: e.target.value }))}
+                  className="w-16 text-xs font-black text-red-700 outline-none bg-transparent text-center"
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-1 bg-white border border-red-300 rounded-xl px-2.5 py-1.5 shadow-2xs">
-              <Clock size={14} className="text-[#c0392b]" />
-              <input
-                type="text"
-                placeholder="(11:30)"
-                value={data.mealsHeaderTime || ''}
-                disabled={!canEdit('meals')}
-                onChange={(e) => update((prev) => ({ ...prev, mealsHeaderTime: e.target.value }))}
-                className="w-16 text-xs font-black text-red-700 outline-none bg-transparent text-center"
-              />
+          ) : (
+            <div className="bg-red-50/50 border border-red-100 rounded-2xl p-3 flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-red-900 flex items-center gap-1.5">
+                <Clock size={14} className="text-[#c0392b]" />
+                Horário da Refeição (Definido pelo Viajante):
+              </span>
+              <span className="text-xs font-black text-red-700 bg-white px-2.5 py-1 rounded-lg border border-red-200 shadow-2xs">
+                {data.mealsHeaderTime || '(11:30)'}
+              </span>
             </div>
-          </div>
+          )}
+
 
           <div className="space-y-3">
             {data.meals.map((row, idx) => (

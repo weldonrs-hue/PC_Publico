@@ -831,16 +831,17 @@ export default function SemanaVisitaPrint({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    borderBottom: '1px dashed #c0392b',
+                    borderBottom: canEdit('circuitOverseerOnly') ? '1px dashed #c0392b' : 'none',
                     color: '#c0392b',
                     fontSize: '12px',
                     fontWeight: 800,
                     width: '60px',
                     outline: 'none',
                   }}
-                  disabled={!canEdit('meals')}
+                  disabled={!canEdit('circuitOverseerOnly')}
                   onChange={(e) => update((prev) => ({ ...prev, mealsHeaderTime: e.target.value }))}
                 />
+
               </h2>
             </div>
             <table style={{ height: 'calc(100% - 40px)' }}>
