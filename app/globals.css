@@ -6,6 +6,8 @@
 
 @theme {
   --font-sans: var(--font-inter);
+  --font-noto-sans: var(--font-noto-sans);
+  --font-noto-serif: var(--font-noto-serif);
   --font-headline: var(--font-manrope);
   --font-signature: var(--font-signature);
 }

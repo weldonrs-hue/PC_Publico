@@ -877,7 +877,7 @@ export default function EMRView({
   }
 
   return (
-    <div id="emr-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
+    <div id="emr-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0 font-noto-sans">
       <style jsx global>{`
         @media screen {
           .print-only {
@@ -987,7 +987,7 @@ export default function EMRView({
             color: #111827 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            font-family: var(--font-sans, "Inter"), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            font-family: var(--font-noto-sans), var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
           }
 
           .emr-a4-page input {
@@ -1249,11 +1249,11 @@ export default function EMRView({
                           </div>
 
                           {/* Theme Verse */}
-                          <div className="my-1.5 space-y-0.5">
+                          <div className="my-1.5 space-y-0.5 font-noto-serif">
                             <div className="text-[12pt] font-black uppercase tracking-tight text-white drop-shadow-md leading-tight">
                               {currentConfig.themeText}
                             </div>
-                            <div className="text-[8pt] font-bold text-emerald-200/90">
+                            <div className="text-[8pt] font-bold text-emerald-200/90 italic">
                               — {currentConfig.themeVerse}
                             </div>
                           </div>

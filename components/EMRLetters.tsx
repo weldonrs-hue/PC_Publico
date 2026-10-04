@@ -933,7 +933,7 @@ export default function EMRLetters({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px]">
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px] font-noto-sans">
       {/* Sidebar: Selection & Settings */}
       <div className="w-full lg:w-80 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
         {/* School & Turma Selectors Card - Only show when NOT managing */}
