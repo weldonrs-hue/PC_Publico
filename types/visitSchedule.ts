@@ -29,6 +29,7 @@ export interface ShepherdingRow {
 }
 
 export interface VisitPermissions {
+  allowMidweekMeetingTimeEdit: boolean;
   allowWeekendMeetingTimeEdit: boolean;
   allowFieldServiceEdit: boolean;
   allowMealsEdit: boolean;
@@ -36,6 +37,7 @@ export interface VisitPermissions {
   allowStudiesEdit: boolean;
   allowAdditionalMeetingsEdit: boolean;
 }
+
 
 export interface VisitSchedule {
   id?: string;
@@ -113,6 +115,7 @@ export interface VisitSchedule {
 }
 
 export const DEFAULT_VISIT_PERMISSIONS: VisitPermissions = {
+  allowMidweekMeetingTimeEdit: true,
   allowWeekendMeetingTimeEdit: true,
   allowFieldServiceEdit: true,
   allowMealsEdit: true,
@@ -120,6 +123,7 @@ export const DEFAULT_VISIT_PERMISSIONS: VisitPermissions = {
   allowStudiesEdit: true,
   allowAdditionalMeetingsEdit: false,
 };
+
 
 export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'userId' | 'congregationId' | 'congregationName' | 'visitPeriod' | 'shareToken' | 'createdAt' | 'updatedAt'> = {
   coupleNames: 'Marcelo e Aline',

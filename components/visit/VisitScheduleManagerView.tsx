@@ -370,6 +370,11 @@ export default function VisitScheduleManagerView({
                   desc: 'Permite preencher os acompanhantes/telefones para os estudos do casal.',
                 },
                 {
+                  key: 'allowMidweekMeetingTimeEdit',
+                  label: 'Horário da Reunião de Meio de Semana',
+                  desc: 'Permite que a congregação informe o horário de início da reunião de meio de semana.',
+                },
+                {
                   key: 'allowWeekendMeetingTimeEdit',
                   label: 'Horário e Dia da Reunião de Fim de Semana',
                   desc: 'Permite escolher se a reunião é Sábado ou Domingo e o horário de início.',
@@ -379,6 +384,7 @@ export default function VisitScheduleManagerView({
                   label: 'Reuniões Adicionais (Pioneiros / Anciãos)',
                   desc: 'Permite que alterem os dias e horários das reuniões especiais.',
                 },
+
               ].map((item) => {
                 const isAllowed = !!(schedule.permissions as any)[item.key];
                 return (

@@ -23,11 +23,13 @@ export default function SemanaVisitaPrint({
   };
 
   // Helper para verificar se um campo é editável pelo usuário atual
-  const canEdit = (fieldKey: 'weekendMeeting' | 'fieldService' | 'meals' | 'shepherding' | 'studies' | 'additionalMeetings' | 'circuitOverseerOnly') => {
+  const canEdit = (fieldKey: 'midweekMeeting' | 'weekendMeeting' | 'fieldService' | 'meals' | 'shepherding' | 'studies' | 'additionalMeetings' | 'circuitOverseerOnly') => {
     if (isReadOnly) return false;
     if (!elderMode) return true; // Viajante pode editar tudo
     // Ancião respeita as permissões definidas pelo viajante
     switch (fieldKey) {
+      case 'midweekMeeting':
+        return data.permissions?.allowMidweekMeetingTimeEdit ?? true;
       case 'weekendMeeting':
         return data.permissions.allowWeekendMeetingTimeEdit;
       case 'fieldService':
@@ -46,6 +48,7 @@ export default function SemanaVisitaPrint({
         return false;
     }
   };
+
 
   return (
     <div className="semana-visita-wrapper">
@@ -426,7 +429,7 @@ export default function SemanaVisitaPrint({
                     type="text"
                     className="meeting-input small"
                     value={data.meetings.midweek.time}
-                    disabled={!canEdit('circuitOverseerOnly')}
+                    disabled={!canEdit('midweekMeeting')}
                     onChange={(e) =>
                       update((prev) => ({
                         ...prev,
@@ -437,6 +440,7 @@ export default function SemanaVisitaPrint({
                       }))
                     }
                   />
+
                 </div>
               </div>
             </div>

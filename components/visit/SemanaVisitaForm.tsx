@@ -41,9 +41,11 @@ export default function SemanaVisitaForm({
     onChange(updater(data));
   };
 
-  const canEdit = (fieldKey: 'weekendMeeting' | 'fieldService' | 'meals' | 'shepherding' | 'studies' | 'additionalMeetings' | 'circuitOverseerOnly') => {
+  const canEdit = (fieldKey: 'midweekMeeting' | 'weekendMeeting' | 'fieldService' | 'meals' | 'shepherding' | 'studies' | 'additionalMeetings' | 'circuitOverseerOnly') => {
     if (!elderMode) return true;
     switch (fieldKey) {
+      case 'midweekMeeting':
+        return data.permissions?.allowMidweekMeetingTimeEdit ?? true;
       case 'weekendMeeting':
         return data.permissions.allowWeekendMeetingTimeEdit;
       case 'fieldService':
@@ -62,6 +64,7 @@ export default function SemanaVisitaForm({
         return false;
     }
   };
+
 
   // As abas se adaptam dependendo se é o Viajante ou o Ancião
   const tabs = [
@@ -582,7 +585,7 @@ export default function SemanaVisitaForm({
                   type="text"
                   placeholder="Ex: 19:30"
                   value={data.meetings.midweek.time}
-                  disabled={!canEdit('circuitOverseerOnly')}
+                  disabled={!canEdit('midweekMeeting')}
                   onChange={(e) =>
                     update((prev) => ({
                       ...prev,
@@ -594,6 +597,7 @@ export default function SemanaVisitaForm({
                   }
                   className="w-full text-xs font-medium p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1a5c5a] focus:border-transparent outline-none transition-all disabled:opacity-75"
                 />
+
               </div>
 
               <div className="space-y-1">
