@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { VisitSchedule, FieldServiceRow, StudyVisitRow, MealRow, ShepherdingRow } from '@/types/visitSchedule';
+import { 
+  VisitSchedule, 
+  FieldServiceRow, 
+  StudyVisitRow, 
+  MealRow, 
+  ShepherdingRow 
+} from '@/types/visitSchedule';
 import { 
   Users, 
   MapPin, 
@@ -12,10 +18,10 @@ import {
   BookOpen, 
   ShieldCheck, 
   Lock,
-  ChevronDown,
-  ChevronUp,
   Plus,
-  Trash2
+  Trash2,
+  UserCheck,
+  Sparkles
 } from 'lucide-react';
 
 interface SemanaVisitaFormProps {
@@ -29,7 +35,7 @@ export default function SemanaVisitaForm({
   onChange,
   elderMode = false,
 }: SemanaVisitaFormProps) {
-  const [activeSection, setActiveSection] = useState<string>('campo');
+  const [activeSection, setActiveSection] = useState<string>('geral');
 
   const update = (updater: (prev: VisitSchedule) => VisitSchedule) => {
     onChange(updater(data));
@@ -57,7 +63,9 @@ export default function SemanaVisitaForm({
     }
   };
 
+  // As abas se adaptam dependendo se é o Viajante ou o Ancião
   const tabs = [
+    ...(!elderMode ? [{ id: 'geral', label: 'Geral', icon: Users }] : []),
     { id: 'campo', label: 'Campo', icon: MapPin, count: data.fieldService.length },
     { id: 'refeicoes', label: 'Refeições', icon: Utensils, count: data.meals.length },
     { id: 'pastoreio', label: 'Pastoreio', icon: Heart, count: data.shepherding.length },
@@ -96,6 +104,61 @@ export default function SemanaVisitaForm({
         })}
       </div>
 
+      {/* 0. DADOS GERAIS DO CASAL E DIAS DA VISITA (Apenas Viajante) */}
+      {!elderMode && activeSection === 'geral' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-xs space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[#1a5c5a] border-b border-gray-100 pb-2 flex items-center gap-2">
+              <Users size={16} /> Identificação do Casal e Dias da Visita
+            </h3>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                Nome do Casal / Viajante
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Marcelo e Aline"
+                value={data.coupleNames}
+                onChange={(e) => update((prev) => ({ ...prev, coupleNames: e.target.value }))}
+                className="w-full text-xs font-bold p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1a5c5a] focus:border-transparent outline-none transition-all"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                Dias de Atividade na Visita
+              </label>
+              <div className="grid grid-cols-6 gap-2">
+                {(['ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as const).map((dayKey) => {
+                  const isChecked = !!data.activeDays[dayKey];
+                  return (
+                    <button
+                      type="button"
+                      key={dayKey}
+                      onClick={() =>
+                        update((prev) => ({
+                          ...prev,
+                          activeDays: { ...prev.activeDays, [dayKey]: !isChecked },
+                        }))
+                      }
+                      className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all flex flex-col items-center gap-1 ${
+                        isChecked
+                          ? 'bg-[#1a5c5a] text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span>{dayKey}</span>
+                      <span className="text-[9px]">{isChecked ? '✓' : '—'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. SERVIÇO DE CAMPO */}
       {activeSection === 'campo' && (
         <div className="space-y-3">
@@ -125,12 +188,44 @@ export default function SemanaVisitaForm({
                 className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-xs space-y-3"
               >
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-[#1a5c5a] bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100">
-                    {row.day}
-                  </span>
-                  <span className="text-[11px] font-medium text-gray-400">
-                    Saída #{idx + 1}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {!elderMode ? (
+                      <input
+                        type="text"
+                        value={row.day}
+                        onChange={(e) =>
+                          update((prev) => {
+                            const updated = [...prev.fieldService];
+                            updated[idx] = { ...updated[idx], day: e.target.value };
+                            return { ...prev, fieldService: updated };
+                          })
+                        }
+                        className="text-xs font-black uppercase tracking-wider text-[#1a5c5a] bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-200 outline-none w-24"
+                      />
+                    ) : (
+                      <span className="text-xs font-black uppercase tracking-wider text-[#1a5c5a] bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100">
+                        {row.day}
+                      </span>
+                    )}
+                    <span className="text-[11px] font-medium text-gray-400">
+                      Saída #{idx + 1}
+                    </span>
+                  </div>
+
+                  {!elderMode && data.fieldService.length > 1 && (
+                    <button
+                      onClick={() =>
+                        update((prev) => ({
+                          ...prev,
+                          fieldService: prev.fieldService.filter((_, i) => i !== idx),
+                        }))
+                      }
+                      className="text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Remover saída"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -176,6 +271,23 @@ export default function SemanaVisitaForm({
                 </div>
               </div>
             ))}
+
+            {!elderMode && (
+              <button
+                onClick={() =>
+                  update((prev) => ({
+                    ...prev,
+                    fieldService: [
+                      ...prev.fieldService,
+                      { id: Date.now().toString(), day: 'Sábado', time: '09:00', location: '' },
+                    ],
+                  }))
+                }
+                className="w-full py-3 border-2 border-dashed border-teal-200 hover:border-teal-400 bg-teal-50/50 hover:bg-teal-50 text-teal-800 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
+              >
+                <Plus size={16} /> Adicionar Saída de Campo
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -200,6 +312,29 @@ export default function SemanaVisitaForm({
             )}
           </div>
 
+          {/* CAMPO DE HORÁRIO DA REFEIÇÃO CONFIGURÁVEL PELO VIAJANTE */}
+          <div className="bg-red-50/70 border border-red-200 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+            <div>
+              <label className="text-xs font-bold text-red-900 block">
+                Horário Padrão das Refeições
+              </label>
+              <p className="text-[11px] text-red-700/80">
+                Defina o horário que prefere almoçar durante a semana da visita.
+              </p>
+            </div>
+            <div className="flex items-center gap-1 bg-white border border-red-300 rounded-xl px-2.5 py-1.5 shadow-2xs">
+              <Clock size={14} className="text-[#c0392b]" />
+              <input
+                type="text"
+                placeholder="(11:30)"
+                value={data.mealsHeaderTime || ''}
+                disabled={!canEdit('meals')}
+                onChange={(e) => update((prev) => ({ ...prev, mealsHeaderTime: e.target.value }))}
+                className="w-16 text-xs font-black text-red-700 outline-none bg-transparent text-center"
+              />
+            </div>
+          </div>
+
           <div className="space-y-3">
             {data.meals.map((row, idx) => (
               <div 
@@ -207,9 +342,26 @@ export default function SemanaVisitaForm({
                 className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-xs space-y-3"
               >
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-[#c0392b] bg-red-50 px-2.5 py-0.5 rounded-lg border border-red-100">
-                    {row.day}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {!elderMode ? (
+                      <input
+                        type="text"
+                        value={row.day}
+                        onChange={(e) =>
+                          update((prev) => {
+                            const updated = [...prev.meals];
+                            updated[idx] = { ...updated[idx], day: e.target.value };
+                            return { ...prev, meals: updated };
+                          })
+                        }
+                        className="text-xs font-black uppercase tracking-wider text-[#c0392b] bg-red-50 px-2 py-0.5 rounded-lg border border-red-200 outline-none w-24"
+                      />
+                    ) : (
+                      <span className="text-xs font-black uppercase tracking-wider text-[#c0392b] bg-red-50 px-2.5 py-0.5 rounded-lg border border-red-100">
+                        {row.day}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[11px] font-semibold text-gray-400">
                     Almoço {data.mealsHeaderTime || '(11:30)'}
                   </span>
@@ -671,24 +823,183 @@ export default function SemanaVisitaForm({
               </div>
             </div>
           </div>
+
+          {/* REUNIÕES ADICIONAIS */}
+          <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-xs space-y-3">
+            <h4 className="text-xs font-black uppercase tracking-wider text-[#1a5c5a] border-b border-gray-100 pb-2">
+              Reuniões Adicionais
+            </h4>
+
+            {/* PIONEIROS */}
+            <div className="p-3 bg-gray-50 rounded-xl space-y-2">
+              <span className="text-xs font-bold text-gray-800">Reunião com os Pioneiros</span>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-500">Dia</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Sexta"
+                    value={data.additionalMeetings.pioneers.day}
+                    disabled={!canEdit('additionalMeetings')}
+                    onChange={(e) =>
+                      update((prev) => ({
+                        ...prev,
+                        additionalMeetings: {
+                          ...prev.additionalMeetings,
+                          pioneers: { ...prev.additionalMeetings.pioneers, day: e.target.value },
+                        },
+                      }))
+                    }
+                    className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-500">Horário</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 17:00"
+                    value={data.additionalMeetings.pioneers.time}
+                    disabled={!canEdit('additionalMeetings')}
+                    onChange={(e) =>
+                      update((prev) => ({
+                        ...prev,
+                        additionalMeetings: {
+                          ...prev.additionalMeetings,
+                          pioneers: { ...prev.additionalMeetings.pioneers, time: e.target.value },
+                        },
+                      }))
+                    }
+                    className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ANCIÃOS E SERVOS */}
+            <div className="p-3 bg-gray-50 rounded-xl space-y-2">
+              <span className="text-xs font-bold text-gray-800">Reunião com Anciãos e Servos Ministeriais</span>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-500">Dia</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Terça"
+                    value={data.additionalMeetings.eldersAndServants.day}
+                    disabled={!canEdit('additionalMeetings')}
+                    onChange={(e) =>
+                      update((prev) => ({
+                        ...prev,
+                        additionalMeetings: {
+                          ...prev.additionalMeetings,
+                          eldersAndServants: { ...prev.additionalMeetings.eldersAndServants, day: e.target.value },
+                        },
+                      }))
+                    }
+                    className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-gray-500">Horário</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 19:30"
+                    value={data.additionalMeetings.eldersAndServants.time}
+                    disabled={!canEdit('additionalMeetings')}
+                    onChange={(e) =>
+                      update((prev) => ({
+                        ...prev,
+                        additionalMeetings: {
+                          ...prev.additionalMeetings,
+                          eldersAndServants: { ...prev.additionalMeetings.eldersAndServants, time: e.target.value },
+                        },
+                      }))
+                    }
+                    className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* 5. ESTUDOS E REVISITAS */}
       {activeSection === 'estudos' && (
         <div className="space-y-4">
+          {/* MARIDO */}
           <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-xs space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-[#1a5c5a] border-b border-gray-100 pb-2">
-              Acompanhantes de Estudo ({data.studiesAndVisits.husbandName || 'Irmão'})
-            </h4>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-[#1a5c5a]">
+                  Estudos de:
+                </span>
+                {!elderMode ? (
+                  <input
+                    type="text"
+                    value={data.studiesAndVisits.husbandName}
+                    onChange={(e) =>
+                      update((prev) => ({
+                        ...prev,
+                        studiesAndVisits: { ...prev.studiesAndVisits, husbandName: e.target.value },
+                      }))
+                    }
+                    className="text-xs font-black uppercase text-[#1a5c5a] bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200 outline-none w-32"
+                  />
+                ) : (
+                  <span className="text-xs font-black uppercase text-[#1a5c5a] bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100">
+                    {data.studiesAndVisits.husbandName || 'MARCELO'}
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-3">
               {data.studiesAndVisits.husbandRows.map((row, idx) => (
-                <div key={row.id || idx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-3 bg-gray-50 rounded-xl">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Dia / Horário</label>
-                    <div className="text-xs font-bold text-gray-800">{row.day} - {row.time || '--'}</div>
+                <div key={row.id || idx} className="p-3 bg-gray-50 rounded-xl space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Dia</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Quarta"
+                        value={row.day}
+                        disabled={!canEdit('circuitOverseerOnly')}
+                        onChange={(e) =>
+                          update((prev) => {
+                            const updated = [...prev.studiesAndVisits.husbandRows];
+                            updated[idx] = { ...updated[idx], day: e.target.value };
+                            return {
+                              ...prev,
+                              studiesAndVisits: { ...prev.studiesAndVisits, husbandRows: updated },
+                            };
+                          })
+                        }
+                        className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-75"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Horário</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 14:00"
+                        value={row.time}
+                        disabled={!canEdit('circuitOverseerOnly')}
+                        onChange={(e) =>
+                          update((prev) => {
+                            const updated = [...prev.studiesAndVisits.husbandRows];
+                            updated[idx] = { ...updated[idx], time: e.target.value };
+                            return {
+                              ...prev,
+                              studiesAndVisits: { ...prev.studiesAndVisits, husbandRows: updated },
+                            };
+                          })
+                        }
+                        className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-75"
+                      />
+                    </div>
                   </div>
-                  <div className="sm:col-span-2 space-y-1">
+
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Acompanhante / Telefone</label>
                     <input
                       type="text"
@@ -705,11 +1016,12 @@ export default function SemanaVisitaForm({
                           };
                         })
                       }
-                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none"
+                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
                     />
                   </div>
+
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Lição</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Lição / Publicação</label>
                     <input
                       type="text"
                       placeholder="Ex: Lição 5"
@@ -725,7 +1037,7 @@ export default function SemanaVisitaForm({
                           };
                         })
                       }
-                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none"
+                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -733,18 +1045,80 @@ export default function SemanaVisitaForm({
             </div>
           </div>
 
+          {/* ESPOSA */}
           <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-xs space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-[#1a5c5a] border-b border-gray-100 pb-2">
-              Acompanhantes de Estudo ({data.studiesAndVisits.wifeName || 'Esposa'})
-            </h4>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-[#1a5c5a]">
+                  Estudos de:
+                </span>
+                {!elderMode ? (
+                  <input
+                    type="text"
+                    value={data.studiesAndVisits.wifeName}
+                    onChange={(e) =>
+                      update((prev) => ({
+                        ...prev,
+                        studiesAndVisits: { ...prev.studiesAndVisits, wifeName: e.target.value },
+                      }))
+                    }
+                    className="text-xs font-black uppercase text-[#1a5c5a] bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200 outline-none w-32"
+                  />
+                ) : (
+                  <span className="text-xs font-black uppercase text-[#1a5c5a] bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-100">
+                    {data.studiesAndVisits.wifeName || 'ALINE'}
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-3">
               {data.studiesAndVisits.wifeRows.map((row, idx) => (
-                <div key={row.id || idx} className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-3 bg-gray-50 rounded-xl">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Dia / Horário</label>
-                    <div className="text-xs font-bold text-gray-800">{row.day} - {row.time || '--'}</div>
+                <div key={row.id || idx} className="p-3 bg-gray-50 rounded-xl space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Dia</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Quarta"
+                        value={row.day}
+                        disabled={!canEdit('circuitOverseerOnly')}
+                        onChange={(e) =>
+                          update((prev) => {
+                            const updated = [...prev.studiesAndVisits.wifeRows];
+                            updated[idx] = { ...updated[idx], day: e.target.value };
+                            return {
+                              ...prev,
+                              studiesAndVisits: { ...prev.studiesAndVisits, wifeRows: updated },
+                            };
+                          })
+                        }
+                        className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-75"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Horário</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 14:00"
+                        value={row.time}
+                        disabled={!canEdit('circuitOverseerOnly')}
+                        onChange={(e) =>
+                          update((prev) => {
+                            const updated = [...prev.studiesAndVisits.wifeRows];
+                            updated[idx] = { ...updated[idx], time: e.target.value };
+                            return {
+                              ...prev,
+                              studiesAndVisits: { ...prev.studiesAndVisits, wifeRows: updated },
+                            };
+                          })
+                        }
+                        className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-75"
+                      />
+                    </div>
                   </div>
-                  <div className="sm:col-span-2 space-y-1">
+
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Acompanhante / Telefone</label>
                     <input
                       type="text"
@@ -761,11 +1135,12 @@ export default function SemanaVisitaForm({
                           };
                         })
                       }
-                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none"
+                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
                     />
                   </div>
+
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Lição</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Lição / Publicação</label>
                     <input
                       type="text"
                       placeholder="Ex: Lição 8"
@@ -781,7 +1156,7 @@ export default function SemanaVisitaForm({
                           };
                         })
                       }
-                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none"
+                      className="w-full text-xs font-medium p-2 bg-white border border-gray-200 rounded-lg outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
