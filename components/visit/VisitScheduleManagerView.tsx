@@ -18,10 +18,12 @@ import {
   FileText,
   AlertCircle,
   Eye,
-  Settings2
+  Settings2,
+  Smartphone
 } from 'lucide-react';
 import { VisitSchedule, INITIAL_VISIT_SCHEDULE } from '@/types/visitSchedule';
 import SemanaVisitaPrint from './SemanaVisitaPrint';
+import SemanaVisitaForm from './SemanaVisitaForm';
 import { db } from '@/lib/firebase';
 import { 
   collection, 
@@ -53,8 +55,9 @@ export default function VisitScheduleManagerView({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'preview' | 'permissions'>('preview');
+  const [activeTab, setActiveTab] = useState<'form' | 'preview' | 'permissions'>('form');
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
 
   // ID do documento baseado na congregação e no usuário
   const docId = `visit_${userId}_${congregationId}`;
@@ -269,10 +272,22 @@ export default function VisitScheduleManagerView({
         )}
 
         {/* NAVEGAÇÃO DE ABAS */}
-        <div className="flex border-b border-gray-100 gap-4 pt-1">
+        <div className="flex border-b border-gray-100 gap-2 sm:gap-4 pt-1 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('form')}
+            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
+              activeTab === 'form'
+                ? 'border-[#1a5c5a] text-[#1a5c5a]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Smartphone size={15} />
+            Formulário (Celular)
+          </button>
+
           <button
             onClick={() => setActiveTab('preview')}
-            className={`pb-2.5 text-xs font-bold flex items-center gap-2 border-b-2 transition-all ${
+            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
               activeTab === 'preview'
                 ? 'border-[#1a5c5a] text-[#1a5c5a]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -284,7 +299,7 @@ export default function VisitScheduleManagerView({
 
           <button
             onClick={() => setActiveTab('permissions')}
-            className={`pb-2.5 text-xs font-bold flex items-center gap-2 border-b-2 transition-all ${
+            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
               activeTab === 'permissions'
                 ? 'border-[#1a5c5a] text-[#1a5c5a]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -296,104 +311,138 @@ export default function VisitScheduleManagerView({
         </div>
       </div>
 
-      {/* CONTEÚDO DA ABA */}
-      {activeTab === 'preview' && (
-        <div className="space-y-4">
-          <div className="text-center text-xs text-gray-500 print:hidden">
-            💡 <em>Você pode editar qualquer campo diretamente na folha abaixo. As alterações serão salvas ao clicar em Salvar ou ao mudar de campo.</em>
-          </div>
-
-          <SemanaVisitaPrint
+      {/* CONTEÚDO DA ABA (TELA) */}
+      <div className="print:hidden">
+        {activeTab === 'form' && (
+          <SemanaVisitaForm
             data={schedule}
-            onChange={(updated) => {
-              setSchedule(updated);
-            }}
-            isReadOnly={false}
+            onChange={(updated) => setSchedule(updated)}
             elderMode={false}
           />
-        </div>
-      )}
+        )}
 
-      {activeTab === 'permissions' && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6 print:hidden">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">O que os Anciãos podem preencher?</h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Defina quais seções da folha ficarão liberadas para edição quando os anciãos abrirem o link público.
-            </p>
+        {activeTab === 'preview' && (
+          <div className="space-y-4">
+            <div className="text-center text-xs text-gray-500">
+              💡 <em>Você pode editar diretamente na folha abaixo. As alterações serão salvas ao clicar em Salvar Alterações.</em>
+            </div>
+
+            <div className="overflow-x-auto pb-6">
+              <SemanaVisitaPrint
+                data={schedule}
+                onChange={(updated) => setSchedule(updated)}
+                isReadOnly={false}
+                elderMode={false}
+              />
+            </div>
           </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              {
-                key: 'allowFieldServiceEdit',
-                label: 'Locais e Horários do Serviço de Campo',
-                desc: 'Permite que definam onde será a saída de campo e os horários.',
-              },
-              {
-                key: 'allowMealsEdit',
-                label: 'Refeições e Anfitriões',
-                desc: 'Permite informar os nomes dos anfitriões e endereços para almoço.',
-              },
-              {
-                key: 'allowShepherdingEdit',
-                label: 'Visitas de Pastoreio',
-                desc: 'Permite preencher as famílias, acompanhantes e situações.',
-              },
-              {
-                key: 'allowStudiesEdit',
-                label: 'Acompanhantes de Estudos e Revisitas',
-                desc: 'Permite preencher os acompanhantes/telefones para os estudos do casal.',
-              },
-              {
-                key: 'allowWeekendMeetingTimeEdit',
-                label: 'Horário e Dia da Reunião de Fim de Semana',
-                desc: 'Permite escolher se a reunião é Sábado ou Domingo e o horário de início.',
-              },
-              {
-                key: 'allowAdditionalMeetingsEdit',
-                label: 'Reuniões Adicionais (Pioneiros / Anciãos)',
-                desc: 'Permite que alterem os dias e horários das reuniões especiais.',
-              },
-            ].map((item) => {
-              const isAllowed = !!(schedule.permissions as any)[item.key];
-              return (
-                <div
-                  key={item.key}
-                  onClick={() => {
-                    const updated = {
-                      ...schedule,
-                      permissions: {
-                        ...schedule.permissions,
-                        [item.key]: !isAllowed,
-                      },
-                    };
-                    setSchedule(updated);
-                    handleSave(updated);
-                  }}
-                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
-                    isAllowed
-                      ? 'border-[#1a5c5a] bg-teal-50/40 text-gray-900'
-                      : 'border-gray-100 bg-gray-50/50 text-gray-500'
-                  }`}
-                >
+        {activeTab === 'permissions' && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">O que os Anciãos podem preencher?</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Defina quais seções da folha ficarão liberadas para edição quando os anciãos abrirem o link público.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                {
+                  key: 'allowFieldServiceEdit',
+                  label: 'Locais e Horários do Serviço de Campo',
+                  desc: 'Permite que definam onde será a saída de campo e os horários.',
+                },
+                {
+                  key: 'allowMealsEdit',
+                  label: 'Refeições e Anfitriões',
+                  desc: 'Permite informar os nomes dos anfitriões e endereços para almoço.',
+                },
+                {
+                  key: 'allowShepherdingEdit',
+                  label: 'Visitas de Pastoreio',
+                  desc: 'Permite preencher as famílias, acompanhantes e situações.',
+                },
+                {
+                  key: 'allowStudiesEdit',
+                  label: 'Acompanhantes de Estudos e Revisitas',
+                  desc: 'Permite preencher os acompanhantes/telefones para os estudos do casal.',
+                },
+                {
+                  key: 'allowWeekendMeetingTimeEdit',
+                  label: 'Horário e Dia da Reunião de Fim de Semana',
+                  desc: 'Permite escolher se a reunião é Sábado ou Domingo e o horário de início.',
+                },
+                {
+                  key: 'allowAdditionalMeetingsEdit',
+                  label: 'Reuniões Adicionais (Pioneiros / Anciãos)',
+                  desc: 'Permite que alterem os dias e horários das reuniões especiais.',
+                },
+              ].map((item) => {
+                const isAllowed = !!(schedule.permissions as any)[item.key];
+                return (
                   <div
-                    className={`mt-0.5 p-1.5 rounded-lg ${
-                      isAllowed ? 'bg-[#1a5c5a] text-white' : 'bg-gray-200 text-gray-400'
+                    key={item.key}
+                    onClick={() => {
+                      const updated = {
+                        ...schedule,
+                        permissions: {
+                          ...schedule.permissions,
+                          [item.key]: !isAllowed,
+                        },
+                      };
+                      setSchedule(updated);
+                      handleSave(updated);
+                    }}
+                    className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
+                      isAllowed
+                        ? 'border-[#1a5c5a] bg-teal-50/40 text-gray-900'
+                        : 'border-gray-100 bg-gray-50/50 text-gray-500'
                     }`}
                   >
-                    {isAllowed ? <Unlock size={14} /> : <Lock size={14} />}
+                    <div
+                      className={`mt-0.5 p-1.5 rounded-lg ${
+                        isAllowed ? 'bg-[#1a5c5a] text-white' : 'bg-gray-200 text-gray-400'
+                      }`}
+                    >
+                      {isAllowed ? <Unlock size={14} /> : <Lock size={14} />}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold">{item.label}</h4>
+                      <p className="text-[11px] text-gray-500 mt-0.5">{item.desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold">{item.label}</h4>
-                    <p className="text-[11px] text-gray-500 mt-0.5">{item.desc}</p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+        )}
+      </div>
+
+      {/* COMPONENTE EXCLUSIVO PARA IMPRESSÃO (sempre pronto quando apertar Imprimir) */}
+      <div className="hidden print:block">
+        <SemanaVisitaPrint
+          data={schedule}
+          isReadOnly={true}
+          elderMode={false}
+        />
+      </div>
+
+      {/* BARRA FLUTUANTE INFERIOR NO CELULAR */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg md:hidden print:hidden z-50">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <button
+            onClick={() => handleSave()}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50"
+          >
+            <Save size={16} />
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
+

@@ -6,7 +6,8 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { VisitSchedule } from '@/types/visitSchedule';
 import SemanaVisitaPrint from '@/components/visit/SemanaVisitaPrint';
-import { Save, CheckCircle2, AlertCircle, Printer, ShieldCheck } from 'lucide-react';
+import SemanaVisitaForm from '@/components/visit/SemanaVisitaForm';
+import { Save, CheckCircle2, AlertCircle, Printer, ShieldCheck, Smartphone, FileText, Check } from 'lucide-react';
 
 export default function PublicVisitSchedulePage() {
   const params = useParams();
@@ -18,6 +19,7 @@ export default function PublicVisitSchedulePage() {
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'form' | 'print'>('form');
 
   useEffect(() => {
     if (!token) return;
@@ -77,7 +79,7 @@ export default function PublicVisitSchedulePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#e8e8e8] flex flex-col items-center justify-center p-6 space-y-4">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 space-y-4">
         <div className="w-10 h-10 border-4 border-[#1a5c5a] border-t-transparent rounded-full animate-spin" />
         <p className="text-sm font-semibold text-gray-700">Carregando programação da congregação...</p>
       </div>
@@ -86,13 +88,13 @@ export default function PublicVisitSchedulePage() {
 
   if (errorMsg && !schedule) {
     return (
-      <div className="min-h-screen bg-[#e8e8e8] flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-2xl p-8 text-center shadow-lg space-y-4">
-          <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-            <AlertCircle size={28} />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 text-center shadow-xl border border-gray-100 space-y-4">
+          <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+            <AlertCircle size={30} />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">Link Não Encontrado</h2>
-          <p className="text-xs text-gray-600">{errorMsg}</p>
+          <h2 className="text-lg font-black text-gray-900">Link Não Encontrado</h2>
+          <p className="text-xs text-gray-600 leading-relaxed">{errorMsg}</p>
         </div>
       </div>
     );
@@ -101,22 +103,22 @@ export default function PublicVisitSchedulePage() {
   if (!schedule) return null;
 
   return (
-    <div className="min-h-screen bg-[#e8e8e8] py-4 px-2 md:px-4">
-      {/* BARRA FIXA SUPERIOR PARA OS ANCIÃOS */}
-      <div className="max-w-[210mm] mx-auto bg-white border border-gray-200 rounded-2xl p-4 shadow-md mb-4 print:hidden space-y-3">
+    <div className="min-h-screen bg-gray-100/70 pb-24 md:pb-12 pt-3 px-3 md:px-6">
+      {/* CABEÇALHO SUPERIOR FIXO / COMPACTO */}
+      <div className="max-w-2xl mx-auto bg-white border border-gray-200/90 rounded-2xl p-4 shadow-sm mb-4 print:hidden space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-2 py-0.5 rounded-md">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-md">
                 Congregação {schedule.congregationName}
               </span>
-              <span className="text-xs text-gray-500">•</span>
-              <span className="text-xs font-semibold text-gray-600">
+              <span className="text-xs text-gray-400">•</span>
+              <span className="text-xs font-semibold text-gray-500">
                 {schedule.visitPeriod}
               </span>
             </div>
-            <h1 className="text-base font-bold text-gray-900 mt-0.5">
-              Preenchimento da Semana da Visita
+            <h1 className="text-base font-black text-gray-900 mt-1 tracking-tight">
+              Semana da Visita
             </h1>
           </div>
 
@@ -124,9 +126,9 @@ export default function PublicVisitSchedulePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50"
             >
-              <Save size={16} />
+              {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
               {saving ? 'Salvando...' : 'Salvar Informações'}
             </button>
 
@@ -136,35 +138,102 @@ export default function PublicVisitSchedulePage() {
               title="Imprimir folha"
             >
               <Printer size={16} />
-              Imprimir
+              <span className="hidden sm:inline">Imprimir</span>
             </button>
           </div>
         </div>
 
+        {/* FEEDBACK DE SALVAMENTO */}
         {savedSuccess && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
             <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
             <span>
-              <strong>Tudo certo!</strong> Informações salvas com sucesso. O viajante já pode visualizar os dados que você preencheu.
+              <strong>Tudo certo!</strong> Informações salvas com sucesso. O viajante já pode visualizar os dados atualizados.
             </span>
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-          <ShieldCheck size={15} className="text-[#1a5c5a] flex-shrink-0" />
-          <span>
-            Os campos liberados para a congregação (locais de campo, almoços, pastoreios) podem ser editados diretamente abaixo. Ao terminar, clique no botão verde <strong>Salvar Informações</strong>.
-          </span>
+        {/* SELETOR DE MODO: FORMULÁRIO RESPONSIVO VS FOLHA A4 */}
+        <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 gap-2">
+          <div className="flex bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
+            <button
+              onClick={() => setViewMode('form')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'form'
+                  ? 'bg-white text-[#1a5c5a] shadow-xs'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Smartphone size={14} />
+              Formulário (Celular)
+            </button>
+
+            <button
+              onClick={() => setViewMode('print')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'print'
+                  ? 'bg-white text-[#1a5c5a] shadow-xs'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <FileText size={14} />
+              Folha A4 Completa
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* FOLHA NO LAYOUT A4 */}
-      <SemanaVisitaPrint
-        data={schedule}
-        onChange={(updated) => setSchedule(updated)}
-        isReadOnly={false}
-        elderMode={true}
-      />
+      {/* ÁREA DE CONTEÚDO PRINCIPAL (TELA) */}
+      <div className="print:hidden">
+        {viewMode === 'form' ? (
+          <SemanaVisitaForm
+            data={schedule}
+            onChange={(updated) => setSchedule(updated)}
+            elderMode={true}
+          />
+        ) : (
+          <div className="overflow-x-auto pb-6">
+            <SemanaVisitaPrint
+              data={schedule}
+              onChange={(updated) => setSchedule(updated)}
+              isReadOnly={false}
+              elderMode={true}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* COMPONENTE EXCLUSIVO PARA IMPRESSÃO (sempre pronto quando apertar Ctrl+P ou Imprimir) */}
+      <div className="hidden print:block">
+        <SemanaVisitaPrint
+          data={schedule}
+          isReadOnly={true}
+          elderMode={true}
+        />
+      </div>
+
+      {/* BARRA FLUTUANTE INFERIOR NO CELULAR (Garante que o botão de salvar está sempre visível) */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg md:hidden print:hidden z-50">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <div className="text-[11px] text-gray-500 truncate">
+            {savedSuccess ? (
+              <span className="text-emerald-600 font-bold flex items-center gap-1">
+                <Check size={14} /> Salvo!
+              </span>
+            ) : (
+              <span>Preencha e salve</span>
+            )}
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 max-w-[200px] flex items-center justify-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50"
+          >
+            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
+            {saving ? 'Salvando...' : 'Salvar Informações'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
