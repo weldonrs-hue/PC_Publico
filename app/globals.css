@@ -136,3 +136,52 @@
 .leaflet-tooltip-top:before {
   border-top-color: #fde68a !important;
 }
+
+/* Fonte e formatação base consolidada */
+.jwac-container, .ms-ROMAN, .jwac.ms-ROMAN {
+  font-family: var(--font-noto-sans), Arial, "Arial Unicode MS", sans-serif;
+  line-height: 1.5;
+  word-break: normal;
+  color: #292929; /* cinza escuro */
+}
+
+/* Ajuste de tamanho e espaçamento */
+.textSizeIncrement {
+  font-size: 1.205em;   /* ~20% maior que o padrão */
+  line-height: 1.5;     /* altura da linha */
+}
+
+/* Estilo do parágrafo destacado */
+.jwac .jwac-textHighlight {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #8e8e8e; /* cinza médio */
+  text-decoration-thickness: 1px;
+  text-underline-offset: .4ex;
+}
+
+/* Estilo para Cânticos */
+.jwac-song-link {
+  color: #4a6da7; /* Azul jw.org */
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.jwac-song-link:hover {
+  text-decoration: underline;
+}
+
+/* Listas sem marcador e sem indentação */
+.jwac ul.noMarker {
+  list-style-type: none;
+}
+.jwac.dir-ltr ul.noIndent {
+  padding-left: 0;
+}
+
+/* Campos flexíveis */
+.jwac .gen-field {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 1em 0;
+}

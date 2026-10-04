@@ -1,5 +1,5 @@
 import 'server-only';
-import { getApps, initializeApp, App } from 'firebase-admin/app';
+import { getApps, initializeApp, App, cert } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -23,7 +23,6 @@ function getFirebaseAdmin() {
       
       if (serviceAccountJson) {
         console.log('[Firebase Admin] Using credentials from environment variable');
-        const { cert } = await import('firebase-admin/app');
         const serviceAccount = JSON.parse(serviceAccountJson);
         adminApp = initializeApp({
           credential: cert(serviceAccount),

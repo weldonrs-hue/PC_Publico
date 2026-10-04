@@ -1212,7 +1212,7 @@ export default function EMRView({
                 {/* Physical A4 Sheet (210 x 297 mm) */}
                 <div 
                   id={`emr-a4-page-${pageNum}`}
-                  className="emr-a4-page bg-white text-slate-900 shadow-2xl rounded-xs border border-gray-300 print:shadow-none print:border-none print:m-0 flex flex-col justify-between box-border select-text"
+                  className="emr-a4-page jwac-container bg-white text-[#292929] shadow-2xl rounded-xs border border-gray-300 print:shadow-none print:border-none print:m-0 flex flex-col justify-between box-border select-text"
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -1354,11 +1354,8 @@ export default function EMRView({
                                   {item.time}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <span className={`text-[7pt] font-black uppercase tracking-wider block leading-tight ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
-                                    {item.label || 'SÉRIE DE DISCURSOS:'}
-                                  </span>
-                                  <span className="text-[9pt] font-black text-gray-900 leading-tight">
-                                    {item.title}
+                                  <span className={`text-[8pt] font-black uppercase tracking-tight block leading-tight ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
+                                    <span className="font-extrabold">{item.label || 'SÉRIE DE DISCURSOS:'}</span> {item.title}
                                   </span>
                                 </div>
                               </div>
@@ -1374,7 +1371,8 @@ export default function EMRView({
                                     <div key={sub.id} className="border-b border-gray-100/80 pb-1 last:border-b-0">
                                       <div className="flex items-start justify-between gap-1.5">
                                         <div className="flex items-start gap-1.5 flex-1 min-w-0">
-                                          <span className={`font-black text-[8pt] shrink-0 mt-0.5 ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
+                                          <span className={`font-black text-[8pt] shrink-0 mt-0.5 flex items-center gap-1 ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
+                                            <span className="text-[10pt] leading-none">•</span>
                                             {sub.num}.
                                           </span>
                                           <div className="flex-1 min-w-0">
@@ -1468,17 +1466,22 @@ export default function EMRView({
 
                         // Case 3: Song / Prayer
                         if (isSong) {
+                          const titleParts = item.title.split(/(Cântico \d+)/i);
                           return (
-                            <div key={item.id} className="flex items-center justify-between py-1 px-1 border-b border-gray-100">
-                              <div className="flex items-center gap-2">
-                                <Music size={12} className="text-gray-400" />
-                                <span className="text-[8pt] font-bold italic text-gray-600">
-                                  {item.title}
-                                </span>
-                              </div>
-                              <span className="text-[7.5pt] font-bold text-gray-400">
+                            <div key={item.id} className="flex items-start gap-2 py-1 px-1 border-b border-gray-50/50">
+                              <span className="text-[8pt] font-bold text-[#8e8e8e] w-10 shrink-0">
                                 {item.time}
                               </span>
+                              <div className="flex items-center gap-2 flex-1">
+                                <Music size={11} className="text-gray-300" />
+                                <span className="text-[9pt] font-medium text-[#292929]">
+                                  {titleParts.map((part, i) => 
+                                    /Cântico \d+/i.test(part) ? 
+                                      <span key={i} className="jwac-song-link">{part}</span> : 
+                                      part
+                                  )}
+                                </span>
+                              </div>
                             </div>
                           );
                         }
@@ -1489,15 +1492,18 @@ export default function EMRView({
                         const isConfirmed = !!confirmations[item.id];
 
                         return (
-                          <div key={item.id} className="border-b border-gray-100 pb-1.5 pt-0.5">
+                          <div key={item.id} className="border-b border-gray-50/50 pb-1.5 pt-0.5">
                             <div className="flex items-start justify-between gap-1.5">
                               <div className="flex items-start gap-2 flex-1 min-w-0">
-                                <span className={`font-black text-[8.5pt] w-5 text-center shrink-0 mt-0.5 rounded px-0.5 ${selectedSchoolType === 'ancians' ? 'bg-[#37616b]/10 text-[#37616b]' : 'bg-indigo-100 text-indigo-700'}`}>
-                                  {item.num}
+                                <span className="text-[8pt] font-bold text-[#8e8e8e] w-10 shrink-0 mt-0.5">
+                                  {item.time}
                                 </span>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-[9pt] font-black text-gray-900 leading-tight">
+                                    <span className={`text-[7pt] font-black w-4 h-4 flex items-center justify-center shrink-0 rounded-full ${selectedSchoolType === 'ancians' ? 'bg-[#37616b]/10 text-[#37616b]' : 'bg-indigo-100 text-indigo-700'}`}>
+                                      {item.num}
+                                    </span>
+                                    <span className="text-[9pt] font-black text-[#292929] leading-tight">
                                       {item.title}
                                     </span>
                                     {item.note && (
@@ -1505,10 +1511,7 @@ export default function EMRView({
                                         {item.note}
                                       </span>
                                     )}
-                                    <span className="text-[7pt] font-bold text-gray-500 bg-gray-100 px-1 rounded">
-                                      {item.time}
-                                    </span>
-                                    <span className="text-[7pt] font-semibold text-gray-400">
+                                    <span className="text-[7pt] font-semibold text-gray-400 italic">
                                       ({item.duration})
                                     </span>
                                     <span className={`text-[7pt] font-black px-1 rounded ${selectedSchoolType === 'ancians' ? 'bg-[#37616b]/10 text-[#37616b]' : 'bg-indigo-100 text-indigo-700'}`}>
