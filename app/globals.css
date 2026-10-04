@@ -147,8 +147,8 @@
 
 /* Ajuste de tamanho e espaçamento */
 .textSizeIncrement {
-  font-size: 1.205em;   /* ~20% maior que o padrão */
-  line-height: 1.5;     /* altura da linha */
+  font-size: 1.35em;    /* Aumento significativo */
+  line-height: 1.1;     /* Altura de linha super compacta */
 }
 
 /* Estilo do parágrafo destacado */
