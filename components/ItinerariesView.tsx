@@ -29,6 +29,7 @@ import ActivityAnalysisView from './ActivityAnalysisView';
 import S303ReportView from './S303ReportView';
 import AppointmentLetterView from './AppointmentLetterView';
 import S302NoticeView from './S302NoticeView';
+import VisitScheduleManagerView from './visit/VisitScheduleManagerView';
 
 import { auth, db } from '@/lib/firebase';
 import { 
@@ -195,6 +196,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [s302Params, setS302Params] = useState<{events: any[], initialIndex: number} | null>(null);
   const [showAppointmentLetter, setShowAppointmentLetter] = useState(false);
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
+  const [showVisitSchedule, setShowVisitSchedule] = useState(false);
+  const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string} | null>(null);
   
   // Data for selects
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -1012,6 +1015,22 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     }
   };
 
+  const handleVisitScheduleClick = () => {
+    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
+      let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+      if (!cong && selectedItem.congregacao) {
+        cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
+      }
+      setVisitScheduleParams({
+        congregacaoId: cong?.id || selectedItem.congregacaoId || 'cong_temp',
+        congregacaoNome: cong?.nome || selectedItem.congregacao || 'Congregação',
+        periodo: selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita'
+      });
+      setShowVisitSchedule(true);
+      setModalMode(null);
+    }
+  };
+
   const handleEditClick = () => {
     if (selectedItem) {
       setIsAddingNew(false);
@@ -1310,6 +1329,19 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       />
     );
   }
+
+  if (showVisitSchedule && visitScheduleParams) {
+    return (
+      <VisitScheduleManagerView
+        userId={userId}
+        congregationId={visitScheduleParams.congregacaoId}
+        congregationName={visitScheduleParams.congregacaoNome}
+        visitPeriod={visitScheduleParams.periodo}
+        onBack={() => setShowVisitSchedule(false)}
+      />
+    );
+  }
+
 
   return (
     <div className="space-y-6">
@@ -1676,7 +1708,21 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             <div className="text-[10px] text-gray-500 leading-tight">Gerar carta de designação ou cancelamento</div>
                           </div>
                         </button>
+
+                        <button 
+                          onClick={handleVisitScheduleClick}
+                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-teal-600 hover:bg-teal-50 transition-all group"
+                        >
+                          <div className="bg-teal-100 p-1.5 rounded-lg text-teal-700 group-hover:bg-[#1a5c5a] group-hover:text-white transition-colors">
+                            <Calendar size={18} />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-bold text-sm text-gray-800">Semana da Visita</div>
+                            <div className="text-[10px] text-gray-500 leading-tight">Programação de atividades com link para os anciãos</div>
+                          </div>
+                        </button>
                       </>
+
                     )}
                   </div>
                 ) : modalMode === 'confirmDelete' ? (
