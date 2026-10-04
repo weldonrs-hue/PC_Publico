@@ -16,8 +16,8 @@ function getFirebaseAdmin() {
     adminApp = apps[0];
   } else {
     try {
-      // Initialize with config to specify the correct project ID
-      console.log('[Firebase Admin] Initializing with projectId:', firebaseConfig.projectId);
+      const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || firebaseConfig.projectId;
+      console.log('[Firebase Admin] Initializing with projectId:', projectId);
       
       const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
       
@@ -27,12 +27,12 @@ function getFirebaseAdmin() {
         const serviceAccount = JSON.parse(serviceAccountJson);
         adminApp = initializeApp({
           credential: cert(serviceAccount),
-          projectId: firebaseConfig.projectId,
+          projectId,
         });
       } else {
         console.log('[Firebase Admin] No service account JSON found, falling back to default credentials');
         adminApp = initializeApp({
-          projectId: firebaseConfig.projectId,
+          projectId,
         });
       }
       console.log('[Firebase Admin] Initialization successful');
@@ -54,9 +54,9 @@ export function getAdminAuth(): Auth {
 export function getAdminDb(): Firestore {
   if (!adminDb) {
     const app = getFirebaseAdmin();
-    const databaseId = firebaseConfig.firestoreDatabaseId;
+    const databaseId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || firebaseConfig.firestoreDatabaseId;
     
-    if (databaseId) {
+    if (databaseId && databaseId !== '(default)') {
       console.log('[Firebase Admin] Using Firestore with databaseId:', databaseId);
       adminDb = getFirestore(app, databaseId);
     } else {
@@ -65,3 +65,4 @@ export function getAdminDb(): Firestore {
   }
   return adminDb;
 }
+
