@@ -2816,47 +2816,47 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       <AnimatePresence>
         {hasChanges && !isGuest && !showEditDetailsModal && (
           <motion.div 
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
           >
-            <div className="flex items-center gap-2.5 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-typography-900 truncate">
                   Alterações não salvas
                 </span>
-                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                <span className="text-[10px] text-typography-400 font-mono hidden sm:inline truncate">
                   {pioneerProgram.year} • Reunião Especial
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setPartsData(JSON.parse(initialPartsData))}
                 disabled={isSaving}
-                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Descartar
               </button>
               <button
                 onClick={() => handleSave(true)}
                 disabled={isSaving}
-                className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
                 {isSaving ? (
                   <>
-                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <Loader2 size={13} className="animate-spin shrink-0" />
                     <span>Salvando...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={15} className="shrink-0" />
-                    <span>Salvar Agora</span>
+                    <Save size={13} className="shrink-0" />
+                    <span>Salvar</span>
                   </>
                 )}
               </button>
@@ -2865,28 +2865,54 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         )}
 
         {showConfirmModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100">
-              <div className="flex items-center gap-3 text-amber-600 mb-4">
-                <AlertTriangle size={24} />
-                <h3 className="text-lg font-black uppercase tracking-tight">Alterações não salvas</h3>
+          <div className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 10 }} 
+              className="bg-surface-100 border border-surface-300 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                  <AlertTriangle size={20} strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-black text-typography-900 leading-tight">
+                    Alterações não salvas
+                  </h3>
+                  <span className="text-xs text-typography-400 font-medium truncate block">
+                    {pioneerProgram.year} • Reunião Especial
+                  </span>
+                </div>
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-6">
+
+              <p className="text-xs sm:text-sm text-typography-500 leading-relaxed mb-5">
                 Você fez alterações nas designações que ainda não foram salvas. Deseja salvar antes de continuar?
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => { setShowConfirmModal(false); if (pendingAction) pendingAction(); }} className="px-4 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-colors cursor-pointer">
-                  Sair sem salvar
+
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={async () => { const success = await handleSave(false); if (success) { setShowConfirmModal(false); if (pendingAction) pendingAction(); } }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-primary-200 hover:bg-primary-150 text-white rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Save size={15} />
+                  <span>Salvar e Continuar</span>
                 </button>
-                <button onClick={async () => { const success = await handleSave(false); if (success) { setShowConfirmModal(false); if (pendingAction) pendingAction(); } }} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-200 transition-colors cursor-pointer">
-                  Salvar e sair
+                <button 
+                  onClick={() => { setShowConfirmModal(false); if (pendingAction) pendingAction(); }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-surface-200/60 hover:bg-rose-500/10 text-typography-600 hover:text-rose-600 dark:hover:text-rose-400 border border-surface-300/80 rounded-xl font-semibold text-xs sm:text-sm transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  Descartar Alterações
+                </button>
+                <button 
+                  onClick={() => setShowConfirmModal(false)} 
+                  className="w-full py-2 text-typography-400 hover:text-typography-700 font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Continuar Editando
                 </button>
               </div>
-              <button onClick={() => setShowConfirmModal(false)} className="w-full mt-3 py-2 text-gray-400 text-[10px] font-black uppercase tracking-widest hover:text-gray-600 transition-colors cursor-pointer">
-                Cancelar
-              </button>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

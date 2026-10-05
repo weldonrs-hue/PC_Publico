@@ -1770,24 +1770,24 @@ export default function CongregationsView({
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 40 }}
-                  className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 text-typography-900 backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-surface-300 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+                  className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
                 >
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <span className="relative flex h-2.5 w-2.5">
+                  <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                    <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-200 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-200"></span>
+                      <span className="relative inline-flex rounded-full h-2 sm:h-2.5 w-2 sm:w-2.5 bg-primary-200"></span>
                     </span>
-                    <div className="flex flex-col">
-                      <span className="text-xs sm:text-sm font-semibold text-typography-900 whitespace-nowrap">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs sm:text-sm font-semibold truncate">
                         Alterações não salvas
                       </span>
-                      <span className="text-[10px] text-typography-500 font-mono hidden sm:inline">
+                      <span className="text-[10px] text-typography-500 font-mono hidden sm:inline truncate">
                         {formData.nome ? formData.nome : 'Nova Congregação'} {formData.numero ? `• Nº ${formData.numero}` : ''}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -1798,7 +1798,7 @@ export default function CongregationsView({
                         }
                       }}
                       disabled={isSaving}
-                      className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-typography-600 hover:text-typography-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-2.5 py-1.5 text-xs font-medium text-typography-600 hover:text-typography-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {selectedCong ? 'Descartar' : 'Cancelar'}
                     </button>
@@ -1806,16 +1806,16 @@ export default function CongregationsView({
                       type="submit"
                       form="congregation-form"
                       disabled={isSaving}
-                      className="px-3.5 sm:px-4 py-2 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                      className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-brand-primary text-brand-on-primary text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       {isSaving ? (
                         <>
-                          <Loader2 size={15} className="animate-spin shrink-0" />
+                          <Loader2 size={14} className="animate-spin shrink-0" />
                           <span>Salvando...</span>
                         </>
                       ) : (
                         <>
-                          <Save size={15} className="shrink-0" />
+                          <Save size={14} className="shrink-0" />
                           <span>Salvar</span>
                         </>
                       )}

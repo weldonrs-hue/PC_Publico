@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  AlertTriangle,
   ChevronLeft,
   Loader2,
   MapPin,
@@ -615,15 +616,15 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 text-typography-900 backdrop-blur-xl px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl shadow-xl flex items-center justify-between gap-3 sm:gap-6 border border-surface-300 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
           >
-            <div className="flex items-center gap-2.5 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-200 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-200"></span>
+                <span className="relative inline-flex rounded-full h-2 sm:h-2.5 w-2 sm:w-2.5 bg-primary-200"></span>
               </span>
               <div className="flex flex-col min-w-0">
-                <span className="text-xs sm:text-sm font-bold text-typography-900 whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-semibold truncate">
                   Alterações não salvas
                 </span>
                 <span className="text-[10px] text-typography-500 font-mono hidden sm:inline truncate">
@@ -631,28 +632,28 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => setFormData(JSON.parse(JSON.stringify(initialData)))}
                 disabled={isProcessing}
-                className="px-3 py-1.5 text-xs font-semibold text-typography-600 hover:text-typography-900 rounded-lg hover:bg-surface-200 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+                className="px-2.5 py-1.5 text-xs font-medium text-typography-600 hover:text-typography-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Descartar
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isProcessing}
-                className="px-4 py-2 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+                className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-brand-primary text-brand-on-primary text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <Loader2 size={14} className="animate-spin shrink-0" />
                     <span>Salvando...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={15} className="shrink-0" />
-                    <span>Salvar Agora</span>
+                    <Save size={14} className="shrink-0" />
+                    <span>Salvar</span>
                   </>
                 )}
               </button>
@@ -663,35 +664,39 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
 
       {/* Confirmation Modal */}
       {showConfirmBack && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[2000] p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[2000] p-4 animate-fade-in">
           <motion.div 
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-surface-100 rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-surface-300 space-y-4"
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="bg-surface-100 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-surface-300 text-center"
           >
-            <h3 className="text-lg font-bold text-typography-900">Alterações Pendentes</h3>
-            <p className="text-sm text-typography-600">Você possui alterações que não foram salvas. Deseja salvar antes de sair?</p>
-            <div className="flex flex-col gap-2 pt-2">
+            <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
+              <AlertTriangle size={24} />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-typography-900 mb-1.5">Alterações não salvas</h3>
+            <p className="text-xs sm:text-sm text-typography-600 mb-5 leading-relaxed">Você possui alterações que não foram salvas. Deseja salvar antes de sair?</p>
+            <div className="flex flex-col gap-2">
               <button 
                 onClick={() => {
                   handleSubmit();
                   onBack();
                 }}
-                className="w-full py-2.5 bg-primary-200 hover:bg-primary-150 text-white font-semibold rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer text-sm"
+                className="w-full py-2.5 px-4 bg-brand-primary text-brand-on-primary rounded-xl font-bold text-xs sm:text-sm hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
               >
+                <Save size={16} />
                 Salvar e Sair
               </button>
               <button 
                 onClick={onBack}
-                className="w-full py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-700 font-semibold rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer text-sm"
+                className="w-full py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer"
               >
-                Sair sem Salvar
+                Descartar e Sair
               </button>
               <button 
                 onClick={() => setShowConfirmBack(false)}
-                className="w-full py-2 text-typography-500 font-medium hover:text-typography-800 transition-colors text-xs cursor-pointer"
+                className="w-full py-2 px-4 border border-surface-300 text-typography-600 hover:text-typography-900 hover:bg-surface-200/50 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer mt-1"
               >
-                Cancelar
+                Continuar Editando
               </button>
             </div>
           </motion.div>

@@ -30,7 +30,8 @@ import {
   LayoutGrid,
   FileText,
   Search,
-  Circle
+  Circle,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -248,6 +249,8 @@ export default function EMRView({
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [personalData, setPersonalData] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
@@ -287,6 +290,33 @@ export default function EMRView({
   const initialCurrentParts = selectedSchoolType === 'ancians' ? initialAnciansParts : initialServantsParts;
 
   const hasChanges = initialCurrentParts !== JSON.stringify(currentParts);
+
+  const handleBackClick = () => {
+    if (hasChanges) {
+      setPendingAction(() => onBack);
+      setShowConfirmModal(true);
+    } else {
+      onBack();
+    }
+  };
+
+  const handleSchoolTypeChange = (type: 'ancians' | 'servants') => {
+    if (hasChanges) {
+      setPendingAction(() => () => setSelectedSchoolType(type));
+      setShowConfirmModal(true);
+    } else {
+      setSelectedSchoolType(type);
+    }
+  };
+
+  const handleTurmaChange = (turma: number) => {
+    if (hasChanges) {
+      setPendingAction(() => () => setSelectedTurma(turma));
+      setShowConfirmModal(true);
+    } else {
+      setSelectedTurma(turma);
+    }
+  };
 
   const currentTurmaData = currentParts[selectedTurma] || createEmptyTurmas()[0];
   const speakers = currentTurmaData.speakers || {};
@@ -1062,7 +1092,7 @@ export default function EMRView({
         <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
           <div className="flex items-center gap-3">
             <button 
-              onClick={onBack} 
+              onClick={handleBackClick} 
               className="p-2 sm:p-2.5 hover:bg-surface-200 rounded-full transition-all text-primary-200 bg-primary-200/10 shadow-xs border border-primary-200/20 cursor-pointer active:scale-95 shrink-0"
               title="Voltar às Escolas"
             >
@@ -1172,7 +1202,7 @@ export default function EMRView({
           {/* Seletor de Modalidade (Anciãos vs Servos) */}
           <div className="flex items-center gap-1 bg-surface-200/60 p-0.5 rounded-xl border border-surface-300 shadow-2xs shrink-0">
             <button
-              onClick={() => setSelectedSchoolType('ancians')}
+              onClick={() => handleSchoolTypeChange('ancians')}
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center gap-1.5 cursor-pointer ${
                 selectedSchoolType === 'ancians'
                   ? 'bg-[#37616b] text-white shadow-xs font-bold'
@@ -1183,7 +1213,7 @@ export default function EMRView({
               <span>Anciãos</span>
             </button>
             <button
-              onClick={() => setSelectedSchoolType('servants')}
+              onClick={() => handleSchoolTypeChange('servants')}
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center gap-1.5 cursor-pointer ${
                 selectedSchoolType === 'servants'
                   ? 'bg-indigo-600 text-white shadow-xs font-bold'
@@ -1202,7 +1232,7 @@ export default function EMRView({
               return (
                 <button
                   key={turma}
-                  onClick={() => setSelectedTurma(turma)}
+                  onClick={() => handleTurmaChange(turma)}
                   className={`h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center justify-center cursor-pointer ${
                     isActive 
                       ? `${selectedSchoolType === 'ancians' ? 'bg-[#37616b]' : 'bg-indigo-600'} text-white shadow-xs font-bold` 
@@ -2344,26 +2374,26 @@ export default function EMRView({
       <AnimatePresence>
         {hasChanges && !showDetailsModal && (
           <motion.div 
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
           >
-            <div className="flex items-center gap-2.5 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-typography-900 truncate">
                   Alterações não salvas
                 </span>
-                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
-                  EMR 2027 • {currentConfig.modalidade} • Turma {selectedTurma + 1}
+                <span className="text-[10px] text-typography-400 font-mono truncate hidden sm:inline">
+                  EMR {currentConfig.year} • {currentConfig.modalidade} • T{selectedTurma + 1}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
                   if (selectedSchoolType === 'ancians') {
@@ -2373,20 +2403,84 @@ export default function EMRView({
                   }
                 }}
                 disabled={isSaving}
-                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Descartar
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="px-4 sm:px-5 py-1.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/20 flex items-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
+                className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
-                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 <span>Salvar</span>
               </button>
             </div>
           </motion.div>
+        )}
+
+        {/* Modal de Confirmação ao Sair com Alterações Pendentes */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface-100 border border-surface-300 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                  <AlertTriangle size={20} strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-black text-typography-900 leading-tight">
+                    Alterações não salvas
+                  </h3>
+                  <span className="text-xs text-typography-400 font-medium truncate block">
+                    EMR {currentConfig.year} • {currentConfig.modalidade} • Turma {selectedTurma + 1}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs sm:text-sm text-typography-500 leading-relaxed mb-5">
+                Existem alterações não salvas nesta turma da escola. O que deseja fazer antes de sair?
+              </p>
+
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={async () => { 
+                    await handleSave(); 
+                    setShowConfirmModal(false); 
+                    if (pendingAction) pendingAction(); 
+                  }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-primary-200 hover:bg-primary-150 text-white rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Save size={15} />
+                  <span>Salvar e Continuar</span>
+                </button>
+                <button 
+                  onClick={() => { 
+                    if (selectedSchoolType === 'ancians') {
+                      setAnciansParts(JSON.parse(initialAnciansParts || JSON.stringify(createEmptyTurmas())));
+                    } else {
+                      setServantsParts(JSON.parse(initialServantsParts || JSON.stringify(createEmptyTurmas())));
+                    }
+                    setShowConfirmModal(false); 
+                    if (pendingAction) pendingAction(); 
+                  }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-surface-200/60 hover:bg-rose-500/10 text-typography-600 hover:text-rose-600 dark:hover:text-rose-400 border border-surface-300/80 rounded-xl font-semibold text-xs sm:text-sm transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  Descartar Alterações
+                </button>
+                <button 
+                  onClick={() => setShowConfirmModal(false)} 
+                  className="w-full py-2 text-typography-400 hover:text-typography-700 font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Continuar Editando
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

@@ -25,7 +25,8 @@ import {
   FileText,
   Mail,
   Filter,
-  Check
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import PSSAssignmentLetters from './PSSAssignmentLetters';
@@ -2076,44 +2077,44 @@ export default function PioneerSchoolView({
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
           >
-            <div className="flex items-center gap-2.5 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                <span className="relative inline-flex rounded-full h-2 sm:h-2.5 w-2 sm:w-2.5 bg-amber-500"></span>
               </span>
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs sm:text-sm font-semibold truncate">
                   Alterações não salvas
                 </span>
-                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                <span className="text-[10px] text-typography-500 font-mono hidden sm:inline truncate">
                   Escola de Pioneiros • Dados Gerais
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => setSchoolInfo({ ...originalSchoolInfo })}
                 disabled={isSavingInfo}
-                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                className="px-2.5 py-1.5 text-xs font-medium text-typography-600 hover:text-typography-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Descartar
               </button>
               <button
                 onClick={handleSaveInfo}
                 disabled={isSavingInfo}
-                className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {isSavingInfo ? (
                   <>
-                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <Loader2 size={14} className="animate-spin shrink-0" />
                     <span>Salvando...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={15} className="shrink-0" />
-                    <span>Salvar Agora</span>
+                    <Save size={14} className="shrink-0" />
+                    <span>Salvar</span>
                   </>
                 )}
               </button>
@@ -2226,45 +2227,45 @@ export default function PioneerSchoolView({
       {/* Modal Alterações Não Salvas */}
       <AnimatePresence>
         {isUnsavedModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-5 sm:p-6 text-center"
             >
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Save size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Alterações não salvas</h3>
-                <p className="text-gray-600 mb-8">
-                  Você fez alterações nas informações da escola. Deseja salvar antes de sair?
-                </p>
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleConfirmSave}
-                    className="w-full px-6 py-3 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                  >
-                    <Save size={20} />
-                    Sim, salvar e continuar
-                  </button>
-                  <button
-                    onClick={handleConfirmDiscard}
-                    className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 font-bold transition-all"
-                  >
-                    Sair sem salvar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsUnsavedModalOpen(false);
-                      setPendingAction(null);
-                    }}
-                    className="w-full px-6 py-3 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
-                  >
-                    Cancelar e continuar editando
-                  </button>
-                </div>
+              <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
+                <AlertTriangle size={24} />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-typography-900 mb-1.5">
+                Alterações não salvas
+              </h3>
+              <p className="text-xs sm:text-sm text-typography-600 mb-5 leading-relaxed">
+                Você fez alterações nas informações da escola. Deseja salvar antes de sair?
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleConfirmSave}
+                  className="w-full py-2.5 px-4 bg-brand-primary text-brand-on-primary rounded-xl font-bold text-xs sm:text-sm hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Save size={16} />
+                  Salvar e continuar
+                </button>
+                <button
+                  onClick={handleConfirmDiscard}
+                  className="w-full py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                >
+                  Descartar e sair
+                </button>
+                <button
+                  onClick={() => {
+                    setIsUnsavedModalOpen(false);
+                    setPendingAction(null);
+                  }}
+                  className="w-full py-2 px-4 border border-surface-300 text-typography-600 hover:text-typography-900 hover:bg-surface-200/50 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer mt-1"
+                >
+                  Continuar editando
+                </button>
               </div>
             </motion.div>
           </div>

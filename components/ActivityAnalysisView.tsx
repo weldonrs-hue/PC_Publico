@@ -18,7 +18,8 @@ import {
   Printer,
   Trash2,
   LayoutList,
-  FileText
+  FileText,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
@@ -1661,46 +1662,43 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
       {/* Average Calculator Modal */}
       <AnimatePresence>
         {showExitConfirmation && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-100 border border-surface-300 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden p-5 sm:p-6 text-center"
             >
-              <div className="p-6 text-center space-y-4">
-                <div className="w-16 h-16 bg-amber-500/10 text-amber-600 rounded-full flex items-center justify-center mx-auto">
-                  <Save size={32} />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-typography-900">Alterações não salvas</h3>
-                  <p className="text-sm text-typography-600">
-                    Você tem alterações que ainda não foram salvas na análise. Deseja salvar antes de sair?
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 pt-2">
-                  <button 
-                    onClick={async () => {
-                      await handleSave();
-                      onBack();
-                    }}
-                    className="w-full py-3 rounded-xl font-bold bg-primary-200 text-white hover:bg-primary-300 transition-all flex items-center justify-center gap-2 shadow-xs"
-                  >
-                    {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />} Salvar e Sair
-                  </button>
-                  <button 
-                    onClick={onBack}
-                    className="w-full py-3 rounded-xl font-bold text-red-500 hover:bg-red-500/10 transition-all"
-                  >
-                    Descartar e Sair
-                  </button>
-                  <button 
-                    onClick={() => setShowExitConfirmation(false)}
-                    className="w-full py-3 rounded-xl font-bold text-typography-500 hover:bg-surface-200 transition-all"
-                  >
-                    Continuar Editando
-                  </button>
-                </div>
+              <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
+                <AlertTriangle size={24} />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-typography-900 mb-1.5">Alterações não salvas</h3>
+              <p className="text-xs sm:text-sm text-typography-600 mb-5 leading-relaxed">
+                Você tem alterações que ainda não foram salvas na análise. Deseja salvar antes de sair?
+              </p>
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={async () => {
+                    await handleSave();
+                    onBack();
+                  }}
+                  className="w-full py-2.5 px-4 bg-brand-primary text-brand-on-primary rounded-xl font-bold text-xs sm:text-sm hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar e Sair
+                </button>
+                <button 
+                  onClick={onBack}
+                  className="w-full py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                >
+                  Descartar e Sair
+                </button>
+                <button 
+                  onClick={() => setShowExitConfirmation(false)}
+                  className="w-full py-2 px-4 border border-surface-300 text-typography-600 hover:text-typography-900 hover:bg-surface-200/50 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer mt-1"
+                >
+                  Continuar Editando
+                </button>
               </div>
             </motion.div>
           </div>
