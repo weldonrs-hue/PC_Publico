@@ -2,7 +2,9 @@
 @plugin "@tailwindcss/typography";
 @import "leaflet/dist/leaflet.css";
 
-/* Force CSS Rebuild - 2026-09-29 */
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
+
+/* Force CSS Rebuild - 2026-10-05 */
 
 @theme {
   --font-sans: var(--font-inter);

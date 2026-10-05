@@ -2045,14 +2045,29 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                       {/* Visit Status Pill */}
                       {isCongregation && item.evento && (
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1 border shadow-2xs ${
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5 border shadow-2xs ${
                           isWeekPast(item.semana)
-                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                            ? 'bg-emerald-100 text-emerald-900 border-emerald-400 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-600'
                             : current
-                            ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border-amber-500/40'
-                            : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30'
+                            ? 'bg-amber-100 text-amber-950 border-amber-400 font-extrabold shadow-xs dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-500'
+                            : 'bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/80 dark:text-sky-300 dark:border-sky-600'
                         }`}>
-                          {isWeekPast(item.semana) ? '✓ Visitada' : current ? '● Em andamento' : '○ Programada'}
+                          {isWeekPast(item.semana) ? (
+                            <>
+                              <span className="font-bold">✓</span>
+                              <span>Visitada</span>
+                            </>
+                          ) : current ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 dark:bg-amber-400 animate-pulse" />
+                              <span>Em andamento</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold">○</span>
+                              <span>Programada</span>
+                            </>
+                          )}
                         </span>
                       )}
                     </div>
@@ -2105,45 +2120,65 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     {/* Card Footer: Notifications & Options */}
                     <div className="flex items-center justify-between pt-2 border-t border-surface-300/80 gap-2">
                       <div className="flex items-center gap-2">
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!canNotify) return;
-                            handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
-                          }}
-                          disabled={!canNotify}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                            !canNotify ? 'opacity-30 cursor-not-allowed' : ''
-                          } ${
-                            item.escritorioNotificado 
-                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold' 
-                              : 'bg-surface-200/80 border-surface-300 text-typography-500'
-                          }`}
-                        >
-                          {item.escritorioNotificado ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                          <span>Escritório</span>
-                        </button>
+                        {canNotify ? (
+                          <>
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
+                              }}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs ${
+                                item.escritorioNotificado 
+                                  ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:border-emerald-600 dark:text-emerald-200' 
+                                  : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-700 hover:text-typography-900 dark:bg-surface-200/80 dark:border-surface-300 dark:text-typography-300'
+                              }`}
+                            >
+                              {item.escritorioNotificado ? (
+                                <CheckCircle2 size={14} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                              ) : (
+                                <Circle size={14} className="text-typography-400 stroke-[2]" />
+                              )}
+                              <span>Escritório</span>
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
+                                item.escritorioNotificado 
+                                  ? 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100' 
+                                  : 'bg-surface-200 text-typography-500'
+                              }`}>
+                                {item.escritorioNotificado ? 'SIM' : 'NÃO'}
+                              </span>
+                            </button>
 
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!canNotify) return;
-                            handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
-                          }}
-                          disabled={!canNotify}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                            !canNotify ? 'opacity-30 cursor-not-allowed' : ''
-                          } ${
-                            item.congregacaoNotificada 
-                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold' 
-                              : 'bg-surface-200/80 border-surface-300 text-typography-500'
-                          }`}
-                        >
-                          {item.congregacaoNotificada ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                          <span>Congr.</span>
-                        </button>
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
+                              }}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs ${
+                                item.congregacaoNotificada 
+                                  ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:border-emerald-600 dark:text-emerald-200' 
+                                  : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-700 hover:text-typography-900 dark:bg-surface-200/80 dark:border-surface-300 dark:text-typography-300'
+                              }`}
+                            >
+                              {item.congregacaoNotificada ? (
+                                <CheckCircle2 size={14} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                              ) : (
+                                <Circle size={14} className="text-typography-400 stroke-[2]" />
+                              )}
+                              <span>Congr.</span>
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${
+                                item.congregacaoNotificada 
+                                  ? 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100' 
+                                  : 'bg-surface-200 text-typography-500'
+                              }`}>
+                                {item.congregacaoNotificada ? 'SIM' : 'NÃO'}
+                              </span>
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-typography-400 italic">Sem notificações</span>
+                        )}
                       </div>
 
                       <button 
@@ -2253,14 +2288,29 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             </div>
 
                             {isCongregation && item.evento && (
-                              <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1 border shadow-2xs ${
+                              <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5 border shadow-2xs ${
                                 isWeekPast(item.semana)
-                                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-400 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-600'
                                   : current
-                                  ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border-amber-500/40'
-                                  : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30'
+                                  ? 'bg-amber-100 text-amber-950 border-amber-400 font-extrabold shadow-xs dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-500'
+                                  : 'bg-sky-100 text-sky-900 border-sky-300 dark:bg-sky-950/80 dark:text-sky-300 dark:border-sky-600'
                               }`}>
-                                {isWeekPast(item.semana) ? '✓ Visitada' : current ? '● Em andamento' : '○ Programada'}
+                                {isWeekPast(item.semana) ? (
+                                  <>
+                                    <span className="font-bold">✓</span>
+                                    <span>Visitada</span>
+                                  </>
+                                ) : current ? (
+                                  <>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 dark:bg-amber-400 animate-pulse print:hidden" />
+                                    <span>Em andamento</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="font-bold">○</span>
+                                    <span>Programada</span>
+                                  </>
+                                )}
                               </span>
                             )}
                           </div>
@@ -2280,50 +2330,99 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             )}
                           </div>
                         </td>
-                        <td className="p-2.5 border-r border-surface-300">
-                          <div className="flex justify-center items-center gap-2.5">
-                            <button 
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!canNotify) return;
-                                handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
-                              }}
-                              disabled={!canNotify}
-                              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer border ${
-                                !canNotify ? 'opacity-20 cursor-not-allowed border-transparent' : 'hover:scale-105'
-                              } ${
-                                item.escritorioNotificado 
-                                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-2xs font-bold' 
-                                  : 'bg-surface-200/50 border-surface-300/80 text-typography-400 hover:text-typography-700'
-                              }`}
-                              title="Notificação do Escritório"
-                            >
-                              <span className="text-[8px] font-bold uppercase tracking-tight">Escritório</span>
-                              {item.escritorioNotificado ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                            </button>
+                        <td className="p-2.5 border-r border-surface-300 text-center">
+                          {canNotify ? (
+                            <>
+                              {/* Interativo na Tela */}
+                              <div className="flex justify-center items-center gap-2 print:hidden">
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
+                                  }}
+                                  className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-xl transition-all cursor-pointer border shadow-2xs ${
+                                    item.escritorioNotificado 
+                                      ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:hover:bg-emerald-900/80 dark:border-emerald-600 dark:text-emerald-200' 
+                                      : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-700 hover:text-typography-900 dark:bg-surface-200/80 dark:border-surface-300 dark:text-typography-300'
+                                  }`}
+                                  title={item.escritorioNotificado ? "Escritório: Confirmado (Clique para alterar)" : "Escritório: Pendente (Clique para confirmar)"}
+                                >
+                                  <span className="text-[8px] font-black uppercase tracking-wider">Escritório</span>
+                                  <div className="flex items-center gap-1">
+                                    {item.escritorioNotificado ? (
+                                      <CheckCircle2 size={15} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                                    ) : (
+                                      <Circle size={15} className="text-typography-400 stroke-[2]" />
+                                    )}
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${
+                                      item.escritorioNotificado ? 'text-emerald-800 dark:text-emerald-300' : 'text-typography-400'
+                                    }`}>
+                                      {item.escritorioNotificado ? 'SIM' : 'NÃO'}
+                                    </span>
+                                  </div>
+                                </button>
 
-                            <button 
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!canNotify) return;
-                                handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
-                              }}
-                              disabled={!canNotify}
-                              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer border ${
-                                !canNotify ? 'opacity-20 cursor-not-allowed border-transparent' : 'hover:scale-105'
-                              } ${
-                                item.congregacaoNotificada 
-                                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-2xs font-bold' 
-                                  : 'bg-surface-200/50 border-surface-300/80 text-typography-400 hover:text-typography-700'
-                              }`}
-                              title="Notificação da Congregação"
-                            >
-                              <span className="text-[8px] font-bold uppercase tracking-tight">Congr.</span>
-                              {item.congregacaoNotificada ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                            </button>
-                          </div>
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
+                                  }}
+                                  className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-xl transition-all cursor-pointer border shadow-2xs ${
+                                    item.congregacaoNotificada 
+                                      ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:hover:bg-emerald-900/80 dark:border-emerald-600 dark:text-emerald-200' 
+                                      : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-700 hover:text-typography-900 dark:bg-surface-200/80 dark:border-surface-300 dark:text-typography-300'
+                                  }`}
+                                  title={item.congregacaoNotificada ? "Congregação: Confirmado (Clique para alterar)" : "Congregação: Pendente (Clique para confirmar)"}
+                                >
+                                  <span className="text-[8px] font-black uppercase tracking-wider">Congr.</span>
+                                  <div className="flex items-center gap-1">
+                                    {item.congregacaoNotificada ? (
+                                      <CheckCircle2 size={15} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                                    ) : (
+                                      <Circle size={15} className="text-typography-400 stroke-[2]" />
+                                    )}
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${
+                                      item.congregacaoNotificada ? 'text-emerald-800 dark:text-emerald-300' : 'text-typography-400'
+                                    }`}>
+                                      {item.congregacaoNotificada ? 'SIM' : 'NÃO'}
+                                    </span>
+                                  </div>
+                                </button>
+                              </div>
+
+                              {/* Exibição para Impressão e PDF: Legível e com alto contraste */}
+                              <div className="hidden print:flex flex-col items-center justify-center gap-1 text-[10px] leading-tight py-0.5">
+                                <div className="flex items-center justify-between w-full max-w-[125px] px-1">
+                                  <span className="font-bold text-gray-800 text-[9px] uppercase">Escritório:</span>
+                                  {item.escritorioNotificado ? (
+                                    <span className="font-black text-emerald-900 bg-emerald-100 border border-emerald-500 px-1.5 py-0.5 rounded text-[9px]">
+                                      ✓ SIM
+                                    </span>
+                                  ) : (
+                                    <span className="font-semibold text-gray-600 bg-gray-100 border border-gray-300 px-1.5 py-0.5 rounded text-[9px]">
+                                      ○ NÃO
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between w-full max-w-[125px] px-1">
+                                  <span className="font-bold text-gray-800 text-[9px] uppercase">Congr.:</span>
+                                  {item.congregacaoNotificada ? (
+                                    <span className="font-black text-emerald-900 bg-emerald-100 border border-emerald-500 px-1.5 py-0.5 rounded text-[9px]">
+                                      ✓ SIM
+                                    </span>
+                                  ) : (
+                                    <span className="font-semibold text-gray-600 bg-gray-100 border border-gray-300 px-1.5 py-0.5 rounded text-[9px]">
+                                      ○ NÃO
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-typography-400 font-bold text-xs select-none">—</span>
+                          )}
                         </td>
                         <td className="p-2.5 text-center print:hidden">
                           <button
@@ -2824,6 +2923,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             margin: 10mm;
             size: A4;
           }
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
           body {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -2838,6 +2942,12 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           .print\:hidden {
             display: none !important;
           }
+          .print\:flex {
+            display: flex !important;
+          }
+          .print\:block {
+            display: block !important;
+          }
           .print-visible {
             visibility: visible !important;
             display: block !important;
@@ -2846,17 +2956,24 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             margin: 0 !important;
             padding: 0 !important;
           }
-          @media print {
-            body {
-              background: white !important;
-            }
-          }
         }
 
         .pdf-capture {
           background-color: white !important;
           color: black !important;
           padding: 20px !important;
+        }
+
+        .pdf-capture .print\:hidden {
+          display: none !important;
+        }
+
+        .pdf-capture .print\:flex {
+          display: flex !important;
+        }
+
+        .pdf-capture .print\:block {
+          display: block !important;
         }
 
         .pdf-capture .md\:hidden {
@@ -2882,6 +2999,42 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         }
 
         .pdf-capture .border-surface-300 {
+          border-color: #d1d5db !important;
+        }
+
+        .pdf-capture .bg-emerald-100 {
+          background-color: #d1fae5 !important;
+        }
+
+        .pdf-capture .text-emerald-900 {
+          color: #064e3b !important;
+        }
+
+        .pdf-capture .border-emerald-500 {
+          border-color: #10b981 !important;
+        }
+
+        .pdf-capture .bg-amber-100 {
+          background-color: #fef3c7 !important;
+        }
+
+        .pdf-capture .text-amber-950 {
+          color: #451a03 !important;
+        }
+
+        .pdf-capture .border-amber-400 {
+          border-color: #f59e0b !important;
+        }
+
+        .pdf-capture .bg-gray-100 {
+          background-color: #f3f4f6 !important;
+        }
+
+        .pdf-capture .text-gray-600 {
+          color: #4b5563 !important;
+        }
+
+        .pdf-capture .border-gray-300 {
           border-color: #d1d5db !important;
         }
       `}</style>
