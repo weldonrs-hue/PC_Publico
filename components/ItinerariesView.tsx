@@ -2076,16 +2076,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           </span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          {isCongregation && (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary-200/10 text-primary-200 border border-primary-200/25 shrink-0">
-                              <MapPin size={13} />
-                            </span>
-                          )}
-                          <h4 className="text-sm sm:text-base font-bold text-typography-900 leading-snug">
-                            {item.evento || <span className="text-typography-400 italic font-normal">Sem evento programado</span>}
-                          </h4>
-                        </div>
+                        <h4 className="text-sm sm:text-base font-bold text-typography-900 leading-snug">
+                          {item.evento || <span className="text-typography-400 italic font-normal">Sem evento programado</span>}
+                        </h4>
                       )}
                       {item.dataEvento && (
                         <p className="text-xs text-typography-600 mt-1 flex items-center gap-1.5 font-medium">
@@ -2122,17 +2115,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                 e.stopPropagation();
                                 handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
                               }}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs active:scale-95 ${
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 ${
                                 item.escritorioNotificado 
-                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-emerald-600/20 shadow-sm' 
-                                  : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-500 hover:text-typography-800'
+                                  ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-semibold' 
+                                  : 'bg-surface-200/40 hover:bg-surface-200 text-typography-500 hover:text-typography-800 border-surface-300/70'
                               }`}
                               title={item.escritorioNotificado ? "Escritório: Notificado (Clique para desmarcar)" : "Escritório: Pendente (Clique para confirmar)"}
                             >
                               {item.escritorioNotificado ? (
-                                <Check size={13} strokeWidth={3} className="shrink-0" />
+                                <Check size={12} strokeWidth={2.5} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                               ) : (
-                                <Circle size={13} className="shrink-0 opacity-50" />
+                                <Circle size={12} className="text-typography-400 shrink-0" />
                               )}
                               <span>Escritório</span>
                             </button>
@@ -2143,17 +2136,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                 e.stopPropagation();
                                 handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
                               }}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-2xs active:scale-95 ${
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 ${
                                 item.congregacaoNotificada 
-                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-emerald-600/20 shadow-sm' 
-                                  : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-500 hover:text-typography-800'
+                                  ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-semibold' 
+                                  : 'bg-surface-200/40 hover:bg-surface-200 text-typography-500 hover:text-typography-800 border-surface-300/70'
                               }`}
                               title={item.congregacaoNotificada ? "Congregação: Notificada (Clique para desmarcar)" : "Congregação: Pendente (Clique para confirmar)"}
                             >
                               {item.congregacaoNotificada ? (
-                                <Check size={13} strokeWidth={3} className="shrink-0" />
+                                <Check size={12} strokeWidth={2.5} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                               ) : (
-                                <Circle size={13} className="shrink-0 opacity-50" />
+                                <Circle size={12} className="text-typography-400 shrink-0" />
                               )}
                               <span>Congr.</span>
                             </button>
@@ -2256,16 +2249,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                   {item.evento}
                                 </span>
                               ) : (
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {isCongregation && (
-                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary-200/10 text-primary-200 border border-primary-200/25 shrink-0 print:hidden">
-                                      <MapPin size={13} />
-                                    </span>
-                                  )}
-                                  <span className="font-bold text-typography-900 text-sm truncate print:overflow-visible print:whitespace-normal">
-                                    {item.evento || <span className="text-typography-400 italic font-normal text-xs">Vazio...</span>}
-                                  </span>
-                                </div>
+                                <span className="font-bold text-typography-900 text-sm truncate print:overflow-visible print:whitespace-normal">
+                                  {item.evento || <span className="text-typography-400 italic font-normal text-xs">Vazio...</span>}
+                                </span>
                               )}
                             </div>
 
@@ -2309,7 +2295,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         <td className="p-2.5 border-r border-surface-300 text-center">
                           {canNotify ? (
                             <>
-                              {/* Interativo na Tela */}
+                              {/* Interativo na Tela: Visual Clean e Discreto */}
                               <div className="flex justify-center items-center gap-1.5 print:hidden">
                                 <button 
                                   type="button"
@@ -2317,17 +2303,17 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                     e.stopPropagation();
                                     handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
                                   }}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] border transition-all cursor-pointer active:scale-95 ${
                                     item.escritorioNotificado 
-                                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-emerald-600/20 shadow-sm' 
-                                      : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-500 hover:text-typography-800'
+                                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-semibold' 
+                                      : 'bg-surface-200/40 hover:bg-surface-200 text-typography-500 hover:text-typography-800 border-surface-300/70 font-medium'
                                   }`}
                                   title={item.escritorioNotificado ? "Escritório: Notificado (Clique para desmarcar)" : "Escritório: Pendente (Clique para confirmar)"}
                                 >
                                   {item.escritorioNotificado ? (
-                                    <Check size={13} strokeWidth={3} className="shrink-0" />
+                                    <Check size={11} strokeWidth={2.5} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                                   ) : (
-                                    <Circle size={13} className="shrink-0 opacity-50" />
+                                    <Circle size={11} className="text-typography-400 shrink-0" />
                                   )}
                                   <span>Escritório</span>
                                 </button>
@@ -2338,46 +2324,38 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                     e.stopPropagation();
                                     handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
                                   }}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] border transition-all cursor-pointer active:scale-95 ${
                                     item.congregacaoNotificada 
-                                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-emerald-600/20 shadow-sm' 
-                                      : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-500 hover:text-typography-800'
+                                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-semibold' 
+                                      : 'bg-surface-200/40 hover:bg-surface-200 text-typography-500 hover:text-typography-800 border-surface-300/70 font-medium'
                                   }`}
                                   title={item.congregacaoNotificada ? "Congregação: Notificada (Clique para desmarcar)" : "Congregação: Pendente (Clique para confirmar)"}
                                 >
                                   {item.congregacaoNotificada ? (
-                                    <Check size={13} strokeWidth={3} className="shrink-0" />
+                                    <Check size={11} strokeWidth={2.5} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                                   ) : (
-                                    <Circle size={13} className="shrink-0 opacity-50" />
+                                    <Circle size={11} className="text-typography-400 shrink-0" />
                                   )}
                                   <span>Congr.</span>
                                 </button>
                               </div>
 
-                              {/* Exibição para Impressão e PDF: Legível e com alto contraste */}
-                              <div className="hidden print:flex flex-col items-center justify-center gap-1 text-[10px] leading-tight py-0.5">
-                                <div className="flex items-center justify-between w-full max-w-[125px] px-1">
-                                  <span className="font-bold text-gray-800 text-[9px] uppercase">Escritório:</span>
+                              {/* Exibição para Impressão e PDF: Clean e Legível */}
+                              <div className="hidden print:flex flex-col items-center justify-center gap-0.5 text-[9px] leading-tight py-0.5">
+                                <div className="flex items-center justify-between w-full max-w-[110px] px-1">
+                                  <span className="font-semibold text-gray-700 uppercase text-[8.5px]">Escritório:</span>
                                   {item.escritorioNotificado ? (
-                                    <span className="font-black text-emerald-800 bg-emerald-100 border border-emerald-500 px-2 py-0.5 rounded text-[9px]">
-                                      ✓
-                                    </span>
+                                    <span className="font-bold text-emerald-800 text-[9.5px]">✓</span>
                                   ) : (
-                                    <span className="font-semibold text-gray-500 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded text-[9px]">
-                                      —
-                                    </span>
+                                    <span className="text-gray-400 text-[9.5px]">—</span>
                                   )}
                                 </div>
-                                <div className="flex items-center justify-between w-full max-w-[125px] px-1">
-                                  <span className="font-bold text-gray-800 text-[9px] uppercase">Congr.:</span>
+                                <div className="flex items-center justify-between w-full max-w-[110px] px-1">
+                                  <span className="font-semibold text-gray-700 uppercase text-[8.5px]">Congr.:</span>
                                   {item.congregacaoNotificada ? (
-                                    <span className="font-black text-emerald-800 bg-emerald-100 border border-emerald-500 px-2 py-0.5 rounded text-[9px]">
-                                      ✓
-                                    </span>
+                                    <span className="font-bold text-emerald-800 text-[9.5px]">✓</span>
                                   ) : (
-                                    <span className="font-semibold text-gray-500 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded text-[9px]">
-                                      —
-                                    </span>
+                                    <span className="text-gray-400 text-[9.5px]">—</span>
                                   )}
                                 </div>
                               </div>
