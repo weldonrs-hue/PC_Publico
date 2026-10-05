@@ -14,11 +14,13 @@ import {
   Edit2,
   FileDown,
   FileText,
+  LayoutGrid,
   Loader2,
   MapPin,
   Plus,
   Printer,
   Search,
+  Table as TableIcon,
   Trash2,
   X
 } from 'lucide-react';
@@ -569,6 +571,23 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
   const [showVisitSchedule, setShowVisitSchedule] = useState(false);
   const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string} | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'list'>('table');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedMode = localStorage.getItem('progcir_itineraries_view_mode') as 'table' | 'list' | null;
+      if (savedMode === 'table' || savedMode === 'list') {
+        setViewMode(savedMode);
+      }
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: 'table' | 'list') => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('progcir_itineraries_view_mode', mode);
+    }
+  };
   
   // Data for selects
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -1910,8 +1929,38 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             )}
           </div>
 
-          {/* Export Actions */}
-          <div className="flex items-center gap-2 print:hidden self-end sm:self-auto">
+          {/* Export Actions & View Mode Toggle */}
+          <div className="flex flex-wrap items-center gap-2 print:hidden self-end sm:self-auto">
+            {/* Alternador de Modo: Tabela (com rolagem) vs Lista (Cards) */}
+            <div className="flex items-center bg-surface-100 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+              <button 
+                type="button"
+                onClick={() => handleViewModeChange('table')}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'table' 
+                    ? 'bg-primary-200 text-white shadow-xs' 
+                    : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                }`}
+                title="Modo Tabela (Estilo clássico com rolagem horizontal)"
+              >
+                <TableIcon size={14} />
+                <span>Tabela</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => handleViewModeChange('list')}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'list' 
+                    ? 'bg-primary-200 text-white shadow-xs' 
+                    : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                }`}
+                title="Modo Lista (Cartões e timeline)"
+              >
+                <LayoutGrid size={14} />
+                <span>Lista</span>
+              </button>
+            </div>
+
             <button 
               type="button"
               onClick={handleSavePDF}
@@ -1949,9 +1998,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-1">{currentMonthLabel}</p>
             </div>
 
-            {/* Mobile View: Cards / Timeline (Visible on mobile screens, hidden on desktop and print) */}
-            <div className="md:hidden print:hidden p-3.5 space-y-3">
-              {filteredItineraries.map((item) => {
+            {/* Modo Lista / Cards (Exibido quando viewMode === 'list') */}
+            {viewMode === 'list' && (
+              <div className="print:hidden p-3.5 sm:p-4 space-y-3">
+                {filteredItineraries.map((item) => {
                 const current = isCurrentWeek(item.semana);
                 const isCongregation = item.tipoEvento === 'Visita a Congregação' || 
                                       item.tipoEvento === 'Visita a Grupo' ||
@@ -2112,9 +2162,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                 );
               })}
             </div>
+          )}
 
-            {/* Desktop Table View & Print Table (Hidden on mobile screen, visible on md+ and print) */}
-            <div className="hidden md:block print:block overflow-x-auto pb-4 print:overflow-visible">
+          {/* Modo Tabela (Visível quando viewMode === 'table' e SEMPRE ativo na impressão) */}
+          <div className={`${viewMode === 'table' ? 'block' : 'hidden print:block'} overflow-x-auto pb-4 print:overflow-visible custom-scrollbar`}>
+            <div className="min-w-[760px] md:min-w-full">
               <table className="w-full text-left border-collapse border border-surface-300">
                 <thead>
                   <tr className="border-b border-surface-300">
@@ -2153,6 +2205,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     return (
                       <tr 
                         key={item.id} 
+                        onClick={() => handleRowDoubleClick(item)}
                         onDoubleClick={() => handleRowDoubleClick(item)}
                         className={`border-b border-surface-300 transition-colors cursor-pointer select-none ${
                           current 
@@ -2292,6 +2345,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               </table>
             </div>
           </div>
+        </div>
         )}
       </motion.div>
 
