@@ -8,6 +8,7 @@ interface LogoProps {
   forceShowText?: boolean;
   textColor?: string;
   outlineColor?: string;
+  monochrome?: boolean;
 }
 
 export default function Logo({ 
@@ -16,8 +17,9 @@ export default function Logo({
   textSize = 'text-2xl', 
   showText = true,
   forceShowText = false,
-  textColor = '#FFFFFF',
-  outlineColor = '#FFFFFF'
+  textColor,
+  outlineColor,
+  monochrome = false,
 }: LogoProps) {
   // Determine if iconSize is a number or a class string
   const iconSizingClass = typeof iconSize === 'string' ? iconSize : '';
@@ -25,39 +27,37 @@ export default function Logo({
 
   return (
     <div className={`inline-flex items-center gap-1.5 md:gap-2.5 ${className}`}>
-      {/* Brand Icon - Using the new ProgCir_Ico.svg */}
+      {/* Brand Icon Badge - Clean, balanced, modern */}
       <div 
-        className={`relative flex-shrink-0 flex items-center justify-center transition-all duration-300 ${iconSizingClass}`} 
+        className={`relative flex-shrink-0 flex items-center justify-center rounded-xl p-1.5 transition-all duration-200 ${
+          monochrome 
+            ? 'bg-white/10 shadow-2xs border border-white/15' 
+            : 'bg-surface-200/80 shadow-2xs'
+        } ${iconSizingClass}`} 
         style={iconInlineStyle}
       >
         <img 
           src="/ProgCir_Ico.svg" 
           alt="ProgCir Logo"
-          className="w-full h-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform"
+          className={`w-full h-full object-contain transition-transform group-hover:scale-105 ${
+            monochrome 
+              ? 'brightness-0 invert opacity-95' 
+              : ''
+          }`}
         />
       </div>
 
-      {/* Text Component with the specific Prog/Cir/Web style */}
+      {/* Clean Text Typography */}
       {showText && (
-        <div className={`${forceShowText ? 'flex' : 'hidden lg:flex'} flex-col leading-none select-none overflow-visible whitespace-nowrap antialiased`}>
-          <div className={`flex items-baseline font-black tracking-tight ${textSize} font-sans`}>
-            <span style={{ color: textColor }}>Prog</span>
-            <span 
-              className="ml-[0.5px]" 
-              style={{ 
-                WebkitTextStroke: `calc(1px + 0.02em) ${outlineColor}`, 
-                color: 'transparent',
-                opacity: 0.95,
-                paintOrder: 'stroke fill'
-              }}
-            >
-              Cir
-            </span>
+        <div className={`${forceShowText ? 'flex' : 'hidden lg:flex'} flex-col leading-tight select-none overflow-visible whitespace-nowrap antialiased`}>
+          <div className={`flex items-baseline tracking-tight ${textSize} font-sans`}>
+            <span className="font-extrabold text-white">Prog</span>
+            <span className="font-light text-white/90 ml-[1px]">Cir</span>
           </div>
           <div 
-            className={`${forceShowText ? 'block' : 'hidden lg:block'} text-[#C084FC] font-black text-[7px] md:text-[8px] uppercase tracking-[0.2em] md:tracking-[0.25em] -mt-0.5 opacity-90`}
+            className={`${forceShowText ? 'block' : 'hidden lg:block'} text-white/70 font-semibold text-[8px] uppercase tracking-wider -mt-0.5`}
           >
-            Web Interface
+            Gestão do Circuito
           </div>
         </div>
       )}

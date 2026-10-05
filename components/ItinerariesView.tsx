@@ -1,50 +1,49 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { 
-  Map as MapIcon, 
+import {
+  AlertCircle,
+  BarChart3,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
-  ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Save,
-  Loader2,
-  CheckCircle2,
   Circle,
   Edit2,
-  Plus,
-  Trash2,
-  X,
-  AlertCircle,
-  Calendar,
-  Info,
-  Type,
-  Printer,
-  BarChart3,
   FileDown,
-  FileText
+  FileText,
+  Loader2,
+  MapPin,
+  Plus,
+  Printer,
+  Search,
+  Trash2,
+  X
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ActivityAnalysisView from './ActivityAnalysisView';
-import S303ReportView from './S303ReportView';
 import AppointmentLetterView from './AppointmentLetterView';
 import S302NoticeView from './S302NoticeView';
+import S303ReportView from './S303ReportView';
+import VisitScheduleManagerView from './visit/VisitScheduleManagerView';
 
-import { auth, db } from '@/lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  setDoc, 
-  updateDoc,
-  doc, 
-  onSnapshot,
-  writeBatch,
-  deleteDoc
-} from 'firebase/firestore';
-import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
+import { auth, db } from '@/lib/firebase';
+import { handleFirestoreError, isQuotaExceeded, OperationType, setQuotaExceededGlobal } from '@/utils/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch
+} from 'firebase/firestore';
 
 interface ItinerariesViewProps {
   userId: string;
@@ -177,6 +176,379 @@ const getSeriesRange = (date: Date) => {
   }
 };
 
+interface CustomDropdownOption {
+  value: string;
+  label: string;
+  badge?: string;
+  badgeColor?: string;
+  dot?: string;
+}
+
+interface CustomDropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: CustomDropdownOption[];
+  placeholder?: string;
+  className?: string;
+}
+
+function CustomDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = 'Selecione...',
+  className = ''
+}: CustomDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const selectedOption = options.find((o) => o.value === value);
+
+  return (
+    <div ref={containerRef} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-2.5 sm:p-3 rounded-xl border border-surface-300 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/15 outline-none transition-all bg-surface-200 text-typography-900 text-sm font-medium flex items-center justify-between gap-2 cursor-pointer shadow-2xs hover:border-primary-200/50"
+      >
+        <div className="flex items-center gap-2 min-w-0 truncate">
+          {selectedOption?.dot && (
+            <span className={`w-2 h-2 rounded-full ${selectedOption.dot} shrink-0`} />
+          )}
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : <span className="text-typography-400 font-normal">{placeholder}</span>}
+          </span>
+          {selectedOption?.badge && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${selectedOption.badgeColor || 'bg-surface-300 text-typography-700'}`}>
+              {selectedOption.badge}
+            </span>
+          )}
+        </div>
+        <ChevronDown size={16} className={`text-typography-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-primary-200' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 right-0 top-full mt-1.5 z-[2200] bg-surface-100 border border-surface-300 rounded-xl shadow-xl overflow-hidden max-h-56 overflow-y-auto custom-scrollbar p-1"
+          >
+            {options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  type="button"
+                  key={opt.value}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-between gap-2 text-left cursor-pointer ${
+                    isSelected 
+                      ? 'bg-primary-200/10 text-primary-200 font-bold' 
+                      : 'text-typography-800 hover:bg-surface-200/70 hover:text-typography-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 truncate">
+                    {opt.dot && (
+                      <span className={`w-2 h-2 rounded-full ${opt.dot} shrink-0`} />
+                    )}
+                    <span className="truncate">{opt.label}</span>
+                    {opt.badge && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${opt.badgeColor || 'bg-surface-200 text-typography-600'}`}>
+                        {opt.badge}
+                      </span>
+                    )}
+                  </div>
+                  {isSelected && <Check size={14} className="text-primary-200 shrink-0" />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+interface CongregationCustomSelectProps {
+  value: string;
+  onChange: (congId: string) => void;
+  congregations: Congregation[];
+  pendingCongregations: Congregation[];
+  scheduledCongregations: (Congregation & { scheduledDate: string })[];
+  pastVisitedCongregations: (Congregation & { visitDate: string })[];
+  lastVisitMap: Map<string, { timestamp: number; formattedDate: string }>;
+}
+
+function CongregationCustomSelect({
+  value,
+  onChange,
+  congregations,
+  pendingCongregations,
+  scheduledCongregations,
+  pastVisitedCongregations,
+  lastVisitMap
+}: CongregationCustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const selectedCong = congregations.find((c) => c.id === value);
+
+  const filterCong = (c: Congregation) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return c.nome.toLowerCase().includes(q) || c.cidade.toLowerCase().includes(q);
+  };
+
+  const filteredPending = pendingCongregations.filter(filterCong);
+  const filteredScheduled = scheduledCongregations.filter(filterCong);
+  const filteredPast = pastVisitedCongregations.filter(filterCong);
+
+  const isCategorized = pendingCongregations.length > 0 || scheduledCongregations.length > 0 || pastVisitedCongregations.length > 0;
+  const filteredAll = !isCategorized ? congregations.filter(filterCong) : [];
+  const hasAnyResults = isCategorized 
+    ? (filteredPending.length > 0 || filteredScheduled.length > 0 || filteredPast.length > 0)
+    : filteredAll.length > 0;
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setSearch('');
+        }}
+        className="w-full p-2.5 sm:p-3 rounded-xl border border-surface-300 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/15 outline-none transition-all bg-surface-200 text-typography-900 text-sm font-medium flex items-center justify-between gap-2 cursor-pointer shadow-2xs hover:border-primary-200/50"
+      >
+        <div className="flex items-center gap-2 min-w-0 truncate">
+          <MapPin size={15} className={selectedCong ? 'text-primary-200 shrink-0' : 'text-typography-400 shrink-0'} />
+          <span className="truncate">
+            {selectedCong ? (
+              <span className="font-semibold">{selectedCong.nome} - <span className="text-typography-500 font-normal">{selectedCong.cidade}</span></span>
+            ) : (
+              <span className="text-typography-400 font-normal">Selecione uma congregação...</span>
+            )}
+          </span>
+        </div>
+        <ChevronDown size={16} className={`text-typography-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-primary-200' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 right-0 top-full mt-1.5 z-[2200] bg-surface-100 border border-surface-300 rounded-xl shadow-2xl overflow-hidden max-h-72 flex flex-col"
+          >
+            {/* Search Box */}
+            <div className="p-2 border-b border-surface-300 bg-surface-200/60 sticky top-0 z-10">
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-typography-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Pesquisar por nome ou cidade..."
+                  autoFocus
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 text-typography-900 placeholder:text-typography-400"
+                />
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="overflow-y-auto custom-scrollbar p-1.5 space-y-2 flex-1">
+              {!hasAnyResults && (
+                <div className="text-center py-6 text-xs text-typography-400 italic">
+                  Nenhuma congregação encontrada
+                </div>
+              )}
+
+              {/* Group 1: Pendentes (Prioridade) */}
+              {filteredPending.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>📍 Pendentes (Prioridade na Série)</span>
+                    <span className="bg-amber-500/15 px-1.5 py-0.5 rounded font-mono text-[9px]">{filteredPending.length}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {filteredPending.map((c) => {
+                      const isSelected = c.id === value;
+                      const lastInfo = lastVisitMap.get(c.id);
+                      const lastStr = lastInfo ? `Última: ${lastInfo.formattedDate}` : 'Sem visita anterior';
+                      return (
+                        <button
+                          type="button"
+                          key={c.id}
+                          onClick={() => {
+                            onChange(c.id);
+                            setIsOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                            isSelected 
+                              ? 'bg-primary-200/10 text-primary-200 font-bold' 
+                              : 'text-typography-800 hover:bg-surface-200/70 hover:text-typography-900'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold truncate">{c.nome} - <span className="text-typography-500 font-normal">{c.cidade}</span></div>
+                            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate">{lastStr}</div>
+                          </div>
+                          {isSelected && <Check size={14} className="text-primary-200 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Group 2: Programadas */}
+              {filteredScheduled.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wider flex items-center justify-between pt-1 border-t border-surface-300/60">
+                    <span>📅 Visitas Programadas</span>
+                    <span className="bg-sky-500/15 px-1.5 py-0.5 rounded font-mono text-[9px]">{filteredScheduled.length}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {filteredScheduled.map((c) => {
+                      const isSelected = c.id === value;
+                      return (
+                        <button
+                          type="button"
+                          key={c.id}
+                          onClick={() => {
+                            onChange(c.id);
+                            setIsOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                            isSelected 
+                              ? 'bg-primary-200/10 text-primary-200 font-bold' 
+                              : 'text-typography-800 hover:bg-surface-200/70 hover:text-typography-900'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold truncate">{c.nome} - <span className="text-typography-500 font-normal">{c.cidade}</span></div>
+                            <div className="text-[10px] text-sky-600 dark:text-sky-400 font-medium truncate">Programada para: {c.scheduledDate}</div>
+                          </div>
+                          {isSelected && <Check size={14} className="text-primary-200 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Group 3: Já Visitadas */}
+              {filteredPast.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center justify-between pt-1 border-t border-surface-300/60">
+                    <span>✓ Já Visitadas</span>
+                    <span className="bg-emerald-500/15 px-1.5 py-0.5 rounded font-mono text-[9px]">{filteredPast.length}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {filteredPast.map((c) => {
+                      const isSelected = c.id === value;
+                      return (
+                        <button
+                          type="button"
+                          key={c.id}
+                          onClick={() => {
+                            onChange(c.id);
+                            setIsOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                            isSelected 
+                              ? 'bg-primary-200/10 text-primary-200 font-bold' 
+                              : 'text-typography-800 hover:bg-surface-200/70 hover:text-typography-900'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold truncate">{c.nome} - <span className="text-typography-500 font-normal">{c.cidade}</span></div>
+                            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium truncate">Visitada em: {c.visitDate}</div>
+                          </div>
+                          {isSelected && <Check size={14} className="text-primary-200 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback Group: Todas as Congregações (caso não haja dados da série) */}
+              {!isCategorized && filteredAll.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-bold text-typography-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>Todas as Congregações</span>
+                    <span className="bg-surface-300 px-1.5 py-0.5 rounded font-mono text-[9px]">{filteredAll.length}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {filteredAll.map((c) => {
+                      const isSelected = c.id === value;
+                      const lastInfo = lastVisitMap.get(c.id);
+                      const lastStr = lastInfo ? `Última: ${lastInfo.formattedDate}` : 'Sem visita anterior';
+                      return (
+                        <button
+                          type="button"
+                          key={c.id}
+                          onClick={() => {
+                            onChange(c.id);
+                            setIsOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                            isSelected 
+                              ? 'bg-primary-200/10 text-primary-200 font-bold' 
+                              : 'text-typography-800 hover:bg-surface-200/70 hover:text-typography-900'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold truncate">{c.nome} - <span className="text-typography-500 font-normal">{c.cidade}</span></div>
+                            <div className="text-[10px] text-typography-400 font-medium truncate">{lastStr}</div>
+                          </div>
+                          {isSelected && <Check size={14} className="text-primary-200 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function ItinerariesView({ userId, user, onBack }: ItinerariesViewProps) {
   const { showAlert } = useDialog();
 
@@ -195,6 +567,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [s302Params, setS302Params] = useState<{events: any[], initialIndex: number} | null>(null);
   const [showAppointmentLetter, setShowAppointmentLetter] = useState(false);
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
+  const [showVisitSchedule, setShowVisitSchedule] = useState(false);
+  const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string} | null>(null);
   
   // Data for selects
   const [congregations, setCongregations] = useState<Congregation[]>([]);
@@ -515,6 +889,59 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       return mondayStr;
     }
   };
+
+  const eventTypeOptions: CustomDropdownOption[] = useMemo(() => {
+    return TIPOS_EVENTO.map(t => {
+      let dot = 'bg-surface-400';
+      if (t === 'SEMANA LIVRE') dot = 'bg-emerald-500';
+      else if (t.includes('Visita a Congregação')) dot = 'bg-primary-200';
+      else if (t.includes('Visita a Grupo')) dot = 'bg-teal-500';
+      else if (t.includes('Assembleia')) dot = 'bg-amber-500';
+      else if (t.includes('Congresso')) dot = 'bg-orange-500';
+      else if (t.includes('Escola')) dot = 'bg-blue-500';
+      else if (t.includes('Licença')) dot = 'bg-rose-500';
+      return {
+        value: t,
+        label: t,
+        dot
+      };
+    });
+  }, []);
+
+  const dataInicialOptions: CustomDropdownOption[] = useMemo(() => {
+    return DIAS_SEMANA.map(d => {
+      const dayNumber = selectedItem ? calculateDate(selectedItem.semana, d).split('/')[0] : '';
+      return {
+        value: d,
+        label: d,
+        badge: dayNumber ? `Dia ${dayNumber}` : undefined,
+        badgeColor: 'bg-primary-200/15 text-primary-200'
+      };
+    });
+  }, [selectedItem]);
+
+  const dataTerminoOptions: CustomDropdownOption[] = useMemo(() => {
+    return DIAS_SEMANA.map(d => {
+      const dayNumber = selectedItem ? calculateDate(selectedItem.semana, d).split('/')[0] : '';
+      return {
+        value: d,
+        label: d,
+        badge: dayNumber ? `Dia ${dayNumber}` : undefined,
+        badgeColor: 'bg-primary-200/15 text-primary-200'
+      };
+    });
+  }, [selectedItem]);
+
+  const grupoOptions: CustomDropdownOption[] = useMemo(() => {
+    return sortedCongregations.flatMap(c => 
+      (c.grupos || []).map(g => ({
+        value: `${c.id}|${g}`,
+        label: `${g}`,
+        badge: c.nome,
+        badgeColor: 'bg-surface-300 text-typography-700'
+      }))
+    );
+  }, [sortedCongregations]);
 
   const handlePrint = () => {
     window.print();
@@ -1012,6 +1439,22 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     }
   };
 
+  const handleVisitScheduleClick = () => {
+    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
+      let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+      if (!cong && selectedItem.congregacao) {
+        cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
+      }
+      setVisitScheduleParams({
+        congregacaoId: cong?.id || selectedItem.congregacaoId || 'cong_temp',
+        congregacaoNome: cong?.nome || selectedItem.congregacao || 'Congregação',
+        periodo: selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita'
+      });
+      setShowVisitSchedule(true);
+      setModalMode(null);
+    }
+  };
+
   const handleEditClick = () => {
     if (selectedItem) {
       setIsAddingNew(false);
@@ -1311,124 +1754,388 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     );
   }
 
+  if (showVisitSchedule && visitScheduleParams) {
+    return (
+      <VisitScheduleManagerView
+        userId={userId}
+        congregationId={visitScheduleParams.congregacaoId}
+        congregationName={visitScheduleParams.congregacaoNome}
+        visitPeriod={visitScheduleParams.periodo}
+        onBack={() => setShowVisitSchedule(false)}
+      />
+    );
+  }
+
+
+  const getEventBadgeStyle = (evento?: string, tipoEvento?: string) => {
+    if (!evento) return null;
+    const ev = evento.toUpperCase();
+    
+    if (ev === 'SEMANA LIVRE') {
+      return {
+        bg: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+        dot: 'bg-emerald-500',
+        isSpecial: true
+      };
+    }
+    if (ev === 'LICENÇA' || ev === 'AUSÊNCIA') {
+      return {
+        bg: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+        dot: 'bg-rose-500',
+        isSpecial: true
+      };
+    }
+    if (ev.includes('ASSEMBLEIA') || ev.includes('CONGRESSO')) {
+      return {
+        bg: 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',
+        dot: 'bg-amber-500',
+        isSpecial: true
+      };
+    }
+    if (ev.includes('ESCOLA') || ev.includes('PIONEIRO')) {
+      return {
+        bg: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
+        dot: 'bg-blue-500',
+        isSpecial: true
+      };
+    }
+    if (tipoEvento === 'Visita a Grupo' || ev.includes('VISITA A GRUPO')) {
+      return {
+        bg: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
+        dot: 'bg-purple-500',
+        isSpecial: false
+      };
+    }
+    return {
+      bg: 'bg-primary-200/15 text-primary-200 border-primary-200/30',
+      dot: 'bg-primary-200',
+      isSpecial: false
+    };
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 print:hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 sm:gap-4 print:hidden">
         <button 
           onClick={handleBack}
-          className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-violet-600 bg-white shadow-md border border-gray-200"
+          className="p-2 sm:p-2.5 hover:bg-surface-200 rounded-xl transition-all text-typography-700 bg-surface-100 shadow-xs border border-surface-300 hover:border-primary-200/50 shrink-0 cursor-pointer"
           title="Voltar ao Painel"
         >
-          <ChevronLeft size={22} strokeWidth={3} />
+          <ChevronLeft size={22} strokeWidth={2.5} />
         </button>
-        <h2 className="text-xl font-bold text-gray-800">
-          Itinerários do Circuito
-        </h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-typography-900 tracking-tight truncate">
+            Itinerários do Circuito
+          </h2>
+          <p className="text-xs sm:text-sm text-typography-500 truncate mt-0.5">
+            Cronograma semanal, visitas a congregações e relatórios oficiais
+          </p>
+        </div>
       </div>
 
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden print:overflow-visible print:shadow-none print:border-none"
+        className="bg-surface-100 rounded-2xl shadow-sm border border-surface-300 overflow-hidden print:overflow-visible print:shadow-none print:border-none"
       >
-        <div className="bg-violet-600 p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1">
+        {/* Navigation & Actions Top Strip */}
+        <div className="bg-surface-200/50 p-3.5 sm:p-4 border-b border-surface-300 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 sm:gap-4 print:hidden">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            {/* Month Navigation Pill */}
+            <div className="flex items-center bg-surface-100 border border-surface-300 rounded-xl p-1 shadow-xs shrink-0">
               <button 
+                type="button"
                 onClick={handleToday}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/20 transition-colors uppercase"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary-200 text-white hover:bg-primary-150 active:scale-95 transition-all uppercase whitespace-nowrap shrink-0 shadow-xs cursor-pointer"
               >
                 Hoje
               </button>
-              <div className="w-px h-4 bg-white/20 mx-1" />
+              <div className="w-px h-4 bg-surface-300 mx-1 shrink-0" />
               <button 
+                type="button"
                 onClick={handlePrevMonth}
                 disabled={!canPrev}
-                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-lg text-typography-600 hover:text-typography-900 hover:bg-surface-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
                 title="Mês Anterior"
               >
                 <ChevronsLeft size={18} />
               </button>
-              <span className="px-2 text-sm font-medium min-w-[140px] text-center capitalize">
+              <span className="px-2 sm:px-3 text-xs sm:text-sm font-bold text-typography-900 min-w-[120px] sm:min-w-[130px] text-center capitalize select-none">
                 {currentMonthLabel}
               </span>
               <button 
+                type="button"
                 onClick={handleNextMonth}
                 disabled={!canNext}
-                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-lg text-typography-600 hover:text-typography-900 hover:bg-surface-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
                 title="Próximo Mês"
               >
                 <ChevronsRight size={18} />
               </button>
             </div>
 
+            {/* Series Progress Indicator */}
             {mainSeriesProgress.label && (
-              <div className="flex items-center gap-2 bg-violet-700/80 border border-violet-400/40 px-3 py-1.5 rounded-xl text-xs shadow-inner flex-wrap">
-                <span className="font-bold text-amber-300 uppercase tracking-wide">
-                  Série: {mainSeriesProgress.label}
-                </span>
-                <span className="text-violet-200/80 flex items-center gap-1.5 flex-wrap font-medium">
-                  <span className="opacity-40">•</span>
-                  <span>{mainSeriesProgress.visitedCount} <span className="text-[10px] opacity-70 uppercase">vis.</span></span>
-                  <span className="opacity-40">•</span>
-                  <span>{mainSeriesProgress.scheduledCount} <span className="text-[10px] opacity-70 uppercase">prog.</span></span>
+              <div className="flex items-center gap-2 bg-surface-100 border border-surface-300 px-3 py-1.5 rounded-xl text-xs shadow-xs flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-primary-200 animate-pulse" />
+                  <span className="font-bold text-typography-900 uppercase tracking-wide text-[11px] sm:text-xs">
+                    Série: {mainSeriesProgress.label}
+                  </span>
+                </div>
+                <div className="h-3 w-px bg-surface-300 hidden sm:block" />
+                <div className="flex items-center gap-1.5 text-typography-600 font-medium text-[11px] sm:text-xs">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-bold">
+                    <span>{mainSeriesProgress.visitedCount}</span>
+                    <span className="text-[9px] uppercase font-semibold">vis.</span>
+                  </span>
+                  <span className="text-surface-300">•</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/20 font-bold">
+                    <span>{mainSeriesProgress.scheduledCount}</span>
+                    <span className="text-[9px] uppercase font-semibold">prog.</span>
+                  </span>
                   {mainSeriesProgress.pendingCount > 0 && (
                     <>
-                      <span className="opacity-40">•</span>
-                      <span>{mainSeriesProgress.pendingCount} <span className="text-[10px] opacity-70 uppercase">pend.</span></span>
+                      <span className="text-surface-300">•</span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-bold">
+                        <span>{mainSeriesProgress.pendingCount}</span>
+                        <span className="text-[9px] uppercase font-semibold">pend.</span>
+                      </span>
                     </>
                   )}
-                  <span className="opacity-40 text-[10px]">({mainSeriesProgress.total})</span>
-                </span>
+                  <span className="text-[10px] text-typography-400 font-mono ml-0.5">({mainSeriesProgress.total})</span>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="flex gap-2 print:hidden">
+          {/* Export Actions */}
+          <div className="flex items-center gap-2 print:hidden self-end sm:self-auto">
             <button 
+              type="button"
               onClick={handleSavePDF}
               disabled={generating}
-              className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2 disabled:opacity-50"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-surface-100 hover:bg-surface-200 text-typography-800 border border-surface-300 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               {generating ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={15} className="animate-spin text-primary-200" />
               ) : (
-                <FileDown size={16} />
+                <FileDown size={15} className="text-primary-200" />
               )}
-              {generating ? 'Gerando...' : 'Baixar PDF'}
+              <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
             </button>
             <button 
+              type="button"
               onClick={handlePrint}
-              className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
+              className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-surface-100 hover:bg-surface-200 text-typography-800 border border-surface-300 rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <Printer size={16} />
-              Imprimir
+              <Printer size={15} className="text-typography-600" />
+              <span>Imprimir</span>
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="animate-spin text-violet-600" size={48} />
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <Loader2 className="animate-spin text-primary-200" size={40} />
+            <span className="text-xs font-medium text-typography-500">Carregando itinerários...</span>
           </div>
         ) : (
-          <div className="overflow-x-auto pb-8 print:overflow-visible" id="itinerary-table-container">
-            <div className="w-full max-w-full bg-white print:w-full print:mx-auto print:p-0 print:shadow-none print-visible">
-              {/* Print-only Header */}
-              <div className="hidden print:block mb-6 text-center border-b-2 border-violet-600 pb-4">
-                <h1 className="text-2xl font-black text-violet-600 uppercase tracking-tight">Itinerários do Circuito</h1>
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-1">{currentMonthLabel}</p>
-              </div>
+          <div id="itinerary-table-container">
+            {/* Print-only Header */}
+            <div className="hidden print:block mb-6 text-center border-b-2 border-primary-200 pb-4">
+              <h1 className="text-2xl font-black text-primary-200 uppercase tracking-tight">Itinerários do Circuito</h1>
+              <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mt-1">{currentMonthLabel}</p>
+            </div>
 
-              <table className="w-full text-left border-collapse border border-gray-300">
+            {/* Mobile View: Cards / Timeline (Visible on mobile screens, hidden on desktop and print) */}
+            <div className="md:hidden print:hidden p-3.5 space-y-3">
+              {filteredItineraries.map((item) => {
+                const current = isCurrentWeek(item.semana);
+                const isCongregation = item.tipoEvento === 'Visita a Congregação' || 
+                                      item.tipoEvento === 'Visita a Grupo' ||
+                                      (item.evento && (item.evento.includes('Visita a') || item.evento.includes(' - ')));
+                
+                const eventUpper = item.evento?.toUpperCase() || '';
+                const isExcluded = eventUpper === 'SEMANA LIVRE' || eventUpper === 'LICENÇA';
+                const canNotify = item.evento?.trim() && !isExcluded;
+                const badge = getEventBadgeStyle(item.evento, item.tipoEvento);
+                
+                return (
+                  <div 
+                    key={item.id}
+                    onClick={() => handleRowDoubleClick(item)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-3 relative overflow-hidden ${
+                      current 
+                        ? 'bg-amber-500/5 dark:bg-amber-500/10 border-primary-200/70 shadow-sm ring-1 ring-primary-200/20' 
+                        : 'bg-surface-100 border-surface-300 hover:border-primary-200/40 shadow-2xs'
+                    }`}
+                  >
+                    {current && (
+                      <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-primary-200 rounded-r" />
+                    )}
+
+                    {/* Card Header: Week + Status Badge */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded-lg border ${
+                          current 
+                            ? 'bg-primary-200/15 border-primary-200/30 text-primary-200 font-extrabold' 
+                            : 'bg-surface-200/80 border-surface-300 text-typography-600'
+                        }`}>
+                          Semana {item.semana}
+                        </span>
+                        {current && (
+                          <span className="text-[9px] font-black bg-primary-200 text-white px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                            HOJE
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Visit Status Pill */}
+                      {isCongregation && item.evento && (
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1 border shadow-2xs ${
+                          isWeekPast(item.semana)
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                            : current
+                            ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border-amber-500/40'
+                            : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30'
+                        }`}>
+                          {isWeekPast(item.semana) ? '✓ Visitada' : current ? '● Em andamento' : '○ Programada'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Event Title & Dates */}
+                    <div>
+                      {badge?.isSpecial ? (
+                        <div className="mb-1">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border shadow-2xs ${badge.bg}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                            {item.evento}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {isCongregation && (
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary-200/10 text-primary-200 border border-primary-200/25 shrink-0">
+                              <MapPin size={13} />
+                            </span>
+                          )}
+                          <h4 className="text-sm sm:text-base font-bold text-typography-900 leading-snug">
+                            {item.evento || <span className="text-typography-400 italic font-normal">Sem evento programado</span>}
+                          </h4>
+                        </div>
+                      )}
+                      {item.dataEvento && (
+                        <p className="text-xs text-typography-600 mt-1 flex items-center gap-1.5 font-medium">
+                          <Calendar size={13} className="text-typography-400 shrink-0" />
+                          <span>{item.dataEvento}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Substitute & Notes */}
+                    {(item.substituto || item.observacoes) && (
+                      <div className="text-xs text-typography-600 bg-surface-200/50 p-2.5 rounded-xl border border-surface-300/60 space-y-1">
+                        {item.substituto && (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-xs bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25">
+                            Substituto: {item.substituto}
+                          </div>
+                        )}
+                        {item.observacoes && (
+                          <p className="text-typography-600 italic">
+                            {item.observacoes}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Card Footer: Notifications & Options */}
+                    <div className="flex items-center justify-between pt-2 border-t border-surface-300/80 gap-2">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!canNotify) return;
+                            handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
+                          }}
+                          disabled={!canNotify}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                            !canNotify ? 'opacity-30 cursor-not-allowed' : ''
+                          } ${
+                            item.escritorioNotificado 
+                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold' 
+                              : 'bg-surface-200/80 border-surface-300 text-typography-500'
+                          }`}
+                        >
+                          {item.escritorioNotificado ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                          <span>Escritório</span>
+                        </button>
+
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!canNotify) return;
+                            handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
+                          }}
+                          disabled={!canNotify}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                            !canNotify ? 'opacity-30 cursor-not-allowed' : ''
+                          } ${
+                            item.congregacaoNotificada 
+                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold' 
+                              : 'bg-surface-200/80 border-surface-300 text-typography-500'
+                          }`}
+                        >
+                          {item.congregacaoNotificada ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                          <span>Congr.</span>
+                        </button>
+                      </div>
+
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRowDoubleClick(item);
+                        }}
+                        className="px-2.5 py-1 bg-primary-200/10 hover:bg-primary-200 text-primary-200 hover:text-white rounded-lg text-xs font-bold border border-primary-200/25 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                      >
+                        <FileText size={13} />
+                        <span>Opções</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View & Print Table (Hidden on mobile screen, visible on md+ and print) */}
+            <div className="hidden md:block print:block overflow-x-auto pb-4 print:overflow-visible">
+              <table className="w-full text-left border-collapse border border-surface-300">
                 <thead>
-                  <tr className="bg-gray-100 border-b border-gray-300">
-                    <th className="p-3 text-xs font-bold text-white uppercase tracking-wider border-r border-white/20 w-24 bg-violet-600 text-center">Semana</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-40 text-center">Data do Evento</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Evento</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300">Observações</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider border-r border-gray-300 w-24 text-center">Notificado</th>
-                    <th className="p-3 text-xs font-bold text-gray-800 uppercase tracking-wider w-20 text-center print:hidden">Ações</th>
+                  <tr className="border-b border-surface-300">
+                    <th className="p-3 text-xs font-black text-white uppercase tracking-wider border-r border-white/20 w-28 text-center bg-primary-200 shadow-inner">
+                      Semana
+                    </th>
+                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider border-r border-surface-300 w-40 text-center bg-surface-200/80">
+                      Data do Evento
+                    </th>
+                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider border-r border-surface-300 bg-surface-200/80">
+                      Evento
+                    </th>
+                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider border-r border-surface-300 bg-surface-200/80">
+                      Observações
+                    </th>
+                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider border-r border-surface-300 w-36 text-center bg-surface-200/80">
+                      Notificado
+                    </th>
+                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider w-20 text-center bg-surface-200/80 print:hidden">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1441,94 +2148,138 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     const eventUpper = item.evento?.toUpperCase() || '';
                     const isExcluded = eventUpper === 'SEMANA LIVRE' || eventUpper === 'LICENÇA';
                     const canNotify = item.evento?.trim() && !isExcluded;
+                    const badge = getEventBadgeStyle(item.evento, item.tipoEvento);
                     
                     return (
                       <tr 
                         key={item.id} 
                         onDoubleClick={() => handleRowDoubleClick(item)}
-                        className={`border-b border-gray-300 transition-colors cursor-pointer select-none ${current ? 'bg-amber-100/40' : 'hover:bg-gray-50'}`}
+                        className={`border-b border-surface-300 transition-colors cursor-pointer select-none ${
+                          current 
+                            ? 'bg-amber-500/10 dark:bg-amber-500/15 border-l-4 border-l-primary-200 hover:bg-amber-500/20' 
+                            : 'hover:bg-surface-200/40'
+                        }`}
                       >
-                        <td className={`p-2 border-r border-gray-300 ${current ? 'bg-amber-200/30' : ''}`}>
+                        <td className={`p-2.5 border-r border-surface-300 ${current ? 'bg-primary-200/15' : 'bg-surface-200/30'}`}>
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`text-sm font-black text-center p-1 rounded ${current ? 'text-violet-600' : 'text-gray-900'}`}>
+                            <span className={`text-sm font-extrabold text-center font-mono ${current ? 'text-primary-200' : 'text-typography-900'}`}>
                               {item.semana}
                             </span>
                             {current && (
-                              <span className="text-[9px] font-black bg-violet-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wider print:hidden">
+                              <span className="text-[9px] font-black bg-primary-200 text-white px-2 py-0.5 rounded-full uppercase tracking-wider print:hidden whitespace-nowrap shadow-xs">
                                 HOJE
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300 text-center text-xs">
-                          <div className="text-gray-900 font-medium">
+                        <td className="p-2.5 border-r border-surface-300 text-center text-xs">
+                          <div className="text-typography-800 font-semibold">
                             {item.dataEvento || '-'}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300">
-                          <div className="text-sm text-gray-900 p-1 break-words flex items-center justify-between gap-2">
-                            <span>{item.evento || <span className="text-gray-400 italic">Vazio...</span>}</span>
+                        <td className="p-2.5 border-r border-surface-300">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {badge?.isSpecial ? (
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border shadow-2xs ${badge.bg}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                                  {item.evento}
+                                </span>
+                              ) : (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {isCongregation && (
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary-200/10 text-primary-200 border border-primary-200/25 shrink-0">
+                                      <MapPin size={13} />
+                                    </span>
+                                  )}
+                                  <span className="font-bold text-typography-900 text-sm truncate">
+                                    {item.evento || <span className="text-typography-400 italic font-normal text-xs">Vazio...</span>}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
                             {isCongregation && item.evento && (
-                              <div className="shrink-0 flex items-center gap-1 print:hidden" title={isWeekPast(item.semana) ? "Visitada" : current ? "Em andamento" : "Programada"}>
-                                {isWeekPast(item.semana) ? (
-                                  <span className="text-emerald-500 font-black text-[10px]" title="Visitada">✓</span>
-                                ) : current ? (
-                                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Em andamento" />
-                                ) : (
-                                  <div className="w-1.5 h-1.5 rounded-full bg-sky-400/50 border border-sky-400" title="Programada" />
-                                )}
-                              </div>
+                              <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1 border shadow-2xs ${
+                                isWeekPast(item.semana)
+                                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                  : current
+                                  ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border-amber-500/40'
+                                  : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30'
+                              }`}>
+                                {isWeekPast(item.semana) ? '✓ Visitada' : current ? '● Em andamento' : '○ Programada'}
+                              </span>
                             )}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300 text-xs text-gray-500">
-                          <div className="p-1 break-words">
+                        <td className="p-2.5 border-r border-surface-300 text-xs text-typography-600">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             {item.substituto && (
-                              <span className="font-bold text-indigo-700">Sub: {item.substituto}</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-xs bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25 shrink-0">
+                                Sub: {item.substituto}
+                              </span>
                             )}
-                            {item.substituto && item.observacoes ? ' - ' : ''}
-                            {item.observacoes || (!item.substituto && <span className="text-gray-400 italic">-</span>)}
+                            {item.observacoes && (
+                              <span className="text-typography-700">{item.observacoes}</span>
+                            )}
+                            {!item.substituto && !item.observacoes && (
+                              <span className="text-typography-400 italic">-</span>
+                            )}
                           </div>
                         </td>
-                        <td className="p-2 border-r border-gray-300">
-                          <div className="flex justify-center items-center gap-4">
-                            <div className="flex flex-col items-center gap-0.5">
-                              <span className="text-[7px] font-bold text-gray-400 uppercase">Escritório</span>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!canNotify) return;
-                                  handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
-                                }}
-                                disabled={!canNotify}
-                                className={`transition-colors ${!canNotify ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.escritorioNotificado ? 'text-green-600' : 'text-gray-400'}`}
-                              >
-                                {item.escritorioNotificado ? <CheckCircle2 size={18} /> : <Circle size={18} />}
-                              </button>
-                            </div>
-                            <div className="flex flex-col items-center gap-0.5">
-                              <span className="text-[7px] font-bold text-gray-400 uppercase">Congr.</span>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!canNotify) return;
-                                  handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
-                                }}
-                                disabled={!canNotify}
-                                className={`transition-colors ${!canNotify ? 'opacity-20 cursor-not-allowed' : 'hover:scale-110'} ${item.congregacaoNotificada ? 'text-green-600' : 'text-gray-400'}`}
-                              >
-                                {item.congregacaoNotificada ? <CheckCircle2 size={18} /> : <Circle size={18} />}
-                              </button>
-                            </div>
+                        <td className="p-2.5 border-r border-surface-300">
+                          <div className="flex justify-center items-center gap-2.5">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!canNotify) return;
+                                handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
+                              }}
+                              disabled={!canNotify}
+                              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer border ${
+                                !canNotify ? 'opacity-20 cursor-not-allowed border-transparent' : 'hover:scale-105'
+                              } ${
+                                item.escritorioNotificado 
+                                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-2xs font-bold' 
+                                  : 'bg-surface-200/50 border-surface-300/80 text-typography-400 hover:text-typography-700'
+                              }`}
+                              title="Notificação do Escritório"
+                            >
+                              <span className="text-[8px] font-bold uppercase tracking-tight">Escritório</span>
+                              {item.escritorioNotificado ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                            </button>
+
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!canNotify) return;
+                                handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
+                              }}
+                              disabled={!canNotify}
+                              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all cursor-pointer border ${
+                                !canNotify ? 'opacity-20 cursor-not-allowed border-transparent' : 'hover:scale-105'
+                              } ${
+                                item.congregacaoNotificada 
+                                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-2xs font-bold' 
+                                  : 'bg-surface-200/50 border-surface-300/80 text-typography-400 hover:text-typography-700'
+                              }`}
+                              title="Notificação da Congregação"
+                            >
+                              <span className="text-[8px] font-bold uppercase tracking-tight">Congr.</span>
+                              {item.congregacaoNotificada ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                            </button>
                           </div>
                         </td>
-                        <td className="p-2 text-center print:hidden">
+                        <td className="p-2.5 text-center print:hidden">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRowDoubleClick(item);
                             }}
-                            className="p-2 bg-violet-50 text-violet-600 rounded-lg hover:bg-violet-600 hover:text-white transition-all shadow-sm border border-violet-100"
+                            className="p-2 bg-primary-200/10 text-primary-200 hover:bg-primary-200 hover:text-white rounded-xl transition-all border border-primary-200/25 shadow-2xs cursor-pointer"
                             title="Ver Opções e Formulários"
                           >
                             <FileText size={16} />
@@ -1547,185 +2298,230 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
       {/* Modals */}
       <AnimatePresence>
         {modalMode && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="bg-surface-100 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-surface-300"
             >
               {/* Modal Header */}
-              <div className={`${modalMode === 'confirmDelete' ? 'bg-red-600' : 'bg-violet-600'} p-3 text-white flex justify-between items-center transition-colors`}>
-                <h3 className="font-bold flex items-center gap-2 text-sm">
+              <div className="px-5 py-3.5 border-b border-surface-300 bg-surface-200/40 flex justify-between items-center">
+                <h3 className="font-bold text-typography-900 flex items-center gap-2 text-sm sm:text-base">
                   {modalMode === 'actions' ? 'Opções do Evento' : 
                    modalMode === 'confirmDelete' ? 'Confirmar Exclusão' : 
                    isAdding ? 'Adicionar Evento' : 'Editar Evento'}
                 </h3>
                 <button 
+                  type="button"
                   onClick={() => setModalMode(null)}
-                  className="p-1 hover:bg-white/20 rounded-full transition-colors"
+                  className="p-1 hover:bg-surface-200 text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* Modal Content */}
-              <div className="p-4">
+              <div className="p-4 sm:p-5">
                 {modalMode === 'actions' ? (
-                  <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <p className="text-xs text-gray-500 mb-2">
-                      Semana de <span className="font-bold text-violet-600">{selectedItem?.semana}</span>
-                    </p>
-                    
-                    <button 
-                      onClick={handleEditClick}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-violet-600 hover:bg-violet-50 transition-all group"
-                    >
-                      <div className="bg-violet-100 p-1.5 rounded-lg text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition-colors">
-                        {isAdding ? <Plus size={18} /> : <Edit2 size={18} />}
-                      </div>
-                      <div className="text-left">
-                        <div className="font-bold text-sm text-gray-800">{isAdding ? 'Adicionar Evento' : 'Editar Evento'}</div>
-                        <div className="text-[10px] text-gray-500 leading-tight">
-                          {isAdding ? 'Programar um novo evento' : 'Alterar informações existentes'}
-                        </div>
-                      </div>
-                    </button>
+                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {/* Header info badge */}
+                    <div className="bg-surface-200/50 p-3 rounded-xl border border-surface-300">
+                      <span className="text-[10px] font-bold text-typography-400 uppercase tracking-wider block">
+                        Semana Selecionada
+                      </span>
+                      <span className="text-sm font-bold text-primary-200">
+                        {selectedItem?.semana}
+                      </span>
+                      {selectedItem?.evento && (
+                        <p className="text-xs text-typography-700 font-medium truncate mt-0.5">
+                          {selectedItem.evento}
+                        </p>
+                      )}
+                    </div>
 
-                    {(selectedItem?.evento || selectedItem?.congregacao || selectedItem?.observacoes) && (
+                    {/* Group 1: Gerenciamento do Evento */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-typography-400 uppercase tracking-wider px-1">
+                        Gerenciar Programação
+                      </span>
+                      
                       <button 
-                        onClick={handleAddClick}
-                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+                        type="button"
+                        onClick={handleEditClick}
+                        className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-primary-200/50 hover:bg-surface-200/40 transition-all text-left group cursor-pointer"
                       >
-                        <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                          <Plus size={18} />
+                        <div className="w-8 h-8 rounded-lg bg-primary-200/10 border border-primary-200/20 text-primary-200 flex items-center justify-center shrink-0">
+                          {isAdding ? <Plus size={16} /> : <Edit2 size={16} />}
                         </div>
-                        <div className="text-left">
-                          <div className="font-bold text-sm text-gray-800">Adicionar Evento</div>
-                          <div className="text-[10px] text-gray-500 leading-tight">Adicionar evento na mesma semana</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-sm text-typography-900">{isAdding ? 'Adicionar Evento' : 'Editar Evento'}</div>
+                          <div className="text-[11px] text-typography-500 truncate">
+                            {isAdding ? 'Programar um novo evento' : 'Alterar informações existentes'}
+                          </div>
                         </div>
                       </button>
-                    )}
 
-                    {selectedItem?.evento && (
-                      <button 
-                        onClick={handleDeleteClick}
-                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-red-500 hover:bg-red-50 transition-all group"
-                      >
-                        <div className="bg-red-100 p-1.5 rounded-lg text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                          <Trash2 size={18} />
-                        </div>
-                        <div className="text-left">
-                          <div className="font-bold text-sm text-gray-800">Excluir Evento</div>
-                          <div className="text-[10px] text-gray-500 leading-tight">Remover evento desta semana</div>
-                        </div>
-                      </button>
-                    )}
+                      {(selectedItem?.evento || selectedItem?.congregacao || selectedItem?.observacoes) && (
+                        <button 
+                          type="button"
+                          onClick={handleAddClick}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left group cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                            <Plus size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">Adicionar Outro Evento</div>
+                            <div className="text-[11px] text-typography-500 truncate">Adicionar evento na mesma semana</div>
+                          </div>
+                        </button>
+                      )}
 
+                      {selectedItem?.evento && (
+                        <button 
+                          type="button"
+                          onClick={handleDeleteClick}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-red-500/50 hover:bg-red-500/5 transition-all text-left group cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center shrink-0">
+                            <Trash2 size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-red-600 dark:text-red-400">Excluir Evento</div>
+                            <div className="text-[11px] text-typography-500 truncate">Remover evento desta semana</div>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Group 2: Documentos e Relatórios Oficiais */}
                     {selectedItem?.congregacao && (
-                      <>
-                        <div className="border-t border-gray-100 my-1 pt-1" />
+                      <div className="space-y-1.5 pt-2 border-t border-surface-300">
+                        <span className="text-[10px] font-bold text-typography-400 uppercase tracking-wider px-1">
+                          Documentos & Formulários Oficiais
+                        </span>
+
                         <button 
+                          type="button"
+                          onClick={handleVisitScheduleClick}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-teal-500/50 hover:bg-teal-500/5 transition-all text-left group cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                            <Calendar size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">Semana da Visita</div>
+                            <div className="text-[11px] text-typography-500 truncate">Programação de atividades com link para os anciãos</div>
+                          </div>
+                        </button>
+
+                        <button 
+                          type="button"
                           onClick={handleAnalysisClick}
-                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-amber-500 hover:bg-amber-50 transition-all group"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left group cursor-pointer"
                         >
-                          <div className="bg-amber-100 p-1.5 rounded-lg text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                            <BarChart3 size={18} />
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                            <BarChart3 size={16} />
                           </div>
-                          <div className="text-left">
-                            <div className="font-bold text-sm text-gray-800">Análise</div>
-                            <div className="text-[10px] text-gray-500 leading-tight">Análise das atividades da congregação</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">Análise de Atividades</div>
+                            <div className="text-[11px] text-typography-500 truncate">Análise das atividades da congregação</div>
                           </div>
                         </button>
 
                         <button 
+                          type="button"
                           onClick={handleS303Click}
-                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all text-left group cursor-pointer"
                         >
-                          <div className="bg-blue-100 p-1.5 rounded-lg text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                            <FileDown size={18} />
+                          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                            <FileDown size={16} />
                           </div>
-                          <div className="text-left">
-                            <div className="font-bold text-sm text-gray-800">S-303 Relatório sobre a visita</div>
-                            <div className="text-[10px] text-gray-500 leading-tight">Relatório do superintendente de circuito</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">S-303 Relatório sobre a Visita</div>
+                            <div className="text-[11px] text-typography-500 truncate">Relatório do superintendente de circuito</div>
                           </div>
                         </button>
 
                         <button 
+                          type="button"
                           onClick={handleS302Click}
-                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all text-left group cursor-pointer"
                         >
-                          <div className="bg-orange-100 p-1.5 rounded-lg text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                            <FileText size={18} />
+                          <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                            <FileText size={16} />
                           </div>
-                          <div className="text-left">
-                            <div className="font-bold text-sm text-gray-800">S-302 Aviso de Visitas</div>
-                            <div className="text-[10px] text-gray-500 leading-tight">Aviso oficial de visita ao circuito</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">S-302 Aviso de Visitas</div>
+                            <div className="text-[11px] text-typography-500 truncate">Aviso oficial de visita ao circuito</div>
                           </div>
                         </button>
 
                         <button 
+                          type="button"
                           onClick={handleAppointmentLetterClick}
-                          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border-2 border-gray-100 hover:border-purple-500 hover:bg-purple-50 transition-all group"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left group cursor-pointer"
                         >
-                          <div className="bg-purple-100 p-1.5 rounded-lg text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                            <Printer size={18} />
+                          <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                            <Printer size={16} />
                           </div>
-                          <div className="text-left">
-                            <div className="font-bold text-sm text-gray-800">Carta de Designação/Cancelamento</div>
-                            <div className="text-[10px] text-gray-500 leading-tight">Gerar carta de designação ou cancelamento</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">Carta de Designação/Cancelamento</div>
+                            <div className="text-[11px] text-typography-500 truncate">Gerar carta de designação ou cancelamento</div>
                           </div>
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 ) : modalMode === 'confirmDelete' ? (
-                  <div className="space-y-6 py-2">
+                  <div className="space-y-5 py-2">
                     <div className="flex flex-col items-center text-center gap-3">
-                      <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
-                        <AlertCircle size={40} />
+                      <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center">
+                        <AlertCircle size={32} />
                       </div>
                       <div>
-                        <h4 className="text-lg font-bold text-gray-900">Excluir este evento?</h4>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Esta ação não pode ser desfeita. O evento da semana <span className="font-bold text-gray-700">{selectedItem?.semana}</span> será removido.
+                        <h4 className="text-base font-bold text-typography-900">Excluir este evento?</h4>
+                        <p className="text-xs text-typography-500 mt-1">
+                          Esta ação não pode ser desfeita. O evento da semana <span className="font-bold text-typography-700">{selectedItem?.semana}</span> será removido.
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-2.5 pt-2">
                       <button 
+                        type="button"
                         onClick={() => setModalMode(null)}
                         disabled={saving}
-                        className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all text-sm disabled:opacity-50"
+                        className="flex-1 py-2.5 rounded-xl font-semibold text-typography-600 bg-surface-200 hover:bg-surface-300 transition-all text-xs sm:text-sm disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                       >
-                        Não, Cancelar
+                        Cancelar
                       </button>
                       <button 
+                        type="button"
                         onClick={executeDelete}
                         disabled={saving}
-                        className="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                        className="flex-1 py-2.5 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 shadow-xs transition-all flex items-center justify-center gap-2 text-xs sm:text-sm disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                       >
-                        {saving ? <Loader2 size={18} className="animate-spin" /> : 'Sim, Excluir'}
+                        {saving ? <Loader2 size={16} className="animate-spin" /> : 'Sim, Excluir'}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="text-center pb-1 border-b border-gray-100 mb-2">
-                      <h4 className="text-base font-bold text-violet-600">
+                  <div className="space-y-3.5 max-h-[75vh] overflow-y-auto pr-1 pb-36 custom-scrollbar">
+                    <div className="text-center pb-2 border-b border-surface-300 mb-2">
+                      <h4 className="text-sm sm:text-base font-bold text-primary-200">
                         {selectedItem && getWeekRangeDisplay(selectedItem.semana)}
                       </h4>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                      <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
                         Tipo de Evento:
                       </label>
-                      <select 
-                        value={editFormData.evento}
-                        onChange={(e) => {
-                          const val = e.target.value;
+                      <CustomDropdown 
+                        value={editFormData.evento || ''}
+                        onChange={(val) => {
                           const updates: Partial<ItineraryItem> = { 
                             evento: val,
                             congregacao: '',
@@ -1742,95 +2538,76 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           }
                           setEditFormData({ ...editFormData, ...updates });
                         }}
-                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
-                      >
-                        {TIPOS_EVENTO.map(t => (
-                          <option key={t} value={t}>{t}</option>
-                        ))}
-                      </select>
+                        options={eventTypeOptions}
+                        placeholder="Selecione o tipo de evento..."
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
-                          Data inicial:
+                        <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
+                          Data Inicial:
                         </label>
-                        <div className="relative">
-                          <select 
-                            value={editFormData.dataInicialDia}
-                            onChange={(e) => setEditFormData({ ...editFormData, dataInicialDia: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
-                          >
-                            {DIAS_SEMANA.map(d => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-red-700 font-serif italic text-[10px]">
-                            {selectedItem && calculateDate(selectedItem.semana, editFormData.dataInicialDia || 'Terça-Feira').split('/')[0]}
-                          </div>
-                        </div>
+                        <CustomDropdown 
+                          value={editFormData.dataInicialDia || 'Terça-Feira'}
+                          onChange={(val) => setEditFormData({ ...editFormData, dataInicialDia: val })}
+                          options={dataInicialOptions}
+                          placeholder="Dia inicial..."
+                        />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
-                          Data de término:
+                        <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
+                          Data de Término:
                         </label>
-                        <div className="relative">
-                          <select 
-                            value={editFormData.dataTerminoDia}
-                            onChange={(e) => setEditFormData({ ...editFormData, dataTerminoDia: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white appearance-none pr-8 text-gray-900 text-sm font-medium"
-                          >
-                            {DIAS_SEMANA.map(d => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-red-700 font-serif italic text-[10px]">
-                            {selectedItem && calculateDate(selectedItem.semana, editFormData.dataTerminoDia || 'Domingo').split('/')[0]}
-                          </div>
-                        </div>
+                        <CustomDropdown 
+                          value={editFormData.dataTerminoDia || 'Domingo'}
+                          onChange={(val) => setEditFormData({ ...editFormData, dataTerminoDia: val })}
+                          options={dataTerminoOptions}
+                          placeholder="Dia de término..."
+                        />
                       </div>
                     </div>
 
-                      {/* Conditional Fields based on Event Type */}
+                    {/* Conditional Fields based on Event Type */}
                     {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Visita a Grupo') && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 mb-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                            <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider">
+                      <div className="bg-surface-200/60 border border-surface-300 rounded-xl p-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-primary-200" />
+                            <span className="text-[10px] font-bold text-typography-900 uppercase tracking-wider">
                               Série: {cycleProgress.label}
                             </span>
                           </div>
-                          <span className="text-[9px] font-bold text-amber-700/80">
-                            {cycleProgress.visited} <span className="text-[8px] opacity-60 uppercase font-medium">vis.</span> • {cycleProgress.scheduled} <span className="text-[8px] opacity-60 uppercase font-medium">prog.</span> de {cycleProgress.total}
+                          <span className="text-[10px] font-semibold text-typography-500">
+                            {cycleProgress.visited} <span className="opacity-60 uppercase text-[9px]">vis.</span> • {cycleProgress.scheduled} <span className="opacity-60 uppercase text-[9px]">prog.</span> de {cycleProgress.total}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200/50 h-1 rounded-full overflow-hidden mb-2 flex shadow-inner">
+                        <div className="w-full bg-surface-300/60 h-1.5 rounded-full overflow-hidden flex">
                           <div 
                             style={{ width: `${cycleProgress.visitedPercent}%` }}
-                            className="bg-emerald-500/70 h-full transition-all"
-                            title={`${cycleProgress.visited} visitadas (data já passou)`}
+                            className="bg-emerald-500 h-full transition-all"
+                            title={`${cycleProgress.visited} visitadas`}
                           />
                           <div 
                             style={{ width: `${cycleProgress.scheduledPercent}%` }}
-                            className="bg-sky-500/70 h-full transition-all"
-                            title={`${cycleProgress.scheduled} programadas (data futura)`}
+                            className="bg-sky-500 h-full transition-all"
+                            title={`${cycleProgress.scheduled} programadas`}
                           />
                         </div>
                         {pendingCongregations.length > 0 ? (
                           <div className="space-y-0.5">
-                            <p className="text-[9px] text-amber-700 font-bold leading-tight">
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold leading-tight">
                               Faltam {pendingCongregations.length} congregações para programar na série.
                             </p>
                             {pendingCongregations.length <= 5 && (
-                              <p className="text-[9px] text-amber-600 font-medium leading-tight">
+                              <p className="text-[10px] text-typography-500 font-medium leading-tight">
                                 Pendentes: {sortedPendingCongregations.map(c => c.nome).join(', ')}
                               </p>
                             )}
                           </div>
                         ) : (
-                          <p className="text-[9px] text-emerald-600 font-bold leading-tight flex items-center gap-1">
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight flex items-center gap-1">
                             ✓ Todas as {cycleProgress.total} congregações da série foram programadas/visitadas!
                           </p>
                         )}
@@ -1839,13 +2616,12 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     {editFormData.evento === 'Visita a Grupo' && (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
                           Grupo:
                         </label>
-                        <select 
+                        <CustomDropdown 
                           value={editFormData.congregacaoId && editFormData.grupo ? `${editFormData.congregacaoId}|${editFormData.grupo}` : ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
+                          onChange={(val) => {
                             if (!val) return;
                             const [congId, grupoNome] = val.split('|');
                             const cong = congregations.find(c => c.id === congId);
@@ -1856,19 +2632,15 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                               congregacaoId: congId
                             });
                           }}
-                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
-                        >
-                          <option value="">Selecione um grupo...</option>
-                          {sortedCongregations.flatMap(c => (c.grupos || []).map(g => ({ nome: g, congNome: c.nome, congId: c.id }))).map((g, idx) => (
-                            <option key={idx} value={`${g.congId}|${g.nome}`}>{g.nome} ({g.congNome})</option>
-                          ))}
-                        </select>
+                          options={grupoOptions}
+                          placeholder="Selecione um grupo..."
+                        />
                       </div>
                     )}
 
                     {editFormData.evento === 'Outros Eventos' && (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
                           Evento:
                         </label>
                         <div className="relative">
@@ -1877,7 +2649,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             value={editFormData.outroEvento}
                             onChange={(e) => setEditFormData({ ...editFormData, outroEvento: e.target.value })}
                             placeholder="Digite ou selecione um evento..."
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                            className="w-full p-2.5 rounded-xl border border-surface-300 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/15 outline-none transition-all bg-surface-200 text-typography-900 text-sm font-medium"
                           />
                           <datalist id="outros-eventos-list">
                             {OUTROS_EVENTOS.map((oe, idx) => (
@@ -1890,13 +2662,12 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                     {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Visita a Grupo' || editFormData.evento === 'Recebendo visita de pastoreio') && (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
                           Congregação:
                         </label>
-                        <select 
+                        <CongregationCustomSelect 
                           value={editFormData.congregacaoId || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
+                          onChange={(val) => {
                             const cong = congregations.find(c => c.id === val);
                             
                             // Warning if repeating
@@ -1924,60 +2695,18 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                               congregacaoId: cong ? cong.id : ''
                             });
                           }}
-                          className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
-                        >
-                          <option value="">Selecione uma congregação...</option>
-                          {/* 1. Pendentes / Não programadas nesta série */}
-                          {sortedPendingCongregations.length > 0 && (
-                            <optgroup label="Pendentes / Não Programadas (Nesta Série - Prioridade)">
-                              {sortedPendingCongregations.map(c => {
-                                const lastInfo = lastVisitMap.get(c.id);
-                                const lastStr = lastInfo ? ` - Última: ${lastInfo.formattedDate}` : ' - Sem visita anterior';
-                                return (
-                                  <option key={c.id} value={c.id}>
-                                    📍 {c.nome} - {c.cidade}{lastStr}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-                          {/* 2. Visitas Programadas (data futura) */}
-                          {sortedScheduledCongregations.length > 0 && (
-                            <optgroup label="Visitas Programadas (Nesta Série - Data futura)">
-                              {sortedScheduledCongregations.map(c => (
-                                <option key={c.id} value={c.id}>
-                                  📅 {c.nome} - {c.cidade} (Programada para: {c.scheduledDate})
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                          {/* 3. Já Visitadas (data já passou) */}
-                          {sortedPastVisitedCongregations.length > 0 && (
-                            <optgroup label="Já Visitadas (Nesta Série - Realizada)">
-                              {sortedPastVisitedCongregations.map(c => (
-                                <option key={c.id} value={c.id}>
-                                  ✓ {c.nome} - {c.cidade} (Visitada em: {c.visitDate})
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                          {/* Fallback if no categorized groups */}
-                          {sortedPendingCongregations.length === 0 && sortedScheduledCongregations.length === 0 && sortedPastVisitedCongregations.length === 0 && congregations.map(c => {
-                            const lastInfo = lastVisitMap.get(c.id);
-                            const lastStr = lastInfo ? `Última: ${lastInfo.formattedDate}` : 'Sem visita anterior';
-                            return (
-                              <option key={c.id} value={c.id}>
-                                {c.nome} - {c.cidade} ({lastStr})
-                              </option>
-                            );
-                          })}
-                        </select>
+                          congregations={congregations}
+                          pendingCongregations={sortedPendingCongregations}
+                          scheduledCongregations={sortedScheduledCongregations}
+                          pastVisitedCongregations={sortedPastVisitedCongregations}
+                          lastVisitMap={lastVisitMap}
+                        />
                       </div>
                     )}
 
                     {(editFormData.evento === 'Visita a Congregação' || editFormData.evento === 'Visita a Grupo') && (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
                           Substituto (se aplicável):
                         </label>
                         <div className="relative">
@@ -1986,7 +2715,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             value={editFormData.substituto}
                             onChange={(e) => setEditFormData({ ...editFormData, substituto: e.target.value })}
                             placeholder="Digite ou selecione um substituto..."
-                            className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all bg-white text-gray-900 text-sm font-medium"
+                            className="w-full p-2.5 rounded-xl border border-surface-300 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/15 outline-none transition-all bg-surface-200 text-typography-900 text-sm font-medium"
                           />
                           <datalist id="substitutes-list">
                             {substitutes.map(s => (
@@ -1998,31 +2727,33 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     )}
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
-                        COMENTÁRIOS
+                      <label className="text-[11px] font-semibold text-typography-600 uppercase tracking-wider">
+                        Comentários
                       </label>
                       <textarea 
                         value={editFormData.observacoes}
                         onChange={(e) => setEditFormData({ ...editFormData, observacoes: e.target.value })}
                         placeholder="..."
                         rows={2}
-                        className="w-full p-2 rounded-lg border border-gray-300 focus:border-violet-600 outline-none transition-all resize-none bg-white text-gray-900 text-sm font-medium"
+                        className="w-full p-2.5 rounded-xl border border-surface-300 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/15 outline-none transition-all resize-none bg-surface-200 text-typography-900 text-sm font-medium"
                       />
                     </div>
 
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex gap-2.5 pt-2">
                       <button 
+                        type="button"
                         onClick={() => setModalMode(null)}
-                        className="flex-1 py-2 rounded-lg font-bold text-gray-500 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 text-sm"
+                        className="flex-1 py-2.5 rounded-xl font-semibold text-typography-600 hover:text-typography-900 bg-surface-200 hover:bg-surface-300 transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <X size={16} /> Cancelar
                       </button>
                       <button 
+                        type="button"
                         onClick={handleFormSave}
                         disabled={saving}
-                        className="flex-1 py-2 rounded-lg font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-indigo-200 transition-all text-sm disabled:opacity-50"
+                        className="flex-1 py-2.5 rounded-xl font-bold bg-primary-200 hover:bg-primary-150 active:scale-95 text-white shadow-xs transition-all text-xs sm:text-sm disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                       >
-                        {saving ? <Loader2 size={18} className="animate-spin mx-auto" /> : (isAdding ? 'Adicionar' : 'Salvar Alterações')}
+                        {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : (isAdding ? 'Adicionar' : 'Salvar Alterações')}
                       </button>
                     </div>
                   </div>
@@ -2046,7 +2777,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             margin: 0 !important;
             padding: 0 !important;
           }
-          /* Reset transforms for print to avoid animation offsets */
           * {
             transform: none !important;
             transition: none !important;
@@ -2062,7 +2792,6 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             margin: 0 !important;
             padding: 0 !important;
           }
-          /* Hide everything else when printing the itinerary */
           @media print {
             body {
               background: white !important;
@@ -2076,24 +2805,29 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
           padding: 20px !important;
         }
 
-        .pdf-capture .bg-\[#violet-600\] {
-          background-color: #7c3aed !important;
-          color: white !important;
+        .pdf-capture .md\:hidden {
+          display: none !important;
         }
 
-        .pdf-capture .bg-amber-100\/40 {
-          background-color: #fef3c7 !important;
+        .pdf-capture .hidden.md\:block {
+          display: block !important;
         }
 
-        .pdf-capture .text-indigo-700 {
-          color: #4338ca !important;
+        .pdf-capture .bg-surface-100,
+        .pdf-capture .bg-surface-200 {
+          background-color: white !important;
         }
 
-        .pdf-capture .text-green-600 {
-          color: #16a34a !important;
+        .pdf-capture .text-typography-900 {
+          color: black !important;
         }
 
-        .pdf-capture .border-gray-300 {
+        .pdf-capture .text-typography-700,
+        .pdf-capture .text-typography-600 {
+          color: #374151 !important;
+        }
+
+        .pdf-capture .border-surface-300 {
           border-color: #d1d5db !important;
         }
       `}</style>

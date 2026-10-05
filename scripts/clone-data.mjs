@@ -1,18 +1,19 @@
+
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
+import {
   createUserWithEmailAndPassword,
-  updateProfile 
+  getAuth,
+  signInWithEmailAndPassword,
+  updateProfile
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  getDocs, 
-  doc, 
-  setDoc, 
-  query, 
-  where 
+import {
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  query,
+  setDoc,
+  where
 } from 'firebase/firestore';
 import { readFileSync } from 'fs';
 import readline from 'readline';

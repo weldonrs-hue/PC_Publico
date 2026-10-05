@@ -1,43 +1,49 @@
 'use client';
 
-import { Contact, Store, UserRound, Map, BarChart3, ClipboardList, Mail, UserCheck } from 'lucide-react';
+import { Contact, Store, UserRound, Map, BarChart3, ChevronRight, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const cards = [
   {
     title: 'Dados Pessoais',
-    color: '#10B981', // Emerald
-    gradient: 'from-emerald-500 to-teal-600',
+    lineColor: 'bg-emerald-500',
+    iconBorder: 'border-emerald-500/40 dark:border-emerald-400/50',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
     icon: Contact,
   },
   {
     title: 'Congregações',
-    color: '#F59E0B', // Amber
-    gradient: 'from-amber-500 to-orange-600',
+    lineColor: 'bg-amber-500',
+    iconBorder: 'border-amber-500/40 dark:border-amber-400/50',
+    iconColor: 'text-amber-600 dark:text-amber-400',
     icon: Store,
   },
   {
     title: 'Substitutos',
-    color: '#F43F5E', // Rose
-    gradient: 'from-rose-500 to-pink-600',
+    lineColor: 'bg-rose-500',
+    iconBorder: 'border-rose-500/40 dark:border-rose-400/50',
+    iconColor: 'text-rose-600 dark:text-rose-400',
     icon: UserRound,
   },
   {
     title: 'Itinerários',
-    color: '#8B5CF6', // Violet
-    gradient: 'from-violet-500 to-purple-600',
+    lineColor: 'bg-purple-500',
+    iconBorder: 'border-purple-500/40 dark:border-purple-400/50',
+    iconColor: 'text-purple-600 dark:text-purple-400',
     icon: Map,
   },
   {
     title: 'Estatísticas',
-    color: '#0EA5E9', // Sky
-    gradient: 'from-sky-500 to-blue-600',
+    lineColor: 'bg-sky-500',
+    iconBorder: 'border-sky-500/40 dark:border-sky-400/50',
+    iconColor: 'text-sky-600 dark:text-sky-400',
     icon: BarChart3,
   },
   {
     title: 'Estatísticas Cong.',
-    color: '#6366F1', // Indigo
-    gradient: 'from-indigo-500 to-blue-700',
+    lineColor: 'bg-indigo-500',
+    iconBorder: 'border-indigo-500/40 dark:border-indigo-400/50',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
     icon: BarChart3,
   },
 ];
@@ -72,108 +78,108 @@ export default function DashboardCards({
 
   const filteredCards = cards.filter(card => {
     if (isPioneer) {
-      // For pioneers, within "Circuito" dashboard:
-      // Only "Dados Pessoais" and "Congregações"
       if (['Substitutos', 'Itinerários', 'Estatísticas', 'Estatísticas Cong.'].includes(card.title)) return false;
     }
     return true;
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {hasPendingInvites && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
           onClick={() => onCardClick?.('Ajustes')}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[2rem] p-6 text-white shadow-xl shadow-emerald-500/20 cursor-pointer flex items-center justify-between group overflow-hidden relative"
+          className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-4 text-white shadow-sm cursor-pointer flex items-center justify-between group overflow-hidden relative transition-transform active:scale-[0.99]"
         >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-             <UserCheck size={120} />
-          </div>
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center animate-pulse">
-              <Mail size={24} />
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shrink-0">
+              <Mail size={20} />
             </div>
             <div>
-              <h3 className="font-black text-base uppercase tracking-tight">Convite Pendente!</h3>
-              <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest">Você recebeu um novo acesso. Clique para aceitar.</p>
+              <h3 className="font-semibold text-sm">Convite Pendente</h3>
+              <p className="text-white/80 text-xs">Você recebeu um novo acesso. Toque para aceitar.</p>
             </div>
           </div>
-          <div className="relative z-10 bg-white text-emerald-600 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
-            Ver Agora
+          <div className="relative z-10 bg-white text-emerald-700 px-3 py-1.5 rounded-lg font-medium text-xs shadow-xs group-hover:bg-emerald-50 transition-colors">
+            Ver agora
           </div>
         </motion.div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {filteredCards.map((card, index) => (
-        <motion.div
-          key={card.title}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          onClick={() => onCardClick?.(card.title)}
-          className="relative group cursor-pointer"
-        >
-          {/* Static Background Glow for better presence */}
-          <div 
-            className="absolute -inset-0.5 blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-2xl"
-            style={{ backgroundColor: card.color }}
-          />
-          
-          <div className="relative flex bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:border-transparent transition-all duration-300 h-20 group">
-            {/* Vibrant Vertical Accent */}
-            <div className={`w-1.5 h-full bg-gradient-to-b ${card.gradient}`}></div>
-            
-            <div className="flex-1 flex items-center px-4 gap-4">
-              <div 
-                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-105 group-hover:rotate-2 shadow-lg shadow-black/5 bg-gradient-to-br ${card.gradient}`}
-              >
-                <card.icon size={22} strokeWidth={2.5} className="text-white drop-shadow-md" />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        {filteredCards.map((card, index) => (
+          <motion.div
+            key={card.title}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.04, duration: 0.25 }}
+            onClick={() => onCardClick?.(card.title)}
+            className="group relative bg-surface-100 rounded-2xl p-3.5 sm:p-4 pl-4 sm:pl-4.5 border border-surface-300 hover:border-primary-200/50 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 overflow-hidden"
+          >
+            {/* Fine clean colored accent line on the left */}
+            <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full ${card.lineColor}`} />
+
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {/* Clean Outline Icon (transparent bg with colored outline & stroke) */}
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${card.iconBorder} ${card.iconColor} bg-transparent transition-all duration-200 group-hover:scale-105 group-hover:bg-surface-200/50`}>
+                <card.icon size={19} strokeWidth={1.8} />
               </div>
 
-              <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
-                <div className="font-black text-xs md:text-sm leading-tight text-gray-900 uppercase truncate mb-0.5 group-hover:text-black transition-colors">
+              {/* Title & Metadata */}
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-typography-900 group-hover:text-primary-200 transition-colors truncate">
                   {card.title === 'Congregações' && isPioneer ? 'Congregação' : card.title}
-                </div>
+                </h3>
                 
-                <div className="flex flex-col">
+                <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
                   {card.title === 'Congregações' ? (
-                    <div className="flex gap-2">
-                      <p className="text-[10px] font-black text-[#3525cd] bg-[#e2dfff] px-2 py-0.5 rounded-md border border-[#c7c4d8]/40 shadow-sm uppercase tracking-tighter">
-                        {isPioneer ? 'SUA CONGREGAÇÃO' : `CONG: ${congregationCount}`}
-                      </p>
-                      {!isPioneer && (
-                        <p className="text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/50 shadow-sm uppercase tracking-tighter">
-                          GRUPOS: {groupCount}
-                        </p>
-                      )}
-                    </div>
+                    isPioneer ? (
+                      <span className="text-[11px] font-medium text-primary-200 bg-primary-200/10 px-2 py-0.5 rounded-md">
+                        Sua congregação
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-medium text-typography-600 bg-surface-200 px-2 py-0.5 rounded-md border border-surface-300/50">
+                          {congregationCount} congregações
+                        </span>
+                        {groupCount > 0 && (
+                          <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                            {groupCount} grupos
+                          </span>
+                        )}
+                      </div>
+                    )
                   ) : card.title === 'Dados Pessoais' ? (
-                    <div className="flex flex-col">
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide truncate">
-                        {personalData?.nome || user?.usuario || 'usuário'}
-                      </p>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="text-xs text-typography-500 truncate">
+                        {personalData?.nome || user?.usuario || 'Seu perfil'}
+                      </span>
                       {user?.role === 'admin' && (
-                        <p className="inline-block self-start text-[8px] font-black text-emerald-500 tracking-widest uppercase mt-0.5">Admin</p>
+                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
+                          Admin
+                        </span>
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#3525cd] font-black text-xs uppercase truncate bg-[#e2dfff] px-2 py-0.5 rounded-md border border-[#c7c4d8]/40 shadow-sm">
-                        {card.title === 'Substitutos' ? `${substituteCount} Ativos` : 
-                         card.title === 'Itinerários' ? (currentEvent || 'Nenhum planejado') : 
-                         card.title === 'Estatísticas' ? `${analyzedCongregationsCount} Analisadas` :
-                         card.title === 'Estatísticas Cong.' ? 'Últimas 4 Visitas' : ''}
-                      </span>
-                    </div>
+                    <span className="text-xs text-typography-500 truncate">
+                      {card.title === 'Substitutos' ? `${substituteCount} ativos` : 
+                       card.title === 'Itinerários' ? (currentEvent || 'Nenhum planejado') : 
+                       card.title === 'Estatísticas' ? `${analyzedCongregationsCount} analisadas` :
+                       card.title === 'Estatísticas Cong.' ? 'Últimas 4 visitas' : ''}
+                    </span>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        </motion.div>
-      ))}
+
+            {/* Subtle Chevron indicator */}
+            <ChevronRight 
+              size={18} 
+              className="text-typography-400 group-hover:text-primary-200 group-hover:translate-x-0.5 transition-all shrink-0" 
+            />
+          </motion.div>
+        ))}
       </div>
     </div>
   );

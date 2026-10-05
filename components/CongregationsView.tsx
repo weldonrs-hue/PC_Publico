@@ -36,7 +36,7 @@ import {
 // Dynamically import map to avoid SSR issues
 const CongregationsMap = dynamic(() => import('./CongregationsMap'), { 
   ssr: false,
-  loading: () => <div className="h-[600px] w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Carregando Mapa...</div>
+  loading: () => <div className="h-[600px] w-full bg-surface-200 animate-pulse rounded-2xl flex items-center justify-center text-typography-400">Carregando Mapa...</div>
 });
 import AppointmentLetterView from './AppointmentLetterView';
 import {
@@ -1007,12 +1007,12 @@ export default function CongregationsView({
       <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-amber-600 bg-white shadow-md border border-gray-200"
+          className="p-2 hover:bg-surface-200 rounded-xl transition-all text-typography-700 bg-surface-100 shadow-xs border border-surface-300"
           title="Voltar ao Painel"
         >
-          <ChevronLeft size={22} strokeWidth={3} />
+          <ChevronLeft size={20} strokeWidth={2.5} />
         </button>
-        <h2 className="text-xl font-bold text-gray-800">
+        <h2 className="text-xl font-bold text-typography-900 tracking-tight">
           {isPioneer ? 'Dados da Congregação' : 'Gestão de Congregações'}
         </h2>
       </div>
@@ -1021,67 +1021,67 @@ export default function CongregationsView({
         {!isEditing ? (
           <motion.div 
             key="list"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            exit={{ opacity: 0, y: -16 }}
             className="space-y-4"
           >
             {/* Search and Add Bar */}
-            <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-surface-100 p-3 sm:p-4 rounded-2xl shadow-xs border border-surface-300">
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <div className="relative flex-1 md:w-80">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" size={16} />
                   <input 
                     type="text"
-                    placeholder="Buscar..."
+                    placeholder="Buscar congregação ou número..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
+                    className="w-full pl-9 pr-4 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors"
                   />
                 </div>
-                <div className="flex bg-gray-100 p-0.5 rounded-lg">
+                <div className="flex bg-surface-200 p-1 rounded-xl border border-surface-300/50">
                   <button 
                     onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-surface-100 text-primary-200 shadow-xs font-semibold' : 'text-typography-500 hover:text-typography-800'}`}
                     title="Ver Lista"
                   >
                     <List size={18} />
                   </button>
                   <button 
                     onClick={() => setViewMode('map')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'map' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'map' ? 'bg-surface-100 text-primary-200 shadow-xs font-semibold' : 'text-typography-500 hover:text-typography-800'}`}
                     title="Ver Mapa"
                   >
                     <MapIcon size={18} />
                   </button>
                 </div>
               </div>
-              <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              <div className="flex flex-row gap-2 w-full md:w-auto items-center overflow-x-auto pb-1 sm:pb-0">
                 <a 
                   href="https://hub.jw.org/meetings/pt?q=%7B%22meetingType%22:%22meetings%22,%22location%22:%22Sua%20localiza%C3%A7%C3%A3o%22%7D"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full md:w-auto bg-white text-amber-600 border border-amber-200 px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors shadow-sm"
+                  className="bg-surface-100 text-typography-700 hover:text-primary-200 hover:bg-surface-200 border border-surface-300 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs whitespace-nowrap shrink-0"
                 >
-                  <ExternalLink size={16} />
-                  JW.ORG
+                  <ExternalLink size={15} className="shrink-0" />
+                  <span>JW.ORG</span>
                 </a>
                 {(isAdmin || importEnabledForAll) && !isPioneer && (
                   <button 
                     onClick={() => setIsImportModalOpen(true)}
-                    className="w-full md:w-auto bg-white text-amber-600 border border-amber-200 px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-50 transition-colors shadow-sm"
+                    className="bg-surface-100 text-typography-700 hover:text-primary-200 hover:bg-surface-200 border border-surface-300 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <ClipboardPaste size={16} />
-                    IMPORTAR
+                    <ClipboardPaste size={15} className="shrink-0" />
+                    <span>Importar</span>
                   </button>
                 )}
                 <button 
                   onClick={handleAddNew}
                   disabled={isPioneer && congregations.length > 0}
-                  className="w-full md:w-auto bg-amber-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-700 transition-colors shadow-lg shadow-amber-200 active:scale-95 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                  className="bg-primary-200 hover:bg-primary-150 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  <Plus size={16} />
-                  {isPioneer ? 'CONFIRMAR' : 'NOVA'}
+                  <Plus size={16} className="shrink-0" />
+                  <span>{isPioneer ? 'Confirmar' : 'Nova'}</span>
                 </button>
               </div>
             </div>
@@ -1089,22 +1089,22 @@ export default function CongregationsView({
             {/* List or Map Grid */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-amber-500" size={48} />
+                <Loader2 className="animate-spin text-primary-200" size={40} />
               </div>
             ) : viewMode === 'map' ? (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="space-y-4"
               >
-                <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 h-[600px]">
+                <div className="bg-surface-100 p-2 rounded-2xl shadow-xs border border-surface-300 h-[600px] overflow-hidden">
                   <CongregationsMap 
                     congregations={filteredCongregations} 
                     onEdit={(cong) => handleEdit(cong)}
                   />
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <MapPin size={14} className="text-amber-500" />
+                <div className="flex items-center gap-2 text-xs text-typography-500 bg-surface-200/60 p-3 rounded-xl border border-surface-300/50">
+                  <MapPin size={14} className="text-primary-200 shrink-0" />
                   <span>
                     Mostrando {
                       filteredCongregations.filter(c => {
@@ -1121,29 +1121,31 @@ export default function CongregationsView({
                   filteredCongregations.map((cong) => (
                     <div 
                       key={cong.id}
-                      className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-amber-500/5 transition-all group flex flex-col justify-between"
+                      className="bg-surface-100 p-4 sm:p-5 rounded-2xl shadow-xs border border-surface-300 hover:border-primary-200/40 hover:shadow-md transition-all group flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 shadow-inner shrink-0">
-                              <Store size={20} />
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 group-hover:scale-105 transition-transform duration-200 shrink-0">
+                              <Store size={19} />
                             </div>
-                            <div>
-                              <h3 className="font-bold text-gray-900 leading-tight">{cong.nome}</h3>
-                              <p className="text-xs text-gray-500 font-mono">
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-sm sm:text-base text-typography-900 leading-snug group-hover:text-primary-200 transition-colors truncate">
+                                {cong.nome}
+                              </h3>
+                              <p className="text-xs text-typography-500 font-mono">
                                 Nº {cong.numero} • Parte {cong.parte}
                                 {cong.circuito ? ` • ${cong.circuito}` : ''}
                               </p>
                             </div>
                           </div>
-                          <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                          <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0">
                             <button 
                               onClick={() => {
                                 setSelectedCong(cong);
                                 setShowLetter(true);
                               }}
-                              className="p-1.5 text-[#512da8] hover:bg-indigo-50 rounded-lg transition-colors"
+                              className="p-1.5 text-typography-400 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-colors"
                               title="Carta de Designação"
                             >
                               <FileText size={16} />
@@ -1155,7 +1157,7 @@ export default function CongregationsView({
                                   handleDelete(cong.id);
                                 }
                               }}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-1.5 text-typography-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                               title="Excluir"
                             >
                               <Trash2 size={16} />
@@ -1163,14 +1165,14 @@ export default function CongregationsView({
                           </div>
                         </div>
                         
-                        <div className="space-y-2 text-xs text-gray-600 border-t border-gray-50 pt-3">
+                        <div className="space-y-2 text-xs text-typography-600 border-t border-surface-300/80 pt-3">
                           <div className="flex items-center gap-2">
-                            <MapPin size={13} className="text-gray-400 shrink-0" />
+                            <MapPin size={13} className="text-typography-400 shrink-0" />
                             <span className="truncate">{cong.cidade || 'Cidade não informada'}{cong.estado ? ` - ${cong.estado}` : ''}</span>
                           </div>
 
                           {cong.emailJWPub && (
-                            <div className="flex items-center gap-2 text-amber-600 font-medium">
+                            <div className="flex items-center gap-2 text-primary-200 font-medium">
                               <Mail size={13} className="shrink-0" />
                               <span className="truncate">{cong.emailJWPub}</span>
                             </div>
@@ -1178,8 +1180,8 @@ export default function CongregationsView({
 
                           {/* Reuniões */}
                           {(cong.reuniaoMeioSemana || cong.reuniaoFimSemana || cong.reunioes) && (
-                            <div className="flex items-start gap-2 bg-amber-50/50 p-2 rounded-lg text-amber-900">
-                              <Clock size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-2 bg-surface-200/70 border border-surface-300/50 p-2.5 rounded-xl text-typography-800">
+                              <Clock size={13} className="text-primary-200 shrink-0 mt-0.5" />
                               <div className="text-[11px] leading-tight space-y-0.5">
                                 {cong.reuniaoMeioSemana && <div>{cong.reuniaoMeioSemana}</div>}
                                 {cong.reuniaoFimSemana && <div>{cong.reuniaoFimSemana}</div>}
@@ -1192,12 +1194,12 @@ export default function CongregationsView({
 
                           {/* Coordenador */}
                           <div className="flex items-start gap-2">
-                            <User size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                            <User size={13} className="text-primary-200 shrink-0 mt-0.5" />
                             <div className="truncate text-[11px]">
-                              <span className="font-semibold text-gray-700">CCA: </span>
+                              <span className="font-semibold text-typography-700">CCA: </span>
                               <span>{cong.coordenador || 'Não informado'}</span>
                               {(cong.coordenadorTelefone || cong.telefone) && (
-                                <span className="text-gray-400 ml-1">({cong.coordenadorTelefone || cong.telefone})</span>
+                                <span className="text-typography-400 ml-1">({cong.coordenadorTelefone || cong.telefone})</span>
                               )}
                             </div>
                           </div>
@@ -1205,12 +1207,12 @@ export default function CongregationsView({
                           {/* Secretário */}
                           {cong.secretario && (
                             <div className="flex items-start gap-2">
-                              <UserCheck size={13} className="text-indigo-600 shrink-0 mt-0.5" />
+                              <UserCheck size={13} className="text-primary-200 shrink-0 mt-0.5" />
                               <div className="truncate text-[11px]">
-                                <span className="font-semibold text-gray-700">Sec: </span>
+                                <span className="font-semibold text-typography-700">Sec: </span>
                                 <span>{cong.secretario}</span>
                                 {cong.secretarioTelefone && (
-                                  <span className="text-gray-400 ml-1">({cong.secretarioTelefone})</span>
+                                  <span className="text-typography-400 ml-1">({cong.secretarioTelefone})</span>
                                 )}
                               </div>
                             </div>
@@ -1218,42 +1220,42 @@ export default function CongregationsView({
 
                           {cong.gps ? (
                             <div className="flex items-center gap-2">
-                              <MapPin size={13} className="text-amber-500 shrink-0" />
-                              <span className="text-[11px] font-mono text-amber-600 truncate">{cong.gps}</span>
+                              <MapPin size={13} className="text-primary-200 shrink-0" />
+                              <span className="text-[11px] font-mono text-typography-600 bg-surface-200 px-2 py-0.5 rounded-md border border-surface-300/50 truncate">{cong.gps}</span>
                             </div>
                           ) : null}
 
                           {cong.grupos && cong.grupos.length > 0 && (
-                            <div className="flex items-center gap-2 text-gray-500">
-                              <Users size={13} className="text-gray-400 shrink-0" />
+                            <div className="flex items-center gap-2 text-typography-500">
+                              <Users size={13} className="text-typography-400 shrink-0" />
                               <span className="text-[11px]">{cong.grupos.length} Grupo(s)</span>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-gray-100">
+                      <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-surface-300/80">
                         <button 
                           onClick={() => handleEdit(cong)}
-                          className="py-2 text-xs font-bold text-amber-600 border border-amber-100 rounded-xl hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center gap-1.5"
+                          className="py-2 px-2 text-xs font-semibold text-typography-700 bg-surface-200/70 hover:bg-surface-200 hover:text-primary-200 border border-surface-300 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
                         >
-                          <Edit2 size={13} />
-                          Editar
+                          <Edit2 size={13} className="shrink-0" />
+                          <span>Editar</span>
                         </button>
                         <button 
                           onClick={() => handleNavigate(cong)}
-                          className="py-2 text-xs font-bold text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-1.5"
+                          className="py-2 px-2 text-xs font-semibold text-primary-200 bg-primary-200/10 hover:bg-primary-200 hover:text-white border border-primary-200/20 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
                         >
-                          <Navigation size={13} />
-                          Como Chegar
+                          <Navigation size={13} className="shrink-0" />
+                          <span>Como Chegar</span>
                         </button>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-full py-12 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <Store className="mx-auto text-gray-300 mb-2" size={48} />
-                    <p className="text-gray-500 font-medium">Nenhuma congregação encontrada.</p>
+                  <div className="col-span-full py-12 text-center bg-surface-200/50 rounded-2xl border-2 border-dashed border-surface-300">
+                    <Store className="mx-auto text-typography-400 mb-2" size={40} />
+                    <p className="text-typography-500 font-medium">Nenhuma congregação encontrada.</p>
                   </div>
                 )}
               </div>
@@ -1265,38 +1267,38 @@ export default function CongregationsView({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
+            className="bg-surface-100 rounded-2xl shadow-sm border border-surface-300 overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-4 sm:p-5 text-white flex justify-between items-center">
-              <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-r from-primary-200 to-primary-150 p-4 sm:p-5 text-white flex justify-between items-center gap-2">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition-all text-white flex items-center justify-center cursor-pointer"
+                  className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition-all text-white flex items-center justify-center cursor-pointer shrink-0"
                   title="Voltar para a lista"
                 >
                   <ChevronLeft size={18} />
                 </button>
-                <h3 className="font-bold text-base sm:text-lg">
+                <h3 className="font-bold text-sm sm:text-lg truncate">
                   {selectedCong ? 'Editar Congregação' : 'Nova Congregação'}
                 </h3>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {!selectedCong && (
                   <button 
                     type="button"
                     onClick={() => setIsPasting(true)}
-                    className="flex items-center gap-1.5 text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-sm"
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-sm whitespace-nowrap shrink-0"
                   >
-                    <ClipboardPaste size={14} />
-                    <span>Colar Dados</span>
+                    <ClipboardPaste size={14} className="shrink-0" />
+                    <span className="whitespace-nowrap">Colar Dados</span>
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition-all text-white flex items-center justify-center cursor-pointer"
+                  className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition-all text-white flex items-center justify-center cursor-pointer shrink-0"
                   title="Fechar edição"
                 >
                   <X size={18} />
@@ -1306,13 +1308,13 @@ export default function CongregationsView({
 
             <form id="congregation-form" onSubmit={handleSave} className="p-6 space-y-6 pb-28">
               {isPasting && (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3 animate-in fade-in slide-in-from-top-2">
+                <div className="bg-surface-200/80 p-4 rounded-xl border border-surface-300 space-y-3 animate-in fade-in slide-in-from-top-2">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-bold text-blue-800 uppercase">Cole os dados da congregação</h4>
+                    <h4 className="text-xs font-bold text-primary-200 uppercase">Cole os dados da congregação</h4>
                     <button 
                       type="button"
                       onClick={() => setIsPasting(false)}
-                      className="text-blue-400 hover:text-blue-600 text-[10px] font-bold"
+                      className="text-typography-400 hover:text-typography-700 text-[10px] font-bold"
                     >
                       Cancelar
                     </button>
@@ -1322,12 +1324,12 @@ export default function CongregationsView({
                     value={pasteText}
                     onChange={(e) => setPasteText(e.target.value)}
                     placeholder="Cole aqui o texto da congregação (com Reuniões, Coordenador, Secretário, etc.)..."
-                    className="w-full h-36 p-3 text-xs bg-white border border-blue-200 rounded-lg outline-none focus:border-blue-500 font-mono"
+                    className="w-full h-36 p-3 text-xs bg-surface-100 text-typography-900 border border-surface-300 rounded-lg outline-none focus:border-primary-200 font-mono"
                   />
                   <button 
                     type="button"
                     onClick={handlePasteData}
-                    className="w-full py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-all shadow-sm"
+                    className="w-full py-2 bg-primary-200 text-white text-xs font-bold rounded-lg hover:bg-primary-150 transition-all shadow-sm"
                   >
                     Processar e Preencher Automaticamente
                   </button>
@@ -1336,63 +1338,63 @@ export default function CongregationsView({
 
               {/* Seção 1: Dados Gerais e Reuniões */}
               <div className="space-y-4">
-                <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider border-b border-gray-100 pb-2">
+                <h4 className="text-xs font-bold text-primary-200 uppercase tracking-wider border-b border-surface-300/80 pb-2">
                   1. Informações Básicas e Circuito
                 </h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   <div className="md:col-span-5 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Nome da Congregação</label>
+                    <label className="text-xs font-semibold text-typography-600 uppercase">Nome da Congregação</label>
                     <input 
                       required
                       value={formData.nome}
                       onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm text-typography-900 placeholder:text-typography-400"
                       placeholder="Ex: Alcantil"
                     />
                   </div>
 
                   <div className="md:col-span-3 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Número</label>
+                    <label className="text-xs font-semibold text-typography-600 uppercase">Número</label>
                     <input 
                       required
                       value={formData.numero}
                       onChange={(e) => setFormData({...formData, numero: e.target.value.replace(/\D/g, '').slice(0, 7)})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm font-mono"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm font-mono text-typography-900 placeholder:text-typography-400"
                       placeholder="170431"
                     />
                   </div>
 
                   <div className="md:col-span-2 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Parte</label>
+                    <label className="text-xs font-semibold text-typography-600 uppercase">Parte</label>
                     <input 
                       value={formData.parte}
                       onChange={(e) => setFormData({...formData, parte: e.target.value.toUpperCase().slice(0, 1)})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-center font-bold text-sm"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-center font-bold text-sm text-typography-900 placeholder:text-typography-400"
                       placeholder="A"
                       maxLength={1}
                     />
                   </div>
 
                   <div className="md:col-span-2 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Circuito</label>
+                    <label className="text-xs font-semibold text-typography-600 uppercase">Circuito</label>
                     <input 
                       value={formData.circuito || ''}
                       onChange={(e) => setFormData({...formData, circuito: e.target.value.toUpperCase()})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm font-mono"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm font-mono text-typography-900 placeholder:text-typography-400"
                       placeholder="PB-003 A"
                     />
                   </div>
 
                   <div className="md:col-span-12 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1.5">
-                      <Mail size={14} className="text-amber-600" />
+                    <label className="text-xs font-semibold text-typography-600 uppercase flex items-center gap-1.5">
+                      <Mail size={14} className="text-primary-200" />
                       E-mail da Congregação (JWPub)
                     </label>
                     <input 
                       value={formData.emailJWPub || ''}
                       onChange={(e) => setFormData({...formData, emailJWPub: e.target.value.toLowerCase().trim()})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm font-mono"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm font-mono text-typography-900 placeholder:text-typography-400"
                       placeholder="congregação@jwpub.org"
                     />
                   </div>
@@ -1400,27 +1402,27 @@ export default function CongregationsView({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1.5">
-                      <Clock size={14} className="text-amber-600" />
+                    <label className="text-xs font-semibold text-typography-600 uppercase flex items-center gap-1.5">
+                      <Clock size={14} className="text-primary-200" />
                       Reunião Meio de Semana
                     </label>
                     <input 
                       value={formData.reuniaoMeioSemana || ''}
                       onChange={(e) => setFormData({...formData, reuniaoMeioSemana: e.target.value})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm text-typography-900 placeholder:text-typography-400"
                       placeholder="Ex: Terça-feira, 19:00"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1.5">
-                      <Clock size={14} className="text-amber-600" />
+                    <label className="text-xs font-semibold text-typography-600 uppercase flex items-center gap-1.5">
+                      <Clock size={14} className="text-primary-200" />
                       Reunião Fim de Semana
                     </label>
                     <input 
                       value={formData.reuniaoFimSemana || ''}
                       onChange={(e) => setFormData({...formData, reuniaoFimSemana: e.target.value})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm text-typography-900 placeholder:text-typography-400"
                       placeholder="Ex: Sábado, 17:00 ou Domingo, 09:30"
                     />
                   </div>
@@ -1429,36 +1431,36 @@ export default function CongregationsView({
 
               {/* Seção 2: Localização e Endereço */}
               <div className="space-y-4">
-                <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider border-b border-gray-100 pb-2">
+                <h4 className="text-xs font-bold text-primary-200 uppercase tracking-wider border-b border-surface-300/80 pb-2">
                   2. Local de Reuniões e Endereço
                 </h4>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Endereço Completo</label>
+                  <label className="text-xs font-semibold text-typography-600 uppercase">Endereço Completo</label>
                   <input 
                     value={formData.endereco}
                     onChange={(e) => setFormData({...formData, endereco: e.target.value})}
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm"
+                    className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm text-typography-900 placeholder:text-typography-400"
                     placeholder="Rua / Avenida, Número, Bairro"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   <div className="md:col-span-4 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">CEP</label>
+                    <label className="text-xs font-semibold text-typography-600 uppercase">CEP</label>
                     <div className="relative">
                       <input 
                         value={formData.cep}
                         onChange={(e) => setFormData({...formData, cep: formatCEP(e.target.value)})}
                         onBlur={handleCEPSearch}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors pr-8 text-sm font-mono"
+                        className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors pr-8 text-sm font-mono text-typography-900 placeholder:text-typography-400"
                         placeholder="00000-000"
                         maxLength={9}
                       />
                       <button 
                         type="button"
                         onClick={handleCEPSearch}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-600 hover:text-amber-800"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-primary-200 hover:text-primary-150"
                       >
                         {isSearchingCEP ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                       </button>
@@ -1466,31 +1468,31 @@ export default function CongregationsView({
                   </div>
 
                   <div className="md:col-span-6 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Cidade</label>
+                    <label className="text-xs font-semibold text-typography-600 uppercase">Cidade</label>
                     <input 
                       value={formData.cidade}
                       onChange={(e) => setFormData({...formData, cidade: e.target.value.toUpperCase()})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm uppercase"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm uppercase text-typography-900 placeholder:text-typography-400"
                       placeholder="CIDADE"
                     />
                   </div>
 
                   <div className="md:col-span-2 space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">UF</label>
+                    <label className="text-xs font-semibold text-typography-600 uppercase">UF</label>
                     <input 
                       value={formData.estado}
                       onChange={(e) => setFormData({...formData, estado: e.target.value.toUpperCase().replace(/[^A-Z]/g, '')})}
-                      className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-center font-bold text-sm uppercase"
+                      className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-center font-bold text-sm uppercase text-typography-900 placeholder:text-typography-400"
                       placeholder="PB"
                       maxLength={2}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2 bg-amber-50/30 p-3.5 rounded-xl border border-amber-100">
+                <div className="space-y-2 bg-surface-200/50 p-3.5 rounded-xl border border-surface-300">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1.5">
-                      <MapPin size={14} className="text-amber-600" />
+                    <label className="text-xs font-bold text-typography-700 uppercase flex items-center gap-1.5">
+                      <MapPin size={14} className="text-primary-200" />
                       Coordenadas GPS (Latitude, Longitude)
                     </label>
                     
@@ -1499,18 +1501,18 @@ export default function CongregationsView({
                         type="button"
                         onClick={handleExtractGPS}
                         disabled={isExtractingGPS}
-                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+                        className="px-3 py-1.5 bg-primary-200 hover:bg-primary-150 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                         title="Extrair latitude e longitude a partir do endereço, CEP e cidade"
                       >
                         {isExtractingGPS ? (
                           <>
-                            <Loader2 size={13} className="animate-spin" />
+                            <Loader2 size={13} className="animate-spin shrink-0" />
                             <span>Buscando GPS...</span>
                           </>
                         ) : (
                           <>
-                            <Crosshair size={13} />
-                            <span>Extrair GPS do Endereço</span>
+                            <Crosshair size={13} className="shrink-0" />
+                            <span>Extrair GPS</span>
                           </>
                         )}
                       </button>
@@ -1524,10 +1526,10 @@ export default function CongregationsView({
                             if (gpsValue.includes(',')) coords = gpsValue;
                             window.open(`https://www.google.com/maps?q=${encodeURIComponent(coords)}`, '_blank');
                           }}
-                          className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1"
+                          className="px-2.5 py-1.5 bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
                           title="Abrir e conferir localização no Google Maps"
                         >
-                          <ExternalLink size={12} />
+                          <ExternalLink size={12} className="shrink-0" />
                           <span>Ver no Maps</span>
                         </button>
                       )}
@@ -1540,7 +1542,7 @@ export default function CongregationsView({
                       setFormData({...formData, gps: e.target.value});
                       if (gpsStatus) setGpsStatus(null);
                     }}
-                    className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors text-sm font-mono"
+                    className="w-full p-2 bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors text-sm font-mono text-typography-900 placeholder:text-typography-400"
                     placeholder="Ex: -7.743120, -35.981240"
                   />
 
@@ -1549,10 +1551,10 @@ export default function CongregationsView({
                     <div 
                       className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 transition-all ${
                         gpsStatus.type === 'success' 
-                          ? 'bg-green-50 border-green-200 text-green-800' 
+                          ? 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400' 
                           : gpsStatus.type === 'warning'
-                          ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm'
-                          : 'bg-red-50 border-red-200 text-red-800'
+                          ? 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400 shadow-sm'
+                          : 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400'
                       }`}
                     >
                       {gpsStatus.type === 'success' ? (
@@ -1569,8 +1571,8 @@ export default function CongregationsView({
                           {gpsStatus.precision && (
                             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
                               gpsStatus.precision === 'street' 
-                                ? 'bg-green-200 text-green-800' 
-                                : 'bg-amber-200 text-amber-900'
+                                ? 'bg-green-500/20 text-green-700 dark:text-green-400' 
+                                : 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
                             }`}>
                               {gpsStatus.precision === 'street' ? 'Alta Certeza' : gpsStatus.precision === 'city' ? 'Incerto (Cidade)' : 'Aproximado (Bairro/CEP)'}
                             </span>
@@ -1578,7 +1580,7 @@ export default function CongregationsView({
                         </div>
                         <p className="leading-relaxed">{gpsStatus.message}</p>
                         {gpsStatus.details && (
-                          <p className="text-[11px] text-gray-500 font-mono truncate max-w-full">
+                          <p className="text-[11px] text-typography-500 font-mono truncate max-w-full">
                             📍 {gpsStatus.details}
                           </p>
                         )}
@@ -1591,7 +1593,7 @@ export default function CongregationsView({
                                   window.open(`https://www.google.com/maps?q=${encodeURIComponent(formData.gps)}`, '_blank');
                                 }
                               }}
-                              className="text-xs font-bold text-amber-900 underline hover:text-amber-950 flex items-center gap-1"
+                              className="text-xs font-bold text-amber-700 dark:text-amber-400 underline hover:opacity-80 flex items-center gap-1"
                             >
                               <ExternalLink size={12} />
                               Conferir ponto no Google Maps
@@ -1603,7 +1605,7 @@ export default function CongregationsView({
                       <button 
                         type="button" 
                         onClick={() => setGpsStatus(null)}
-                        className="text-gray-400 hover:text-gray-600 p-0.5"
+                        className="text-typography-400 hover:text-typography-600 p-0.5"
                         title="Fechar aviso"
                       >
                         <X size={14} />
@@ -1615,33 +1617,33 @@ export default function CongregationsView({
 
               {/* Seção 3: Anciãos de Contato (Coordenador e Secretário) */}
               <div className="space-y-4">
-                <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider border-b border-gray-100 pb-2">
+                <h4 className="text-xs font-bold text-primary-200 uppercase tracking-wider border-b border-surface-300/80 pb-2">
                   3. Anciãos de Contato
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Coordenador */}
-                  <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100 space-y-3">
-                    <div className="flex items-center gap-2 pb-1 border-b border-amber-200/50">
-                      <User size={16} className="text-amber-600" />
-                      <h5 className="text-xs font-bold text-amber-900 uppercase">
+                  <div className="bg-surface-200/50 p-4 rounded-xl border border-surface-300 space-y-3">
+                    <div className="flex items-center gap-2 pb-1 border-b border-surface-300/60">
+                      <User size={16} className="text-primary-200" />
+                      <h5 className="text-xs font-bold text-primary-200 uppercase">
                         Coordenador do Corpo de Anciãos (CCA)
                       </h5>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Nome Completo</label>
+                      <label className="text-[10px] font-bold text-typography-500 uppercase">Nome Completo</label>
                       <input 
                         value={formData.coordenador}
                         onChange={(e) => setFormData({...formData, coordenador: e.target.value})}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 text-xs"
+                        className="w-full p-2 bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 text-xs text-typography-900 placeholder:text-typography-400"
                         placeholder="Nome do Coordenador"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
-                        <Phone size={11} className="text-gray-400" /> Telefone / WhatsApp
+                      <label className="text-[10px] font-bold text-typography-500 uppercase flex items-center gap-1">
+                        <Phone size={11} className="text-typography-400" /> Telefone / WhatsApp
                       </label>
                       <input 
                         value={formData.coordenadorTelefone || formData.telefone || ''}
@@ -1653,65 +1655,65 @@ export default function CongregationsView({
                             coordenadorTelefone: val
                           });
                         }}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 text-xs font-mono"
+                        className="w-full p-2 bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 text-xs font-mono text-typography-900 placeholder:text-typography-400"
                         placeholder="(00) 00000-0000"
                         maxLength={15}
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
-                        <Mail size={11} className="text-gray-400" /> E-mail (JWPub)
+                      <label className="text-[10px] font-bold text-typography-500 uppercase flex items-center gap-1">
+                        <Mail size={11} className="text-typography-400" /> E-mail (JWPub)
                       </label>
                       <input 
                         value={formData.coordenadorEmail || ''}
                         onChange={(e) => setFormData({...formData, coordenadorEmail: e.target.value.trim()})}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-amber-500 text-xs font-mono"
+                        className="w-full p-2 bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 text-xs font-mono text-typography-900 placeholder:text-typography-400"
                         placeholder="nome@jwpub.org"
                       />
                     </div>
                   </div>
 
                   {/* Secretário */}
-                  <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
-                    <div className="flex items-center gap-2 pb-1 border-b border-indigo-200/50">
-                      <UserCheck size={16} className="text-indigo-600" />
-                      <h5 className="text-xs font-bold text-indigo-900 uppercase">
+                  <div className="bg-surface-200/50 p-4 rounded-xl border border-surface-300 space-y-3">
+                    <div className="flex items-center gap-2 pb-1 border-b border-surface-300/60">
+                      <UserCheck size={16} className="text-primary-200" />
+                      <h5 className="text-xs font-bold text-primary-200 uppercase">
                         Secretário
                       </h5>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Nome Completo</label>
+                      <label className="text-[10px] font-bold text-typography-500 uppercase">Nome Completo</label>
                       <input 
                         value={formData.secretario || ''}
                         onChange={(e) => setFormData({...formData, secretario: e.target.value})}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-indigo-500 text-xs"
+                        className="w-full p-2 bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 text-xs text-typography-900 placeholder:text-typography-400"
                         placeholder="Nome do Secretário"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
-                        <Phone size={11} className="text-gray-400" /> Telefone / WhatsApp
+                      <label className="text-[10px] font-bold text-typography-500 uppercase flex items-center gap-1">
+                        <Phone size={11} className="text-typography-400" /> Telefone / WhatsApp
                       </label>
                       <input 
                         value={formData.secretarioTelefone || ''}
                         onChange={(e) => setFormData({...formData, secretarioTelefone: formatPhone(e.target.value)})}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-indigo-500 text-xs font-mono"
+                        className="w-full p-2 bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 text-xs font-mono text-typography-900 placeholder:text-typography-400"
                         placeholder="(00) 00000-0000"
                         maxLength={15}
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
-                        <Mail size={11} className="text-gray-400" /> E-mail (JWPub)
+                      <label className="text-[10px] font-bold text-typography-500 uppercase flex items-center gap-1">
+                        <Mail size={11} className="text-typography-400" /> E-mail (JWPub)
                       </label>
                       <input 
                         value={formData.secretarioEmail || ''}
                         onChange={(e) => setFormData({...formData, secretarioEmail: e.target.value.trim()})}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg outline-none focus:border-indigo-500 text-xs font-mono"
+                        className="w-full p-2 bg-surface-100 border border-surface-300 rounded-lg outline-none focus:border-primary-200 text-xs font-mono text-typography-900 placeholder:text-typography-400"
                         placeholder="nome@jwpub.org"
                       />
                     </div>
@@ -1721,16 +1723,17 @@ export default function CongregationsView({
 
               {/* Seção 4: Grupos e Pré-grupos */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                  <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider">
+                <div className="flex items-center justify-between border-b border-surface-300/80 pb-2">
+                  <h4 className="text-xs font-bold text-primary-200 uppercase tracking-wider">
                     4. Grupos e Pré-grupos
                   </h4>
                   <button 
                     type="button"
                     onClick={handleAddGroup}
-                    className="flex items-center gap-1 text-xs font-bold text-amber-600 hover:bg-amber-50 px-3 py-1.5 rounded-xl transition-all border border-amber-100"
+                    className="flex items-center gap-1 text-xs font-bold text-primary-200 hover:bg-primary-200/10 px-3 py-1.5 rounded-xl transition-all border border-primary-200/30 whitespace-nowrap shrink-0 cursor-pointer"
                   >
-                    <Plus size={14} /> Adicionar Grupo
+                    <Plus size={14} className="shrink-0" /> 
+                    <span>Adicionar Grupo</span>
                   </button>
                 </div>
                 
@@ -1741,19 +1744,19 @@ export default function CongregationsView({
                         value={grupo}
                         onChange={(e) => handleGroupChange(index, e.target.value)}
                         placeholder={`Nome do Grupo ${index + 1}`}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors pr-8 text-xs"
+                        className="w-full p-2 bg-surface-200 border border-surface-300 rounded-lg outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/10 transition-colors pr-8 text-xs text-typography-900 placeholder:text-typography-400"
                       />
                       <button 
                         type="button"
                         onClick={() => handleRemoveGroup(index)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-typography-400 hover:text-red-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   ))}
                   {formData.grupos.length === 0 && (
-                    <p className="text-xs text-gray-400 italic col-span-full">Nenhum grupo adicionado. Clique no &quot;+&quot; para adicionar.</p>
+                    <p className="text-xs text-typography-400 italic col-span-full">Nenhum grupo adicionado. Clique no &quot;+&quot; para adicionar.</p>
                   )}
                 </div>
               </div>
@@ -1767,18 +1770,18 @@ export default function CongregationsView({
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 40 }}
-                  className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+                  className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 text-typography-900 backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-surface-300 max-w-[calc(100vw-1.5rem)] w-auto no-print"
                 >
                   <div className="flex items-center gap-2.5 shrink-0">
                     <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-200 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-200"></span>
                     </span>
                     <div className="flex flex-col">
-                      <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+                      <span className="text-xs sm:text-sm font-semibold text-typography-900 whitespace-nowrap">
                         Alterações não salvas
                       </span>
-                      <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                      <span className="text-[10px] text-typography-500 font-mono hidden sm:inline">
                         {formData.nome ? formData.nome : 'Nova Congregação'} {formData.numero ? `• Nº ${formData.numero}` : ''}
                       </span>
                     </div>
@@ -1795,7 +1798,7 @@ export default function CongregationsView({
                         }
                       }}
                       disabled={isSaving}
-                      className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-typography-600 hover:text-typography-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {selectedCong ? 'Descartar' : 'Cancelar'}
                     </button>
@@ -1803,7 +1806,7 @@ export default function CongregationsView({
                       type="submit"
                       form="congregation-form"
                       disabled={isSaving}
-                      className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                      className="px-3.5 sm:px-4 py-2 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
                     >
                       {isSaving ? (
                         <>
@@ -1833,9 +1836,9 @@ export default function CongregationsView({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 text-typography-900"
             >
-              <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-6 text-white flex justify-between items-center">
+              <div className="bg-gradient-to-r from-primary-200 to-primary-150 p-6 text-white flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-lg">
                     <ClipboardPaste size={24} />
@@ -1854,11 +1857,11 @@ export default function CongregationsView({
               </div>
 
               <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 space-y-2">
-                  <h4 className="text-sm font-bold text-amber-900 flex items-center gap-1.5">
+                <div className="bg-surface-200 p-4 rounded-xl border border-surface-300 space-y-2 text-typography-800">
+                  <h4 className="text-sm font-bold text-primary-200 flex items-center gap-1.5">
                     <ClipboardPaste size={16} /> Suporta formatos JW.org / Hub:
                   </h4>
-                  <p className="text-xs text-amber-800 leading-relaxed">
+                  <p className="text-xs text-typography-600 leading-relaxed">
                     Extrai automaticamente: <strong>Nome, Número, Parte, Circuito, Reuniões, Endereço, Cidade, UF, CEP, Coordenador (Nome, Tel, Email) e Secretário (Nome, Tel, Email)</strong>.<br />
                     Se a congregação já existir no banco de dados (pelo número ou nome), ela será <strong>atualizada automaticamente</strong>, preservando dados anteriores (como coordenadas GPS e grupos).
                   </p>
@@ -1868,21 +1871,21 @@ export default function CongregationsView({
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder="Cole aqui os dados das congregações..."
-                  className="w-full h-64 p-4 text-xs bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all font-mono"
+                  className="w-full h-64 p-4 text-xs bg-surface-200 text-typography-900 border border-surface-300 rounded-2xl outline-none focus:border-primary-200 focus:ring-4 focus:ring-primary-200/10 transition-all font-mono placeholder:text-typography-400"
                 />
 
                 {importError && (
-                  <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium animate-in fade-in slide-in-from-top-2">
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium animate-in fade-in slide-in-from-top-2">
                     {importError}
                   </div>
                 )}
 
                 {importSuccess && (
-                  <div className="p-4 bg-green-50 border border-green-100 rounded-xl text-green-700 text-sm font-bold flex items-center gap-3 animate-in zoom-in">
+                  <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-700 dark:text-green-400 text-sm font-bold flex items-center gap-3 animate-in zoom-in">
                     <div className="w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">✓</div>
                     <div>
                       <p>{importSuccess.total} congregação(ões) processada(s) com sucesso!</p>
-                      <p className="text-xs font-normal text-green-800">
+                      <p className="text-xs font-normal text-typography-500">
                         {importSuccess.updated > 0 && `${importSuccess.updated} atualizada(s)`}
                         {importSuccess.updated > 0 && importSuccess.created > 0 && ' • '}
                         {importSuccess.created > 0 && `${importSuccess.created} nova(s) cadastrada(s)`}
@@ -1894,24 +1897,24 @@ export default function CongregationsView({
                 <div className="flex gap-4 pt-2">
                   <button 
                     onClick={() => setIsImportModalOpen(false)}
-                    className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition-all text-sm"
+                    className="flex-1 py-3 text-typography-600 font-bold hover:bg-surface-200 rounded-xl transition-all text-sm"
                   >
                     Cancelar
                   </button>
                   <button 
                     onClick={handleBulkImport}
                     disabled={isImporting || !importText.trim()}
-                    className="flex-3 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-200 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 text-sm"
+                    className="flex-3 py-3 bg-primary-200 text-white font-bold rounded-xl hover:bg-primary-150 transition-all shadow-md disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 text-sm whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     {isImporting ? (
                       <>
-                        <Loader2 className="animate-spin" size={18} />
-                        Processando...
+                        <Loader2 className="animate-spin shrink-0" size={18} />
+                        <span>Processando...</span>
                       </>
                     ) : (
                       <>
-                        <Save size={18} />
-                        Processar e Importar
+                        <Save size={18} className="shrink-0" />
+                        <span>Processar e Importar</span>
                       </>
                     )}
                   </button>
