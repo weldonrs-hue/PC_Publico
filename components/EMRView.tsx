@@ -1069,9 +1069,8 @@ export default function EMRView({
               <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
             <div className="flex flex-col min-w-0">
-              <h2 className="text-base sm:text-lg font-black text-typography-900 leading-tight truncate flex items-center gap-2">
-                <GraduationCap className="text-primary-200 shrink-0" size={20} />
-                <span>Escola do Ministério do Reino</span>
+              <h2 className="text-base sm:text-lg font-black text-typography-900 leading-tight truncate">
+                Escola do Ministério do Reino
               </h2>
               <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate hidden sm:block">
                 Temporada {currentConfig.year} • {currentConfig.modalidade}
