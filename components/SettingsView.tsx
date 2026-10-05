@@ -29,7 +29,8 @@ import {
   Eye,
   Sparkles,
   Check,
-  Key
+  Key,
+  Fingerprint
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
