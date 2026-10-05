@@ -26,7 +26,11 @@ import {
   Music,
   Edit3,
   CheckCircle2,
-  Users
+  Users,
+  LayoutGrid,
+  FileText,
+  Search,
+  Circle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -63,7 +67,7 @@ interface EMRPartData {
 export interface EMRProgramItem {
   id: string;
   num?: string;
-  time: string;
+  time?: string;
   title: string;
   duration?: string;
   sigla?: string;
@@ -247,6 +251,26 @@ export default function EMRView({
   const [personalData, setPersonalData] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
+  // View mode: 'responsive' | 'a4'
+  const [viewMode, setViewMode] = useState<'responsive' | 'a4'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_emr_view_mode') as 'responsive' | 'a4';
+      if (saved === 'responsive' || saved === 'a4') return saved;
+      return window.innerWidth < 1024 ? 'responsive' : 'a4';
+    }
+    return 'responsive';
+  });
+
+  const handleViewModeChange = (mode: 'responsive' | 'a4') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('progcir_emr_view_mode', mode);
+    } catch {}
+  };
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSessionTab, setActiveSessionTab] = useState<number>(-1);
+
   // Zoom state
   const [zoom, setZoom] = useState<number>(100);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -269,6 +293,32 @@ export default function EMRView({
   const speakerCongs = currentTurmaData.congregations || {};
   const confirmations = currentTurmaData.confirmations || {};
   const details = currentTurmaData.details || { data: '', local: '', endereco: '', anfitria: '', horarioInicio: '08:00', horarioFim: '16:00', horarioEsposas: '14:45 às 16:00' };
+
+  // Estatísticas de preenchimento para o painel responsivo
+  const stats = useMemo(() => {
+    let totalWithSpeaker = 0;
+    let assignedCount = 0;
+    let confirmedCount = 0;
+
+    currentConfig.sessions.forEach(session => {
+      session.items.forEach(item => {
+        if (item.subitems && item.subitems.length > 0) {
+          item.subitems.forEach(sub => {
+            totalWithSpeaker++;
+            if (speakers[sub.id]?.trim()) assignedCount++;
+            if (confirmations[sub.id]) confirmedCount++;
+          });
+        } else if (!item.noSpeaker && !item.isInterval) {
+          totalWithSpeaker++;
+          if (speakers[item.id]?.trim()) assignedCount++;
+          if (confirmations[item.id]) confirmedCount++;
+        }
+      });
+    });
+
+    const percentageAssigned = totalWithSpeaker > 0 ? Math.round((assignedCount / totalWithSpeaker) * 100) : 0;
+    return { totalWithSpeaker, assignedCount, confirmedCount, percentageAssigned };
+  }, [currentConfig, speakers, confirmations]);
 
   // Fit to screen helper
   const handleFitToScreen = () => {
@@ -1009,21 +1059,21 @@ export default function EMRView({
       {/* Screen Header & Top Controls (no-print) */}
       <div className="space-y-3 no-print">
         {/* Top bar: Back, Title & Action Bar */}
-        <div className="flex items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-3xl border border-gray-100 shadow-sm flex-wrap">
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
           <div className="flex items-center gap-3">
             <button 
               onClick={onBack} 
-              className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-[#37616b]/10 shadow-xs border border-[#37616b]/20 cursor-pointer active:scale-95 shrink-0"
+              className="p-2 sm:p-2.5 hover:bg-surface-200 rounded-full transition-all text-primary-200 bg-primary-200/10 shadow-xs border border-primary-200/20 cursor-pointer active:scale-95 shrink-0"
               title="Voltar às Escolas"
             >
               <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
             <div className="flex flex-col min-w-0">
-              <h2 className="text-base sm:text-lg font-black text-gray-900 leading-tight truncate flex items-center gap-2">
-                <GraduationCap className="text-[#37616b] shrink-0" size={20} />
+              <h2 className="text-base sm:text-lg font-black text-typography-900 leading-tight truncate flex items-center gap-2">
+                <GraduationCap className="text-primary-200 shrink-0" size={20} />
                 <span>Escola do Ministério do Reino</span>
               </h2>
-              <p className="text-[11px] sm:text-xs font-medium text-gray-500 truncate hidden sm:block">
+              <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate hidden sm:block">
                 Temporada {currentConfig.year} • {currentConfig.modalidade}
               </p>
             </div>
@@ -1031,24 +1081,67 @@ export default function EMRView({
 
           {/* Action Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
+            {/* Toggle de Modo: Painel Responsivo vs Folha A4 */}
+            <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+              <button
+                onClick={() => handleViewModeChange('responsive')}
+                className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'responsive'
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+                title="Visualização responsiva otimizada para celular e computador"
+              >
+                <LayoutGrid size={14} />
+                <span>Painel</span>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('a4')}
+                className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'a4'
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+                title="Folha oficial A4 com zoom e prévia de impressão"
+              >
+                <FileText size={14} />
+                <span>Folha A4</span>
+              </button>
+            </div>
+
+            {/* Salvar */}
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
+                hasChanges 
+                  ? 'bg-primary-200 hover:bg-primary-150 text-white animate-pulse' 
+                  : 'bg-surface-200 hover:bg-surface-300 text-typography-700 border border-surface-300'
+              }`}
+              title="Salvar alterações no banco de dados"
+            >
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+            </button>
+
             {/* Dados da Escola */}
             <button 
               onClick={() => setShowDetailsModal(true)}
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Editar dados da escola (data, local, anfitriã, horários)"
             >
-              <CalendarDays size={15} className="shrink-0 text-amber-600" />
-              <span className="hidden md:inline">Dados da Escola</span>
+              <CalendarDays size={14} className="shrink-0 text-amber-600 dark:text-amber-400" />
+              <span className="hidden md:inline">Dados da Turma</span>
             </button>
 
             {/* Carta Anfitriã */}
             <button 
               onClick={() => generateGeneralLetter('emr_anfitria')}
               disabled={isGenerating === 'emr_anfitria'}
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-sky-800 dark:text-sky-300 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
               title="Gerar Carta às Congregações Anfitriãs"
             >
-              {isGenerating === 'emr_anfitria' ? <Loader2 size={15} className="animate-spin text-blue-600" /> : <Mail size={15} className="shrink-0 text-blue-600" />}
+              {isGenerating === 'emr_anfitria' ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Mail size={14} className="shrink-0 text-sky-600 dark:text-sky-400" />}
               <span className="hidden sm:inline">Carta Anfitriã</span>
             </button>
 
@@ -1056,35 +1149,35 @@ export default function EMRView({
             <button 
               onClick={() => generateGeneralLetter('emr_convite')}
               disabled={isGenerating === 'emr_convite'}
-              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              className="h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
               title="Gerar Carta Convite para os Alunos"
             >
-              {isGenerating === 'emr_convite' ? <Loader2 size={15} className="animate-spin text-emerald-600" /> : <Mail size={15} className="shrink-0 text-emerald-600" />}
+              {isGenerating === 'emr_convite' ? <Loader2 size={14} className="animate-spin text-emerald-600" /> : <Mail size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
               <span className="hidden sm:inline">Carta Convite</span>
             </button>
 
             {/* Imprimir A4 */}
             <button 
               onClick={() => window.print()} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-typography-700 bg-surface-200 hover:bg-surface-300 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Imprimir folha A4 em modo Retrato"
             >
-              <Printer size={15} className="shrink-0 text-gray-500" />
+              <Printer size={14} className="shrink-0 text-typography-500" />
               <span className="hidden md:inline">Imprimir A4</span>
             </button>
           </div>
         </div>
 
         {/* Compact Navigation Bar: Modalidade & Turmas Selector */}
-        <div className="flex items-center justify-between gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/80 flex-wrap">
+        <div className="flex items-center justify-between gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 shadow-2xs flex-wrap">
           {/* Seletor de Modalidade (Anciãos vs Servos) */}
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-gray-200/60 shadow-2xs shrink-0">
+          <div className="flex items-center gap-1 bg-surface-200/60 p-0.5 rounded-xl border border-surface-300 shadow-2xs shrink-0">
             <button
               onClick={() => setSelectedSchoolType('ancians')}
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center gap-1.5 cursor-pointer ${
                 selectedSchoolType === 'ancians'
                   ? 'bg-[#37616b] text-white shadow-xs font-bold'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                  : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200 font-medium'
               }`}
             >
               <User size={13} />
@@ -1095,7 +1188,7 @@ export default function EMRView({
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center gap-1.5 cursor-pointer ${
                 selectedSchoolType === 'servants'
                   ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                  : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200 font-medium'
               }`}
             >
               <Users size={13} />
@@ -1104,7 +1197,7 @@ export default function EMRView({
           </div>
 
           {/* Seletor de Turmas (1, 2, 3) */}
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-gray-200/60 shadow-2xs shrink-0 ml-auto">
+          <div className="flex items-center gap-1 bg-surface-200/60 p-0.5 rounded-xl border border-surface-300 shadow-2xs shrink-0 ml-auto">
             {[0, 1, 2].map((turma) => {
               const isActive = selectedTurma === turma;
               return (
@@ -1114,7 +1207,7 @@ export default function EMRView({
                   className={`h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center justify-center cursor-pointer ${
                     isActive 
                       ? `${selectedSchoolType === 'ancians' ? 'bg-[#37616b]' : 'bg-indigo-600'} text-white shadow-xs font-bold` 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                      : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200 font-medium'
                   }`}
                   title={`Turma ${turma + 1}`}
                 >
@@ -1126,68 +1219,545 @@ export default function EMRView({
           </div>
         </div>
 
-        {/* Zoom & Document Viewport Toolbar */}
-        <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
-            {/* Zoom Out */}
-            <button
-              onClick={() => setZoom(prev => Math.max(35, prev - 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Reduzir zoom (-10%)"
-              aria-label="Reduzir zoom"
-            >
-              <ZoomOut size={16} />
-            </button>
+        {/* Zoom & Document Viewport Toolbar (Apenas no Modo Folha A4) */}
+        {viewMode === 'a4' && (
+          <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
+              {/* Zoom Out */}
+              <button
+                onClick={() => setZoom(prev => Math.max(35, prev - 10))}
+                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Reduzir zoom (-10%)"
+                aria-label="Reduzir zoom"
+              >
+                <ZoomOut size={16} />
+              </button>
 
-            {/* Direct Zoom Presets */}
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
-              {[60, 80, 100, 125].map(preset => (
+              {/* Direct Zoom Presets */}
+              <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
+                {[60, 80, 100, 125].map(preset => (
+                  <button
+                    key={preset}
+                    onClick={() => setZoom(preset)}
+                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                      zoom === preset ? (selectedSchoolType === 'ancians' ? 'bg-[#37616b] text-white shadow-xs' : 'bg-indigo-600 text-white shadow-xs') : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {preset}%
+                  </button>
+                ))}
+              </div>
+
+              {/* Zoom In */}
+              <button
+                onClick={() => setZoom(prev => Math.min(200, prev + 10))}
+                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Aumentar zoom (+10%)"
+                aria-label="Aumentar zoom"
+              >
+                <ZoomIn size={16} />
+              </button>
+
+              {/* Fit to screen */}
+              <button
+                onClick={handleFitToScreen}
+                className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                title="Ajustar documento à largura da tela"
+              >
+                <Maximize2 size={13} />
+                <span className="hidden sm:inline">Ajustar</span>
+              </button>
+
+              {/* Current Zoom Level */}
+              <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
+                {zoom}%
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODO DE VISUALIZAÇÃO RESPONSIVO (PAINEL MOBILE-FIRST) */}
+      {viewMode === 'responsive' && (
+        <div className="no-print space-y-6">
+          {/* Hero Card com Tema e Metadados da Turma */}
+          <div className="relative rounded-3xl overflow-hidden bg-surface-100 border border-surface-300 shadow-xs p-5 sm:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white shadow-2xs ${
+                  selectedSchoolType === 'ancians' ? 'bg-[#37616b]' : 'bg-indigo-600'
+                }`}>
+                  E.M.R. • {currentConfig.year}
+                </span>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-surface-200 text-typography-700 border border-surface-300">
+                  TURMA {selectedTurma + 1} • {currentConfig.modalidade.toUpperCase()}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setShowDetailsModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-surface-200 hover:bg-surface-300 text-typography-800 transition-colors border border-surface-300 cursor-pointer"
+              >
+                <Edit3 size={13} />
+                <span>Editar Dados da Turma</span>
+              </button>
+            </div>
+
+            {/* Tema e Escritura */}
+            <div className="space-y-1">
+              <h2 className="text-lg sm:text-2xl font-black text-typography-900 tracking-tight leading-tight">
+                {currentConfig.themeText}
+              </h2>
+              <p className="text-xs sm:text-sm font-bold text-primary-200">
+                — {currentConfig.themeVerse}
+              </p>
+              <p className="text-xs text-typography-500 font-medium pt-0.5">
+                {currentConfig.title}
+              </p>
+            </div>
+
+            {/* Metadados: Data, Local, Anfitriã / Horário */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-surface-300/70">
+              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                <Calendar size={16} className="text-primary-200 shrink-0" />
+                <div className="min-w-0">
+                  <span className="block text-[10px] uppercase font-bold text-typography-400">Data</span>
+                  <span className="font-bold text-typography-900 truncate block">
+                    {details.data || 'A definir'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                <MapPin size={16} className="text-primary-200 shrink-0" />
+                <div className="min-w-0">
+                  <span className="block text-[10px] uppercase font-bold text-typography-400">Local da Turma</span>
+                  <span className="font-bold text-typography-900 truncate block">
+                    {details.local || 'A definir'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                <Clock size={16} className="text-primary-200 shrink-0" />
+                <div className="min-w-0">
+                  <span className="block text-[10px] uppercase font-bold text-typography-400">Horários</span>
+                  <span className="font-bold text-typography-900 truncate block">
+                    {details.horarioInicio || '08:00'} às {details.horarioFim || '16:00'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* KPIs de Progresso */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+              <div className="p-3 rounded-2xl bg-surface-200/60 border border-surface-300 text-center">
+                <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                  Designadas
+                </span>
+                <div className="text-base sm:text-xl font-black text-typography-900">
+                  {stats.assignedCount}<span className="text-typography-400 text-xs font-bold">/{stats.totalWithSpeaker}</span>
+                </div>
+                <div className="w-full bg-surface-300 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className="bg-primary-200 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${stats.percentageAssigned}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-surface-200/60 border border-surface-300 text-center">
+                <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                  Confirmadas
+                </span>
+                <div className="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400">
+                  {stats.confirmedCount}<span className="text-typography-400 text-xs font-bold">/{stats.totalWithSpeaker}</span>
+                </div>
+                <div className="w-full bg-surface-300 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${stats.totalWithSpeaker > 0 ? Math.round((stats.confirmedCount / stats.totalWithSpeaker) * 100) : 0}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-surface-200/60 border border-surface-300 text-center flex flex-col justify-center">
+                <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                  Anfitriã
+                </span>
+                <div className="text-xs sm:text-sm font-bold text-typography-800 truncate">
+                  {details.anfitria || 'A definir'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Barra de Filtro e Busca Rápida */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Tabs de Sessões */}
+            <div className="flex items-center gap-1 bg-surface-100 p-1 rounded-2xl border border-surface-300 shadow-2xs overflow-x-auto">
+              <button
+                onClick={() => setActiveSessionTab(-1)}
+                className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  activeSessionTab === -1
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+              >
+                Todas as Partes
+              </button>
+              {currentConfig.sessions.map((session, sIdx) => (
                 <button
-                  key={preset}
-                  onClick={() => setZoom(preset)}
-                  className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                    zoom === preset ? (selectedSchoolType === 'ancians' ? 'bg-[#37616b] text-white shadow-xs' : 'bg-indigo-600 text-white shadow-xs') : 'text-slate-400 hover:text-white'
+                  key={sIdx}
+                  onClick={() => setActiveSessionTab(sIdx)}
+                  className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    activeSessionTab === sIdx
+                      ? 'bg-primary-200 text-white shadow-xs'
+                      : 'text-typography-600 hover:text-typography-900'
                   }`}
                 >
-                  {preset}%
+                  {session.period}
                 </button>
               ))}
             </div>
 
-            {/* Zoom In */}
-            <button
-              onClick={() => setZoom(prev => Math.min(200, prev + 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Aumentar zoom (+10%)"
-              aria-label="Aumentar zoom"
-            >
-              <ZoomIn size={16} />
-            </button>
+            {/* Input de Busca */}
+            <div className="relative w-full sm:w-72">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-typography-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Buscar parte ou orador..."
+                className="w-full h-10 pl-9 pr-8 rounded-2xl bg-surface-100 border border-surface-300 text-xs font-medium text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/20 transition-all shadow-2xs"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-typography-400 hover:text-typography-700"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
 
-            {/* Fit to screen */}
-            <button
-              onClick={handleFitToScreen}
-              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-              title="Ajustar documento à largura da tela"
-            >
-              <Maximize2 size={13} />
-              <span className="hidden sm:inline">Ajustar</span>
-            </button>
+          {/* Lista de Partes por Sessão */}
+          <div className="space-y-6">
+            {currentConfig.sessions
+              .filter((_, idx) => activeSessionTab === -1 || activeSessionTab === idx)
+              .map((session, sIdx) => {
+                const sessionItems = session.items.filter(item => {
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  if (item.title?.toLowerCase().includes(q)) return true;
+                  if (item.num?.toLowerCase().includes(q)) return true;
+                  if (speakers[item.id]?.toLowerCase().includes(q)) return true;
+                  if (speakerCongs[item.id]?.toLowerCase().includes(q)) return true;
+                  if (item.subitems?.some(s => 
+                    s.title?.toLowerCase().includes(q) || 
+                    s.num?.toLowerCase().includes(q) || 
+                    speakers[s.id]?.toLowerCase().includes(q) ||
+                    speakerCongs[s.id]?.toLowerCase().includes(q)
+                  )) return true;
+                  return false;
+                });
 
-            {/* Current Zoom Level */}
-            <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
-              {zoom}%
-            </span>
+                if (sessionItems.length === 0) return null;
+
+                return (
+                  <div key={session.period || sIdx} className="space-y-3">
+                    <div className="flex items-center gap-2.5 px-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-primary-200" />
+                      <div>
+                        <h3 className="text-sm font-black text-typography-900 uppercase tracking-wider">
+                          {session.period}
+                        </h3>
+                        {session.subtitle && (
+                          <p className="text-xs text-typography-500 font-medium">
+                            {session.subtitle}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {sessionItems.map((item, itemIdx) => {
+                        const isSymposium = item.isSeries && item.subitems && item.subitems.length > 0;
+                        const hasSpeaker = !item.noSpeaker && !item.isInterval;
+
+                        // Simpósio / Série de Discursos
+                        if (isSymposium) {
+                          return (
+                            <div
+                              key={item.id || itemIdx}
+                              className="p-4 sm:p-5 rounded-3xl bg-surface-100 border-2 border-primary-200/25 shadow-xs space-y-4"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary-200/10 text-primary-200 border border-primary-200/20">
+                                      {item.label || 'SÉRIE DE DISCURSOS'}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-sm sm:text-base font-black text-typography-900 leading-tight">
+                                    {item.title}
+                                  </h4>
+                                </div>
+                              </div>
+
+                              {/* Subpartes do Simpósio */}
+                              <div className="space-y-3 pt-1">
+                                {item.subitems!.map((sub, subIdx) => {
+                                  const subSpeaker = speakers[sub.id] || '';
+                                  const subCong = speakerCongs[sub.id] || '';
+                                  const isConfirmed = Boolean(confirmations[sub.id]);
+
+                                  return (
+                                    <div
+                                      key={sub.id || subIdx}
+                                      className="p-3.5 sm:p-4 rounded-2xl bg-surface-200/50 border border-surface-300 space-y-3 transition-all hover:border-surface-300/90"
+                                    >
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="w-6 h-6 rounded-lg bg-primary-200/15 text-primary-200 text-xs font-black flex items-center justify-center shrink-0">
+                                            {sub.num || subIdx + 1}
+                                          </span>
+                                          <h5 className="text-xs sm:text-sm font-bold text-typography-900 leading-tight">
+                                            {sub.title}
+                                          </h5>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-100 border border-surface-300 text-typography-600">
+                                            {sub.time} • {sub.duration}
+                                          </span>
+                                          {sub.sigla && (
+                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                              {sub.sigla}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Inputs de Orador, Congregação e Ações */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+                                        {/* Orador */}
+                                        <div className="sm:col-span-6 relative">
+                                          <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" />
+                                          <input
+                                            type="text"
+                                            value={subSpeaker}
+                                            onChange={e => updateSpeaker(sub.id, e.target.value)}
+                                            placeholder="Nome do orador..."
+                                            className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-100 border border-surface-300 text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                          />
+                                        </div>
+
+                                        {/* Congregação */}
+                                        <div className="sm:col-span-3 relative">
+                                          <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400 z-10" />
+                                          <input
+                                            type="text"
+                                            list={`cong-list-${sub.id}`}
+                                            value={subCong}
+                                            onChange={e => updateSpeakerCongregation(sub.id, e.target.value)}
+                                            placeholder="Congregação..."
+                                            className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-100 border border-surface-300 text-xs font-medium text-typography-800 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                          />
+                                          <datalist id={`cong-list-${sub.id}`}>
+                                            {congregations.map(c => (
+                                              <option key={c.id} value={c.nome} />
+                                            ))}
+                                          </datalist>
+                                        </div>
+
+                                        {/* Confirmação e Carta */}
+                                        <div className="sm:col-span-3 flex items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleConfirmation(sub.id)}
+                                            className={`flex-1 h-9 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs ${
+                                              isConfirmed
+                                                ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:border-emerald-600 dark:text-emerald-200'
+                                                : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-600 dark:bg-surface-200 dark:text-typography-400'
+                                            }`}
+                                            title={isConfirmed ? "Orador Confirmado" : "Clique para confirmar"}
+                                          >
+                                            {isConfirmed ? (
+                                              <CheckCircle2 size={14} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                                            ) : (
+                                              <Circle size={14} className="text-typography-400 stroke-[2]" />
+                                            )}
+                                            <span>{isConfirmed ? 'Confirmado' : 'Pendente'}</span>
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => generateLetter(sub.id)}
+                                            disabled={isGenerating === sub.id}
+                                            className="h-9 px-2.5 rounded-xl text-xs font-bold bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                                            title="Gerar Carta ao Instrutor"
+                                          >
+                                            {isGenerating === sub.id ? <Loader2 size={14} className="animate-spin text-primary-200" /> : <Mail size={14} />}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Discurso normal com orador
+                        if (hasSpeaker) {
+                          const itemSpeaker = speakers[item.id] || '';
+                          const itemCong = speakerCongs[item.id] || '';
+                          const isConfirmed = Boolean(confirmations[item.id]);
+
+                          return (
+                            <div
+                              key={item.id || itemIdx}
+                              className="p-4 sm:p-5 rounded-3xl bg-surface-100 border border-surface-300 shadow-xs space-y-3.5 hover:border-surface-300/90 transition-all"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5">
+                                  {item.num && (
+                                    <span className="w-6 h-6 rounded-lg bg-primary-200/15 text-primary-200 text-xs font-black flex items-center justify-center shrink-0">
+                                      {item.num}
+                                    </span>
+                                  )}
+                                  <div>
+                                    <h4 className="text-xs sm:text-base font-bold text-typography-900 leading-tight">
+                                      {item.title}
+                                    </h4>
+                                    {item.note && (
+                                      <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
+                                        • {item.note}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-surface-200 border border-surface-300 text-typography-600">
+                                    {item.time} {item.duration ? `• ${item.duration}` : ''}
+                                  </span>
+                                  {item.sigla && (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                      {item.sigla}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Inputs de Orador, Congregação e Ações */}
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+                                <div className="sm:col-span-6 relative">
+                                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" />
+                                  <input
+                                    type="text"
+                                    value={itemSpeaker}
+                                    onChange={e => updateSpeaker(item.id, e.target.value)}
+                                    placeholder="Nome do orador..."
+                                    className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                  />
+                                </div>
+
+                                <div className="sm:col-span-3 relative">
+                                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400 z-10" />
+                                  <input
+                                    type="text"
+                                    list={`cong-list-${item.id}`}
+                                    value={itemCong}
+                                    onChange={e => updateSpeakerCongregation(item.id, e.target.value)}
+                                    placeholder="Congregação..."
+                                    className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs font-medium text-typography-800 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                  />
+                                  <datalist id={`cong-list-${item.id}`}>
+                                    {congregations.map(c => (
+                                      <option key={c.id} value={c.nome} />
+                                    ))}
+                                  </datalist>
+                                </div>
+
+                                <div className="sm:col-span-3 flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleConfirmation(item.id)}
+                                    className={`flex-1 h-9 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs ${
+                                      isConfirmed
+                                        ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:border-emerald-600 dark:text-emerald-200'
+                                        : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-600 dark:bg-surface-200 dark:text-typography-400'
+                                    }`}
+                                    title={isConfirmed ? "Orador Confirmado" : "Clique para confirmar"}
+                                  >
+                                    {isConfirmed ? (
+                                      <CheckCircle2 size={14} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                                    ) : (
+                                      <Circle size={14} className="text-typography-400 stroke-[2]" />
+                                    )}
+                                    <span>{isConfirmed ? 'Confirmado' : 'Pendente'}</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => generateLetter(item.id)}
+                                    disabled={isGenerating === item.id}
+                                    className="h-9 px-2.5 rounded-xl text-xs font-bold bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                                    title="Gerar Carta ao Instrutor"
+                                  >
+                                    {isGenerating === item.id ? <Loader2 size={14} className="animate-spin text-primary-200" /> : <Mail size={14} />}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Cântico ou Intervalo
+                        return (
+                          <div
+                            key={item.id || itemIdx}
+                            className="p-3 rounded-2xl bg-surface-200/40 border border-surface-300/70 flex items-center justify-between gap-3 text-xs text-typography-600"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {item.isInterval ? (
+                                <Coffee size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              ) : (
+                                <Music size={15} className="text-primary-200 shrink-0" />
+                              )}
+                              <span className="font-bold text-typography-800 truncate">
+                                {item.title}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[10px] font-semibold text-typography-400">
+                                {item.time} {item.duration ? `• ${item.duration}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </div>
-      </div>
+      )}
 
       {/* A4 Document Viewport Container */}
       <div 
         ref={containerRef}
-        className="emr-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80"
+        className={`emr-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80 ${
+          viewMode === 'a4' ? 'flex' : 'hidden print:flex'
+        }`}
         style={{
-          minHeight: '400px',
+          minHeight: viewMode === 'a4' ? '400px' : '0',
           touchAction: 'pan-x pan-y',
         }}
       >
@@ -1597,20 +2167,28 @@ export default function EMRView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100"
+              className="bg-surface-100 rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-surface-300"
             >
-              <div className="p-6 bg-[#37616b]/5 border-b border-[#37616b]/10 flex items-center justify-between">
+              <div className={`p-6 border-b flex items-center justify-between ${
+                selectedSchoolType === 'ancians'
+                  ? 'bg-[#37616b]/5 border-[#37616b]/10'
+                  : 'bg-indigo-500/5 border-indigo-500/10'
+              }`}>
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#37616b]/10 rounded-xl text-[#37616b]">
+                  <div className={`p-2.5 rounded-xl ${
+                    selectedSchoolType === 'ancians'
+                      ? 'bg-[#37616b]/10 text-[#37616b]'
+                      : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                  }`}>
                     <Calendar size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Dados da Escola</h3>
-                    <p className="text-xs text-gray-500">Turma {selectedTurma + 1} • {currentConfig.modalidade} ({currentConfig.year})</p>
+                    <h3 className="text-lg font-black text-typography-900 uppercase tracking-tight">Dados da Escola</h3>
+                    <p className="text-xs text-typography-500">Turma {selectedTurma + 1} • {currentConfig.modalidade} ({currentConfig.year})</p>
                   </div>
                 </div>
-                <button onClick={() => setShowDetailsModal(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={24} />
+                <button onClick={() => setShowDetailsModal(false)} className="p-2 text-typography-400 hover:text-typography-900 transition-colors cursor-pointer rounded-lg hover:bg-surface-200/60">
+                  <X size={22} />
                 </button>
               </div>
 
@@ -1618,9 +2196,9 @@ export default function EMRView({
                 <div className="flex-1 p-6 space-y-4 overflow-y-auto custom-scrollbar scroll-smooth">
                   {/* Local da Turma */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Local da Turma (Salão do Reino)</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Local da Turma (Salão do Reino)</label>
                     <div className="relative">
-                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400 z-10" />
                       <input 
                         type="text" 
                         list="emr-locais-modal"
@@ -1646,7 +2224,7 @@ export default function EMRView({
                           }
                         }}
                         placeholder="Ex: Salão do Reino Central"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                       <datalist id="emr-locais-modal">
                         {congregations.map(c => (
@@ -1658,45 +2236,45 @@ export default function EMRView({
 
                   {/* Endereço */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Endereço Completo</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Endereço Completo</label>
                     <div className="relative">
-                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.endereco || ''} 
                         onChange={e => updateDetail('endereco', e.target.value)}
                         placeholder="Ex: Rua das Flores, 123 - Centro"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   {/* Data da Escola */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Data da Escola</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Data da Escola</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.data || ''} 
                         onChange={e => updateDetail('data', e.target.value)}
                         placeholder="Ex: 15 de Outubro de 2027"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   {/* Congregação Anfitriã */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Congregação Anfitriã</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Congregação Anfitriã</label>
                     <div className="relative">
-                      <BookOpen size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <BookOpen size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.anfitria || ''} 
                         onChange={e => updateDetail('anfitria', e.target.value)}
                         placeholder="Ex: Congregação Central"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -1704,28 +2282,28 @@ export default function EMRView({
                   {/* Horários */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Início</label>
+                      <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Início</label>
                       <div className="relative">
-                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                         <input 
                           type="text" 
                           value={details.horarioInicio || '08:00'} 
                           onChange={e => updateDetail('horarioInicio', e.target.value)}
                           placeholder="08:00"
-                          className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                         />
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Término</label>
+                      <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Término</label>
                       <div className="relative">
-                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                         <input 
                           type="text" 
                           value={details.horarioFim || '16:00'} 
                           onChange={e => updateDetail('horarioFim', e.target.value)}
                           placeholder="16:00"
-                          className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -1733,22 +2311,26 @@ export default function EMRView({
 
                   {/* Horário Esposas */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Horário Especial (Esposas)</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Horário Especial (Esposas)</label>
                     <div className="relative">
-                      <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.horarioEsposas || '14:45 às 16:00'} 
                         onChange={e => updateDetail('horarioEsposas', e.target.value)}
                         placeholder="Ex: 14:45 às 16:00"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   <button 
                     onClick={() => setShowDetailsModal(false)}
-                    className="w-full mt-4 py-3.5 bg-[#37616b] text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-[#37616b]/20 hover:bg-[#37616b]/90 transition-all active:scale-95 cursor-pointer"
+                    className={`w-full mt-4 py-3.5 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-all active:scale-95 cursor-pointer ${
+                      selectedSchoolType === 'ancians'
+                        ? 'bg-[#37616b] hover:bg-[#37616b]/90 shadow-[#37616b]/20'
+                        : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
+                    }`}
                   >
                     Confirmar Dados
                   </button>
