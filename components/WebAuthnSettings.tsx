@@ -287,20 +287,31 @@ export default function WebAuthnSettings() {
       if (!user) throw new Error('Sessão expirada');
 
       const token = await user.getIdToken();
-      const res = await fetch('/api/auth/webauthn/rename', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          credentialId: credId,
-          newName: editingName.trim(),
-        }),
-      });
+      let res: Response;
+      try {
+        res = await fetch('/api/auth/webauthn/rename', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            credentialId: credId,
+            newName: editingName.trim(),
+          }),
+          cache: 'no-store',
+        });
+      } catch {
+        throw new Error('Falha na conexão ao renomear chave.');
+      }
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {}
 
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || 'Falha ao renomear chave');
       }
 
@@ -337,18 +348,24 @@ export default function WebAuthnSettings() {
       }
 
       // 2. Chamar endpoint de exclusão no servidor
-      const res = await fetch('/api/auth/webauthn/delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ credentialId: cred.id }),
-      });
+      try {
+        const res = await fetch('/api/auth/webauthn/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ credentialId: cred.id }),
+          cache: 'no-store',
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Falha ao excluir chave de acesso');
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          console.warn('[Delete API warning]:', data?.error);
+        }
+      } catch (apiErr) {
+        console.warn('[Delete API network notice]:', apiErr);
       }
 
       // 3. Limpa localStorage
