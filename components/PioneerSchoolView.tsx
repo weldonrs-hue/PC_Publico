@@ -214,6 +214,58 @@ const WORKSHOP_DATA = [
   }
 ];
 
+const WORKSHOP_THEMES: Record<string, {
+  sidebarBg: string;
+  sidebarText: string;
+  sidebarBorder: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  cardBorder: string;
+  accentBar: string;
+}> = {
+  workshop1: {
+    sidebarBg: 'bg-teal-500/10 dark:bg-teal-500/15',
+    sidebarText: 'text-teal-800 dark:text-teal-200',
+    sidebarBorder: 'border-teal-500/25',
+    badgeBg: 'bg-teal-500/10 dark:bg-teal-500/20',
+    badgeText: 'text-teal-700 dark:text-teal-300',
+    badgeBorder: 'border-teal-500/25',
+    cardBorder: 'border-l-teal-500',
+    accentBar: 'bg-teal-500',
+  },
+  workshop2: {
+    sidebarBg: 'bg-sky-500/10 dark:bg-sky-500/15',
+    sidebarText: 'text-sky-800 dark:text-sky-200',
+    sidebarBorder: 'border-sky-500/25',
+    badgeBg: 'bg-sky-500/10 dark:bg-sky-500/20',
+    badgeText: 'text-sky-700 dark:text-sky-300',
+    badgeBorder: 'border-sky-500/25',
+    cardBorder: 'border-l-sky-500',
+    accentBar: 'bg-sky-500',
+  },
+  workshop3: {
+    sidebarBg: 'bg-indigo-500/10 dark:bg-indigo-500/15',
+    sidebarText: 'text-indigo-800 dark:text-indigo-200',
+    sidebarBorder: 'border-indigo-500/25',
+    badgeBg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
+    badgeText: 'text-indigo-700 dark:text-indigo-300',
+    badgeBorder: 'border-indigo-500/25',
+    cardBorder: 'border-l-indigo-500',
+    accentBar: 'bg-indigo-500',
+  },
+  workshop4: {
+    sidebarBg: 'bg-amber-500/10 dark:bg-amber-500/15',
+    sidebarText: 'text-amber-800 dark:text-amber-200',
+    sidebarBorder: 'border-amber-500/25',
+    badgeBg: 'bg-amber-500/10 dark:bg-amber-500/20',
+    badgeText: 'text-amber-700 dark:text-amber-400',
+    badgeBorder: 'border-amber-500/25',
+    cardBorder: 'border-l-amber-500',
+    accentBar: 'bg-amber-500',
+  },
+};
+
 interface PioneerSchoolViewProps {
   userId: string;
   onBack: () => void;
@@ -302,6 +354,20 @@ export default function PioneerSchoolView({
   const handleViewModeChange = (mode: 'table' | 'list') => {
     setViewMode(mode);
     localStorage.setItem('progcir_pioneer_school_view_mode', mode);
+  };
+
+  const [workshopViewMode, setWorkshopViewMode] = useState<'table' | 'list'>('table');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('progcir_pioneer_school_workshop_view_mode');
+    if (saved === 'table' || saved === 'list') {
+      setWorkshopViewMode(saved as 'table' | 'list');
+    }
+  }, []);
+
+  const handleWorkshopViewModeChange = (mode: 'table' | 'list') => {
+    setWorkshopViewMode(mode);
+    localStorage.setItem('progcir_pioneer_school_workshop_view_mode', mode);
   };
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -1355,7 +1421,7 @@ export default function PioneerSchoolView({
                     }`}
                     title="Modo Lista"
                   >
-                    <LayoutGrid size={14} />
+                    <LayoutList size={14} />
                     <span className="hidden sm:inline">Lista</span>
                   </button>
                 </div>
@@ -1378,30 +1444,64 @@ export default function PioneerSchoolView({
                 </button>
               </>
             ) : (
-              <div className="flex items-center gap-2 bg-surface-100 border border-surface-300 rounded-xl px-2.5 py-1 shadow-2xs">
-                <span className="text-[10px] font-bold text-typography-400 uppercase tracking-widest">
-                  Turma:
-                </span>
-                <div className="flex gap-1">
-                  {(['1', '2', '3'] as const).map((t) => {
-                    if (isGuest && guestTurma !== 'all' && guestTurma !== t) return null;
-                    
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => handleTurmaChange(t)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          selectedTurma === t 
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shadow-xs' 
-                            : 'text-typography-500 hover:bg-surface-200'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    );
-                  })}
+              <>
+                {/* Alternador de Modo para Sessão de Treino */}
+                {activeTab === 'workshops' && (
+                  <div className="flex items-center bg-surface-100 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+                    <button 
+                      type="button"
+                      onClick={() => handleWorkshopViewModeChange('table')}
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        workshopViewMode === 'table' 
+                          ? 'bg-primary-200 text-white shadow-xs' 
+                          : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                      }`}
+                      title="Modo Tabela"
+                    >
+                      <TableIcon size={14} />
+                      <span className="hidden sm:inline">Tabela</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => handleWorkshopViewModeChange('list')}
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        workshopViewMode === 'list' 
+                          ? 'bg-primary-200 text-white shadow-xs' 
+                          : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                      }`}
+                      title="Modo Lista"
+                    >
+                      <LayoutList size={14} />
+                      <span className="hidden sm:inline">Lista</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 bg-surface-100 border border-surface-300 rounded-xl px-2.5 py-1 shadow-2xs">
+                  <span className="text-[10px] font-bold text-typography-400 uppercase tracking-widest">
+                    Turma:
+                  </span>
+                  <div className="flex gap-1">
+                    {(['1', '2', '3'] as const).map((t) => {
+                      if (isGuest && guestTurma !== 'all' && guestTurma !== t) return null;
+                      
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => handleTurmaChange(t)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            selectedTurma === t 
+                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shadow-xs' 
+                              : 'text-typography-500 hover:bg-surface-200'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             {/* Action Buttons: PDF Download */}
@@ -1481,33 +1581,35 @@ export default function PioneerSchoolView({
           table { 
             width: 100% !important; 
             border-collapse: collapse !important; 
-            border: 1px solid #000 !important; 
+            border: 1px solid #cbd5e1 !important; 
             font-size: 10pt !important; 
           }
           th, td { 
-            border: 1px solid #ccc !important; 
-            padding: 4pt 6pt !important; 
+            border: 1px solid #e2e8f0 !important; 
+            padding: 5pt 7pt !important; 
           }
           th { 
-            background-color: #37616b !important; 
-            color: white !important; 
+            background-color: #f8fafc !important; 
+            color: #0f172a !important; 
+            font-weight: 800 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important;
           }
           thead { display: table-header-group !important; }
         }
 
-        /* Support for PDF capture styles - Aligned with Circuit Statistics view */
+        /* Support for PDF capture styles */
         .pdf-capture {
           background-color: #ffffff !important;
-          color: #1a1a1a !important;
-          padding: 10mm !important;
+          color: #0f172a !important;
+          padding: 12mm 14mm !important;
           width: 1200px !important;
           min-height: auto !important;
         }
 
         .pdf-capture * {
-          border-color: #e5e7eb !important;
+          border-color: #e2e8f0 !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
@@ -1531,13 +1633,13 @@ export default function PioneerSchoolView({
         .pdf-capture .workshop-participant-text {
           display: block !important;
           font-weight: 700 !important;
-          color: #000 !important;
-          font-size: 15px !important;
+          color: #1e293b !important;
+          font-size: 13px !important;
         }
 
         .pdf-capture .turma-text {
           display: block !important;
-          font-size: 12px !important;
+          font-size: 11px !important;
           text-align: center !important;
           font-weight: bold !important;
         }
@@ -1545,35 +1647,96 @@ export default function PioneerSchoolView({
         .pdf-capture table {
           width: 100% !important;
           border-collapse: collapse !important;
-          border: 1px solid #e5e7eb !important;
+          border: 1.5px solid #cbd5e1 !important;
         }
 
         .pdf-capture th {
-          background-color: #37616b !important;
-          color: #ffffff !important;
-          font-weight: bold !important;
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          font-weight: 800 !important;
+          font-size: 11px !important;
+          letter-spacing: 0.05em !important;
+          padding: 10px 14px !important;
+          border-bottom: 2px solid #cbd5e1 !important;
+        }
+
+        .pdf-capture .students-table th {
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          border-bottom: 2px solid #cbd5e1 !important;
         }
 
         .pdf-capture .sessions-table th {
-          background-color: #3e5e66 !important;
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          border-bottom: 2px solid #cbd5e1 !important;
         }
 
-        .pdf-capture .bg-\[\#e8f1f3\] {
-          background-color: #e8f1f3 !important;
+        .pdf-capture .students-table tbody tr:nth-child(even) {
+          background-color: #f8fafc !important;
         }
 
-        .pdf-capture .bg-\[\#5d7c85\] {
-          background-color: #5d7c85 !important;
+        .pdf-capture .students-table td {
+          padding: 9px 12px !important;
+          font-size: 12px !important;
+          border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        .pdf-capture .sessions-table td {
+          border-bottom: 1px solid #e2e8f0 !important;
+          border-right: 1px solid #e2e8f0 !important;
+        }
+
+          /* Lateral dos Workshops no PDF */
+        .pdf-capture .workshop-sidebar-workshop1 {
+          background-color: #e6f4f6 !important;
+          color: #164e57 !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop2 {
+          background-color: #eaf3fb !important;
+          color: #154e75 !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop3 {
+          background-color: #eff1fc !important;
+          color: #2e2a7b !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop4 {
+          background-color: #fef6e7 !important;
+          color: #7c4a0e !important;
+        }
+
+        .scenario-badge,
+        .pdf-capture .scenario-badge {
+          white-space: nowrap !important;
+          word-break: keep-all !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          flex-shrink: 0 !important;
         }
       `}</style>
 
       <div id="pioneer-school-report" className="space-y-6 print:space-y-4 bg-transparent print:bg-white">
-        {/* Document Header - Visible only in Print/PDF - Matched to Circuit Stats style */}
-        <div className="hidden print:block text-center pt-2 pb-4">
-          <h1 className="text-4xl font-bold tracking-tight text-[#37616b]">Escola do Serviço de Pioneiro</h1>
-          <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mt-2">
-            {activeTab === 'students' ? 'Lista de Alunos' : `Sessão de Treino - Turma ${selectedTurma}`}
-          </p>
+        {/* Document Header - Visible only in Print/PDF */}
+        <div className="hidden print:block text-center pt-3 pb-5 border-b border-slate-200 mb-5">
+          <div className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-slate-100 text-slate-600 mb-2 border border-slate-200">
+            Programa de Ensino Teocrático
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Escola do Serviço de Pioneiro</h1>
+          <div className="flex items-center justify-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-500 mt-2">
+            <span>{activeTab === 'students' ? 'Lista Oficial de Alunos' : `Sessão de Treino — Turma ${selectedTurma}`}</span>
+            {defaultCircuit && (
+              <>
+                <span>•</span>
+                <span>Circuito {defaultCircuit}</span>
+              </>
+            )}
+            {activeTab === 'students' && sortedStudents.length > 0 && (
+              <>
+                <span>•</span>
+                <span>{sortedStudents.length} Alunos</span>
+              </>
+            )}
+          </div>
         </div>
 
         <div id="pdf-content">
@@ -1594,14 +1757,30 @@ export default function PioneerSchoolView({
                   ) : (
                     sortedStudents.map((student, index) => {
                       const isSelected = selectedStudents.includes(student.id);
+                      const initials = student.nome?.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase() || '?';
+                      const accentColors = [
+                        'border-l-primary-200',
+                        'border-l-amber-400',
+                        'border-l-teal-400',
+                        'border-l-indigo-400',
+                        'border-l-rose-400',
+                      ];
+                      const accentBg = [
+                        'bg-primary-200/10 text-primary-200',
+                        'bg-amber-400/10 text-amber-600',
+                        'bg-teal-400/10 text-teal-600',
+                        'bg-indigo-400/10 text-indigo-600',
+                        'bg-rose-400/10 text-rose-600',
+                      ];
+                      const accentIdx = index % accentColors.length;
                       return (
                         <div 
                           key={student.id}
-                          className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
+                          className={`pl-3.5 pr-3.5 py-3 rounded-2xl border-l-[3px] border border-surface-300/80 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                             isSelected 
-                              ? 'bg-primary-200/5 border-primary-200/40 shadow-xs' 
-                              : 'bg-surface-100 hover:bg-surface-200/40 border-surface-300/80 shadow-2xs'
-                          } flex flex-col sm:flex-row sm:items-center justify-between gap-3`}
+                              ? 'bg-primary-200/5 border-l-primary-200 border-primary-200/30 shadow-xs' 
+                              : `bg-surface-100 hover:bg-surface-200/40 ${accentColors[accentIdx]}`
+                          }`}
                         >
                           <div className="flex items-start sm:items-center gap-3 min-w-0">
                             <input 
@@ -1610,8 +1789,8 @@ export default function PioneerSchoolView({
                               checked={isSelected}
                               onChange={() => toggleSelectStudent(student.id)}
                             />
-                            <span className="w-6 h-6 rounded-lg bg-surface-200 text-typography-600 font-bold text-xs flex items-center justify-center shrink-0">
-                              {index + 1}
+                            <span className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 ${isSelected ? 'bg-primary-200/10 text-primary-200' : accentBg[accentIdx]}`}>
+                              {initials}
                             </span>
                             <div className="min-w-0">
                               <h4 className="text-sm font-bold text-typography-900 truncate">
@@ -1671,8 +1850,8 @@ export default function PioneerSchoolView({
               <div className={`${viewMode === 'table' ? 'block' : 'hidden print:block'} overflow-x-auto custom-scrollbar`}>
                 <table className="w-full text-left border-collapse min-w-[700px] students-table">
                   <thead>
-                    <tr className="bg-surface-200/80 border-b border-surface-300 text-typography-700 dark:text-typography-300">
-                      <th className="px-4 py-3 w-10 print:hidden pdf-hidden">
+                    <tr className="bg-primary-200/10 dark:bg-primary-200/15 border-b border-primary-200/20 text-typography-800 dark:text-typography-100">
+                      <th className="px-4 py-3.5 w-10 print:hidden pdf-hidden">
                         <input 
                           type="checkbox" 
                           className="w-4 h-4 rounded border-surface-300 text-primary-200 focus:ring-primary-200 cursor-pointer"
@@ -1680,11 +1859,11 @@ export default function PioneerSchoolView({
                           onChange={toggleSelectAll}
                         />
                       </th>
-                      <th className="px-3 py-3 font-bold text-xs uppercase tracking-wider w-12 text-center text-typography-500">
+                      <th className="px-3 py-3.5 font-black text-xs uppercase tracking-wider w-12 text-center text-primary-200">
                         Nº
                       </th>
                       <th 
-                        className="px-5 py-3 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-surface-300/40 transition-colors"
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
                         onClick={() => handleSort('nome')}
                       >
                         <div className="flex items-center gap-1.5">
@@ -1693,7 +1872,7 @@ export default function PioneerSchoolView({
                         </div>
                       </th>
                       <th 
-                        className="px-5 py-3 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-surface-300/40 transition-colors"
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
                         onClick={() => handleSort('congregacao')}
                       >
                         <div className="flex items-center gap-1.5">
@@ -1702,7 +1881,7 @@ export default function PioneerSchoolView({
                         </div>
                       </th>
                       <th 
-                        className="px-5 py-3 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-surface-300/40 transition-colors"
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
                         onClick={() => handleSort('circuito')}
                       >
                         <div className="flex items-center gap-1.5">
@@ -1711,11 +1890,11 @@ export default function PioneerSchoolView({
                         </div>
                       </th>
                       <th 
-                        className="px-4 py-3 font-bold text-xs uppercase tracking-wider relative group/header text-center"
+                        className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider relative group/header text-center"
                       >
                         <div className="flex items-center justify-center gap-1.5">
                           <button 
-                            className="hover:bg-surface-300/40 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            className="hover:bg-primary-200/15 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                             onClick={() => handleSort('turma')}
                           >
                             Turma
@@ -1869,133 +2048,256 @@ export default function PioneerSchoolView({
               </div>
             </div>
         ) : activeTab === 'workshops' ? (
-          <div className="w-full bg-surface-100 border border-surface-300 rounded-3xl overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto pb-6 custom-scrollbar" id="itinerary-table-container">
-              <table className="w-full border-collapse min-w-[800px] sessions-table text-left">
+          <>
+            {/* Modo Lista (Mobile-friendly, oculto no PDF/impressão) */}
+            {workshopViewMode === 'list' && (
+              <div className="space-y-4 print:hidden pdf-hidden">
+                {WORKSHOP_DATA.map((workshop) => {
+                  const theme = WORKSHOP_THEMES[workshop.id] || WORKSHOP_THEMES.workshop1;
+                  return (
+                    <div key={workshop.id} className="space-y-2.5">
+                      {/* Workshop header */}
+                      <div className="flex items-center gap-2.5 px-1 pt-1">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder}`}>
+                          {workshop.label}
+                        </span>
+                        <div className="flex-1 h-px bg-surface-300/60" />
+                      </div>
+
+                      {workshop.scenarios.map((scenario) => {
+                        const participantCount = workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2;
+                        const isExpanded = expandedScenario === scenario.id;
+
+                        return (
+                          <div
+                            key={scenario.id}
+                            className={`bg-surface-100 border border-surface-300/80 border-l-[3.5px] ${theme.cardBorder} rounded-2xl shadow-2xs overflow-hidden transition-all`}
+                          >
+                            {/* Card header */}
+                            <div
+                              className="flex items-start gap-3 p-3.5 cursor-pointer select-none"
+                              onClick={() => setExpandedScenario(isExpanded ? null : scenario.id)}
+                            >
+                              <span className={`shrink-0 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-lg text-xs font-black scenario-badge ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder} mt-0.5`}>
+                                Cena&nbsp;{scenario.id}
+                              </span>
+                              <p className="flex-1 text-xs font-bold text-typography-800 leading-snug">
+                                {scenario.text}
+                              </p>
+                              <button
+                                type="button"
+                                className={`shrink-0 p-1 rounded-lg border transition-all ${
+                                  isExpanded
+                                    ? 'bg-primary-200 text-white border-primary-200'
+                                    : 'bg-surface-200 text-typography-400 border-surface-300'
+                                }`}
+                              >
+                                <ChevronDown
+                                  size={14}
+                                  className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                />
+                              </button>
+                            </div>
+
+                            {/* Instructions (collapsible) */}
+                            <AnimatePresence>
+                              {isExpanded && scenario.instructions && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="mx-3.5 mb-3 p-3 bg-surface-200/60 border border-surface-300 rounded-xl text-xs text-typography-700 leading-relaxed font-normal">
+                                    {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Participants */}
+                            <div className="px-3.5 pb-3.5 space-y-2 border-t border-surface-300/50 pt-3">
+                              {Array.from({ length: participantCount }).map((_, idx) => {
+                                const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                                const roleLabel = getParticipantLabel(scenario.id, idx);
+                                return (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    {roleLabel && (
+                                      <span className="text-[10px] font-bold text-typography-400 uppercase tracking-wider w-20 shrink-0">
+                                        {roleLabel}
+                                      </span>
+                                    )}
+                                    <CustomSelect
+                                      value={participant}
+                                      onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
+                                      placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
+                                      options={[
+                                        { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
+                                        ...workshopDropdownStudents.map((student) => ({
+                                          value: student.nome,
+                                          label: student.nome,
+                                          badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
+                                        }))
+                                      ]}
+                                      className="flex-1"
+                                      size="sm"
+                                      direction="up"
+                                      searchable={true}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Modo Tabela (Desktop na tela, e SEMPRE renderizado para o PDF/impressão) */}
+            <div className={`${workshopViewMode === 'table' ? 'block' : 'hidden print:block'} w-full bg-surface-100 border border-surface-300 rounded-3xl overflow-hidden shadow-2xs`}>
+              <div className="overflow-x-auto pb-6 custom-scrollbar" id="itinerary-table-container">
+                <table className="w-full border-collapse min-w-[800px] sessions-table text-left">
                   <thead>
-                    <tr className="bg-surface-200/90 border-b border-surface-300">
+                    <tr className="bg-primary-200/10 dark:bg-primary-200/15 border-b border-primary-200/25">
                       <th className="p-4 text-left font-black text-sm tracking-wider text-typography-900" colSpan={2}>
                         <div className="flex items-center gap-3">
-                          <span className="uppercase tracking-widest text-xs font-black text-typography-800">Sessão de Treino</span>
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-primary-200/15 text-primary-200 border border-primary-200/30">
+                          <span className="uppercase tracking-widest text-xs font-black text-typography-800 dark:text-typography-100">Sessão de Treino</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-primary-200 text-white shadow-2xs">
                             Turma {selectedTurma}
                           </span>
                         </div>
                       </th>
-                      <th className="p-4 text-right align-middle font-black text-[11px] tracking-widest text-typography-500 uppercase w-[440px]">
+                      <th className="p-4 text-right align-middle font-black text-[11px] tracking-widest text-typography-600 dark:text-typography-400 uppercase w-[440px]">
                         Participantes
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-300/60">
-                    {WORKSHOP_DATA.map((workshop) => (
-                      <Fragment key={workshop.id}>
-                        {workshop.scenarios.map((scenario, sIndex) => (
-                          <tr key={scenario.id} className="group transition-colors">
-                             {sIndex === 0 && (
-                              <td 
-                                className="w-[36px] bg-surface-200/40 text-typography-600 border-r border-b border-surface-300 p-0 align-middle text-center" 
-                                rowSpan={workshop.scenarios.length}
-                              >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-black text-[11px] uppercase tracking-[0.2em] whitespace-nowrap w-[36px] mx-auto py-6 text-typography-400">
-                                  {workshop.label}
+                    {WORKSHOP_DATA.map((workshop) => {
+                      const theme = WORKSHOP_THEMES[workshop.id] || WORKSHOP_THEMES.workshop1;
+                      return (
+                        <Fragment key={workshop.id}>
+                          {workshop.scenarios.map((scenario, sIndex) => (
+                            <tr key={scenario.id} className="group transition-colors">
+                              {sIndex === 0 && (
+                                <td 
+                                  className={`w-[42px] ${theme.sidebarBg} ${theme.sidebarText} border-r ${theme.sidebarBorder} border-b border-surface-300/70 p-0 align-middle text-center workshop-sidebar-${workshop.id}`} 
+                                  rowSpan={workshop.scenarios.length}
+                                >
+                                  <div className={`[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-black text-[11px] uppercase tracking-[0.25em] whitespace-nowrap w-[42px] mx-auto py-6 ${theme.sidebarText}`}>
+                                    {workshop.label}
+                                  </div>
+                                </td>
+                              )}
+                              <td className="border-r border-b border-surface-300/70 p-3.5 relative align-top transition-colors group-hover:bg-surface-200/40 bg-surface-100">
+                                <div className="flex flex-col gap-1">
+                                  <div 
+                                    className="cursor-pointer group/scenario flex items-start gap-2.5"
+                                    onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
+                                  >
+                                    <span className={`shrink-0 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-lg text-xs font-black scenario-badge ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder}`}>
+                                      Cena&nbsp;{scenario.id}
+                                    </span>
+                                    <span className="flex-1 text-xs font-bold text-typography-800 leading-snug pt-0.5">
+                                      {scenario.text}
+                                    </span>
+                                    <button
+                                      type="button" 
+                                      className={`shrink-0 p-1 rounded-lg border transition-all print:hidden pdf-hidden ${
+                                        expandedScenario === scenario.id 
+                                          ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                                          : 'bg-surface-200 text-typography-400 border-surface-300 hover:text-typography-800 hover:bg-surface-300'
+                                      }`}
+                                    >
+                                      <ChevronDown 
+                                        size={14} 
+                                        className={`transform transition-transform duration-200 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      />
+                                    </button>
+                                  </div>
+
+                                  <AnimatePresence>
+                                    {(expandedScenario === scenario.id) && scenario.instructions && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="mt-2.5 p-3.5 bg-surface-200/60 border border-surface-300 rounded-xl shadow-2xs text-xs text-typography-800 leading-relaxed font-normal">
+                                          {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
                                 </div>
                               </td>
-                            )}
-                            <td className={`border-r border-b border-surface-300/70 p-3.5 relative align-top transition-colors group-hover:bg-surface-200/40 ${sIndex % 2 === 0 ? 'bg-surface-100' : 'bg-surface-200/20'}`}>
-                              <div className="flex flex-col gap-1">
-                                <div 
-                                  className="cursor-pointer group/scenario flex items-start gap-2.5"
-                                  onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
-                                >
-                                  <span className="shrink-0 px-2 py-0.5 rounded-lg text-xs font-black bg-surface-200 text-typography-800 border border-surface-300/70">
-                                    Cenário {scenario.id}
-                                  </span>
-                                  <span className="flex-1 text-xs font-bold text-typography-800 leading-snug pt-0.5">
-                                    {scenario.text}
-                                  </span>
-                                  <button
-                                    type="button" 
-                                    className={`shrink-0 p-1 rounded-lg border transition-all print:hidden pdf-hidden ${
-                                      expandedScenario === scenario.id 
-                                        ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
-                                        : 'bg-surface-200 text-typography-400 border-surface-300 hover:text-typography-800 hover:bg-surface-300'
-                                    }`}
-                                  >
-                                    <ChevronDown 
-                                      size={14} 
-                                      className={`transform transition-transform duration-200 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
-                                    />
-                                  </button>
+                              <td className="border-b border-surface-300/70 p-2.5 w-[440px] align-top bg-surface-100">
+                                <div className="flex flex-col gap-1.5">
+                                  {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
+                                    const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                                    const roleLabel = getParticipantLabel(scenario.id, idx);
+                                    
+                                    return (
+                                      <div 
+                                        key={idx} 
+                                        className="relative flex items-center min-h-[34px]"
+                                      >
+                                        <div className="hidden workshop-participant-text py-0.5 w-full">
+                                          {participant ? (
+                                            <div className="text-xs">
+                                              {roleLabel && <span className="text-slate-500 font-semibold mr-1.5">{roleLabel}:</span>}
+                                              <span className="font-bold text-slate-900">{participant}</span>
+                                              <span className="text-teal-600 font-bold ml-1.5">✓</span>
+                                            </div>
+                                          ) : (
+                                            idx < 2 ? (
+                                              <div className="text-xs text-slate-400 py-0.5 font-light">
+                                                {roleLabel && <span className="text-slate-400 font-medium mr-1.5">{roleLabel}:</span>}
+                                                <span className="tracking-widest">____________________________________</span>
+                                              </div>
+                                            ) : null
+                                          )}
+                                        </div>
+                                        <div className="workshop-select-ui w-full">
+                                          <CustomSelect
+                                            value={participant}
+                                            onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
+                                            placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
+                                            options={[
+                                              { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
+                                              ...workshopDropdownStudents.map((student) => ({
+                                                value: student.nome,
+                                                label: student.nome,
+                                                badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
+                                              }))
+                                            ]}
+                                            className="w-full"
+                                            dropdownClassName="w-full min-w-[280px]"
+                                            size="sm"
+                                            direction={scenario.id >= 8 ? 'up' : 'down'}
+                                            searchable={true}
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-
-                                <AnimatePresence>
-                                  {(expandedScenario === scenario.id) && scenario.instructions && (
-                                    <motion.div
-                                      initial={{ height: 0, opacity: 0 }}
-                                      animate={{ height: 'auto', opacity: 1 }}
-                                      exit={{ height: 0, opacity: 0 }}
-                                      className="overflow-hidden"
-                                    >
-                                      <div className="mt-2.5 p-3.5 bg-surface-200/60 border border-surface-300 rounded-xl shadow-2xs text-xs text-typography-800 leading-relaxed font-normal">
-                                        {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            </td>
-                            <td className={`border-b border-surface-300/70 p-2 w-[440px] align-top ${sIndex % 2 === 0 ? 'bg-surface-100' : 'bg-surface-200/20'}`}>
-                              <div className="flex flex-col gap-1.5">
-                                {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
-                                  const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
-                                  const roleLabel = getParticipantLabel(scenario.id, idx);
-                                  
-                                  return (
-                                    <div 
-                                      key={idx} 
-                                      className="relative flex items-center min-h-[34px]"
-                                    >
-                                      <div className="hidden workshop-participant-text text-sm font-bold text-slate-800">
-                                        {participant ? (
-                                          roleLabel 
-                                            ? `${roleLabel} - ${participant} ✓` 
-                                            : `${participant} ✓`
-                                        ) : (idx < 2 ? '___________________________________________' : '')}
-                                      </div>
-                                      <div className="workshop-select-ui w-full">
-                                        <CustomSelect
-                                          value={participant}
-                                          onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
-                                          placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
-                                          options={[
-                                            { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
-                                            ...workshopDropdownStudents.map((student) => ({
-                                              value: student.nome,
-                                              label: student.nome,
-                                              badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
-                                            }))
-                                          ]}
-                                          className="w-full"
-                                          dropdownClassName="w-full min-w-[280px]"
-                                          size="sm"
-                                          direction={scenario.id >= 8 ? 'up' : 'down'}
-                                          searchable={true}
-                                        />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </Fragment>
-                    ))}
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
-              </table>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
 
         ) : activeTab === 'templates_pss' ? (
           <PSSAssignmentLetters 

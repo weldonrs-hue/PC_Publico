@@ -1,31 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
-import { FileUp, FileText, Download, RefreshCw, AlertCircle, CheckCircle2, Save, List, ArrowLeft, Mail, Settings2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { RefreshCw, ArrowLeft, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import PioneerSchoolLetters from './PioneerSchoolLetters';
-import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  collection, 
-  getDocs,
-  onSnapshot, 
-  query, 
-  where,
-  deleteDoc 
-} from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-
-const ESP_TEMPLATES = [
-  { id: 'esp_anfitria', name: 'Carta à anfitriã' },
-  { id: 'esp_refeicoes', name: 'Carta convites refeições' },
-  { id: 'esp_pioneiros', name: 'Carta convite pioneiros' },
-];
 
 interface CartasESPViewProps {
   userId: string;
@@ -35,7 +16,7 @@ interface CartasESPViewProps {
   onBack: () => void;
 }
 
-export default function CartasESPView({ userId, isAdmin, canManage, onBack }: CartasESPViewProps) {
+export default function CartasESPView({ userId, isAdmin, canManage, initialMode, onBack }: CartasESPViewProps) {
   const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
   const [loadingInfo, setLoadingInfo] = useState(true);
@@ -69,43 +50,54 @@ export default function CartasESPView({ userId, isAdmin, canManage, onBack }: Ca
   }, [userId, selectedTurma]);
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8 bg-white min-h-screen">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6 pb-20">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-surface-300 pb-5">
+        <div className="flex items-center gap-3">
           <button 
             onClick={onBack}
-            className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-500 hover:text-emerald-600 hover:scale-110 active:scale-95"
+            className="p-2 sm:p-2.5 rounded-xl border border-surface-300 bg-surface-100 hover:bg-surface-200 text-typography-600 hover:text-typography-900 transition-colors shrink-0"
+            title="Voltar para Cartas"
           >
-            <ArrowLeft size={24} />
+            <ArrowLeft size={20} />
           </button>
+          
+          <div className="w-10 h-10 rounded-xl bg-transparent border border-emerald-500/40 dark:border-emerald-400/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Mail size={20} strokeWidth={1.8} />
+          </div>
+
           <div>
-            <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
-              Cartas ESP
-            </h1>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-[12px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100 w-fit mt-1">
-              Escola de Pioneiros auxiliares
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
+                Cartas ESP
+              </h1>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                Pioneiros
+              </span>
+            </div>
+            <p className="text-xs text-typography-500 mt-0.5">
+              Escola do Serviço de Pioneiro • Anfitriã e Refeições
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-2 py-1 shadow-sm">
-            <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">Turma:</span>
-            <div className="flex gap-1">
-              {(['1', '2', '3'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setSelectedTurma(t)}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                    selectedTurma === t 
-                      ? 'bg-emerald-100 text-emerald-700 shadow-sm' 
-                      : 'text-gray-400 hover:bg-gray-50'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+        {/* Turma Switcher */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="text-[10px] font-bold text-typography-400 uppercase tracking-widest">Turma:</span>
+          <div className="flex items-center gap-1 bg-surface-200 border border-surface-300 rounded-xl p-1">
+            {(['1', '2', '3'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setSelectedTurma(t)}
+                className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
+                  selectedTurma === t 
+                    ? 'bg-primary-200 text-white shadow-2xs' 
+                    : 'text-typography-500 hover:text-typography-900 hover:bg-surface-300/50'
+                }`}
+              >
+                Turma {t}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -113,14 +105,15 @@ export default function CartasESPView({ userId, isAdmin, canManage, onBack }: Ca
       <AnimatePresence mode="wait">
         <motion.div
           key={selectedTurma}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
+          exit={{ opacity: 0, y: -15 }}
+          transition={{ duration: 0.15 }}
         >
           {loadingInfo ? (
-            <div className="flex flex-col items-center justify-center p-20 space-y-4">
-              <RefreshCw size={32} className="text-emerald-500 animate-spin" />
-              <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Carregando Informações...</p>
+            <div className="flex flex-col items-center justify-center p-20 space-y-4 bg-surface-100 border border-surface-300 rounded-3xl">
+              <RefreshCw size={28} className="text-emerald-500 animate-spin" />
+              <p className="text-typography-500 font-bold uppercase tracking-widest text-xs">Carregando Informações...</p>
             </div>
           ) : (
             <PioneerSchoolLetters 
@@ -135,20 +128,6 @@ export default function CartasESPView({ userId, isAdmin, canManage, onBack }: Ca
           )}
         </motion.div>
       </AnimatePresence>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-          height: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #1A1B1E;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #2c2e33;
-          border-radius: 10px;
-        }
-      `}</style>
     </div>
   );
 }

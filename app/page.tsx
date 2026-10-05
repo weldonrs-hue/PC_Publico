@@ -1440,17 +1440,17 @@ export default function Home() {
           )}
 
           {currentView === 'cartas_programacoes' && (
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[80vh] flex flex-col items-center justify-center space-y-6 p-10 text-center">
-              <div className="bg-pink-100 p-6 rounded-full text-pink-600 shadow-inner">
-                <FileText size={64} />
+            <div className="bg-surface-100 border border-surface-300 rounded-3xl shadow-xs min-h-[60vh] flex flex-col items-center justify-center space-y-6 p-8 sm:p-12 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-transparent border border-pink-500/40 dark:border-pink-400/50 text-pink-600 dark:text-pink-400 flex items-center justify-center">
+                <FileText size={32} strokeWidth={1.8} />
               </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Programações</h2>
-                <p className="text-gray-500 font-medium uppercase tracking-widest text-sm">Esta funcionalidade será implementada em breve.</p>
+              <div className="space-y-1.5">
+                <h2 className="text-2xl sm:text-3xl font-black text-typography-900 tracking-tight">Programações</h2>
+                <p className="text-xs sm:text-sm text-typography-500">Esta funcionalidade será implementada em breve.</p>
               </div>
               <button 
                 onClick={() => changeView('cartas')}
-                className="px-8 py-3 bg-pink-600 text-white rounded-2xl font-bold hover:bg-pink-700 transition-all shadow-lg shadow-pink-200 uppercase tracking-widest text-xs"
+                className="px-6 py-2.5 bg-primary-200 text-white rounded-xl font-bold hover:bg-primary-300 transition-all shadow-xs text-xs uppercase tracking-wider"
               >
                 Voltar para Cartas
               </button>

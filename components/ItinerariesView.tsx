@@ -15,6 +15,7 @@ import {
   FileDown,
   FileText,
   LayoutGrid,
+  LayoutList,
   Loader2,
   MapPin,
   Plus,
@@ -1956,7 +1957,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                 }`}
                 title="Modo Lista (Cartões e timeline)"
               >
-                <LayoutGrid size={14} />
+                <LayoutList size={14} />
                 <span>Lista</span>
               </button>
             </div>

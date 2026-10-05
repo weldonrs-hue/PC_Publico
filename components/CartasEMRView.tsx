@@ -3,14 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
-  GraduationCap, 
   PenTool, 
   CheckCircle2, 
   UserCheck, 
-  Sparkles,
-  ShieldCheck,
-  RefreshCw,
-  FileText
+  Mail
 } from 'lucide-react';
 import EMRLetters from './EMRLetters';
 import { auth, db } from '@/lib/firebase';
@@ -130,65 +126,64 @@ export default function CartasEMRView({
   const hasDigitalSignature = Boolean(signatureImage && typeof signatureImage === 'string' && signatureImage.startsWith('data:image'));
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 bg-white min-h-screen">
+    <div className="space-y-6 pb-20">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-surface-300 pb-5">
         <div className="flex items-center gap-3">
           <button 
             onClick={onBack}
-            className="p-2.5 md:p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-500 hover:text-blue-600 hover:scale-105 active:scale-95 border border-gray-200/60"
-            title="Voltar"
+            className="p-2 sm:p-2.5 rounded-xl border border-surface-300 bg-surface-100 hover:bg-surface-200 text-typography-600 hover:text-typography-900 transition-colors shrink-0"
+            title="Voltar para Cartas"
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft size={20} />
           </button>
+          
+          <div className="w-10 h-10 rounded-xl bg-transparent border border-blue-500/40 dark:border-blue-400/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Mail size={20} strokeWidth={1.8} />
+          </div>
+
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl md:text-3xl font-black text-gray-900 uppercase tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
                 Cartas EMR
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200">
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                 Anciãos & Servos
               </span>
             </div>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-[11px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100 w-fit mt-1 flex items-center gap-1.5">
-              <GraduationCap size={13} />
-              Gerador de Documentos para Escola do Ministério do Reino
+            <p className="text-xs text-typography-500 mt-0.5">
+              Escola do Ministério do Reino • Designações e Convites
             </p>
           </div>
         </div>
 
         {/* Dynamic Signature & Logged User Badge */}
-        <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-blue-50/80 p-2.5 rounded-2xl border border-blue-100 shadow-2xs">
-          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-blue-600 shadow-2xs border border-blue-100 shrink-0">
+        <div className="flex items-center gap-3 bg-surface-100 border border-surface-300 rounded-2xl p-2.5 shadow-2xs self-start md:self-auto">
+          <div className="w-9 h-9 rounded-xl bg-surface-200 border border-surface-300 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
             {hasDigitalSignature ? (
-              <PenTool size={18} className="text-blue-600" />
+              <PenTool size={18} />
             ) : (
-              <UserCheck size={18} className="text-indigo-600" />
+              <UserCheck size={18} />
             )}
           </div>
           <div className="min-w-0 pr-1">
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-black text-gray-900 truncate max-w-[200px]">
+              <span className="text-[11px] font-black text-typography-900 truncate max-w-[200px]">
                 {userName}
               </span>
-              <span className="text-[9px] font-bold text-gray-400">
+              <span className="text-[9px] font-bold text-typography-400">
                 • {userCircuit}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[9px] font-bold">
-              <span className="flex items-center gap-1 text-emerald-600">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 size={10} strokeWidth={2.5} />
-                Assinatura Ancião: {hasDigitalSignature ? 'Digital' : 'Texto'}
-              </span>
-              <span className="text-gray-300">•</span>
-              <span className="flex items-center gap-1 text-indigo-600">
-                <CheckCircle2 size={10} strokeWidth={2.5} />
-                Assinatura Servo: {hasDigitalSignature ? 'Digital' : 'Texto'}
+                Assinatura: {hasDigitalSignature ? 'Digital' : 'Texto'}
               </span>
             </div>
           </div>
           {hasDigitalSignature && (
-            <div className="hidden sm:flex items-center justify-center p-1 bg-white rounded-lg border border-blue-200/80 shadow-2xs shrink-0" title="Assinatura Digital Carregada">
+            <div className="hidden sm:flex items-center justify-center p-1 bg-white rounded-lg border border-surface-300 shadow-2xs shrink-0" title="Assinatura Digital Carregada">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src={signatureImage} 
@@ -207,24 +202,9 @@ export default function CartasEMRView({
         canManage={canManage}
         initialMode={initialMode}
         initialSchoolType={initialSchoolType}
-        initialTurma={initialTurma}
+        initialTurma={initialTurma as any}
         initialPartId={initialPartId}
-        personalData={personalData}
       />
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-          height: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #1A1B1E;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #2c2e33;
-          border-radius: 10px;
-        }
-      `}</style>
     </div>
   );
 }

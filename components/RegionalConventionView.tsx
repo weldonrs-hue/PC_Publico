@@ -22,7 +22,9 @@ import {
   Info,
   Landmark,
   LayoutGrid,
+  LayoutList,
   Loader2,
+  Table as TableIcon,
   MapPin,
   Maximize2,
   Music,
@@ -985,20 +987,8 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-center shrink-0 flex-wrap">
-          {/* Alternador de Modo de Exibição (Painel Responsivo vs Folha A4) */}
+          {/* Alternador de Modo de Exibição: Tabela vs Lista */}
           <div className="flex items-center bg-surface-200 p-1 rounded-2xl border border-surface-300/80 shadow-2xs">
-            <button
-              onClick={() => setViewMode('responsive')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'responsive'
-                  ? 'bg-primary-200 text-white shadow-xs'
-                  : 'text-typography-500 hover:text-typography-900'
-              }`}
-              title="Modo Painel Responsivo (Ideal para Celular e Tablet)"
-            >
-              <LayoutGrid size={14} />
-              <span>Painel</span>
-            </button>
             <button
               onClick={() => setViewMode('a4')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -1006,10 +996,22 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                   ? 'bg-primary-200 text-white shadow-xs'
                   : 'text-typography-500 hover:text-typography-900'
               }`}
-              title="Modo Folha A4 Oficial (Visualização de Impressão e PDF)"
+              title="Modo Tabela"
             >
-              <FileText size={14} />
-              <span>Folha A4</span>
+              <TableIcon size={14} />
+              <span>Tabela</span>
+            </button>
+            <button
+              onClick={() => setViewMode('responsive')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'responsive'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-500 hover:text-typography-900'
+              }`}
+              title="Modo Lista"
+            >
+              <LayoutList size={14} />
+              <span>Lista</span>
             </button>
           </div>
 

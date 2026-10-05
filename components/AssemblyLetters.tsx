@@ -1,42 +1,35 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
-import { 
-  FileText, 
-  Download, 
-  RefreshCw, 
-  CheckCircle2, 
-  Mail,
-  FileDown,
-  Loader2,
-  Trash2,
-  Settings2,
-  X,
-  FileUp,
-  AlertCircle,
-  Printer,
-  ChevronDown
-} from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  getDoc,
-  setDoc,
-  deleteDoc,
-  query,
-  where,
-  limit,
-  onSnapshot
-} from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { useDialog } from '@/hooks/useDialog';
-import { AnimatePresence, motion } from 'motion/react';
-import { cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
 import CustomSelect from '@/components/CustomSelect';
+import { useDialog } from '@/hooks/useDialog';
+import { cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
+import { db } from '@/lib/firebase';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import Docxtemplater from 'docxtemplater';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  setDoc,
+  where
+} from 'firebase/firestore';
+import {
+  CheckCircle2,
+  FileDown,
+  FileUp,
+  Loader2,
+  Mail,
+  Printer,
+  RefreshCw,
+  Settings2,
+  X
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import PizZip from 'pizzip';
+import React, { useEffect, useRef, useState } from 'react';
 
 const ASSEMBLEIA_TEMPLATES = [
   { id: 'ass_carta_anciaos', name: 'Carta aos Anciãos' },
@@ -185,7 +178,7 @@ export default function AssemblyLetters({
             if (!destroyed && viewerRef.current) {
               setIsViewerReady(true);
             }
-          }, 1000);
+          }, 600);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error Assembly:', err);
@@ -196,9 +189,25 @@ export default function AssemblyLetters({
       initViewer();
     }
 
+    // Observe container size changes so UDoc re-layouts on mobile / orientation changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (previewRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        if (viewerRef.current) {
+          try {
+            (viewerRef.current as any).setZoomMode('fit-page-width');
+          } catch (e) {}
+        }
+      });
+      resizeObserver.observe(previewRef.current);
+    }
+
     return () => {
       destroyed = true;
       setIsViewerReady(false);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       if (viewerRef.current) {
         try { 
           const v = viewerRef.current;
@@ -228,6 +237,9 @@ export default function AssemblyLetters({
           }
           const loadData = new Uint8Array(buffer);
           await viewerRef.current.load(loadData);
+          try {
+            await (viewerRef.current as any).setZoomMode('fit-page-width');
+          } catch (e) {}
         } catch (err) {
           if (!active) return;
           console.error('UDoc Viewer Load Error:', err);
@@ -630,27 +642,123 @@ export default function AssemblyLetters({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px]">
-      {/* Sidebar: Selection & Settings Toggle */}
-      <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
-        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-140px)] min-h-[500px]">
+      {/* Mobile Top Controls: Compact Select & Actions Bar */}
+      <div className="lg:hidden flex flex-col gap-2.5 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-transparent border border-amber-500/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Mail size={12} strokeWidth={1.8} />
+            </div>
+            <span className="font-black text-typography-900 text-[10px] uppercase tracking-wider">Cartas de Assembleia</span>
+          </div>
+
+          {canManage && (
+            <button
+              onClick={() => setIsManaging(!isManaging)}
+              className={`p-1.5 rounded-xl border transition-all ${
+                isManaging 
+                  ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                  : 'text-typography-400 hover:text-typography-900 hover:bg-surface-200 border-surface-300'
+              }`}
+              title="Configurar Templates"
+            >
+              <Settings2 size={15} />
+            </button>
+          )}
+        </div>
+
+        {availableAssemblies.length > 0 && (
+          <CustomSelect
+            label="Evento"
+            value={selectedAssemblyId}
+            onChange={(val) => setSelectedAssemblyId(val)}
+            options={availableAssemblies.map(assembly => ({
+              value: assembly.id,
+              label: assembly.title || assembly.id
+            }))}
+            className="w-full"
+            dropdownClassName="w-full max-w-full"
+            size="sm"
+          />
+        )}
+
+        <CustomSelect
+          label="Modelo da Carta"
+          value={selectedTemplate}
+          onChange={(val) => setSelectedTemplate(val)}
+          options={ASSEMBLEIA_TEMPLATES.map(t => ({
+            value: t.id,
+            label: t.name
+          }))}
+          className="w-full"
+          dropdownClassName="w-full max-w-full"
+          size="sm"
+        />
+
+        <div className="flex items-center gap-2 pt-1">
+          {needsProcessing && (
+            <button
+              onClick={() => processAndPreview()}
+              disabled={isProcessing}
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-primary-200 text-white rounded-xl shadow-xs hover:bg-primary-300 disabled:opacity-50 font-black text-[9px] uppercase tracking-wider"
+            >
+              <RefreshCw size={12} className={isProcessing ? 'animate-spin' : ''} />
+              <span>{isProcessing ? 'Gerando...' : 'Gerar'}</span>
+            </button>
+          )}
+
+          {status === 'success' && !isProcessing && (
+            <div className="flex items-center gap-1.5 flex-1">
+              <button
+                onClick={downloadAsDocx}
+                className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-surface-200 text-typography-800 rounded-xl border border-surface-300 hover:bg-surface-300 font-black text-[9px] uppercase tracking-wider"
+              >
+                <FileDown size={13} />
+                <span>DOCX</span>
+              </button>
+              <button
+                onClick={downloadAsPdf}
+                disabled={generating}
+                className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-surface-200 text-typography-800 rounded-xl border border-surface-300 hover:bg-surface-300 font-black text-[9px] uppercase tracking-wider disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+                <span>PDF</span>
+              </button>
+              <button
+                onClick={() => viewerRef.current?.print()}
+                className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-primary-200 text-white rounded-xl shadow-xs hover:bg-primary-300 font-black text-[9px] uppercase tracking-wider"
+              >
+                <Printer size={13} />
+                <span>Imprimir</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Sidebar: Selection & Settings Toggle (Desktop Only) */}
+      <div className="hidden lg:flex w-72 flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h3 className="font-black text-gray-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
-              <Mail size={14} className="text-amber-600" />
+            <h3 className="font-black text-typography-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-transparent border border-amber-500/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Mail size={12} strokeWidth={1.8} />
+              </div>
               Modelos
             </h3>
             
             {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`p-2 rounded-xl transition-all shadow-sm ${
+                className={`p-1.5 rounded-xl border transition-all ${
                   isManaging 
-                    ? 'bg-amber-600 text-white shadow-amber-200 ring-2 ring-amber-600 ring-offset-2' 
-                    : 'bg-amber-100 text-amber-600 hover:bg-amber-200'
+                    ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                    : 'text-typography-400 hover:text-typography-900 hover:bg-surface-200 border-surface-300'
                 }`}
                 title="Configurar Templates"
               >
-                <Settings2 size={18} />
+                <Settings2 size={16} />
               </button>
             )}
           </div>
@@ -670,8 +778,8 @@ export default function AssemblyLetters({
               size="sm"
             />
             {assemblyData && (
-              <div className="bg-amber-50/50 p-2 rounded-xl border border-amber-100/50">
-                <p className="text-[8px] font-bold text-amber-600 uppercase tracking-tighter truncate leading-tight">
+              <div className="bg-surface-200/60 p-2 rounded-xl border border-surface-300/80">
+                <p className="text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-tighter truncate leading-tight">
                   {assemblyData.theme || 'Sem Tema Definido'}
                 </p>
               </div>
@@ -685,19 +793,23 @@ export default function AssemblyLetters({
                 onClick={() => setSelectedTemplate(t.id)}
                 className={`flex items-center gap-3 px-3 py-2.5 transition-all border rounded-2xl text-left group relative overflow-hidden ${
                    selectedTemplate === t.id
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-md scale-[1.02]'
-                    : 'bg-gray-50/50 text-gray-600 border-gray-100 hover:border-amber-200 hover:bg-white'
+                    ? 'bg-surface-200 text-typography-900 border-primary-200/60 shadow-2xs ring-1 ring-primary-200/30'
+                    : 'bg-surface-200/40 text-typography-600 border-surface-300/80 hover:border-surface-300 hover:bg-surface-200 hover:text-typography-900'
                 }`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${selectedTemplate === t.id ? 'bg-white/20' : 'bg-amber-100/50'}`}>
-                  <Mail size={16} className={selectedTemplate === t.id ? 'text-white' : 'text-amber-600'} />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 border ${
+                  selectedTemplate === t.id 
+                    ? 'border-primary-200/60 text-primary-200 bg-transparent' 
+                    : 'border-surface-300 text-typography-400 bg-transparent'
+                }`}>
+                  <Mail size={16} strokeWidth={1.8} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="block font-black uppercase tracking-tight text-[10px] leading-tight truncate">{t.name}</span>
                   {templates[t.id] && (
                     <div className="flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 size={8} className={selectedTemplate === t.id ? 'text-white' : 'text-emerald-500'} />
-                      <span className={`text-[6px] font-black uppercase tracking-widest ${selectedTemplate === t.id ? 'text-white/80' : 'text-gray-400'}`}>
+                      <CheckCircle2 size={8} className="text-emerald-500" />
+                      <span className="text-[6px] font-black uppercase tracking-widest text-typography-400">
                         {templates[t.id].isPrivate ? 'PRIVADO' : 'GLOBAL'}
                       </span>
                     </div>
@@ -712,7 +824,7 @@ export default function AssemblyLetters({
           <button
             onClick={() => processAndPreview()}
             disabled={isProcessing}
-            className="w-full flex items-center justify-center gap-3 p-4 bg-amber-600 text-white rounded-3xl shadow-xl shadow-amber-200 hover:bg-amber-700 active:scale-[0.98] transition-all disabled:opacity-50 font-black text-[10px] uppercase tracking-widest"
+            className="w-full flex items-center justify-center gap-3 p-4 bg-primary-200 text-white rounded-3xl shadow-xs hover:bg-primary-300 active:scale-[0.98] transition-all disabled:opacity-50 font-black text-[10px] uppercase tracking-widest"
           >
             {isProcessing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             Gerar Carta Agora
@@ -721,29 +833,29 @@ export default function AssemblyLetters({
 
         {/* Quick Actions Panel */}
         {status === 'success' && !isProcessing && (
-          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Ações do Documento</h4>
+          <div className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-4">
+            <h4 className="text-[9px] font-black text-typography-400 uppercase tracking-widest px-1">Ações do Documento</h4>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={downloadAsDocx}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-amber-700 rounded-2xl border border-gray-100 hover:bg-amber-50 hover:border-amber-200 transition-all group"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-surface-200 text-typography-800 rounded-2xl border border-surface-300 hover:bg-surface-300 hover:border-primary-200/40 transition-all group"
               >
-                <FileDown size={18} className="group-hover:scale-110 transition-transform" />
+                <FileDown size={18} className="group-hover:scale-110 transition-transform text-typography-600" />
                 <span className="text-[8px] font-black uppercase tracking-tighter">DOCX</span>
               </button>
 
               <button
                 onClick={downloadAsPdf}
                 disabled={generating}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-amber-700 rounded-2xl border border-gray-100 hover:bg-amber-50 hover:border-amber-200 transition-all group disabled:opacity-50"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-surface-200 text-typography-800 rounded-2xl border border-surface-300 hover:bg-surface-300 hover:border-primary-200/40 transition-all group disabled:opacity-50"
               >
-                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform" />}
+                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform text-typography-600" />}
                 <span className="text-[8px] font-black uppercase tracking-tighter">PDF</span>
               </button>
 
               <button
                 onClick={() => viewerRef.current?.print()}
-                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-amber-600 text-white rounded-2xl shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all font-black text-[10px] uppercase tracking-widest"
+                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-primary-200 text-white rounded-2xl shadow-xs hover:bg-primary-300 transition-all font-black text-[10px] uppercase tracking-widest"
               >
                 <Printer size={16} />
                 Imprimir Agora
@@ -754,7 +866,7 @@ export default function AssemblyLetters({
       </div>
 
       {/* Main Content: Management & Viewer */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col gap-4 min-w-0 h-auto lg:h-full min-h-[550px] lg:min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
           {isManaging ? (
             <motion.div
@@ -762,25 +874,25 @@ export default function AssemblyLetters({
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-amber-50/50 p-5 rounded-3xl border border-amber-100 shadow-sm shrink-0"
+              className="bg-surface-200/50 p-5 rounded-3xl border border-surface-300 shadow-xs shrink-0"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
-                    <FileUp size={20} />
+                  <div className="w-10 h-10 rounded-xl bg-transparent border border-amber-500/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <FileUp size={20} strokeWidth={1.8} />
                   </div>
                   <div>
-                    <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">
+                    <h4 className="text-[11px] font-black text-typography-900 uppercase tracking-widest">
                       Configurar Template
                     </h4>
-                    <p className="text-[8px] font-bold text-amber-600 uppercase tracking-widest">
+                    <p className="text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                       {ASSEMBLEIA_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
                     </p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsManaging(false)} 
-                  className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-red-500 shadow-sm transition-colors"
+                  className="w-8 h-8 flex items-center justify-center bg-surface-100 rounded-full text-typography-400 hover:text-rose-500 border border-surface-300 transition-colors"
                 >
                   <X size={16} />
                 </button>
@@ -792,7 +904,7 @@ export default function AssemblyLetters({
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className={`w-full h-24 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl transition-all ${
-                      file ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-white border-gray-200 text-gray-400 hover:border-amber-300'
+                      file ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600' : 'bg-surface-100 border-surface-300 text-typography-400 hover:border-primary-200/40'
                     }`}
                   >
                     <FileUp size={24} className={file ? 'text-emerald-500' : ''} />
@@ -802,20 +914,20 @@ export default function AssemblyLetters({
 
                 <div className="flex flex-col justify-between gap-2">
                   {isAdmin && (
-                    <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 cursor-pointer hover:bg-amber-50 transition-colors">
+                    <label className="flex items-center gap-3 p-3 bg-surface-100 rounded-2xl border border-surface-300 cursor-pointer hover:bg-surface-200 transition-colors">
                       <input 
                         type="checkbox" 
                         checked={saveAsGlobal} 
                         onChange={e => setSaveAsGlobal(e.target.checked)}
-                        className="w-4 h-4 accent-amber-600"
+                        className="w-4 h-4 accent-primary-200"
                       />
-                      <span className="text-[9px] font-black text-gray-600 uppercase tracking-tight">Definir como GLOBAL</span>
+                      <span className="text-[9px] font-black text-typography-700 uppercase tracking-tight">Definir como GLOBAL</span>
                     </label>
                   )}
                   <button
                     onClick={saveTemplate}
                     disabled={!file || isSaving}
-                    className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                    className="w-full h-12 bg-primary-200 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-primary-300 shadow-xs transition-all flex items-center justify-center gap-2"
                   >
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     {isSaving ? 'SALVANDO...' : 'SALVAR MODELO'}
@@ -827,15 +939,15 @@ export default function AssemblyLetters({
         </AnimatePresence>
 
         {/* Viewer Section */}
-        <div className="flex-1 bg-white border border-gray-100 rounded-3xl shadow-inner relative overflow-hidden flex flex-col">
-          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+        <div className="flex-1 bg-surface-100 border border-surface-300 rounded-3xl shadow-xs relative overflow-hidden flex flex-col min-h-[550px] sm:min-h-[620px] lg:min-h-0">
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-surface-100/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-surface-300 shadow-2xs">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Prévia em Tempo Real</span>
+            <span className="text-[8px] font-black text-typography-500 uppercase tracking-widest">Prévia em Tempo Real</span>
           </div>
           
           <div 
             ref={previewRef} 
-            className="flex-1 w-full overflow-hidden"
+            className="w-full h-[550px] sm:h-[620px] lg:h-full lg:flex-1 overflow-hidden"
           />
         </div>
       </div>
@@ -844,6 +956,8 @@ export default function AssemblyLetters({
         .udoc-viewer-container {
           border-radius: 0 !important;
           height: 100% !important;
+          width: 100% !important;
+          min-height: 100% !important;
         }
         .udoc-pages {
           background-color: #f8fafc !important;

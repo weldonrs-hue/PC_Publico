@@ -28,9 +28,11 @@ import {
   CheckCircle2,
   Users,
   LayoutGrid,
+  LayoutList,
   FileText,
   Search,
   Circle,
+  Table as TableIcon,
   AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1110,20 +1112,8 @@ export default function EMRView({
 
           {/* Action Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
-            {/* Toggle de Modo: Painel Responsivo vs Folha A4 */}
+            {/* Toggle de Modo: Tabela vs Lista */}
             <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
-              <button
-                onClick={() => handleViewModeChange('responsive')}
-                className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  viewMode === 'responsive'
-                    ? 'bg-primary-200 text-white shadow-xs'
-                    : 'text-typography-600 hover:text-typography-900'
-                }`}
-                title="Visualização responsiva otimizada para celular e computador"
-              >
-                <LayoutGrid size={14} />
-                <span>Painel</span>
-              </button>
               <button
                 onClick={() => handleViewModeChange('a4')}
                 className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -1131,10 +1121,22 @@ export default function EMRView({
                     ? 'bg-primary-200 text-white shadow-xs'
                     : 'text-typography-600 hover:text-typography-900'
                 }`}
-                title="Folha oficial A4 com zoom e prévia de impressão"
+                title="Modo Tabela"
               >
-                <FileText size={14} />
-                <span>Folha A4</span>
+                <TableIcon size={14} />
+                <span>Tabela</span>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('responsive')}
+                className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'responsive'
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+                title="Modo Lista"
+              >
+                <LayoutList size={14} />
+                <span>Lista</span>
               </button>
             </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Mail, ArrowLeft, Send, Sparkles, Layout, FileText, Wrench, Settings2 } from 'lucide-react';
+import { Mail, ChevronRight, FileText, Settings2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface CartasSeletorViewProps {
@@ -21,9 +21,11 @@ interface CartaOption {
   id: string;
   title: string;
   subtitle: string;
+  badge: string;
   icon: any;
   color: string;
-  gradient: string;
+  iconBorder: string;
+  iconColor: string;
   view: string;
   active: boolean;
   uploadKey: string;
@@ -35,10 +37,12 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'esp',
       title: 'Cartas ESP',
-      subtitle: 'ANFITRIÃ E REFEIÇÕES',
+      subtitle: 'Convites, anfitriã e refeições para a Escola de Pioneiros.',
+      badge: 'E.S.P.',
       icon: Mail,
       color: '#10B981', // Emerald
-      gradient: 'from-emerald-500 to-teal-600',
+      iconBorder: 'border-emerald-500/40 dark:border-emerald-400/50',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
       view: 'cartas_esp',
       active: true,
       uploadKey: 'allowESPUploadForAll'
@@ -46,10 +50,12 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'emr',
       title: 'Cartas EMR',
-      subtitle: 'ANCIÃOS E SERVOS',
+      subtitle: 'Designações, cartas e convites para anciãos e servos ministeriais.',
+      badge: 'E.M.R.',
       icon: Mail,
       color: '#3B82F6', // Blue
-      gradient: 'from-blue-500 to-indigo-600',
+      iconBorder: 'border-blue-500/40 dark:border-blue-400/50',
+      iconColor: 'text-blue-600 dark:text-blue-400',
       view: 'cartas_emr',
       active: true,
       uploadKey: 'allowEMRUploadForAll'
@@ -57,10 +63,12 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'congresso',
       title: 'Cartas Congresso',
-      subtitle: 'ORATÓRIA E TREINAMENTO',
+      subtitle: 'Convites de oração, presidente de sessão e avisos de treinamentos.',
+      badge: 'Congresso',
       icon: Mail,
       color: '#8B5CF6', // Violet
-      gradient: 'from-violet-500 to-purple-600',
+      iconBorder: 'border-violet-500/40 dark:border-violet-400/50',
+      iconColor: 'text-violet-600 dark:text-violet-400',
       view: 'cartas_congresso',
       active: true,
       uploadKey: 'allowCongressoUploadForAll'
@@ -68,10 +76,12 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'assembleias',
       title: 'Cartas Assembleias',
-      subtitle: 'ANCIÃOS, ORADORES E PIONEIROS',
+      subtitle: 'Designações para anciãos, oradores, orações e pioneiros.',
+      badge: 'Assembleias',
       icon: Mail,
       color: '#F59E0B', // Amber
-      gradient: 'from-amber-500 to-orange-600',
+      iconBorder: 'border-amber-500/40 dark:border-amber-400/50',
+      iconColor: 'text-amber-600 dark:text-amber-400',
       view: 'cartas_assembleias',
       active: true,
       uploadKey: 'allowAssembleiasUploadForAll'
@@ -79,10 +89,12 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
     {
       id: 'programacoes',
       title: 'Programações',
-      subtitle: 'EM BREVE',
+      subtitle: 'Gestão de modelos e documentos para programações especiais.',
+      badge: 'Em Breve',
       icon: FileText,
       color: '#EC4899', // Pink
-      gradient: 'from-pink-200 to-rose-300',
+      iconBorder: 'border-pink-500/40 dark:border-pink-400/50',
+      iconColor: 'text-pink-600 dark:text-pink-400',
       view: 'cartas_programacoes',
       active: false,
       uploadKey: 'allowProgramacoesUploadForAll'
@@ -90,90 +102,107 @@ export default function CartasSeletorView({ onViewChange, isAdmin, appConfig }: 
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="bg-emerald-100 p-3 rounded-none text-emerald-600 shadow-inner">
-            <Mail size={24} strokeWidth={2.5} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+    <div className="space-y-8 pb-20">
+      {/* Cabeçalho da Página — Idêntico ao padrão de Escolas e Eventos */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-transparent border border-primary-200/40 dark:border-primary-200/50 text-primary-200 flex items-center justify-center shrink-0">
+              <Mail size={20} strokeWidth={1.8} />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
               Cartas e Documentos
             </h2>
-            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mt-0.5 opacity-70">
-              Módulo Unificado de Geração e Templates
-            </p>
           </div>
+          <p className="text-xs sm:text-sm text-typography-500">
+            Módulo unificado de geração, modelos e templates oficiais para eventos e escolas.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* Grid de Opções de Cartas — Padrão Escolas/Eventos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {options.map((option, index) => {
+          const Icon = option.icon;
           const canManage = isAdmin || (option.uploadKey && (appConfig as any)?.[option.uploadKey]) || (option.id === 'esp' || option.id === 'congresso' || option.id === 'emr' || option.id === 'assembleias');
-          
+
           return (
             <motion.div
               key={option.id}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={`relative group h-16 ${
-                !option.active 
-                  ? 'cursor-not-allowed opacity-60 grayscale' 
-                  : 'cursor-pointer'
+              transition={{ delay: index * 0.06 }}
+              onClick={() => {
+                if (option.active) {
+                  if (option.forceManager) {
+                    onViewChange(`${option.view}:manager`);
+                  } else {
+                    onViewChange(option.view);
+                  }
+                }
+              }}
+              className={`group relative flex flex-col justify-between p-5 sm:p-6 rounded-3xl bg-surface-100 border border-surface-300 hover:border-primary-200/40 shadow-xs hover:shadow-xl transition-all duration-300 overflow-hidden ${
+                !option.active
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'cursor-pointer hover:-translate-y-0.5'
               }`}
             >
-              {/* Background Glow */}
-              {option.active && (
-                <div 
-                  className="absolute -inset-0.5 blur-md opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-3xl"
-                  style={{ backgroundColor: option.color }}
-                />
-              )}
-              
+              {/* Brilho decorativo suave */}
               <div 
-                className="relative flex bg-white rounded-[24px] overflow-hidden shadow-sm border border-gray-200 hover:border-transparent transition-all duration-300 h-full group"
-                onClick={() => {
-                  if (option.active) {
-                    if (option.forceManager) {
-                      onViewChange(`${option.view}:manager`);
-                    } else {
-                      onViewChange(option.view);
-                    }
-                  }
-                }}
-              >
-                <div className={`w-1.5 h-full bg-gradient-to-b ${option.gradient} opacity-40 group-hover:opacity-100 transition-opacity`}></div>
-                
-                <div className="flex-1 flex items-center px-3 gap-3">
-                  <div 
-                    className={`w-10 h-10 rounded-[14px] flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${
-                      !option.active 
-                        ? 'bg-gray-100 text-gray-400' 
-                        : `bg-gradient-to-br ${option.gradient} group-hover:scale-105 group-hover:rotate-2`
-                    }`}
-                  >
-                    <option.icon size={22} strokeWidth={2.5} className={`${!option.active ? 'text-gray-300' : 'text-white drop-shadow-md'}`} />
+                className="absolute -top-16 -right-16 w-32 h-32 rounded-full blur-3xl opacity-10 group-hover:opacity-25 transition-opacity pointer-events-none"
+                style={{ backgroundColor: option.color }}
+              />
+
+              {/* Barra superior de destaque sutil */}
+              <div 
+                className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity"
+                style={{ backgroundImage: `linear-gradient(to right, ${option.color}, transparent)` }}
+              />
+
+              <div className="space-y-4">
+                {/* Top Row: Icon + Badge + Settings button */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${option.iconBorder} ${option.iconColor} bg-transparent transition-all duration-300 group-hover:scale-105 group-hover:bg-surface-200/50`}>
+                    <Icon size={24} strokeWidth={1.8} />
                   </div>
 
-                  <div className="flex-1 text-left flex flex-col justify-center overflow-hidden pr-2">
-                    <div className={`font-black text-[11px] leading-tight uppercase mb-0 transition-colors ${!option.active ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
-                      {option.title}
-                    </div>
-                    <div className={`text-[7px] font-bold uppercase tracking-widest transition-opacity ${!option.active ? 'text-gray-300' : 'text-gray-400 opacity-60 group-hover:opacity-100'}`}>
-                      {option.subtitle}
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    {option.active && canManage && (
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          onViewChange(`${option.view}:manager`); 
+                        }}
+                        className="p-1.5 rounded-lg border border-surface-300/80 bg-surface-200/50 hover:bg-surface-300 text-typography-400 hover:text-primary-200 transition-colors"
+                        title="Gerenciar Templates"
+                      >
+                        <Settings2 size={14} />
+                      </button>
+                    )}
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-surface-200 text-typography-500 border border-surface-300">
+                      {option.badge}
+                    </span>
                   </div>
+                </div>
 
-                  {option.active && canManage && (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onViewChange(`${option.view}:manager`); }}
-                      className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all border border-transparent hover:border-emerald-100 group/btn shrink-0"
-                      title="Gerenciar Templates"
-                    >
-                      <Settings2 size={16} className="group-hover/btn:rotate-90 transition-transform duration-500" />
-                    </button>
-                  )}
+                {/* Título & Descrição */}
+                <div className="space-y-1">
+                  <h3 className="text-base sm:text-lg font-black text-typography-900 group-hover:text-primary-200 transition-colors">
+                    {option.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-typography-500 leading-relaxed">
+                    {option.subtitle}
+                  </p>
+                </div>
+              </div>
+
+              {/* Rodapé do Card com CTA */}
+              <div className="pt-4 mt-4 border-t border-surface-300/60 flex items-center justify-between text-xs font-bold text-typography-500 group-hover:text-primary-200 transition-colors">
+                <span className="tracking-wide">
+                  {option.active ? 'Acessar Modelos' : 'Em breve'}
+                </span>
+                <div className="w-7 h-7 rounded-full bg-surface-200 group-hover:bg-primary-200/10 flex items-center justify-center transition-all group-hover:translate-x-1">
+                  <ChevronRight size={15} />
                 </div>
               </div>
             </motion.div>

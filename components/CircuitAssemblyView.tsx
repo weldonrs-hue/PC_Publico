@@ -6,7 +6,7 @@ import CustomSelect from '@/components/CustomSelect';
 import { db } from '@/lib/firebase';
 import Docxtemplater from 'docxtemplater';
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { AlertTriangle, BookOpen, Calendar, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, Clock, Edit3, FileDown, FileText, Info, LayoutGrid, Loader2, Mail, MapPin, Maximize2, Music, Plus, Printer, RefreshCw, Save, Search, Trash2, User, UserCheck, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, BookOpen, Calendar, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, Clock, Edit3, FileDown, FileText, Info, LayoutGrid, LayoutList, Loader2, Mail, MapPin, Maximize2, Music, Plus, Printer, RefreshCw, Save, Search, Table as TableIcon, Trash2, User, UserCheck, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import PizZip from 'pizzip';
@@ -2159,20 +2159,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             />
           </div>
 
-          {/* Toggle de Modo: Painel Responsivo vs Folha A4 */}
+          {/* Toggle de Modo: Tabela vs Lista */}
           <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
-            <button
-              onClick={() => setViewMode('responsive')}
-              className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'responsive'
-                  ? 'bg-primary-200 text-white shadow-xs'
-                  : 'text-typography-600 hover:text-typography-900'
-              }`}
-              title="Visualização responsiva otimizada"
-            >
-              <LayoutGrid size={14} />
-              <span>Painel</span>
-            </button>
             <button
               onClick={() => setViewMode('a4')}
               className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -2180,10 +2168,22 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   ? 'bg-primary-200 text-white shadow-xs'
                   : 'text-typography-600 hover:text-typography-900'
               }`}
-              title="Folha oficial A4 com zoom"
+              title="Modo Tabela"
             >
-              <FileText size={14} />
-              <span>Folha A4</span>
+              <TableIcon size={14} />
+              <span>Tabela</span>
+            </button>
+            <button
+              onClick={() => setViewMode('responsive')}
+              className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'responsive'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-600 hover:text-typography-900'
+              }`}
+              title="Modo Lista"
+            >
+              <LayoutList size={14} />
+              <span>Lista</span>
             </button>
           </div>
 
