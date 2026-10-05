@@ -1,58 +1,54 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronDown,
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Search, 
-  Save, 
-  X,
-  Loader2,
-  UserPlus,
-  ClipboardPaste,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Users,
-  LayoutList,
-  Printer,
-  FileDown,
-  Info,
-  Undo2,
-  FileText,
-  Mail,
-  Filter,
-  Check,
-  AlertTriangle,
-  Table as TableIcon,
-  LayoutGrid
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import PSSAssignmentLetters from './PSSAssignmentLetters';
-import PioneerSchoolLetters from './PioneerSchoolLetters';
-import { db, auth } from '@/lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
+import { useDialog } from '@/hooks/useDialog';
+import { db } from '@/lib/firebase';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import Docxtemplater from 'docxtemplater';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   limit,
-  orderBy,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
   writeBatch
 } from 'firebase/firestore';
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ClipboardPaste,
+  Edit2,
+  FileDown,
+  FileText,
+  Filter,
+  Info,
+  LayoutGrid,
+  LayoutList,
+  Loader2,
+  Plus,
+  Save,
+  Search,
+  Table as TableIcon,
+  Trash2,
+  UserPlus,
+  Users,
+  X
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { useDialog } from '@/hooks/useDialog';
+import { Fragment, useEffect, useState } from 'react';
+import PSSAssignmentLetters from './PSSAssignmentLetters';
+import CustomSelect from '@/components/CustomSelect';
 
 interface Student {
   id: string;
@@ -1634,20 +1630,18 @@ export default function PioneerSchoolView({
                           </div>
 
                           <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-300/50">
-                            <select
+                            <CustomSelect
                               value={student.turma || ''}
-                              onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
-                              className={`px-2.5 py-1 rounded-xl font-bold text-xs border outline-none cursor-pointer transition-all ${
-                                student.turma 
-                                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold' 
-                                  : 'bg-surface-200/60 border-surface-300 text-typography-400 italic'
-                              }`}
-                            >
-                              <option value="">Sem Turma</option>
-                              <option value="1">TURMA 1</option>
-                              <option value="2">TURMA 2</option>
-                              <option value="3">TURMA 3</option>
-                            </select>
+                              onChange={(val) => handleUpdateTurma(student.id, val)}
+                              options={[
+                                { value: '', label: 'Sem Turma' },
+                                { value: '1', label: 'Turma 1' },
+                                { value: '2', label: 'Turma 2' },
+                                { value: '3', label: 'Turma 3' },
+                              ]}
+                              className="w-28"
+                              size="sm"
+                            />
 
                             <div className="flex items-center gap-1">
                               <button 
@@ -1832,21 +1826,21 @@ export default function PioneerSchoolView({
                                 <span className="text-gray-300">-</span>
                               )}
                             </div>
-                            <div className="select-turma-ui">
-                              <select
+                            <div className="select-turma-ui inline-block">
+                              <CustomSelect
                                 value={student.turma || ''}
-                                onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
-                                className={`px-2.5 py-1 rounded-xl font-bold text-xs border outline-none cursor-pointer transition-all ${
-                                  student.turma 
-                                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30' 
-                                    : 'bg-surface-200/60 border-surface-300 text-typography-400 italic'
-                                }`}
-                              >
-                                <option value="">-</option>
-                                <option value="1">TURMA 1</option>
-                                <option value="2">TURMA 2</option>
-                                <option value="3">TURMA 3</option>
-                              </select>
+                                onChange={(val) => handleUpdateTurma(student.id, val)}
+                                options={[
+                                  { value: '', label: '-' },
+                                  { value: '1', label: 'Turma 1' },
+                                  { value: '2', label: 'Turma 2' },
+                                  { value: '3', label: 'Turma 3' },
+                                ]}
+                                placeholder="-"
+                                className="w-24 text-center"
+                                size="sm"
+                                direction={index >= sortedStudents.length - 4 ? 'up' : 'down'}
+                              />
                             </div>
                           </td>
                           <td className="px-5 py-3 text-sm print:hidden pdf-hidden">
@@ -1875,51 +1869,64 @@ export default function PioneerSchoolView({
               </div>
             </div>
         ) : activeTab === 'workshops' ? (
-          <div className="w-full">
-            <div className="overflow-x-auto pb-8 scrollbar-thin scrollbar-thumb-gray-300" id="itinerary-table-container">
-              <table className="w-full border-collapse min-w-[800px] sessions-table bg-white">
+          <div className="w-full bg-surface-100 border border-surface-300 rounded-3xl overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto pb-6 custom-scrollbar" id="itinerary-table-container">
+              <table className="w-full border-collapse min-w-[800px] sessions-table text-left">
                   <thead>
-                    <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
-                      <th className="p-4 text-left font-bold text-xl h-[60px]" colSpan={2}>
-                        SESSÃO DE TREINO 
-                        <span className="text-yellow-400 italic ml-4">TURMA {selectedTurma}</span>
+                    <tr className="bg-surface-200/90 border-b border-surface-300">
+                      <th className="p-4 text-left font-black text-sm tracking-wider text-typography-900" colSpan={2}>
+                        <div className="flex items-center gap-3">
+                          <span className="uppercase tracking-widest text-xs font-black text-typography-800">Sessão de Treino</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-primary-200/15 text-primary-200 border border-primary-200/30">
+                            Turma {selectedTurma}
+                          </span>
+                        </div>
                       </th>
-                      <th className="p-4 text-right align-bottom font-bold text-sm tracking-widest h-[60px] w-[449.8px]">
-                        PARTICIPANTES
+                      <th className="p-4 text-right align-middle font-black text-[11px] tracking-widest text-typography-500 uppercase w-[440px]">
+                        Participantes
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-800">
+                  <tbody className="divide-y divide-surface-300/60">
                     {WORKSHOP_DATA.map((workshop) => (
                       <Fragment key={workshop.id}>
                         {workshop.scenarios.map((scenario, sIndex) => (
-                          <tr key={scenario.id} className="group min-h-0 h-1">
+                          <tr key={scenario.id} className="group transition-colors">
                              {sIndex === 0 && (
                               <td 
-                                className="w-[20px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
+                                className="w-[36px] bg-surface-200/40 text-typography-600 border-r border-b border-surface-300 p-0 align-middle text-center" 
                                 rowSpan={workshop.scenarios.length}
                               >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[15px] uppercase tracking-wider whitespace-nowrap w-[19.5px] mx-auto py-4">
+                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-black text-[11px] uppercase tracking-[0.2em] whitespace-nowrap w-[36px] mx-auto py-6 text-typography-400">
                                   {workshop.label}
                                 </div>
                               </td>
                             )}
-                            <td className={`border border-[#aebfc5] p-2.5 relative align-top transition-colors group-hover:bg-[#f8fafb] before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col gap-0.5">
+                            <td className={`border-r border-b border-surface-300/70 p-3.5 relative align-top transition-colors group-hover:bg-surface-200/40 ${sIndex % 2 === 0 ? 'bg-surface-100' : 'bg-surface-200/20'}`}>
+                              <div className="flex flex-col gap-1">
                                 <div 
-                                  className="cursor-pointer group/scenario flex items-start gap-1.5"
+                                  className="cursor-pointer group/scenario flex items-start gap-2.5"
                                   onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
                                 >
-                                  <span className="font-bold text-sm shrink-0 leading-tight">({scenario.id})</span>
-                                  <span className="flex-1 text-[12px] font-bold leading-tight">
+                                  <span className="shrink-0 px-2 py-0.5 rounded-lg text-xs font-black bg-surface-200 text-typography-800 border border-surface-300/70">
+                                    Cenário {scenario.id}
+                                  </span>
+                                  <span className="flex-1 text-xs font-bold text-typography-800 leading-snug pt-0.5">
                                     {scenario.text}
                                   </span>
-                                  <div className={`shrink-0 p-2 rounded-full shadow-md transition-all print:hidden pdf-hidden border-2 ${expandedScenario === scenario.id ? 'bg-[#3e5e66] text-white border-[#3e5e66]' : 'bg-white text-[#3e5e66] border-[#3e5e66] hover:bg-[#3e5e66] hover:text-white'}`}>
+                                  <button
+                                    type="button" 
+                                    className={`shrink-0 p-1 rounded-lg border transition-all print:hidden pdf-hidden ${
+                                      expandedScenario === scenario.id 
+                                        ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                                        : 'bg-surface-200 text-typography-400 border-surface-300 hover:text-typography-800 hover:bg-surface-300'
+                                    }`}
+                                  >
                                     <ChevronDown 
-                                      size={18} 
-                                      className={`transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      size={14} 
+                                      className={`transform transition-transform duration-200 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
                                     />
-                                  </div>
+                                  </button>
                                 </div>
 
                                 <AnimatePresence>
@@ -1930,7 +1937,7 @@ export default function PioneerSchoolView({
                                       exit={{ height: 0, opacity: 0 }}
                                       className="overflow-hidden"
                                     >
-                                      <div className="mt-3 p-4 bg-white border border-slate-200 border-l-[4px] border-[#3e5e66] rounded-md shadow-sm text-[13.5px] text-slate-950 font-bold leading-relaxed">
+                                      <div className="mt-2.5 p-3.5 bg-surface-200/60 border border-surface-300 rounded-xl shadow-2xs text-xs text-typography-800 leading-relaxed font-normal">
                                         {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
                                       </div>
                                     </motion.div>
@@ -1938,43 +1945,43 @@ export default function PioneerSchoolView({
                                 </AnimatePresence>
                               </div>
                             </td>
-                            <td className={`border border-[#aebfc5] p-0 w-[45%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col divide-y divide-[#aebfc5]">
+                            <td className={`border-b border-surface-300/70 p-2 w-[440px] align-top ${sIndex % 2 === 0 ? 'bg-surface-100' : 'bg-surface-200/20'}`}>
+                              <div className="flex flex-col gap-1.5">
                                 {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
                                   const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
-                                  const isFocused = focusedSlot?.scenarioId === scenario.id && focusedSlot?.slotIndex === idx;
+                                  const roleLabel = getParticipantLabel(scenario.id, idx);
                                   
                                   return (
                                     <div 
                                       key={idx} 
-                                      className={`relative px-2 py-0.5 min-h-[32px] flex items-center transition-all ${isFocused ? 'ring-2 ring-inset ring-[#3e5e66] bg-white z-10' : ''}`}
+                                      className="relative flex items-center min-h-[34px]"
                                     >
-                                      <div className="hidden workshop-participant-text text-[15px] font-medium text-slate-800">
+                                      <div className="hidden workshop-participant-text text-sm font-bold text-slate-800">
                                         {participant ? (
-                                          getParticipantLabel(scenario.id, idx) 
-                                            ? `${getParticipantLabel(scenario.id, idx)} - ${participant} ✓` 
+                                          roleLabel 
+                                            ? `${roleLabel} - ${participant} ✓` 
                                             : `${participant} ✓`
-                                        ) : (idx < 2 ? '...........................................' : '')}
+                                        ) : (idx < 2 ? '___________________________________________' : '')}
                                       </div>
-                                      <div className="workshop-select-ui w-full h-full">
-                                        <select
-                                          data-slot={`${scenario.id}-${idx}`}
+                                      <div className="workshop-select-ui w-full">
+                                        <CustomSelect
                                           value={participant}
-                                          onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                          onFocus={() => setFocusedSlot({ scenarioId: scenario.id, slotIndex: idx })}
-                                          onBlur={() => setFocusedSlot(null)}
-                                          onKeyDown={(e) => handleWorkshopKeyDown(e, scenario.id, idx)}
-                                          className={`w-full bg-transparent border-none rounded-none text-[15px] py-1 cursor-pointer transition-colors focus:ring-0 outline-none appearance-none block leading-tight ${!participant ? 'text-slate-400 font-normal italic' : 'text-slate-800 font-bold'}`}
-                                        >
-                                          <option value="" className="text-slate-400 font-normal italic">
-                                            {getParticipantLabel(scenario.id, idx) ? `${getParticipantLabel(scenario.id, idx)} - ` : '- Selecionar -'}
-                                          </option>
-                                          {workshopDropdownStudents.map((student) => (
-                                            <option key={student.id} value={student.nome} className="text-slate-800 font-bold">
-                                              {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
-                                            </option>
-                                          ))}
-                                        </select>
+                                          onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
+                                          placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
+                                          options={[
+                                            { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
+                                            ...workshopDropdownStudents.map((student) => ({
+                                              value: student.nome,
+                                              label: student.nome,
+                                              badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
+                                            }))
+                                          ]}
+                                          className="w-full"
+                                          dropdownClassName="w-full min-w-[280px]"
+                                          size="sm"
+                                          direction={scenario.id >= 8 ? 'up' : 'down'}
+                                          searchable={true}
+                                        />
                                       </div>
                                     </div>
                                   );
@@ -2269,89 +2276,90 @@ export default function PioneerSchoolView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-md overflow-hidden"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-                <h3 className="text-lg font-bold text-gray-800">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50">
+                <h3 className="text-base font-black text-typography-900 uppercase tracking-wider">
                   {editingStudent ? 'Editar Aluno' : 'Novo Aluno'}
                 </h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
+                <button 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="p-1 rounded-xl text-typography-400 hover:text-typography-800 hover:bg-surface-200 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
                 </button>
               </div>
 
               <form onSubmit={handleSave} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Nome do Aluno</label>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Nome do Aluno</label>
                   <input
                     required
                     type="text"
                     value={formData.nome}
                     onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none"
+                    className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/30 focus:border-primary-200 outline-none transition-all"
                     placeholder="Nome completo"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Congregação</label>
-                  <select
-                    required
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Congregação</label>
+                  <CustomSelect
                     value={formData.congregacao}
-                    onChange={(e) => setFormData({ ...formData, congregacao: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white"
-                  >
-                    <option value="">Selecione a congregação</option>
-                    {congregations.map(c => {
-                      const label = getCongregationLabel(c);
-                      return (
-                        <option key={c.id} value={label}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, congregacao: val })}
+                    options={congregations.map(c => getCongregationLabel(c))}
+                    placeholder="Selecione a congregação"
+                    className="w-full"
+                    dropdownClassName="w-full max-w-full"
+                    size="md"
+                    searchable={true}
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Circuito</label>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Circuito</label>
                   <input
                     required
                     type="text"
                     value={formData.circuito}
                     onChange={(e) => setFormData({ ...formData, circuito: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none"
+                    className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/30 focus:border-primary-200 outline-none transition-all"
                     placeholder="Ex: PB-003"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Turma</label>
-                  <select
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Turma</label>
+                  <CustomSelect
                     value={formData.turma}
-                    onChange={(e) => setFormData({ ...formData, turma: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white font-bold"
-                  >
-                    <option value="">Nenhuma turma</option>
-                    <option value="1">Turma 1</option>
-                    <option value="2">Turma 2</option>
-                    <option value="3">Turma 3</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, turma: val })}
+                    options={[
+                      { value: '', label: 'Nenhuma turma' },
+                      { value: '1', label: 'Turma 1' },
+                      { value: '2', label: 'Turma 2' },
+                      { value: '3', label: 'Turma 3' },
+                    ]}
+                    placeholder="Selecione a turma"
+                    className="w-full"
+                    dropdownClassName="w-full max-w-full"
+                    size="md"
+                  />
                 </div>
 
-                <div className="pt-4 flex gap-3">
+                <div className="pt-3 flex gap-3">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
+                    className="flex-1 px-4 py-2.5 border border-surface-300 text-typography-700 rounded-xl hover:bg-surface-200 font-bold text-xs transition-all cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 bg-primary-200 text-white rounded-xl hover:bg-primary-300 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Save size={20} />
+                    <Save size={16} />
                     Salvar
                   </button>
                 </div>

@@ -36,6 +36,7 @@ import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
 import { AnimatePresence, motion } from 'motion/react';
 import { cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
+import CustomSelect from '@/components/CustomSelect';
 
 const ASSEMBLEIA_TEMPLATES = [
   { id: 'ass_carta_anciaos', name: 'Carta aos Anciãos' },
@@ -656,23 +657,18 @@ export default function AssemblyLetters({
 
           {/* Event Selector */}
           <div className="px-1 space-y-1.5">
-            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Vincular Evento</label>
-            <div className="relative group">
-              <select
-                value={selectedAssemblyId}
-                onChange={(e) => setSelectedAssemblyId(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2.5 text-[10px] font-black text-gray-700 outline-none focus:border-amber-500 transition-all appearance-none cursor-pointer"
-              >
-                {availableAssemblies.map(assembly => (
-                  <option key={assembly.id} value={assembly.id}>
-                    {assembly.title || assembly.id}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-amber-600 transition-colors">
-                <ChevronDown size={14} />
-              </div>
-            </div>
+            <CustomSelect
+              label="Vincular Evento"
+              value={selectedAssemblyId}
+              onChange={(val) => setSelectedAssemblyId(val)}
+              options={availableAssemblies.map(assembly => ({
+                value: assembly.id,
+                label: assembly.title || assembly.id
+              }))}
+              className="w-full"
+              dropdownClassName="w-full max-w-full"
+              size="sm"
+            />
             {assemblyData && (
               <div className="bg-amber-50/50 p-2 rounded-xl border border-amber-100/50">
                 <p className="text-[8px] font-bold text-amber-600 uppercase tracking-tighter truncate leading-tight">
