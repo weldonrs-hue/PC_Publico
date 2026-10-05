@@ -2256,36 +2256,50 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       {/* WebAuthn / Passkeys Modal */}
       <AnimatePresence>
         {isManagingPasskeys && (
-          <motion.div
+          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsManagingPasskeys(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-gray-50 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl border border-white/20"
+              className="bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl sm:rounded-[32px] overflow-hidden shadow-2xl border border-gray-100"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-8 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Chaves de acesso</h3>
-                  <button 
-                    onClick={() => setIsManagingPasskeys(false)}
-                    className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-gray-500" />
-                  </button>
+              {/* Header fixo do Modal */}
+              <div className="flex items-center justify-between px-5 sm:px-7 py-4 sm:py-5 border-b border-gray-100 shrink-0 bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
+                    <Fingerprint className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">Chaves de acesso (Passkeys)</h3>
+                    <p className="text-xs text-gray-500">Acesse sua conta sem senha com biometria ou PIN</p>
+                  </div>
                 </div>
-                
-                <WebAuthnSettings />
+                <button 
+                  onClick={() => setIsManagingPasskeys(false)}
+                  className="p-2 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
+                  aria-label="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Conteúdo com rolagem suave */}
+              <div className="p-4 sm:p-6 overflow-y-auto flex-1 overscroll-contain bg-gray-50/50">
+                <WebAuthnSettings isInsideModal={true} />
+              </div>
 
+              {/* Rodapé fixo do Modal */}
+              <div className="px-5 sm:px-7 py-3.5 bg-white border-t border-gray-100 flex items-center justify-end shrink-0">
                 <button
                   onClick={() => setIsManagingPasskeys(false)}
-                  className="w-full py-4 text-sm font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors"
+                  className="px-6 py-2.5 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all active:scale-95 shadow-sm"
                 >
                   Fechar
                 </button>

@@ -390,7 +390,10 @@ export default function Home() {
 
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
+      // Exige login explícito por senha ou chave de acesso na sessão atual
+      const isSessionActive = typeof window !== 'undefined' && sessionStorage.getItem('progcir_session_active') === 'true';
+
+      if (firebaseUser && isSessionActive) {
         const isAdminEmail = 
           firebaseUser.email === 'weldonrs@gmail.com' || 
           firebaseUser.email === '2283701@progcir.app' ||
@@ -759,6 +762,9 @@ export default function Home() {
 
   const handleLogout = async () => {
     try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('progcir_session_active');
+      }
       await signOut(auth);
       setUser(null);
       setQuotaExceeded(false);
@@ -768,7 +774,16 @@ export default function Home() {
   };
 
   if (!user) {
-    return <AuthForm onLoginSuccess={(userData) => setUser(userData)} />;
+    return (
+      <AuthForm 
+        onLoginSuccess={(userData) => {
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('progcir_session_active', 'true');
+          }
+          setUser(userData);
+        }} 
+      />
+    );
   }
 
   const showRoleSelection = user && !loadingPersonalData && (!personalData || !personalData.role) && !quotaExceeded;

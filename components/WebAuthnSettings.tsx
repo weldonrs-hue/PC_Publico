@@ -78,7 +78,11 @@ function detectClientDevice(): { deviceName: string; deviceType: 'android' | 'io
   return { deviceName, deviceType, browserName };
 }
 
-export default function WebAuthnSettings() {
+interface WebAuthnSettingsProps {
+  isInsideModal?: boolean;
+}
+
+export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSettingsProps) {
   const { showAlert, showConfirm } = useDialog();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
@@ -439,48 +443,56 @@ export default function WebAuthnSettings() {
   }
 
   return (
-    <div className="bg-white/50 backdrop-blur-sm border border-gray-100 rounded-2xl p-6 shadow-sm space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={isInsideModal ? "space-y-5" : "bg-white/50 backdrop-blur-sm border border-gray-100 rounded-2xl p-4 sm:p-6 shadow-sm space-y-6"}>
+      {/* Barra de Ação Superior */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-50 rounded-xl">
-            <Fingerprint className="w-5 h-5 text-indigo-600" />
+          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl shrink-0">
+            <Fingerprint className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">Chaves de acesso cadastradas</h3>
-            <p className="text-xs text-gray-500">Identifique e gerencie seus aparelhos</p>
+            <h4 className="text-sm font-bold text-gray-900">Novo Aparelho</h4>
+            <p className="text-xs text-gray-500">Cadastre a biometria/PIN deste dispositivo</p>
           </div>
         </div>
         
         <button
           onClick={handleAddPasskey}
           disabled={registering}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-sm font-bold transition-all active:scale-95 shadow-lg shadow-indigo-100"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-[0.98] shadow-md shadow-indigo-100 shrink-0 cursor-pointer min-h-[44px]"
         >
           {registering ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Plus className="w-4 h-4" />
           )}
-          Adicionar chave deste aparelho
+          <span>Adicionar chave deste aparelho</span>
         </button>
       </div>
 
-      <p className="text-sm text-gray-600 leading-relaxed">
-        Você pode cadastrar múltiplos dispositivos (como seu <b>Celular Android</b>, <b>iPhone</b> ou <b>PC Windows</b>) para entrar sem senha usando a biometria/PIN de cada um.
+      <p className="text-xs sm:text-sm text-gray-600 leading-relaxed px-1">
+        Você pode cadastrar múltiplos dispositivos (como seu <b>Celular Android</b>, <b>iPhone</b> ou <b>PC Windows</b>) para entrar sem senha usando a biometria ou PIN de cada um.
       </p>
 
       {error && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-xl border border-red-100 text-xs"
+          className="flex items-center gap-2 p-3.5 bg-red-50 text-red-700 rounded-xl border border-red-100 text-xs"
         >
           <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
+          <span>{error}</span>
         </motion.div>
       )}
 
+      {/* Lista de Chaves Cadastradas */}
       <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+            Chaves Ativas ({credentials.length})
+          </span>
+        </div>
+
         <AnimatePresence mode="popLayout">
           {credentials.length > 0 ? (
             credentials.map((cred) => {
@@ -494,18 +506,18 @@ export default function WebAuthnSettings() {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className={`flex items-center justify-between p-4 bg-white border rounded-2xl transition-all ${
-                    isCurrentDevice ? 'border-emerald-200 shadow-sm ring-1 ring-emerald-100' : 'border-gray-100 hover:border-indigo-100'
+                  className={`flex items-center justify-between p-3.5 sm:p-4 bg-white border rounded-2xl transition-all ${
+                    isCurrentDevice ? 'border-emerald-200 shadow-sm ring-1 ring-emerald-100' : 'border-gray-100 hover:border-indigo-100 shadow-sm'
                   }`}
                 >
-                  <div className="flex items-center gap-3.5 min-w-0 flex-1 mr-3">
-                    <div className="w-11 h-11 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1 mr-2 sm:mr-3">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center shrink-0">
                       {getDeviceIcon(cred.deviceType, cred.deviceName)}
                     </div>
                     
                     <div className="min-w-0 flex-1">
                       {isEditing ? (
-                        <div className="flex items-center gap-2 my-0.5">
+                        <div className="flex items-center gap-1.5 my-0.5 max-w-full">
                           <input
                             type="text"
                             value={editingName}
@@ -516,13 +528,13 @@ export default function WebAuthnSettings() {
                             }}
                             autoFocus
                             placeholder="Ex: Meu Samsung S24"
-                            className="text-sm font-bold text-gray-900 px-2 py-1 border border-indigo-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full max-w-xs"
+                            className="text-xs sm:text-sm font-bold text-gray-900 px-2.5 py-1.5 border border-indigo-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full min-w-0"
                           />
                           <button
                             type="button"
                             onClick={() => handleRenamePasskey(cred.id)}
                             disabled={savingRename}
-                            className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                            className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shrink-0 min-h-[36px] min-w-[36px] flex items-center justify-center"
                             title="Salvar nome"
                           >
                             {savingRename ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
@@ -530,15 +542,15 @@ export default function WebAuthnSettings() {
                           <button
                             type="button"
                             onClick={() => setEditingId(null)}
-                            className="p-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                            className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 shrink-0 min-h-[36px] min-w-[36px] flex items-center justify-center"
                             title="Cancelar"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-bold text-gray-900 truncate">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <span className="text-xs sm:text-sm font-bold text-gray-900 truncate max-w-[200px] sm:max-w-xs">
                             {cred.deviceName || 'Chave de acesso'}
                           </span>
                           
@@ -555,7 +567,7 @@ export default function WebAuthnSettings() {
                               setEditingId(cred.id);
                               setEditingName(cred.deviceName || '');
                             }}
-                            className="text-gray-400 hover:text-indigo-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                            className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                             title="Renomear aparelho"
                           >
                             <Pencil className="w-3 h-3" />
@@ -563,7 +575,7 @@ export default function WebAuthnSettings() {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+                      <div className="flex items-center gap-2 text-[10px] sm:text-[11px] text-gray-400 mt-0.5">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           Cadastrada em: {formatDate(cred.createdAt)}
@@ -572,13 +584,13 @@ export default function WebAuthnSettings() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => handleDeletePasskey(cred)}
                       disabled={deletingId === cred.id}
                       title={`Excluir chave de ${cred.deviceName || 'este aparelho'}`}
-                      className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50"
+                      className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
                     >
                       {deletingId === cred.id ? (
                         <Loader2 className="w-4 h-4 animate-spin text-red-600" />
@@ -591,20 +603,23 @@ export default function WebAuthnSettings() {
               );
             })
           ) : !registering && (
-            <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-2xl">
-              <Key className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">
+            <div className="text-center py-8 bg-white border-2 border-dashed border-gray-200/80 rounded-2xl p-6">
+              <Key className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">
                 Nenhuma chave cadastrada
+              </p>
+              <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                Clique no botão acima para registrar a biometria/PIN deste dispositivo.
               </p>
             </div>
           )}
         </AnimatePresence>
       </div>
 
-      <div className="pt-4 border-t border-gray-50 flex items-start gap-2">
-        <Shield className="w-3.5 h-3.5 text-gray-400 mt-0.5" />
-        <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
-          <b>Privacidade & Segurança:</b> Apenas a identificação do modelo/navegador e a chave pública são armazenadas para que você possa identificar facilmente seus aparelhos. Seus dados biométricos nunca saem do seu dispositivo físico.
+      <div className="pt-3 border-t border-gray-100 flex items-start gap-2">
+        <Shield className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+        <p className="text-[10px] sm:text-[11px] text-gray-400 font-medium leading-relaxed">
+          <b>Privacidade & Segurança:</b> Seus dados biométricos nunca saem do seu dispositivo físico. O ProgCir recebe apenas a assinatura pública criptográfica para autorizar o acesso.
         </p>
       </div>
     </div>
