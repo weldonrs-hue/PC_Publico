@@ -6,8 +6,9 @@ import {
   Users, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, 
   Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, 
   ChevronUp, CheckCircle2, Circle, Coffee, FileText, RefreshCw, Plus, 
-  ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X, Check, FileDown, Layers
+  ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X, Check, FileDown, Layers, LayoutGrid
 } from 'lucide-react';
+import CustomSelect from '@/components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
@@ -283,6 +284,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   const [availableYears, setAvailableYears] = useState<string[]>(['2026-2027']);
   const [selectedPart, setSelectedPart] = useState<number>(0);
   const [dynamicProgram, setDynamicProgram] = useState<PioneerProgram | null>(null);
+  const [viewMode, setViewMode] = useState<'responsive' | 'a4'>('responsive');
 
   // Zoom & Viewport controller state
   const [zoom, setZoom] = useState<number>(80);
@@ -353,6 +355,46 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
     assemblyTheme: pioneerProgram.theme,
     startTime: '09:00'
   };
+
+  const stats = useMemo(() => {
+    let totalWithSpeaker = 0;
+    let assignedCount = 0;
+    let confirmedCount = 0;
+
+    pioneerProgram.sessions.forEach(session => {
+      session.items.forEach(item => {
+        const isSymposium = item.subitems && item.subitems.length > 0;
+        if (isSymposium) {
+          item.subitems?.forEach(sub => {
+            totalWithSpeaker++;
+            if (speakers[sub.id]?.trim()) {
+              assignedCount++;
+              if (confirmedSpeakers[sub.id]) confirmedCount++;
+            }
+          });
+        } else if (!item.noSpeaker) {
+          totalWithSpeaker++;
+          if (speakers[item.id]?.trim()) {
+            assignedCount++;
+            if (confirmedSpeakers[item.id]) confirmedCount++;
+          }
+        }
+      });
+    });
+
+    const pendingConfirmation = assignedCount - confirmedCount;
+    const percentageAssigned = totalWithSpeaker > 0 ? Math.round((assignedCount / totalWithSpeaker) * 100) : 0;
+    const percentageConfirmed = totalWithSpeaker > 0 ? Math.round((confirmedCount / totalWithSpeaker) * 100) : 0;
+
+    return {
+      totalWithSpeaker,
+      assignedCount,
+      confirmedCount,
+      pendingConfirmation,
+      percentageAssigned,
+      percentageConfirmed
+    };
+  }, [pioneerProgram, speakers, confirmedSpeakers]);
 
   const collectionName = 'special_pioneer_meeting_speakers';
   const hasChanges = initialPartsData !== JSON.stringify(partsData);
@@ -1407,24 +1449,52 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
 
       {/* Screen Header & Top Controls (no-print) */}
       <div className="space-y-3 no-print">
-        {/* Top bar: Back, Title & Action Bar */}
-        <div className="flex items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-3xl border border-gray-100 shadow-sm flex-wrap">
+        {/* Top bar: Back, Title, Mode Switch & Action Bar */}
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
           <div className="flex items-center gap-3">
             <button 
               onClick={handleBackClick} 
-              className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full transition-all text-violet-700 bg-violet-50/50 shadow-xs border border-violet-100 cursor-pointer active:scale-95 shrink-0"
+              className="p-2 sm:p-2.5 hover:bg-surface-200 rounded-full transition-all text-primary-200 bg-surface-200/50 shadow-xs border border-surface-300 cursor-pointer active:scale-95 shrink-0"
               title="Voltar ao Painel"
             >
               <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
             <div className="flex flex-col min-w-0">
-              <h2 className="text-base sm:text-lg font-black text-gray-900 leading-tight truncate">
+              <h2 className="text-base sm:text-lg font-black text-typography-900 leading-tight truncate">
                 Reunião Especial (S-312)
               </h2>
-              <p className="text-[11px] sm:text-xs font-medium text-gray-500 truncate hidden sm:block">
+              <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate hidden sm:block">
                 Pioneiros Regulares, Especiais e Missionários em Campo
               </p>
             </div>
+          </div>
+
+          {/* Alternador de Modo de Exibição (Painel Responsivo vs Folha A4) */}
+          <div className="flex items-center bg-surface-200 p-1 rounded-2xl border border-surface-300/80 shadow-2xs">
+            <button
+              onClick={() => setViewMode('responsive')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'responsive'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-500 hover:text-typography-900'
+              }`}
+              title="Modo Painel Responsivo (Ideal para Celular e Tablet)"
+            >
+              <LayoutGrid size={14} />
+              <span>Painel</span>
+            </button>
+            <button
+              onClick={() => setViewMode('a4')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'a4'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-500 hover:text-typography-900'
+              }`}
+              title="Modo Folha A4 Oficial"
+            >
+              <FileText size={14} />
+              <span>Folha A4</span>
+            </button>
           </div>
 
           {/* Action Bar */}
@@ -1432,30 +1502,30 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             {/* Dados do Evento */}
             <button 
               onClick={() => setShowEditDetailsModal(true)}
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Editar dados da reunião (data, local, ensaio, material)"
             >
-              <CalendarDays size={15} className="shrink-0 text-amber-600" />
+              <CalendarDays size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
               <span className="hidden md:inline">Dados do Evento</span>
             </button>
 
             {/* Atualizar (Colar Programação) */}
             <button 
               onClick={handleOpenUpdateModal} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Atualizar colando a programação oficial"
             >
-              <RefreshCw size={15} className="shrink-0 text-violet-600" />
+              <RefreshCw size={15} className="shrink-0 text-primary-200" />
               <span className="hidden md:inline">Atualizar</span>
             </button>
             
             {/* Adicionar próxima (Colar Nova Temporada) */}
             <button 
               onClick={handleOpenAddNextModal} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Adicionar uma nova temporada colando o programa"
             >
-              <Plus size={15} className="shrink-0 text-blue-600" />
+              <Plus size={15} className="shrink-0 text-blue-600 dark:text-blue-400" />
               <span className="hidden lg:inline">Adicionar próxima</span>
               <span className="hidden md:inline lg:hidden">+ Nova</span>
             </button>
@@ -1463,51 +1533,43 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             {/* Convite S-312 aos Pioneiros */}
             <button 
               onClick={generateS302} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-violet-700 dark:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Gerar Carta Convite aos Pioneiros (S-312)"
             >
-              <FileText size={15} className="shrink-0 text-violet-600" />
+              <FileText size={15} className="shrink-0 text-violet-600 dark:text-violet-400" />
               <span className="hidden sm:inline">Convite S-312</span>
             </button>
 
             {/* Imprimir A4 */}
             <button 
               onClick={() => window.print()} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-typography-700 bg-surface-100 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Imprimir folha A4 em modo Retrato"
             >
-              <Printer size={15} className="shrink-0 text-gray-500" />
+              <Printer size={15} className="shrink-0 text-typography-500" />
               <span className="hidden md:inline">Imprimir A4</span>
             </button>
           </div>
         </div>
 
         {/* Compact Navigation Bar: Season Dropdown & Parts Selector */}
-        <div className="flex items-center justify-between gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/80 flex-wrap">
-          {/* Seletor de Temporada */}
+        <div className="flex items-center justify-between gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 flex-wrap">
+          {/* Seletor de Temporada Personalizado */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <label htmlFor="season-select" className="text-[11px] font-bold text-gray-500 uppercase tracking-wider pl-1 hidden xs:inline">
+            <span className="text-[11px] font-bold text-typography-500 uppercase tracking-wider pl-1 hidden xs:inline">
               Temporada:
-            </label>
-            <div className="relative inline-flex items-center">
-              <select
-                id="season-select"
-                value={selectedYear}
-                onChange={(e) => handleYearChange(e.target.value)}
-                className="h-8 sm:h-9 pl-3 pr-8 rounded-lg sm:rounded-xl text-xs font-bold text-gray-800 bg-white border border-gray-200 shadow-2xs focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-600 appearance-none cursor-pointer"
-              >
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 pointer-events-none text-gray-400" />
-            </div>
+            </span>
+            <CustomSelect
+              value={selectedYear}
+              onChange={handleYearChange}
+              options={availableYears}
+              size="sm"
+              className="w-36"
+            />
           </div>
 
           {/* Seletor de Partes (A, B, C, D) */}
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-gray-200/60 shadow-2xs shrink-0 ml-auto">
+          <div className="flex items-center gap-1 bg-surface-200 p-0.5 rounded-xl border border-surface-300 shadow-2xs shrink-0 ml-auto">
             {[0, 1, 2, 3].map((part) => {
               const isActive = selectedPart === part;
               const letter = ['A', 'B', 'C', 'D'][part];
@@ -1517,8 +1579,8 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                   onClick={() => setSelectedPart(part)}
                   className={`h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center justify-center cursor-pointer ${
                     isActive 
-                      ? 'bg-violet-600 text-white shadow-xs font-bold' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                      ? 'bg-primary-200 text-white shadow-xs font-bold' 
+                      : 'text-typography-600 hover:text-typography-900 hover:bg-surface-100 font-medium'
                   }`}
                   title={`Parte ${letter}`}
                 >
@@ -1530,66 +1592,494 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           </div>
         </div>
 
-        {/* Zoom & Document Viewport Toolbar */}
-        <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
-            {/* Zoom Out */}
-            <button
-              onClick={() => setZoom(prev => Math.max(35, prev - 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Reduzir zoom (-10%)"
-              aria-label="Reduzir zoom"
-            >
-              <ZoomOut size={16} />
-            </button>
+        {/* Zoom Toolbar (apenas visível em Modo A4) */}
+        {viewMode === 'a4' && (
+          <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
+              {/* Zoom Out */}
+              <button
+                onClick={() => setZoom(prev => Math.max(35, prev - 10))}
+                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Reduzir zoom (-10%)"
+                aria-label="Reduzir zoom"
+              >
+                <ZoomOut size={16} />
+              </button>
 
-            {/* Direct Zoom Presets */}
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
-              {[60, 80, 100, 125].map(preset => (
-                <button
-                  key={preset}
-                  onClick={() => setZoom(preset)}
-                  className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                    zoom === preset ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {preset}%
-                </button>
-              ))}
+              {/* Direct Zoom Presets */}
+              <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
+                {[60, 80, 100, 125].map(preset => (
+                  <button
+                    key={preset}
+                    onClick={() => setZoom(preset)}
+                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
+                      zoom === preset ? 'bg-primary-200 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {preset}%
+                  </button>
+                ))}
+              </div>
+
+              {/* Zoom In */}
+              <button
+                onClick={() => setZoom(prev => Math.min(200, prev + 10))}
+                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="Aumentar zoom (+10%)"
+                aria-label="Aumentar zoom"
+              >
+                <ZoomIn size={16} />
+              </button>
+
+              {/* Fit to screen */}
+              <button
+                onClick={handleFitToScreen}
+                className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                title="Ajustar documento à largura da tela"
+              >
+                <Maximize2 size={13} />
+                <span className="hidden sm:inline">Ajustar</span>
+              </button>
+
+              {/* Current Zoom Level */}
+              <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
+                {zoom}%
+              </span>
             </div>
+          </div>
+        )}
+      </div>
 
-            {/* Zoom In */}
-            <button
-              onClick={() => setZoom(prev => Math.min(200, prev + 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Aumentar zoom (+10%)"
-              aria-label="Aumentar zoom"
-            >
-              <ZoomIn size={16} />
-            </button>
+      {/* MODO DE VISUALIZAÇÃO RESPONSIVO (CARDS MODERNOS SEM SCROLL LATERAL) */}
+      {viewMode === 'responsive' && (
+        <div className="no-print space-y-6">
+          {/* Hero Card com Tema e Metadados do Evento */}
+          <div className="relative rounded-3xl overflow-hidden bg-surface-100 border border-surface-300 shadow-xs p-5 sm:p-7 space-y-5">
+            {/* Background Artwork */}
+            {(details.customHeaderImage || pioneerProgram.headerImage) && (
+              <div className="absolute inset-0 z-0 pointer-events-none opacity-20 dark:opacity-25 overflow-hidden">
+                <Image
+                  src={details.customHeaderImage || pioneerProgram.headerImage}
+                  alt={details.assemblyTheme || pioneerProgram.theme}
+                  fill
+                  className="object-cover"
+                  style={{ objectPosition: 'center 25%' }}
+                  unoptimized
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-surface-100 via-surface-100/80 to-transparent" />
+              </div>
+            )}
 
-            {/* Fit to screen */}
-            <button
-              onClick={handleFitToScreen}
-              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-              title="Ajustar documento à largura da tela"
-            >
-              <Maximize2 size={13} />
-              <span className="hidden sm:inline">Ajustar</span>
-            </button>
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-[11px] font-black uppercase tracking-widest text-primary-200 px-3 py-1 rounded-full bg-primary-200/10 border border-primary-200/20">
+                  PARTE {['A', 'B', 'C', 'D'][selectedPart] || 'A'} • REUNIÃO ESPECIAL
+                </span>
+                <button
+                  onClick={() => setShowEditDetailsModal(true)}
+                  className="text-xs font-bold text-primary-200 hover:text-primary-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-200 hover:bg-surface-300 transition-colors cursor-pointer"
+                >
+                  <Edit3 size={13} />
+                  <span>Editar Dados</span>
+                </button>
+              </div>
 
-            {/* Current Zoom Level */}
-            <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
-              {zoom}%
-            </span>
+              {/* Tema Principal */}
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-2xl font-black text-typography-900 tracking-tight leading-tight">
+                  {details.assemblyTheme || pioneerProgram.theme}
+                </h2>
+                <p className="text-xs sm:text-sm text-typography-500 font-medium">
+                  {pioneerProgram.title}
+                </p>
+              </div>
+
+              {/* Metadados: Data, Local, Início, Ensaio, Material */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-2 border-t border-surface-300/70">
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                  <Calendar size={15} className="text-primary-200 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase font-bold text-typography-400">Data</span>
+                    <span className="font-bold text-typography-900 truncate block">
+                      {details.eventDate || 'A definir'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                  <MapPin size={15} className="text-primary-200 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase font-bold text-typography-400">Local</span>
+                    <span className="font-bold text-typography-900 truncate block">
+                      {details.eventLocation || 'A definir'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                  <Clock size={15} className="text-primary-200 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase font-bold text-typography-400">Início</span>
+                    <span className="font-bold text-typography-900 truncate block">
+                      {details.startTime || '09:00'}
+                    </span>
+                  </div>
+                </div>
+
+                {details.rehearsalDate && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                    <Clock size={15} className="text-primary-200 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="block text-[10px] uppercase font-bold text-typography-400">Ensaio</span>
+                      <span className="font-bold text-typography-900 truncate block">
+                        {details.rehearsalDate}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* KPIs de Progresso */}
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <div className="p-3 rounded-2xl bg-surface-200/70 border border-surface-300/70 text-center">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                    Designadas
+                  </span>
+                  <div className="text-base sm:text-xl font-black text-typography-900">
+                    {stats.assignedCount}<span className="text-typography-400 text-xs font-bold">/{stats.totalWithSpeaker}</span>
+                  </div>
+                  <div className="w-full bg-surface-300 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className="bg-primary-200 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${stats.percentageAssigned}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                    Confirmados
+                  </span>
+                  <div className="text-base sm:text-xl font-black text-emerald-700 dark:text-emerald-400">
+                    {stats.confirmedCount}
+                  </div>
+                  <div className="w-full bg-emerald-500/20 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${stats.percentageConfirmed}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-amber-600 dark:text-amber-400 block mb-0.5">
+                    Pendentes
+                  </span>
+                  <div className="text-base sm:text-xl font-black text-amber-700 dark:text-amber-400">
+                    {stats.pendingConfirmation}
+                  </div>
+                  <div className="w-full bg-amber-500/20 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${stats.totalWithSpeaker > 0 ? (stats.pendingConfirmation / stats.totalWithSpeaker) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de Partes em Cards */}
+          <div className="space-y-4">
+            {(() => {
+              let runningOffset = 0;
+
+              return pioneerProgram.sessions[0]?.items.map((item: PioneerItem, itemIdx: number) => {
+                const isSymposium = item.subitems && item.subitems.length > 0;
+                const isIntermission = item.isInterval;
+                const isMusicOrPrayer = item.noSpeaker && !isSymposium && !isIntermission;
+                const itemStartTime = calculateTime(details.startTime, runningOffset);
+                const itemDuration = item.duration || (isMusicOrPrayer ? 5 : isIntermission ? 20 : isSymposium ? 60 : 15);
+
+                if (isIntermission) {
+                  runningOffset += itemDuration;
+                  return (
+                    <div
+                      key={`resp-item-${item.id || itemIdx}`}
+                      className="p-3.5 rounded-2xl bg-surface-200/50 border border-surface-300 flex items-center justify-between gap-3 text-xs text-typography-600 font-bold"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Coffee size={16} className="text-amber-500 shrink-0" />
+                        <span>{item.title}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-surface-300 text-typography-700 text-[11px]">
+                        {itemStartTime} • {itemDuration} min
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (isSymposium) {
+                  let subOffset = runningOffset;
+                  runningOffset += itemDuration;
+
+                  return (
+                    <div
+                      key={`resp-item-${item.id || itemIdx}`}
+                      className="p-4 sm:p-5 rounded-3xl bg-surface-100 border-2 border-violet-500/20 shadow-2xs space-y-4"
+                    >
+                      {/* Cabeçalho do Simpósio */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
+                              {item.label || 'SÉRIE DE DISCURSOS'}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-typography-500">
+                              {itemStartTime}
+                            </span>
+                          </div>
+                          <h4 className="text-sm sm:text-base font-black text-typography-900 leading-snug">
+                            {item.title}
+                          </h4>
+                        </div>
+                      </div>
+
+                      {/* Subpartes do Simpósio */}
+                      <div className="space-y-3 pt-2">
+                        {item.subitems?.map((sub, sIdx) => {
+                          const subStartTime = calculateTime(details.startTime, subOffset);
+                          subOffset += sub.duration || 15;
+                          const subSpeaker = speakers[sub.id] || '';
+                          const subCong = congregations[sub.id] || '';
+                          const subNote = notes[sub.id] || '';
+                          const isConfirmed = !!confirmedSpeakers[sub.id];
+
+                          return (
+                            <div
+                              key={`resp-sub-${sub.id || sIdx}`}
+                              className="p-3.5 rounded-2xl bg-surface-200/50 border border-surface-300 space-y-3 transition-colors hover:border-surface-400"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-violet-600/10 text-violet-700 dark:text-violet-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                      {sIdx + 1}
+                                    </span>
+                                    <span className="text-xs font-bold text-typography-900">
+                                      {sub.title}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[11px] font-mono font-semibold text-typography-500">
+                                    {subStartTime}
+                                  </span>
+                                  {sub.duration && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-300 text-typography-600">
+                                      {sub.duration}m
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Formulário de Designação */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                                    Orador
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subSpeaker}
+                                    onChange={(e) => handleSpeakerChange(sub.id, e.target.value)}
+                                    placeholder="Nome do orador..."
+                                    className="w-full h-9 px-3 rounded-xl bg-surface-100 border border-surface-300 text-xs font-bold text-typography-900 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                                    Congregação
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subCong}
+                                    onChange={(e) => handleCongregationChange(sub.id, e.target.value)}
+                                    placeholder="Congregação..."
+                                    className="w-full h-9 px-3 rounded-xl bg-surface-100 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                                  />
+                                </div>
+
+                                <div className="sm:col-span-2 lg:col-span-1">
+                                  <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                                    Observações
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subNote}
+                                    onChange={(e) => handleNotesChange(sub.id, e.target.value)}
+                                    placeholder="Notas adicionais..."
+                                    className="w-full h-9 px-3 rounded-xl bg-surface-100 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Barra de Ações: Confirmação e Carta */}
+                              <div className="flex items-center justify-between pt-1 border-t border-surface-300/50">
+                                <button
+                                  onClick={() => handleConfirmationToggle(sub.id)}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    isConfirmed
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-surface-200 text-typography-500 hover:text-typography-700 border border-surface-300'
+                                  }`}
+                                >
+                                  {isConfirmed ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                                  <span>{isConfirmed ? 'Confirmado' : 'Marcar Confirmado'}</span>
+                                </button>
+
+                                <button
+                                  onClick={() => generateDocument(sub)}
+                                  disabled={!subSpeaker.trim()}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                  title="Gerar carta convite em .docx"
+                                >
+                                  <FileDown size={13} />
+                                  <span>Gerar Carta</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Discurso Regular ou Oração/Cântico
+                runningOffset += itemDuration;
+                const speakerName = speakers[item.id] || '';
+                const speakerCong = congregations[item.id] || '';
+                const speakerNote = notes[item.id] || '';
+                const isConfirmed = !!confirmedSpeakers[item.id];
+                const hasSpeaker = !item.noSpeaker;
+
+                return (
+                  <div
+                    key={`resp-item-${item.id || itemIdx}`}
+                    className={`p-4 rounded-3xl bg-surface-100 border border-surface-300 shadow-2xs space-y-3.5 transition-all ${
+                      hasSpeaker && isConfirmed ? 'ring-1 ring-emerald-500/30' : ''
+                    }`}
+                  >
+                    {/* Linha de Cabeçalho da Parte */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold text-typography-500">
+                            {itemStartTime}
+                          </span>
+                          {item.duration && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-200 text-typography-600">
+                              {item.duration} min
+                            </span>
+                          )}
+                          {isMusicOrPrayer && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-200 text-typography-500">
+                              Cântico/Oração
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-sm font-black text-typography-900 leading-snug">
+                          {item.title}
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* Campos de Entrada caso tenha orador */}
+                    {hasSpeaker && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                              Orador
+                            </label>
+                            <input
+                              type="text"
+                              value={speakerName}
+                              onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
+                              placeholder="Nome do orador..."
+                              className="w-full h-9 px-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs font-bold text-typography-900 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                              Congregação
+                            </label>
+                            <input
+                              type="text"
+                              value={speakerCong}
+                              onChange={(e) => handleCongregationChange(item.id, e.target.value)}
+                              placeholder="Congregação..."
+                              className="w-full h-9 px-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2 lg:col-span-1">
+                            <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                              Observações
+                            </label>
+                            <input
+                              type="text"
+                              value={speakerNote}
+                              onChange={(e) => handleNotesChange(item.id, e.target.value)}
+                              placeholder="Notas..."
+                              className="w-full h-9 px-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Botões de Confirmação e Carta */}
+                        <div className="flex items-center justify-between pt-1 border-t border-surface-300/50">
+                          <button
+                            onClick={() => handleConfirmationToggle(item.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              isConfirmed
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-surface-200 text-typography-500 hover:text-typography-700 border border-surface-300'
+                            }`}
+                          >
+                            {isConfirmed ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                            <span>{isConfirmed ? 'Confirmado' : 'Marcar Confirmado'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => generateDocument(item)}
+                            disabled={!speakerName.trim()}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Gerar carta convite em .docx"
+                          >
+                            <FileDown size={13} />
+                            <span>Gerar Carta</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
-      </div>
+      )}
 
       {/* A4 Document Viewport Container */}
       <div 
         ref={containerRef}
-        className="pioneer-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80"
+        className={`pioneer-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80 ${
+          viewMode === 'a4' ? 'flex' : 'hidden print:flex'
+        }`}
         style={{
           minHeight: '400px',
           touchAction: 'pan-x pan-y',

@@ -126,6 +126,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /visit_schedules/{id} {
+      allow read, write: if isSignedIn();
+      // Leitura e atualização com base no link compartilhado
+      allow read: if true;
+      allow update: if request.resource.data.shareToken == resource.data.shareToken;
+    }
+
+
     // Microsoft OAuth - Permissions for the connection process
     match /microsoft_connections/{id} {
       allow read: if isSignedIn() && (id == request.auth.uid || isAdmin());

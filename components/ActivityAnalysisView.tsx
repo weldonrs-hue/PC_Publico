@@ -16,7 +16,9 @@ import {
   X,
   FileDown,
   Printer,
-  Trash2
+  Trash2,
+  LayoutList,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
@@ -150,8 +152,16 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
   const [pioneerHours, setPioneerHours] = useState<string[]>(Array(12).fill(''));
   const [calcValues, setCalcValues] = useState<string[]>(Array(12).fill(''));
   const [showSavedPioneers, setShowSavedPioneers] = useState(false);
+  const [viewMode, setViewMode] = useState<'form' | 'sheet'>('form');
+  const [mobileTab, setMobileTab] = useState<'all' | 'ministerio' | 'estatisticas' | 'donativos' | 'reunioes' | 'observacoes'>('all');
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      setViewMode('sheet');
+    }
+  }, []);
 
   useEffect(() => {
     const updateScale = () => {
@@ -170,7 +180,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
     updateScale();
 
     return () => observer.disconnect();
-  }, []);
+  }, [viewMode]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -298,12 +308,14 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
       ...prev,
       estatisticas: {
         ...prev.estatisticas,
-        [field]: Math.max(0, prev.estatisticas[field] + delta)
+        [field]: Math.max(0, (prev.estatisticas[field] || 0) + delta)
       }
     }));
   };
 
   const updateMinistry = (type: keyof AnalysisData['ministério'], field: keyof MinistryActivity, value: string) => {
+    // Strip non-digit characters to strictly prevent negative values
+    const sanitized = value.replace(/[^0-9]/g, '');
     setIsDirty(true);
     setData(prev => ({
       ...prev,
@@ -311,7 +323,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
         ...prev.ministério,
         [type]: {
           ...prev.ministério[type],
-          [field]: value
+          [field]: sanitized
         }
       }
     }));
@@ -320,18 +332,26 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
   const formatCurrency = (value: string) => {
     if (!value || value.trim() === '') return '';
     const cleanValue = value.replace(/\./g, '').replace(',', '.');
-    const num = parseFloat(cleanValue);
+    const num = Math.max(0, parseFloat(cleanValue) || 0);
     if (isNaN(num)) return '';
     return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const updateTable = (section: 'donativos' | 'reunioes', field: string, index: number, value: string) => {
+    let sanitized = value;
+    if (section === 'reunioes') {
+      // Strip negative signs and non-numeric characters for meeting attendance
+      sanitized = value.replace(/[^0-9]/g, '');
+    } else if (section === 'donativos') {
+      // Allow only numbers, comma and dot for donations, preventing negative signs
+      sanitized = value.replace(/[^0-9.,]/g, '');
+    }
     setIsDirty(true);
     setData(prev => {
       const sectionData = { ...prev[section] };
       if (field in sectionData) {
         const list = [...(sectionData as any)[field]];
-        list[index] = value;
+        list[index] = sanitized;
         return {
           ...prev,
           [section]: {
@@ -352,7 +372,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
   };
 
   const calculateAverageReunioes = (list: string[]) => {
-    const validValues = list.map(v => parseInt(v)).filter(v => !isNaN(v));
+    const validValues = list.map(v => parseInt(v)).filter(v => !isNaN(v) && v > 0);
     if (validValues.length === 0) return 0;
     const sum = validValues.reduce((acc, curr) => acc + curr, 0);
     return Math.round(sum / validValues.length);
@@ -361,10 +381,16 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
   const avgFimSemana = calculateAverageReunioes(data.reunioes.fimSemana);
   const avgMeioSemana = calculateAverageReunioes(data.reunioes.meioSemana);
   const pubAtivosNum = parseInt(data.pubAtivos) || 0;
-  const differenceVal = avgFimSemana - pubAtivosNum;
-  const percentageRaw = pubAtivosNum > 0 ? (differenceVal / pubAtivosNum) * 100 : 0;
-  const percentageFormatted = percentageRaw.toFixed(1).replace('.', ',');
-  const sign = differenceVal >= 0 ? '+' : '';
+
+  // Only calculate publisher difference if weekend meetings have actually been entered
+  const hasWeekendMeetings = data.reunioes.fimSemana.some(v => v && v.trim() !== '' && parseInt(v) > 0);
+  const differenceVal = hasWeekendMeetings ? (avgFimSemana - pubAtivosNum) : 0;
+  const percentageRaw = (hasWeekendMeetings && pubAtivosNum > 0) ? (differenceVal / pubAtivosNum) * 100 : 0;
+  const percentageFormatted = Math.abs(percentageRaw).toFixed(1).replace('.', ',');
+  const sign = differenceVal > 0 ? '+' : differenceVal < 0 ? '-' : '';
+  const displayDiff = hasWeekendMeetings 
+    ? `${sign}${Math.abs(differenceVal)} (${sign}${percentageFormatted}%)`
+    : '0 (0,0%)';
 
   // Calculate sum of studies automatically
   const totalEstudos = Object.values(data.ministério).reduce((acc, curr) => acc + (parseInt(curr.estudos) || 0), 0);
@@ -554,68 +580,582 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="animate-spin text-[#512da8]" size={48} />
-        <p className="text-gray-500 font-medium">Carregando análise...</p>
+        <Loader2 className="animate-spin text-primary-200" size={40} />
+        <p className="text-typography-500 font-medium text-sm">Carregando análise...</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-4 max-w-7xl mx-auto pb-12 font-[var(--font-inter)] px-2 sm:px-4">
+      <div className="space-y-4 max-w-7xl mx-auto pb-12 px-2 sm:px-4">
         {/* Header - Navigation & Actions */}
-        <header className="no-print w-full bg-[#f9f9ff] text-[#4f46e5] font-[var(--font-manrope)] antialiased tracking-tight border border-[#c7c4d8]/30 flex flex-col sm:flex-row justify-between items-center px-6 py-4 rounded-2xl shadow-sm gap-4">
-          <div className="flex items-center gap-4">
+        <header className="no-print w-full bg-surface-100 border border-surface-300 flex flex-col sm:flex-row justify-between items-center px-4 sm:px-6 py-4 rounded-2xl shadow-xs gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <button 
               onClick={handleBack}
-              className="p-2 hover:bg-white hover:shadow-md rounded-full transition-all text-[#3525cd] border border-transparent hover:border-[#c7c4d8]/30"
+              className="p-2 sm:p-2.5 rounded-xl border border-surface-300 hover:bg-surface-200 text-typography-700 hover:text-typography-900 transition-colors shrink-0 cursor-pointer shadow-2xs"
               title="Voltar ao Painel"
             >
-              <ChevronLeft size={28} strokeWidth={3} />
+              <ChevronLeft size={20} />
             </button>
-            <div className="text-xl font-extrabold tracking-tighter text-[#3525cd]">Análise das Atividades</div>
+            <div className="min-w-0">
+              <div className="text-lg sm:text-xl font-black text-typography-900 tracking-tight">
+                Análise das Atividades
+              </div>
+              <p className="text-xs text-typography-500 font-medium truncate">
+                {data.congregacao} {data.dataVisita ? `• ${data.dataVisita}` : ''}
+              </p>
+            </div>
           </div>
           
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
             <button 
               onClick={handleClearForm}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-rose-200 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-50 transition-all shadow-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-surface-200 hover:bg-red-500/10 border border-surface-300 text-red-600 dark:text-red-400 rounded-xl font-bold text-xs transition-all shadow-2xs cursor-pointer whitespace-nowrap"
               title="Limpar todos os campos"
             >
-              <Trash2 size={18} />
-              <span className="hidden md:inline">Limpar Tudo</span>
+              <Trash2 size={15} />
+              <span className="hidden sm:inline">Limpar Tudo</span>
             </button>
             <button 
               onClick={handleSave}
               disabled={saving || !isDirty}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#3525cd] text-white rounded-xl font-bold text-sm hover:bg-[#2a1da3] transition-all disabled:opacity-50 shadow-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary-200 hover:bg-primary-300 text-white rounded-xl font-bold text-xs transition-all disabled:opacity-50 shadow-xs cursor-pointer whitespace-nowrap"
             >
-              {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               <span>{saving ? 'Salvando...' : 'Salvar'}</span>
             </button>
             <button 
               onClick={handleSavePDF}
               disabled={generating}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-[#c7c4d8]/30 text-[#464555] rounded-xl font-bold text-sm hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-surface-200 hover:bg-surface-300 border border-surface-300 text-typography-800 rounded-xl font-bold text-xs transition-all disabled:opacity-50 shadow-2xs cursor-pointer whitespace-nowrap"
               title="Baixar PDF"
             >
-              {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} />}
-              <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
+              {generating ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
+              <span className="hidden sm:inline">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
             </button>
             <button 
               onClick={() => window.print()}
-              className="p-2 text-[#464555] hover:text-[#3525cd] hover:bg-white rounded-full transition-all border border-transparent hover:border-[#c7c4d8]/30"
+              className="p-2.5 text-typography-700 hover:text-typography-900 bg-surface-200 hover:bg-surface-300 border border-surface-300 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
               title="Imprimir"
             >
-              <Printer size={20} />
+              <Printer size={16} />
             </button>
           </div>
         </header>
 
-        <div ref={containerRef} className="w-full overflow-x-auto pb-6 custom-scrollbar-wide">
+        {/* View Mode Toggle & Mobile Tab Selector */}
+        <div className="no-print flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+          {/* Mode Selector */}
+          <div className="flex items-center bg-surface-200/80 p-1 rounded-xl border border-surface-300 self-start shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('form')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'form' 
+                  ? 'bg-surface-100 text-primary-200 shadow-2xs' 
+                  : 'text-typography-600 hover:text-typography-900'
+              }`}
+            >
+              <LayoutList size={14} />
+              <span>Modo Formulário</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('sheet')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'sheet' 
+                  ? 'bg-surface-100 text-primary-200 shadow-2xs' 
+                  : 'text-typography-600 hover:text-typography-900'
+              }`}
+            >
+              <FileText size={14} />
+              <span>Folha A4</span>
+            </button>
+          </div>
+
+          {/* Category Filter Pills (visible in form mode) */}
+          {viewMode === 'form' && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar-hide text-xs font-semibold">
+              {[
+                { id: 'all', label: 'Tudo' },
+                { id: 'ministerio', label: 'Ministério' },
+                { id: 'estatisticas', label: 'Estatísticas' },
+                { id: 'donativos', label: 'Donativos' },
+                { id: 'reunioes', label: 'Reuniões' },
+                { id: 'observacoes', label: 'Observações' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setMobileTab(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-xl transition-all whitespace-nowrap cursor-pointer text-xs font-bold ${
+                    mobileTab === tab.id
+                      ? 'bg-primary-200 text-white shadow-2xs'
+                      : 'bg-surface-100 hover:bg-surface-200 text-typography-600 border border-surface-300'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ======================================================== */}
+        {/* MOBILE & RESPONSIVE FORM VIEW (Zero horizontal scrolling) */}
+        {/* ======================================================== */}
+        {viewMode === 'form' && (
+          <div className="space-y-6 print:hidden">
+            {/* Header Summary Card */}
+            <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-300 pb-3">
+                <div>
+                  <span className="text-[10px] font-bold text-typography-500 uppercase tracking-widest block">Congregação</span>
+                  <h2 className="text-lg sm:text-xl font-black text-typography-900">{data.congregacao}</h2>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-typography-600">
+                  <Calendar size={14} className="text-primary-200" />
+                  <span>Data da Visita: <strong className="text-typography-900">{data.dataVisita}</strong></span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between bg-surface-200/50 p-3 sm:p-4 rounded-xl border border-surface-300">
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-typography-900">Publicadores Ativos</p>
+                  <p className="text-[11px] text-typography-500">Total de publicadores ativos no período</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number"
+                    min="0"
+                    value={data.pubAtivos}
+                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                    onWheel={(e) => (e.target as HTMLElement).blur()}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                      setIsDirty(true);
+                      setData({...data, pubAtivos: val});
+                    }}
+                    className="w-20 p-2 bg-surface-100 rounded-xl border border-surface-300 shadow-2xs font-bold text-xl text-primary-200 text-center focus:border-primary-200 outline-none"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 1. Atividades Gerais do Ministério */}
+            {(mobileTab === 'all' || mobileTab === 'ministerio') && (
+              <section className="space-y-3">
+                <div className="flex items-center editorial-line pl-3">
+                  <h3 className="text-sm font-bold text-typography-900 uppercase tracking-wider">
+                    Atividades Gerais do Ministério <span className="text-typography-500 font-normal text-xs lowercase">(média mensal)</span>
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[
+                    { id: 'publicadores', label: 'Publicadores' },
+                    { id: 'pioneirosAuxiliares', label: 'Pioneiros Auxiliares' },
+                    { id: 'pioneirosRegulares', label: 'Pioneiros Regulares' },
+                    { id: 'pioneirosEspeciais', label: 'Pioneiros Especiais' }
+                  ].map((item) => {
+                    const itemData = data.ministério[item.id as keyof AnalysisData['ministério']];
+                    const relatandoNum = parseInt(itemData.relatando) || 0;
+                    const estudosNum = parseInt(itemData.estudos) || 0;
+                    const avg = relatandoNum > 0 ? (estudosNum / relatandoNum).toFixed(1).replace('.', ',') : '0,0';
+
+                    return (
+                      <div key={item.id} className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-2xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-sm text-typography-900">{item.label}</h4>
+                            {item.id === 'pioneirosRegulares' && (
+                              <button 
+                                onClick={() => handleOpenPioneerCalculator()}
+                                className="px-2 py-0.5 bg-primary-200/10 text-primary-200 hover:bg-primary-200/20 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                title="Médias Individuais de Pioneiros"
+                              >
+                                <Users size={12} />
+                                <span>Individuais</span>
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary-200/10 text-primary-200 border border-primary-200/20">
+                            Média: {avg}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-typography-500 uppercase tracking-wider block">
+                              Nº Relatando
+                            </label>
+                            <div className="relative flex items-center">
+                              <input 
+                                type="number"
+                                min="0"
+                                value={itemData.relatando}
+                                onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                                onWheel={(e) => (e.target as HTMLElement).blur()}
+                                onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'relatando', e.target.value)}
+                                className="w-full p-2.5 bg-surface-200/50 rounded-xl border border-surface-300 text-center font-bold text-primary-200 text-base focus:border-primary-200 outline-none"
+                                placeholder="0"
+                              />
+                              <button 
+                                onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
+                                className="absolute right-2 p-1 text-typography-400 hover:text-primary-200 transition-all cursor-pointer"
+                                title="Calcular média"
+                              >
+                                <Calculator size={16} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-typography-500 uppercase tracking-wider block">
+                              Nº de Estudos
+                            </label>
+                            <div className="relative flex items-center">
+                              <input 
+                                type="number"
+                                min="0"
+                                value={itemData.estudos}
+                                onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                                onWheel={(e) => (e.target as HTMLElement).blur()}
+                                onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'estudos', e.target.value)}
+                                className="w-full p-2.5 bg-surface-200/50 rounded-xl border border-surface-300 text-center font-bold text-typography-900 text-base focus:border-primary-200 outline-none"
+                                placeholder="0"
+                              />
+                              <button 
+                                onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
+                                className="absolute right-2 p-1 text-typography-400 hover:text-primary-200 transition-all cursor-pointer"
+                                title="Calcular média"
+                              >
+                                <Calculator size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Individual Pioneer Records on Mobile */}
+                {data.pioneirosIndividuais && data.pioneirosIndividuais.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <button 
+                      onClick={() => setShowSavedPioneers(!showSavedPioneers)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 bg-surface-100 border border-surface-300 rounded-xl hover:bg-surface-200 transition-all group cursor-pointer"
+                    >
+                      <h4 className="text-xs font-bold text-typography-600 uppercase tracking-wider flex items-center gap-2">
+                        <Users size={14} className="text-primary-200" /> Médias de Pioneiros Salvas ({data.pioneirosIndividuais.length})
+                      </h4>
+                      <div className={`transition-transform duration-300 ${showSavedPioneers ? 'rotate-180' : ''}`}>
+                        <ChevronLeft className="-rotate-90" size={16} />
+                      </div>
+                    </button>
+                    
+                    <AnimatePresence>
+                      {showSavedPioneers && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                            {data.pioneirosIndividuais.map(p => (
+                              <div 
+                                key={p.id} 
+                                className="bg-surface-100 border border-surface-300 rounded-xl p-3 flex items-center justify-between shadow-2xs group hover:border-primary-200/50 transition-all"
+                              >
+                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenPioneerCalculator(p)}>
+                                  <p className="font-bold text-typography-900 text-xs truncate">{p.nome}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] bg-primary-200/10 text-primary-200 px-1.5 py-0.5 rounded-md font-bold">
+                                      {p.totalHoras}h / {p.metaTotal}h
+                                    </span>
+                                    <span className={`text-[10px] font-bold ${p.diferenca >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                      {p.diferenca >= 0 ? '+' : ''}{p.diferenca}h
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button 
+                                    onClick={() => handleOpenPioneerCalculator(p)}
+                                    className="p-1.5 text-typography-500 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    <Calculator size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeletePioneer(p.id)}
+                                    className="p-1.5 text-typography-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* 2. Estatísticas da Congregação */}
+            {(mobileTab === 'all' || mobileTab === 'estatisticas') && (
+              <section className="space-y-3">
+                <div className="flex items-center editorial-line pl-3">
+                  <h3 className="text-sm font-bold text-typography-900 uppercase tracking-wider">
+                    Estatísticas da Congregação
+                  </h3>
+                </div>
+
+                <div className="bg-surface-100 border border-surface-300 rounded-2xl p-3 shadow-xs space-y-2">
+                  {[
+                    { id: 'mediaEstudos', label: 'Média mensal de Estudos Bíblicos', color: 'text-typography-900', isAuto: true },
+                    { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos', color: 'text-typography-900' },
+                    { id: 'pioneirosAuxiliaresDiferentes', label: 'Pioneiros auxiliares diferentes*', color: 'text-primary-200' },
+                    { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES*', color: 'text-primary-200' },
+                    { id: 'reativados', label: 'Quantos foram REATIVADOS*', color: 'text-primary-200' },
+                    { id: 'readmitidos', label: 'Quantos foram READMITIDOS*', color: 'text-primary-200' },
+                    { id: 'batizados', label: 'Quantos foram BATIZADOS*', color: 'text-indigo-600 dark:text-indigo-400' },
+                    { id: 'irregulares', label: 'Número de IRREGULARES*', color: 'text-rose-600 dark:text-rose-400' },
+                    { id: 'inativos', label: 'Quantos ficaram INATIVOS*', color: 'text-rose-600 dark:text-rose-400' },
+                    { id: 'removidos', label: 'Quantos ficaram REMOVIDOS*', color: 'text-rose-600 dark:text-rose-400' },
+                    { id: 'anciaos', label: 'Número de ANCIÃOS', color: 'text-primary-200' },
+                    { id: 'servos', label: 'Números de SERVOS MINISTERIAIS', color: 'text-primary-200' }
+                  ].map((item) => {
+                    const val = item.id === 'mediaEstudos' ? totalEstudos : (data.estatisticas[item.id as keyof AnalysisData['estatisticas']] || 0);
+                    const perc = pubAtivosNum > 0 ? (val / pubAtivosNum * 100).toFixed(1).replace('.', ',') : '0,0';
+                    const average = pubAtivosNum > 0 ? (val / pubAtivosNum).toFixed(1).replace('.', ',') + '/pub' : '0,0/pub';
+                    
+                    return (
+                      <div key={item.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-surface-200/40 border border-surface-300 rounded-xl gap-2">
+                        <div className="min-w-0 pr-2">
+                          <p className={`text-xs font-semibold ${item.color} leading-snug`}>{item.label}</p>
+                          <span className="text-[10px] text-primary-200 font-bold block mt-0.5">
+                            {item.id === 'mediaEstudos' ? average : `${perc}% dos pub.`}
+                          </span>
+                        </div>
+                        <div className="shrink-0">
+                          <div className="flex items-center gap-1.5 bg-surface-100 border border-surface-300 rounded-xl p-1 shadow-2xs">
+                            {!item.isAuto ? (
+                              <>
+                                <button 
+                                  onClick={() => updateEstatistica(item.id as keyof AnalysisData['estatisticas'], -1)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 hover:bg-amber-500/15 text-amber-600 transition-all active:scale-95 cursor-pointer"
+                                  title="Diminuir"
+                                >
+                                  <Minus size={14} strokeWidth={3} />
+                                </button>
+                                <span className="font-bold text-sm min-w-[28px] text-center text-typography-900">{val}</span>
+                                <button 
+                                  onClick={() => updateEstatistica(item.id as keyof AnalysisData['estatisticas'], 1)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 hover:bg-emerald-500/15 text-emerald-600 transition-all active:scale-95 cursor-pointer"
+                                  title="Aumentar"
+                                >
+                                  <Plus size={14} strokeWidth={3} />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="font-bold text-sm min-w-[70px] text-center text-typography-900 py-1">{val}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="text-[10px] text-typography-500 italic pt-1 pl-1">* Desde a última visita</div>
+                </div>
+              </section>
+            )}
+
+            {/* 3. Donativos */}
+            {(mobileTab === 'all' || mobileTab === 'donativos') && (
+              <section className="space-y-3">
+                <div className="flex items-center editorial-line pl-3">
+                  <h3 className="text-sm font-bold text-typography-900 uppercase tracking-wider">Donativos</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Congregação */}
+                  <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-surface-300 pb-2">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-typography-900">Congregação</h4>
+                      <span className="text-xs font-black text-primary-200">
+                        R$ {calculateTotalDonativos(data.donativos.congregacao)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {data.donativos.congregacao.map((v, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-typography-500 w-12">Mês {i + 1}</span>
+                          <input 
+                            value={v}
+                            onChange={(e) => updateTable('donativos', 'congregacao', i, e.target.value)}
+                            onBlur={(e) => updateTable('donativos', 'congregacao', i, formatCurrency(e.target.value))}
+                            className="w-full p-2 bg-surface-200/50 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200"
+                            placeholder="0,00"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Obra Mundial */}
+                  <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-surface-300 pb-2">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-typography-900">Obra Mundial</h4>
+                      <span className="text-xs font-black text-primary-200">
+                        R$ {calculateTotalDonativos(data.donativos.obraMundial)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {data.donativos.obraMundial.map((v, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-typography-500 w-12">Mês {i + 1}</span>
+                          <input 
+                            value={v}
+                            onChange={(e) => updateTable('donativos', 'obraMundial', i, e.target.value)}
+                            onBlur={(e) => updateTable('donativos', 'obraMundial', i, formatCurrency(e.target.value))}
+                            className="w-full p-2 bg-surface-200/50 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200"
+                            placeholder="0,00"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 4. Reuniões */}
+            {(mobileTab === 'all' || mobileTab === 'reunioes') && (
+              <section className="space-y-3">
+                <div className="flex items-center editorial-line pl-3">
+                  <h3 className="text-sm font-bold text-typography-900 uppercase tracking-wider">Reuniões</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Meio de Semana */}
+                  <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-surface-300 pb-2">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-typography-900">Meio de Semana</h4>
+                      <span className="text-xs font-black text-primary-200">Média: {avgMeioSemana}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {data.reunioes.meioSemana.map((v, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-typography-500 w-12">Mês {i + 1}</span>
+                          <input 
+                            type="number"
+                            min="0"
+                            value={v}
+                            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                            onWheel={(e) => (e.target as HTMLElement).blur()}
+                            onChange={(e) => updateTable('reunioes', 'meioSemana', i, e.target.value)}
+                            className="w-full p-2 bg-surface-200/50 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200"
+                            placeholder="0"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Fim de Semana */}
+                  <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-surface-300 pb-2">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-typography-900">Fim de Semana</h4>
+                      <span className="text-xs font-black text-primary-200">Média: {avgFimSemana}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {data.reunioes.fimSemana.map((v, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-typography-500 w-12">Mês {i + 1}</span>
+                          <input 
+                            type="number"
+                            min="0"
+                            value={v}
+                            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                            onWheel={(e) => (e.target as HTMLElement).blur()}
+                            onChange={(e) => updateTable('reunioes', 'fimSemana', i, e.target.value)}
+                            className="w-full p-2 bg-surface-200/50 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200"
+                            placeholder="0"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Banner Diferença */}
+                <div className="bg-primary-200 p-4 rounded-2xl text-center text-white shadow-xs">
+                  <p className="text-[11px] font-bold uppercase tracking-wider mb-1 opacity-90">
+                    Diferença do número de publicadores
+                  </p>
+                  <p className="font-[var(--font-manrope)] font-bold text-2xl">
+                    {displayDiff}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            {/* 5. Observações */}
+            {(mobileTab === 'all' || mobileTab === 'observacoes') && (
+              <section className="space-y-2">
+                <div className="flex items-center editorial-line pl-3">
+                  <h3 className="text-sm font-bold text-typography-900 uppercase tracking-wider">Observações</h3>
+                </div>
+                <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-2xs">
+                  <textarea 
+                    value={data.observacoes || ''}
+                    onChange={(e) => {
+                      setIsDirty(true);
+                      setData(prev => ({ ...prev, observacoes: e.target.value }));
+                    }}
+                    placeholder="Adicione observações ou anotações sobre a congregação..."
+                    rows={4}
+                    className="w-full p-3 bg-surface-200/50 rounded-xl border border-surface-300 text-sm text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 transition-all resize-y leading-relaxed"
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* Mobile Bottom Action Bar */}
+            <div className="pt-2 pb-6">
+              <button
+                onClick={handleSave}
+                disabled={saving || !isDirty}
+                className="w-full py-3.5 bg-primary-200 hover:bg-primary-300 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50 shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                <span>{saving ? 'Salvando...' : isDirty ? 'Salvar Alterações' : 'Alterações Salvas'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* A4 SHEET VIEW (Desktop Paper Layout & PDF/Print Target)  */}
+        {/* ======================================================== */}
+        <div 
+          ref={containerRef} 
+          className={
+            viewMode === 'sheet'
+              ? "w-full overflow-x-auto pb-6 custom-scrollbar-wide"
+              : "fixed -left-[9999px] top-0 pointer-events-none opacity-0 print:static print:opacity-100 print:pointer-events-auto"
+          }
+        >
           <div 
             style={{ 
-              width: `${1137.33 * scale}px`,
+              width: viewMode === 'sheet' ? `${1137.33 * scale}px` : '1137.33px',
               minWidth: 'min-content',
               margin: '0 auto',
               transition: 'width 0.2s ease-out'
@@ -623,9 +1163,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
           >
             <main 
               id="activity-analysis-form" 
-              className="a4-page relative bg-white shadow-2xl border border-[#c7c4d8]/20 print:shadow-none print:border-none print:m-0 w-[1137.33px] shrink-0"
+              className="a4-page relative bg-surface-100 shadow-xl border border-surface-300 rounded-2xl print:shadow-none print:border-none print:rounded-none print:m-0 w-[1137.33px] shrink-0"
               style={{
-                transform: `scale(${scale})`,
+                transform: viewMode === 'sheet' ? `scale(${scale})` : 'scale(1)',
                 transformOrigin: 'top left',
                 transition: 'transform 0.2s ease-out'
               }}
@@ -635,10 +1175,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 width: 1137.33px;
                 min-height: 297mm;
                 padding: 8mm;
-                background: white;
               }
               .editorial-line {
-                border-left: 4px solid #712ae2;
+                border-left: 4px solid var(--primary-color, #1a5c5a);
               }
               @media print {
                 .a4-page {
@@ -650,6 +1189,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                   display: flex;
                   flex-direction: column;
                   justify-content: space-between;
+                  background: white !important;
                   color: black !important;
                 }
                 .a4-page * {
@@ -678,27 +1218,6 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
-              .pdf-capture .bg-\[\#f9f9ff\] {
-                background-color: #f9f9ff !important;
-              }
-              .pdf-capture .bg-\[\#f0f3ff\] {
-                background-color: #f0f3ff !important;
-              }
-              .pdf-capture .bg-\[\#4f46e5\] {
-                background-color: #4f46e5 !important;
-              }
-              .pdf-capture .bg-\[\#fff2e0\] {
-                background-color: #fff2e0 !important;
-              }
-              .pdf-capture .bg-\[\#d1fdf0\] {
-                background-color: #d1fdf0 !important;
-              }
-              .pdf-capture .bg-\[\#dee8ff\] {
-                background-color: #dee8ff !important;
-              }
-              .pdf-capture .bg-\[\#e7eeff\] {
-                background-color: #e7eeff !important;
-              }
               .pdf-capture textarea {
                 display: none !important;
               }
@@ -709,34 +1228,37 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
 
             {/* Header Section */}
             <div className="text-center mb-8">
-              <h1 className="font-[var(--font-manrope)] text-xl font-extrabold tracking-tight text-[#3525cd] mb-2 uppercase">
+              <h1 className="text-xl font-black tracking-tight text-primary-200 mb-2 uppercase">
                 Relatório de Estatísticas da Congregação
               </h1>
-              <div className="w-full h-px bg-[#c7c4d8]/30 mb-6"></div>
+              <div className="w-full h-px bg-surface-300 mb-6"></div>
               
               <div className="grid grid-cols-3 gap-4 items-center">
-                <div className="text-left border-r border-[#c7c4d8]/30 pr-4">
-                  <p className="font-[var(--font-inter)] text-[11px] text-[#2d2d2d] uppercase tracking-widest font-bold mb-1">Congregação</p>
-                  <p className="font-[var(--font-manrope)] font-bold text-lg text-[#111c2d] truncate">{data.congregacao}</p>
+                <div className="text-left border-r border-surface-300 pr-4">
+                  <p className="text-[11px] text-typography-500 uppercase tracking-widest font-bold mb-1">Congregação</p>
+                  <p className="font-bold text-lg text-typography-900 truncate">{data.congregacao}</p>
                 </div>
-                <div className="text-center border-r border-[#c7c4d8]/30 px-4">
-                  <p className="font-[var(--font-inter)] text-[11px] text-[#2d2d2d] uppercase tracking-widest font-bold mb-1">Pub. Ativos</p>
+                <div className="text-center border-r border-surface-300 px-4">
+                  <p className="text-[11px] text-typography-500 uppercase tracking-widest font-bold mb-1">Pub. Ativos</p>
                   <div className="flex justify-center pt-1">
                     <input 
                       type="number"
+                      min="0"
                       value={data.pubAtivos}
+                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                      onWheel={(e) => (e.target as HTMLElement).blur()}
                       onChange={(e) => {
-                        const val = e.target.value.slice(0, 3);
+                        const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 3);
                         setIsDirty(true);
                         setData({...data, pubAtivos: val});
                       }}
-                      className="w-20 p-1 bg-white rounded-xl border border-[#c7c4d8]/60 shadow-sm font-[var(--font-manrope)] font-bold text-2xl text-[#3525cd] text-center focus:border-[#3525cd] outline-none transition-all"
+                      className="w-20 p-1 bg-surface-200 rounded-xl border border-surface-300 shadow-2xs font-bold text-2xl text-primary-200 text-center focus:border-primary-200 outline-none transition-all"
                     />
                   </div>
                 </div>
                 <div className="text-right pl-4">
-                  <p className="font-[var(--font-inter)] text-[11px] text-[#2d2d2d] uppercase tracking-widest font-bold mb-1">Data da Visita</p>
-                  <p className="font-[var(--font-manrope)] font-bold text-lg text-[#111c2d]">{data.dataVisita}</p>
+                  <p className="text-[11px] text-typography-500 uppercase tracking-widest font-bold mb-1">Data da Visita</p>
+                  <p className="font-bold text-lg text-typography-900">{data.dataVisita}</p>
                 </div>
               </div>
             </div>
@@ -748,18 +1270,18 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 {/* Atividades Gerais Table */}
                 <section>
                   <div className="flex items-center mb-4 editorial-line pl-3">
-                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">
-                      Atividades Gerais do Ministério <span className="text-[#2d2d2d] font-normal text-xs lowercase">(média mensal)</span>
+                    <h2 className="text-sm font-bold text-typography-900 uppercase tracking-wider">
+                      Atividades Gerais do Ministério <span className="text-typography-500 font-normal text-xs lowercase">(média mensal)</span>
                     </h2>
                   </div>
-                  <div className="bg-[#f0f3ff] overflow-hidden rounded-xl border border-[#c7c4d8]/40">
+                  <div className="bg-surface-200/40 overflow-hidden rounded-xl border border-surface-300">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-[#dee8ff]">
-                          <th className="py-3 px-4 font-[var(--font-manrope)] text-[11px] font-bold text-[#2d2d2d] uppercase tracking-wider">Categoria</th>
-                          <th className="py-3 px-4 font-[var(--font-manrope)] text-[11px] font-bold text-[#2d2d2d] uppercase tracking-wider text-center">Nº Relatando</th>
-                          <th className="py-3 px-4 font-[var(--font-manrope)] text-[11px] font-bold text-[#2d2d2d] uppercase tracking-wider text-center">Nº de Estudos</th>
-                          <th className="py-3 px-4 font-[var(--font-manrope)] text-[11px] font-bold text-[#2d2d2d] uppercase tracking-wider text-center">Média</th>
+                        <tr className="bg-surface-200 border-b border-surface-300">
+                          <th className="py-3 px-4 text-[11px] font-bold text-typography-600 uppercase tracking-wider">Categoria</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-typography-600 uppercase tracking-wider text-center">Nº Relatando</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-typography-600 uppercase tracking-wider text-center">Nº de Estudos</th>
+                          <th className="py-3 px-4 text-[11px] font-bold text-typography-600 uppercase tracking-wider text-center">Média</th>
                         </tr>
                       </thead>
                       <tbody className="text-sm font-medium">
@@ -775,14 +1297,14 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                           const avg = relatandoNum > 0 ? (estudosNum / relatandoNum).toFixed(1).replace('.', ',') : '0,0';
 
                           return (
-                            <tr key={item.id} className={`border-b border-[#c7c4d8]/20 ${idx % 2 === 1 ? 'bg-[#f9f9ff]/50' : ''}`}>
-                              <td className="py-3 px-4 text-[#111c2d] font-semibold">
+                            <tr key={item.id} className={`border-b border-surface-300/40 ${idx % 2 === 1 ? 'bg-surface-200/20' : ''}`}>
+                              <td className="py-3 px-4 text-typography-900 font-semibold">
                                 <div className="flex items-center justify-between gap-2">
                                   <span>{item.label}</span>
                                   {item.id === 'pioneirosRegulares' && (
                                     <button 
                                       onClick={() => handleOpenPioneerCalculator()}
-                                      className="p-1 text-[#3525cd] hover:bg-[#3525cd] hover:text-white rounded-lg transition-all print:hidden flex items-center gap-1 text-[10px]"
+                                      className="p-1 text-primary-200 hover:bg-primary-200/10 rounded-lg transition-all print:hidden flex items-center gap-1 text-[10px] cursor-pointer"
                                       title="Médias Individuais"
                                     >
                                       <Users size={14} />
@@ -795,15 +1317,18 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                                 <div className="relative flex items-center justify-center group">
                                   <input 
                                     type="number"
+                                    min="0"
                                     value={itemData.relatando}
+                                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                                    onWheel={(e) => (e.target as HTMLElement).blur()}
                                     onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'relatando', e.target.value)}
-                                    className="w-20 p-1.5 bg-white rounded-2xl border border-[#c7c4d8]/40 shadow-sm focus:border-[#3525cd] text-center font-bold text-[#3525cd] outline-none transition-all"
+                                    className="w-20 p-1.5 bg-surface-100 rounded-xl border border-surface-300 shadow-2xs focus:border-primary-200 text-center font-bold text-primary-200 outline-none transition-all"
                                   />
                                   <button 
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'relatando', `${item.label} - Relatando`)}
-                                    className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
+                                    className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-typography-400 hover:text-primary-200 transition-all print:hidden cursor-pointer"
                                   >
-                                    <Calculator size={20} />
+                                    <Calculator size={18} />
                                   </button>
                                 </div>
                               </td>
@@ -811,19 +1336,22 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                                 <div className="relative flex items-center justify-center group">
                                   <input 
                                     type="number"
+                                    min="0"
                                     value={itemData.estudos}
+                                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                                    onWheel={(e) => (e.target as HTMLElement).blur()}
                                     onChange={(e) => updateMinistry(item.id as keyof AnalysisData['ministério'], 'estudos', e.target.value)}
-                                    className="w-20 p-1.5 bg-white rounded-2xl border border-[#c7c4d8]/40 shadow-sm focus:border-[#3525cd] text-center font-bold text-[#111c2d] outline-none transition-all"
+                                    className="w-20 p-1.5 bg-surface-100 rounded-xl border border-surface-300 shadow-2xs focus:border-primary-200 text-center font-bold text-typography-900 outline-none transition-all"
                                   />
                                   <button 
                                     onClick={() => openCalculator(item.id as keyof AnalysisData['ministério'], 'estudos', `${item.label} - Estudos`)}
-                                    className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-[#2d2d2d] hover:text-[#3525cd] transition-all print:hidden"
+                                    className="absolute right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 text-typography-400 hover:text-primary-200 transition-all print:hidden cursor-pointer"
                                   >
-                                    <Calculator size={20} />
+                                    <Calculator size={18} />
                                   </button>
                                 </div>
                               </td>
-                              <td className="py-3 px-4 text-center font-bold text-[#111c2d]">{avg}</td>
+                              <td className="py-3 px-4 text-center font-bold text-typography-900">{avg}</td>
                             </tr>
                           );
                         })}
@@ -836,10 +1364,10 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                     <div className="mt-4 space-y-2 print:hidden">
                       <button 
                         onClick={() => setShowSavedPioneers(!showSavedPioneers)}
-                        className="w-full flex items-center justify-between px-4 py-2 bg-white border border-[#c7c4d8]/40 rounded-xl hover:bg-gray-50 transition-all group"
+                        className="w-full flex items-center justify-between px-4 py-2 bg-surface-100 border border-surface-300 rounded-xl hover:bg-surface-200 transition-all group cursor-pointer"
                       >
-                        <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                          <Users size={14} className="text-[#3525cd]" /> Médias de Pioneiros Salvas
+                        <h3 className="text-[10px] font-bold text-typography-500 uppercase tracking-widest flex items-center gap-2">
+                          <Users size={14} className="text-primary-200" /> Médias de Pioneiros Salvas
                         </h3>
                         <div className={`transition-transform duration-300 ${showSavedPioneers ? 'rotate-180' : ''}`}>
                           <ChevronLeft className="-rotate-90" size={16} />
@@ -858,15 +1386,15 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                               {data.pioneirosIndividuais.map(p => (
                                 <div 
                                   key={p.id} 
-                                  className="bg-white border border-[#c7c4d8]/40 rounded-xl p-3 flex items-center justify-between shadow-sm group hover:border-[#3525cd]/50 transition-all"
+                                  className="bg-surface-100 border border-surface-300 rounded-xl p-3 flex items-center justify-between shadow-2xs group hover:border-primary-200/50 transition-all"
                                 >
                                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenPioneerCalculator(p)}>
-                                    <p className="font-bold text-gray-800 text-xs truncate">{p.nome}</p>
+                                    <p className="font-bold text-typography-900 text-xs truncate">{p.nome}</p>
                                     <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md font-bold">
+                                      <span className="text-[10px] bg-primary-200/10 text-primary-200 px-1.5 py-0.5 rounded-md font-bold">
                                         {p.totalHoras}h / {p.metaTotal}h
                                       </span>
-                                      <span className={`text-[10px] font-bold ${p.diferenca >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                      <span className={`text-[10px] font-bold ${p.diferenca >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                         {p.diferenca >= 0 ? '+' : ''}{p.diferenca}h
                                       </span>
                                     </div>
@@ -874,14 +1402,14 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                                   <div className="flex items-center gap-1 shrink-0">
                                     <button 
                                       onClick={() => handleOpenPioneerCalculator(p)}
-                                      className="p-1.5 text-gray-400 hover:text-[#3525cd] transition-all"
+                                      className="p-1.5 text-typography-400 hover:text-primary-200 transition-all cursor-pointer"
                                       title="Editar"
                                     >
                                       <Calculator size={14} />
                                     </button>
                                     <button 
                                       onClick={() => handleDeletePioneer(p.id)}
-                                      className="p-1.5 text-gray-400 hover:text-red-600 transition-all"
+                                      className="p-1.5 text-typography-400 hover:text-red-600 transition-all cursor-pointer"
                                       title="Excluir"
                                     >
                                       <X size={14} />
@@ -900,66 +1428,66 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 {/* Estatísticas da Congregação Table */}
                 <section>
                   <div className="flex items-center mb-4 editorial-line pl-3">
-                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">Estatísticas da Congregação</h2>
+                    <h2 className="text-sm font-bold text-typography-900 uppercase tracking-wider">Estatísticas da Congregação</h2>
                   </div>
-                  <div className="border border-[#c7c4d8]/40 rounded-xl overflow-hidden shadow-sm">
+                  <div className="border border-surface-300 rounded-xl overflow-hidden shadow-2xs">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="bg-[#e7eeff]">
-                          <th className="py-2.5 px-4 font-[var(--font-manrope)] text-[11px] font-bold text-[#2d2d2d] uppercase tracking-wider">Descrição</th>
-                          <th className="py-2.5 px-4 font-[var(--font-manrope)] text-[11px] font-bold text-[#2d2d2d] uppercase tracking-wider text-center w-24">Qtd</th>
-                          <th className="py-2.5 px-4 font-[var(--font-manrope)] text-[11px] font-bold text-[#2d2d2d] uppercase tracking-wider text-center w-24">Perc.</th>
+                        <tr className="bg-surface-200 border-b border-surface-300">
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-typography-600 uppercase tracking-wider">Descrição</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-typography-600 uppercase tracking-wider text-center w-24">Qtd</th>
+                          <th className="py-2.5 px-4 text-[11px] font-bold text-typography-600 uppercase tracking-wider text-center w-24">Perc.</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs font-medium">
                         {[
-                          { id: 'mediaEstudos', label: 'Média mensal de Estudos Bíblicos', color: 'text-[#111c2d]', isAuto: true },
-                          { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos', color: 'text-[#111c2d]' },
-                          { id: 'pioneirosAuxiliaresDiferentes', label: 'Pioneiros auxiliares diferentes*', color: 'text-[#3525cd]' },
-                          { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES*', color: 'text-[#3525cd]' },
-                          { id: 'reativados', label: 'Quantos foram REATIVADOS*', color: 'text-[#3525cd]' },
-                          { id: 'readmitidos', label: 'Quantos foram READMITIDOS*', color: 'text-[#3525cd]' },
-                          { id: 'batizados', label: 'Quantos foram BATIZADOS*', color: 'text-[#712ae2]' },
-                          { id: 'irregulares', label: 'Número de IRREGULARES*', color: 'text-[#ba1a1a]' },
-                          { id: 'inativos', label: 'Quantos ficaram INATIVOS*', color: 'text-[#ba1a1a]' },
-                          { id: 'removidos', label: 'Quantos ficaram REMOVIDOS*', color: 'text-[#ba1a1a]' },
-                          { id: 'anciaos', label: 'Número de ANCIÃOS', color: 'text-[#3525cd]' },
-                          { id: 'servos', label: 'Números de SERVOS MINISTERIAIS', color: 'text-[#3525cd]' }
+                          { id: 'mediaEstudos', label: 'Média mensal de Estudos Bíblicos', color: 'text-typography-900', isAuto: true },
+                          { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos', color: 'text-typography-900' },
+                          { id: 'pioneirosAuxiliaresDiferentes', label: 'Pioneiros auxiliares diferentes*', color: 'text-primary-200' },
+                          { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES*', color: 'text-primary-200' },
+                          { id: 'reativados', label: 'Quantos foram REATIVADOS*', color: 'text-primary-200' },
+                          { id: 'readmitidos', label: 'Quantos foram READMITIDOS*', color: 'text-primary-200' },
+                          { id: 'batizados', label: 'Quantos foram BATIZADOS*', color: 'text-indigo-600 dark:text-indigo-400' },
+                          { id: 'irregulares', label: 'Número de IRREGULARES*', color: 'text-rose-600 dark:text-rose-400' },
+                          { id: 'inativos', label: 'Quantos ficaram INATIVOS*', color: 'text-rose-600 dark:text-rose-400' },
+                          { id: 'removidos', label: 'Quantos ficaram REMOVIDOS*', color: 'text-rose-600 dark:text-rose-400' },
+                          { id: 'anciaos', label: 'Número de ANCIÃOS', color: 'text-primary-200' },
+                          { id: 'servos', label: 'Números de SERVOS MINISTERIAIS', color: 'text-primary-200' }
                         ].map((item, idx) => {
                           const val = item.id === 'mediaEstudos' ? totalEstudos : (data.estatisticas[item.id as keyof AnalysisData['estatisticas']] || 0);
                           const perc = pubAtivosNum > 0 ? (val / pubAtivosNum * 100).toFixed(1).replace('.', ',') : '0,0';
                           const average = pubAtivosNum > 0 ? (val / pubAtivosNum).toFixed(1).replace('.', ',') + '/pub' : '0,0/pub';
                           
                           return (
-                            <tr key={item.id} className={`border-b border-[#c7c4d8]/20 ${idx % 2 === 1 ? 'bg-[#f9f9ff]/50' : 'bg-white'}`}>
+                            <tr key={item.id} className={`border-b border-surface-300/40 ${idx % 2 === 1 ? 'bg-surface-200/20' : 'bg-surface-100'}`}>
                               <td className={`py-2 px-4 font-semibold ${item.color}`}>{item.label}</td>
                               <td className="py-1 px-2">
                                 <div className="flex items-center justify-center">
-                                  <div className="flex items-center gap-3 bg-white border border-[#c7c4d8]/40 rounded-2xl px-2 py-1 shadow-sm">
+                                  <div className="flex items-center gap-2 bg-surface-100 border border-surface-300 rounded-xl px-1.5 py-0.5 shadow-2xs">
                                     {!item.isAuto ? (
                                       <>
                                         <button 
                                           onClick={() => updateEstatistica(item.id as keyof AnalysisData['estatisticas'], -1)}
-                                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#fff2e0] text-[#ff6b00] hover:bg-[#ff6b00] hover:text-white transition-all active:scale-90 print:hidden"
+                                          className="w-6 h-6 flex items-center justify-center rounded-lg bg-surface-200 hover:bg-amber-500/15 text-amber-600 dark:text-amber-400 transition-all active:scale-90 print:hidden cursor-pointer"
                                         >
-                                          <Minus size={14} strokeWidth={3} />
+                                          <Minus size={12} strokeWidth={3} />
                                         </button>
-                                        <span className="font-bold text-base min-w-[28px] text-center text-[#111c2d]">{val}</span>
+                                        <span className="font-bold text-sm min-w-[24px] text-center text-typography-900">{val}</span>
                                         <button 
                                           onClick={() => updateEstatistica(item.id as keyof AnalysisData['estatisticas'], 1)}
-                                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#d1fdf0] text-[#00a68e] hover:bg-[#00a68e] hover:text-white transition-all active:scale-90 print:hidden"
+                                          className="w-6 h-6 flex items-center justify-center rounded-lg bg-surface-200 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 transition-all active:scale-90 print:hidden cursor-pointer"
                                         >
-                                          <Plus size={14} strokeWidth={3} />
+                                          <Plus size={12} strokeWidth={3} />
                                         </button>
                                       </>
                                     ) : (
-                                      <span className="font-bold text-base min-w-[80px] text-center text-[#111c2d] py-1">{val}</span>
+                                      <span className="font-bold text-sm min-w-[70px] text-center text-typography-900 py-0.5">{val}</span>
                                     )}
                                   </div>
                                 </div>
                               </td>
                               <td className="py-2 px-4 text-center">
-                                <span className="font-bold text-[10px] text-[#3525cd] bg-[#e2dfff] px-2 py-0.5 rounded-full border border-[#c7c4d8]/40">
+                                <span className="font-bold text-[10px] text-primary-200 bg-primary-200/10 px-2 py-0.5 rounded-full border border-primary-200/20">
                                   {item.id === 'mediaEstudos' ? average : `${perc}%`}
                                 </span>
                               </td>
@@ -969,15 +1497,15 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-2 text-[10px] text-[#2d2d2d] italic">* Desde a última visita</div>
+                  <div className="mt-2 text-[10px] text-typography-500 italic">* Desde a última visita</div>
                 </section>
 
                 {/* Observações */}
                 <section>
                   <div className="flex items-center mb-3 editorial-line pl-3">
-                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">Observações</h2>
+                    <h2 className="text-sm font-bold text-typography-900 uppercase tracking-wider">Observações</h2>
                   </div>
-                  <div className="bg-[#f0f3ff] border border-[#c7c4d8]/40 rounded-xl p-3 shadow-sm">
+                  <div className="bg-surface-200/40 border border-surface-300 rounded-xl p-3 shadow-2xs">
                     <textarea 
                       value={data.observacoes || ''}
                       onChange={(e) => {
@@ -986,10 +1514,10 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                       }}
                       placeholder="Adicione observações ou anotações sobre a congregação..."
                       rows={3}
-                      className="w-full p-2.5 bg-white rounded-lg border border-[#c7c4d8]/40 text-xs text-[#111c2d] placeholder-gray-400 outline-none focus:border-[#3525cd] transition-all resize-y font-normal leading-relaxed print:hidden"
+                      className="w-full p-2.5 bg-surface-100 rounded-lg border border-surface-300 text-xs text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 transition-all resize-y font-normal leading-relaxed print:hidden"
                     />
-                    <div className="hidden print:block pdf-observacoes-print whitespace-pre-wrap text-xs text-[#111c2d] font-normal leading-relaxed min-h-[48px] p-2.5 bg-white rounded-lg border border-[#c7c4d8]/40">
-                      {data.observacoes ? data.observacoes : <span className="text-gray-400 italic">Nenhuma observação informada.</span>}
+                    <div className="hidden print:block pdf-observacoes-print whitespace-pre-wrap text-xs text-typography-900 font-normal leading-relaxed min-h-[48px] p-2.5 bg-surface-100 rounded-lg border border-surface-300">
+                      {data.observacoes ? data.observacoes : <span className="text-typography-400 italic">Nenhuma observação informada.</span>}
                     </div>
                   </div>
                 </section>
@@ -1000,12 +1528,12 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 {/* Donativos */}
                 <section>
                   <div className="flex items-center mb-4 editorial-line pl-3">
-                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">Donativos</h2>
+                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-typography-900 uppercase tracking-wider">Donativos</h2>
                   </div>
-                  <div className="grid grid-cols-2 gap-6 bg-[#DEE8FF] border-2 border-[#3525cd]/10 rounded-xl shadow-sm p-5">
+                  <div className="grid grid-cols-2 gap-6 bg-surface-200/50 border border-surface-300 rounded-xl shadow-xs p-5">
                     {/* Congregação Column */}
                     <div className="flex flex-col">
-                      <h3 className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest text-center mb-4">Congregação</h3>
+                      <h3 className="text-[11px] font-bold text-typography-500 uppercase tracking-widest text-center mb-4">Congregação</h3>
                       <div className="flex flex-col gap-2.5 mb-5">
                         {data.donativos.congregacao.map((v, i) => (
                           <input 
@@ -1013,14 +1541,14 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                             value={v}
                             onChange={(e) => updateTable('donativos', 'congregacao', i, e.target.value)}
                             onBlur={(e) => updateTable('donativos', 'congregacao', i, formatCurrency(e.target.value))}
-                            className="w-full p-2.5 bg-[#f9f9ff] rounded-xl border border-[#c7c4d8]/20 text-center text-sm font-bold outline-none focus:border-[#3525cd] focus:bg-white transition-all"
+                            className="w-full p-2.5 bg-surface-100 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200 focus:bg-surface-100 transition-all placeholder:text-typography-400"
                             placeholder="0,00"
                           />
                         ))}
                       </div>
-                      <div className="pt-4 border-t border-dashed border-[#c7c4d8]/50 text-center">
-                        <p className="font-[var(--font-manrope)] font-bold text-xl text-[#3525cd] leading-tight">
-                          <span className="text-xs block mb-0.5">R$</span>
+                      <div className="pt-4 border-t border-dashed border-surface-300 text-center">
+                        <p className="font-[var(--font-manrope)] font-bold text-xl text-primary-200 leading-tight">
+                          <span className="text-xs block mb-0.5 text-typography-500">R$</span>
                           {calculateTotalDonativos(data.donativos.congregacao)}
                         </p>
                       </div>
@@ -1028,7 +1556,7 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
 
                     {/* Obra Mundial Column */}
                     <div className="flex flex-col">
-                      <h3 className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest text-center mb-4">Obra Mundial</h3>
+                      <h3 className="text-[11px] font-bold text-typography-500 uppercase tracking-widest text-center mb-4">Obra Mundial</h3>
                       <div className="flex flex-col gap-2.5 mb-5">
                         {data.donativos.obraMundial.map((v, i) => (
                           <input 
@@ -1036,14 +1564,14 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                             value={v}
                             onChange={(e) => updateTable('donativos', 'obraMundial', i, e.target.value)}
                             onBlur={(e) => updateTable('donativos', 'obraMundial', i, formatCurrency(e.target.value))}
-                            className="w-full p-2.5 bg-[#f9f9ff] rounded-xl border border-[#c7c4d8]/20 text-center text-sm font-bold outline-none focus:border-[#3525cd] focus:bg-white transition-all"
+                            className="w-full p-2.5 bg-surface-100 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200 focus:bg-surface-100 transition-all placeholder:text-typography-400"
                             placeholder="0,00"
                           />
                         ))}
                       </div>
-                      <div className="pt-4 border-t border-dashed border-[#c7c4d8]/50 text-center">
-                        <p className="font-[var(--font-manrope)] font-bold text-xl text-[#512da8] leading-tight">
-                          <span className="text-xs block mb-0.5">R$</span>
+                      <div className="pt-4 border-t border-dashed border-surface-300 text-center">
+                        <p className="font-[var(--font-manrope)] font-bold text-xl text-primary-200 leading-tight">
+                          <span className="text-xs block mb-0.5 text-typography-500">R$</span>
                           {calculateTotalDonativos(data.donativos.obraMundial)}
                         </p>
                       </div>
@@ -1054,53 +1582,59 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 {/* Reuniões */}
                 <section>
                   <div className="flex items-center mb-4 editorial-line pl-3">
-                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-[#111c2d] uppercase tracking-wider">Reuniões</h2>
+                    <h2 className="font-[var(--font-manrope)] text-sm font-bold text-typography-900 uppercase tracking-wider">Reuniões</h2>
                   </div>
-                  <div className="grid grid-cols-2 gap-6 bg-[#DEE8FF] border-2 border-[#512da8]/10 rounded-xl shadow-sm p-5">
+                  <div className="grid grid-cols-2 gap-6 bg-surface-200/50 border border-surface-300 rounded-xl shadow-xs p-5">
                     {/* Meio de Semana Column */}
                     <div className="flex flex-col">
-                      <h3 className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest text-center mb-4">Meio de Semana</h3>
+                      <h3 className="text-[11px] font-bold text-typography-500 uppercase tracking-widest text-center mb-4">Meio de Semana</h3>
                       <div className="flex flex-col gap-2.5 mb-5">
                         {data.reunioes.meioSemana.map((v, i) => (
                           <input 
                             key={i}
                             type="number"
+                            min="0"
                             value={v}
+                            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                            onWheel={(e) => (e.target as HTMLElement).blur()}
                             onChange={(e) => updateTable('reunioes', 'meioSemana', i, e.target.value)}
-                            className="w-full p-2.5 bg-[#f9f9ff] rounded-xl border border-[#c7c4d8]/20 text-center text-sm font-bold outline-none focus:border-[#3525cd] focus:bg-white transition-all"
+                            className="w-full p-2.5 bg-surface-100 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200 focus:bg-surface-100 transition-all"
                           />
                         ))}
                       </div>
-                      <div className="pt-4 border-t border-dashed border-[#c7c4d8]/50 text-center">
-                        <p className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest mb-1">Média</p>
-                        <p className="font-[var(--font-manrope)] font-bold text-xl text-[#3525cd]">{avgMeioSemana}</p>
+                      <div className="pt-4 border-t border-dashed border-surface-300 text-center">
+                        <p className="text-[11px] font-bold text-typography-500 uppercase tracking-widest mb-1">Média</p>
+                        <p className="font-[var(--font-manrope)] font-bold text-xl text-primary-200">{avgMeioSemana}</p>
                       </div>
                     </div>
 
                     {/* Fim de Semana Column */}
                     <div className="flex flex-col">
-                      <h3 className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest text-center mb-4">Fim de Semana</h3>
+                      <h3 className="text-[11px] font-bold text-typography-500 uppercase tracking-widest text-center mb-4">Fim de Semana</h3>
                       <div className="flex flex-col gap-2.5 mb-5">
                         {data.reunioes.fimSemana.map((v, i) => (
                           <input 
                             key={i}
                             type="number"
+                            min="0"
                             value={v}
+                            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                            onWheel={(e) => (e.target as HTMLElement).blur()}
                             onChange={(e) => updateTable('reunioes', 'fimSemana', i, e.target.value)}
-                            className="w-full p-2.5 bg-[#f9f9ff] rounded-xl border border-[#c7c4d8]/20 text-center text-sm font-bold outline-none focus:border-[#3525cd] focus:bg-white transition-all"
+                            className="w-full p-2.5 bg-surface-100 rounded-xl border border-surface-300 text-center text-sm font-bold text-typography-900 outline-none focus:border-primary-200 focus:bg-surface-100 transition-all"
                           />
                         ))}
                       </div>
-                      <div className="pt-4 border-t border-dashed border-[#c7c4d8]/50 text-center">
-                        <p className="text-[11px] font-bold text-[#2d2d2d] uppercase tracking-widest mb-1">Média</p>
-                        <p className="font-[var(--font-manrope)] font-bold text-xl text-[#3525cd]">{avgFimSemana}</p>
+                      <div className="pt-4 border-t border-dashed border-surface-300 text-center">
+                        <p className="text-[11px] font-bold text-typography-500 uppercase tracking-widest mb-1">Média</p>
+                        <p className="font-[var(--font-manrope)] font-bold text-xl text-primary-200">{avgFimSemana}</p>
                       </div>
                     </div>
 
-                    <div className="col-span-2 mt-4 bg-[#4f46e5] p-3 rounded-xl text-center text-white shadow-md shadow-indigo-100">
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1">Diferença do número de publicadores</p>
+                    <div className="col-span-2 mt-4 bg-primary-200 p-3.5 rounded-xl text-center text-white shadow-xs">
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1 opacity-90">Diferença do número de publicadores</p>
                       <p className="font-[var(--font-manrope)] font-bold text-xl">
-                        {sign}{differenceVal} ({sign}{percentageFormatted}%)
+                        {displayDiff}
                       </p>
                     </div>
                   </div>
@@ -1109,8 +1643,8 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
             </div>
 
             {/* Footer */}
-            <footer className="mt-auto pt-8 border-t border-[#c7c4d8]/50">
-              <div className="flex justify-between items-start text-[10px] text-[#2d2d2d] leading-relaxed uppercase tracking-wider">
+            <footer className="mt-auto pt-8 border-t border-surface-300">
+              <div className="flex justify-between items-start text-[10px] text-typography-500 leading-relaxed uppercase tracking-wider">
                 <div className="max-w-md italic">
                 </div>
                 <div className="text-right space-y-1">
@@ -1132,15 +1666,15 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+              className="bg-surface-100 border border-surface-300 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
             >
               <div className="p-6 text-center space-y-4">
-                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                <div className="w-16 h-16 bg-amber-500/10 text-amber-600 rounded-full flex items-center justify-center mx-auto">
                   <Save size={32} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-gray-900">Alterações não salvas</h3>
-                  <p className="text-gray-600">
+                  <h3 className="text-xl font-bold text-typography-900">Alterações não salvas</h3>
+                  <p className="text-sm text-typography-600">
                     Você tem alterações que ainda não foram salvas na análise. Deseja salvar antes de sair?
                   </p>
                 </div>
@@ -1150,19 +1684,19 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                       await handleSave();
                       onBack();
                     }}
-                    className="w-full py-3 rounded-xl font-bold bg-[#512da8] text-white hover:bg-[#4527a0] transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl font-bold bg-primary-200 text-white hover:bg-primary-300 transition-all flex items-center justify-center gap-2 shadow-xs"
                   >
                     {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />} Salvar e Sair
                   </button>
                   <button 
                     onClick={onBack}
-                    className="w-full py-3 rounded-xl font-bold text-red-600 hover:bg-red-50 transition-all"
+                    className="w-full py-3 rounded-xl font-bold text-red-500 hover:bg-red-500/10 transition-all"
                   >
                     Descartar e Sair
                   </button>
                   <button 
                     onClick={() => setShowExitConfirmation(false)}
-                    className="w-full py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
+                    className="w-full py-3 rounded-xl font-bold text-typography-500 hover:bg-surface-200 transition-all"
                   >
                     Continuar Editando
                   </button>
@@ -1181,35 +1715,35 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-surface-100 border border-surface-300 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="bg-[#3525cd] p-4 text-white flex justify-between items-center shrink-0">
+              <div className="bg-surface-200 border-b border-surface-300 px-5 py-4 text-typography-900 flex justify-between items-center shrink-0">
                 <h3 className="font-bold flex items-center gap-2">
-                  <Calculator size={24} /> Média de Pioneiro Individual
+                  <Calculator size={22} className="text-primary-200" /> Média de Pioneiro Individual
                 </h3>
-                <button onClick={() => setShowPioneerModal(false)} className="hover:bg-white/20 p-1 rounded-full">
-                  <X size={24} />
+                <button onClick={() => setShowPioneerModal(false)} className="text-typography-500 hover:text-typography-900 hover:bg-surface-300/50 p-1.5 rounded-xl transition-colors">
+                  <X size={20} />
                 </button>
               </div>
 
               <div className="p-6 overflow-y-auto space-y-6">
                 {/* Identification */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block">Nome / Identificação</label>
+                  <label className="text-xs font-bold text-typography-500 uppercase tracking-widest block">Nome / Identificação</label>
                   <input 
                     type="text"
                     value={pioneerName}
                     onChange={(e) => setPioneerName(e.target.value)}
                     placeholder="Ex: João Silva"
-                    className="w-full p-3 bg-gray-50 border border-[#c7c4d8]/40 rounded-xl font-bold text-gray-800 focus:border-[#3525cd] focus:bg-white outline-none transition-all"
+                    className="w-full p-3 bg-surface-200/50 border border-surface-300 rounded-xl font-bold text-typography-900 focus:border-primary-200 focus:bg-surface-100 outline-none transition-all placeholder:text-typography-400"
                   />
                 </div>
 
                 {/* 12 Months Input */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Relatório Anual (12 Meses)</h4>
-                    <span className="text-[10px] bg-[#e2dfff] text-[#3525cd] px-2 py-1 rounded-md font-bold uppercase">Meta: 50h/mês</span>
+                    <h4 className="text-xs font-bold text-typography-500 uppercase tracking-widest">Relatório Anual (12 Meses)</h4>
+                    <span className="text-[10px] bg-primary-200/10 text-primary-200 border border-primary-200/20 px-2 py-0.5 rounded-full font-bold uppercase">Meta: 50h/mês</span>
                   </div>
                   
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
@@ -1218,17 +1752,21 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                       const hasValue = val.trim() !== '';
                       const diff = hasValue ? hNum - 50 : 0;
                       return (
-                        <div key={idx} className={`p-3 rounded-2xl border transition-all flex flex-col gap-1 ${hasValue ? 'bg-white border-[#3525cd]/30 shadow-sm' : 'bg-gray-50 border-transparent opacity-60'}`}>
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center">Mês {idx + 1}</label>
+                        <div key={idx} className={`p-3 rounded-2xl border transition-all flex flex-col gap-1 ${hasValue ? 'bg-surface-100 border-primary-200/50 shadow-xs' : 'bg-surface-200/40 border-surface-300/40 opacity-70'}`}>
+                          <label className="text-[9px] font-bold text-typography-400 uppercase tracking-widest text-center">Mês {idx + 1}</label>
                           <input 
                             type="number"
+                            min="0"
                             value={val}
+                            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                            onWheel={(e) => (e.target as HTMLElement).blur()}
                             onChange={(e) => {
+                              const sanitized = e.target.value.replace(/[^0-9]/g, '');
                               const newHours = [...pioneerHours];
-                              newHours[idx] = e.target.value;
+                              newHours[idx] = sanitized;
                               setPioneerHours(newHours);
                             }}
-                            className="w-full p-1 bg-transparent rounded-lg text-center font-bold text-[#3525cd] outline-none text-sm"
+                            className="w-full p-1 bg-transparent rounded-lg text-center font-bold text-primary-200 outline-none text-sm"
                             placeholder="0"
                           />
                           {hasValue && (
@@ -1243,9 +1781,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 </div>
 
                 {/* Totals Summary */}
-                <div className="bg-[#f0f3ff] p-5 rounded-2xl border border-[#3525cd]/10 flex flex-col sm:flex-row gap-6 sm:items-center justify-between">
+                <div className="bg-surface-200/50 p-5 rounded-2xl border border-surface-300 flex flex-col sm:flex-row gap-6 sm:items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Acumulado</p>
+                    <p className="text-[10px] font-bold text-typography-400 uppercase tracking-widest mb-1">Total Acumulado</p>
                     <div className="flex items-baseline gap-2">
                        {(() => {
                         const total = pioneerHours.map(h => parseFloat(h) || 0).reduce((a, b) => a + b, 0);
@@ -1253,18 +1791,18 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                         const target = count * 50;
                         return (
                           <>
-                            <span className="text-3xl font-black text-[#3525cd]">{total}h</span>
-                            <span className="text-sm font-bold text-gray-400">/ {target}h ({count} meses)</span>
+                            <span className="text-3xl font-black text-primary-200">{total}h</span>
+                            <span className="text-sm font-bold text-typography-400">/ {target}h ({count} meses)</span>
                           </>
                         );
                       })()}
                     </div>
                   </div>
                   
-                  <div className="h-px sm:h-12 w-full sm:w-px bg-[#c7c4d8]/30"></div>
+                  <div className="h-px sm:h-12 w-full sm:w-px bg-surface-300"></div>
                   
                   <div className="text-right sm:text-right">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Diferença Total</p>
+                    <p className="text-[10px] font-bold text-typography-400 uppercase tracking-widest mb-1">Diferença Total</p>
                     {(() => {
                       const total = pioneerHours.map(h => parseFloat(h) || 0).reduce((a, b) => a + b, 0);
                       const count = pioneerHours.filter(h => h.trim() !== '').length;
@@ -1278,23 +1816,23 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                   </div>
                 </div>
 
-                <p className="text-[10px] text-gray-400 italic text-center">
+                <p className="text-[10px] text-typography-400 italic text-center">
                   * A meta anual é de 600 horas, o que equivale a 50 horas mensais para pioneiros regulares.
                 </p>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-[#c7c4d8]/20 flex gap-3 shrink-0">
+              <div className="p-5 bg-surface-200/40 border-t border-surface-300 flex gap-3 shrink-0">
                 <button 
                   onClick={() => setShowPioneerModal(false)}
-                  className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all border border-transparent"
+                  className="flex-1 py-2.5 rounded-xl font-bold text-typography-600 hover:bg-surface-300/50 border border-surface-300 transition-all"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={handleSavePioneerRaw}
-                  className="flex-[2] py-3 rounded-xl font-bold bg-[#3525cd] text-white hover:bg-[#2a1da3] transition-all flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-[2] py-2.5 rounded-xl font-bold bg-primary-200 text-white hover:bg-primary-300 transition-all flex items-center justify-center gap-2 shadow-xs"
                 >
-                  <Save size={20} /> {editingPioneer ? 'Salvar Alterações' : 'Salvar Média Individual'}
+                  <Save size={18} /> {editingPioneer ? 'Salvar Alterações' : 'Salvar Média Individual'}
                 </button>
               </div>
             </motion.div>
@@ -1309,40 +1847,44 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+              className="bg-surface-100 border border-surface-300 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
             >
-              <div className="bg-[#512da8] p-4 text-white flex justify-between items-center">
+              <div className="bg-surface-200 border-b border-surface-300 px-5 py-4 text-typography-900 flex justify-between items-center">
                 <h3 className="font-bold flex items-center gap-2">
-                  <Calculator size={24} /> Calcular Média
+                  <Calculator size={22} className="text-primary-200" /> Calcular Média
                 </h3>
-                <button onClick={() => setCalcModal(null)} className="hover:bg-white/20 p-1 rounded-full">
-                  <X size={24} />
+                <button onClick={() => setCalcModal(null)} className="text-typography-500 hover:text-typography-900 hover:bg-surface-300/50 p-1.5 rounded-xl transition-colors">
+                  <X size={20} />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 <div className="flex justify-center">
-                  <div className="w-16 h-16 bg-indigo-50 text-[#512da8] rounded-2xl flex items-center justify-center shadow-sm">
-                    <Calculator size={36} />
+                  <div className="w-14 h-14 bg-primary-200/10 text-primary-200 rounded-2xl flex items-center justify-center shadow-xs">
+                    <Calculator size={30} />
                   </div>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Categoria</p>
-                  <p className="font-bold text-gray-800">{calcModal.label}</p>
+                  <p className="text-xs font-bold text-typography-500 uppercase tracking-wider">Categoria</p>
+                  <p className="font-bold text-typography-900">{calcModal.label}</p>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-3">
                   {calcValues.map((val, idx) => (
                     <div key={idx} className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-400 block text-center">Mês {idx + 1}</label>
+                      <label className="text-[10px] font-bold text-typography-500 block text-center">Mês {idx + 1}</label>
                       <input 
                         type="number"
+                        min="0"
                         value={val}
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                        onWheel={(e) => (e.target as HTMLElement).blur()}
                         onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^0-9]/g, '');
                           const newVals = [...calcValues];
-                          newVals[idx] = e.target.value;
+                          newVals[idx] = sanitized;
                           setCalcValues(newVals);
                         }}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-center font-bold focus:border-[#512da8] outline-none"
+                        className="w-full p-2 bg-surface-200/50 border border-surface-300 rounded-xl text-center font-bold text-typography-900 focus:border-primary-200 focus:bg-surface-100 outline-none transition-all"
                       />
                     </div>
                   ))}
@@ -1351,13 +1893,13 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
                 <div className="pt-4 flex gap-3">
                   <button 
                     onClick={() => setCalcModal(null)}
-                    className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
+                    className="flex-1 py-2.5 rounded-xl font-bold text-typography-600 hover:bg-surface-200 border border-surface-300 transition-all"
                   >
                     Cancelar
                   </button>
                   <button 
                     onClick={applyAverage}
-                    className="flex-1 py-3 rounded-xl font-bold bg-[#512da8] text-white hover:bg-[#4527a0] transition-all shadow-lg shadow-indigo-100"
+                    className="flex-1 py-2.5 rounded-xl font-bold bg-primary-200 text-white hover:bg-primary-300 transition-all shadow-xs"
                   >
                     Aplicar Média
                   </button>

@@ -51,6 +51,7 @@ const EMRView = dynamic(() => import('@/components/EMRView'), { ssr: false });
 const EMRServosView = dynamic(() => import('@/components/EMRServosView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
+import ThemeSwitcher from '@/components/ui/theme-switcher';
 
 import { auth, db } from '@/lib/firebase';
 import { useDialog } from '@/hooks/useDialog';
@@ -794,7 +795,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fa] transition-all duration-500 ease-in-out portrait:flex-col landscape:flex-row print:block print:bg-white">
+    <div className="flex min-h-screen bg-surface-200 transition-colors duration-300 portrait:flex-col landscape:flex-row print:block print:bg-white">
       {/* Novidades Modal */}
       <AnimatePresence>
         {showWhatsNew && newsContent && (
@@ -999,11 +1000,10 @@ export default function Home() {
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}
-              <div className="flex justify-between items-center gap-4 relative">
-                <div className="border-2 border-blue-400 p-2 md:p-4 rounded-sm flex-1 md:flex-initial bg-white/50 flex items-center gap-3 md:gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 md:p-5 rounded-2xl bg-surface-100 border border-surface-300 shadow-xs">
+                <div className="flex items-center gap-3 md:gap-4">
                   <div 
-                    className="relative w-12 h-12 md:w-16 md:h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shadow-inner cursor-pointer group/avatar overflow-hidden flex-shrink-0"
-                    style={{ width: '64px', height: '64px', minWidth: '64px', position: 'relative' }}
+                    className="relative w-12 h-12 md:w-14 md:h-14 bg-surface-200 rounded-full flex items-center justify-center text-primary-200 ring-2 ring-surface-300 ring-offset-2 ring-offset-surface-100 cursor-pointer group/avatar overflow-hidden shrink-0 hover:ring-primary-200 transition-all"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {user?.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
@@ -1015,10 +1015,10 @@ export default function Home() {
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <User size={24} className="md:w-8 md:h-8" />
+                      <User size={22} className="md:w-6 md:h-6" />
                     )}
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                      <Camera size={16} className="text-white md:w-5 md:h-5" />
+                      <Camera size={16} className="text-white" />
                     </div>
                     {isUploading && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -1034,9 +1034,10 @@ export default function Home() {
                     className="hidden" 
                   />
                   <div>
-                    <h1 className="text-base md:text-xl font-bold text-blue-600 uppercase tracking-tight">Olá, {personalData?.nome || personalData?.numeroPessoal || user?.usuario || ''}</h1>
                     <div className="flex items-center gap-2">
-                      <p className="text-blue-400 font-medium uppercase tracking-widest text-[8px] md:text-xs">Seja bem-vindo ao ProgCir Web</p>
+                      <h1 className="text-base md:text-lg font-bold text-typography-900 tracking-tight">
+                        Olá, {personalData?.nome || personalData?.numeroPessoal || user?.usuario || ''}
+                      </h1>
                       {user?.photoURL && (
                         <button 
                           onClick={async () => {
@@ -1047,26 +1048,28 @@ export default function Home() {
                               setUser((prev: any) => ({ ...prev, photoURL: null }));
                             }
                           }}
-                          className="text-[7px] md:text-[9px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full hover:bg-red-100 transition-colors font-black uppercase tracking-tighter"
+                          className="text-[10px] text-red-500 hover:text-red-600 hover:bg-red-500/10 px-1.5 py-0.5 rounded-md transition-colors font-medium"
                         >
-                          Limpar Foto
+                          Remover foto
                         </button>
                       )}
                     </div>
+                    <p className="text-xs text-typography-500">Seja bem-vindo ao ProgCir Web</p>
                   </div>
                 </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => changeView('donations')}
-                  className="p-2.5 text-violet-500 hover:text-violet-600 transition-all group flex items-center gap-2 bg-white/40 backdrop-blur-sm rounded-xl hover:bg-white/80 shadow-sm border border-violet-100/50 hover:border-violet-200"
-                >
-                  <Coffee size={18} className="opacity-40 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap">
-                    Apoiar
-                  </span>
-                </motion.button>
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <ThemeSwitcher />
+
+                  <button
+                    onClick={() => changeView('donations')}
+                    className="px-3 py-2 text-typography-700 hover:text-primary-200 transition-all flex items-center gap-1.5 bg-surface-200/80 rounded-xl hover:bg-surface-300/80 border border-surface-300 text-xs font-medium"
+                    title="Apoiar o projeto"
+                  >
+                    <Coffee size={16} className="text-primary-200" />
+                    <span className="hidden sm:inline">Apoiar</span>
+                  </button>
+                </div>
               </div>
 
               {/* Dashboard Cards Grid */}
@@ -1084,12 +1087,29 @@ export default function Home() {
               />
 
               {/* Statistics Summary Bar */}
-              <div className="bg-[#e0d8eb] p-2 md:p-4 rounded-xl md:rounded-full flex flex-wrap items-center justify-center landscape:justify-between md:justify-between px-4 md:px-10 text-[10px] md:text-xs font-bold text-[#3a264b] shadow-inner gap-2 md:gap-4">
-                <div className="flex gap-1">Publicadores Ativos: <span className="font-normal underline decoration-dotted">{congStats.publicadoresAtivos.toLocaleString('pt-BR')}</span></div>
-                <div className="flex gap-1">Pioneiros Regulares: <span className="font-normal underline decoration-dotted">{congStats.pioneirosRegulares.toLocaleString('pt-BR')}</span></div>
-                <div className="flex gap-1">Pioneiros Especiais: <span className="font-normal underline decoration-dotted">{congStats.pioneirosEspeciais.toLocaleString('pt-BR')}</span></div>
-                <div className="flex gap-1">Anciãos: <span className="font-normal underline decoration-dotted">{congStats.anciaos.toLocaleString('pt-BR')}</span></div>
-                <div className="flex gap-1">Servos: <span className="font-normal underline decoration-dotted">{congStats.servos.toLocaleString('pt-BR')}</span></div>
+              <div className="bg-surface-100 border border-surface-300 rounded-2xl p-3 sm:p-4 shadow-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 text-center divide-y sm:divide-y-0 sm:divide-x divide-surface-300">
+                  <div className="flex flex-col items-center">
+                    <span className="text-[11px] font-medium text-typography-500">Publicadores Ativos</span>
+                    <span className="text-sm sm:text-base font-bold text-typography-900 mt-0.5">{congStats.publicadoresAtivos.toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="flex flex-col items-center pt-2 sm:pt-0">
+                    <span className="text-[11px] font-medium text-typography-500">Pioneiros Regulares</span>
+                    <span className="text-sm sm:text-base font-bold text-typography-900 mt-0.5">{congStats.pioneirosRegulares.toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="flex flex-col items-center pt-2 sm:pt-0">
+                    <span className="text-[11px] font-medium text-typography-500">Pioneiros Especiais</span>
+                    <span className="text-sm sm:text-base font-bold text-typography-900 mt-0.5">{congStats.pioneirosEspeciais.toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="flex flex-col items-center pt-2 sm:pt-0">
+                    <span className="text-[11px] font-medium text-typography-500">Anciãos</span>
+                    <span className="text-sm sm:text-base font-bold text-typography-900 mt-0.5">{congStats.anciaos.toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="flex flex-col items-center pt-2 sm:pt-0">
+                    <span className="text-[11px] font-medium text-typography-500">Servos Ministeriais</span>
+                    <span className="text-sm sm:text-base font-bold text-typography-900 mt-0.5">{congStats.servos.toLocaleString('pt-BR')}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Activity and Map Section */}

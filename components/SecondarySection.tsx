@@ -7,7 +7,7 @@ import { MapPin } from 'lucide-react';
 // Dynamically import map to avoid SSR issues
 const CongregationsMap = dynamic(() => import('./CongregationsMap'), { 
   ssr: false,
-  loading: () => <div className="h-[600px] w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Carregando Mapa...</div>
+  loading: () => <div className="h-[520px] w-full bg-surface-200 animate-pulse rounded-2xl flex items-center justify-center text-typography-400 text-sm">Carregando Mapa...</div>
 });
 
 interface SecondarySectionProps {
@@ -16,34 +16,39 @@ interface SecondarySectionProps {
 }
 
 export default function SecondarySection({ congregations, onEdit }: SecondarySectionProps) {
+  const mappedCount = congregations.filter(c => {
+    const gps = c.gps?.trim();
+    return gps && (gps.includes(',') || gps.includes(' '));
+  }).length;
+
   return (
     <div className="grid grid-cols-1 gap-6">
-      {/* Map Section replacing Activity Feed */}
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white/50 rounded-2xl p-4 md:p-6 space-y-4 border border-white/20"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-surface-100 rounded-2xl p-4 md:p-5 space-y-4 border border-surface-300 shadow-xs"
       >
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <MapPin className="text-violet-600" size={20} />
-            <h5 className="font-headline font-bold text-lg text-gray-800 tracking-tight">Visão Geográfica do Circuito</h5>
+            <div className="w-8 h-8 rounded-lg bg-primary-200/10 flex items-center justify-center text-primary-200">
+              <MapPin size={18} />
+            </div>
+            <h2 className="font-semibold text-base text-typography-900 tracking-tight">Visão Geográfica do Circuito</h2>
           </div>
+
+          <span className="text-xs text-typography-500 font-medium hidden sm:inline">
+            {mappedCount} de {congregations.length} mapeadas
+          </span>
         </div>
         
-        <div className="bg-white p-2 rounded-3xl shadow-sm border border-gray-100 h-[600px] hover:shadow-lg transition-shadow duration-500">
+        <div className="bg-surface-200/50 p-1.5 rounded-2xl border border-surface-300 overflow-hidden h-[520px]">
           <CongregationsMap congregations={congregations} onEdit={onEdit} />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50/80 backdrop-blur-sm p-3 rounded-2xl border border-gray-100/50">
-          <MapPin size={14} className="text-violet-500" />
+        <div className="flex items-center gap-2 text-xs text-typography-500 bg-surface-200/50 px-3 py-2 rounded-xl border border-surface-300/50">
+          <MapPin size={14} className="text-primary-200 shrink-0" />
           <span>
-            Mostrando {
-              congregations.filter(c => {
-                const gps = c.gps?.trim();
-                return gps && (gps.includes(',') || gps.includes(' '));
-              }).length
-            } de {congregations.length} congregações no mapa.
+            Mostrando {mappedCount} de {congregations.length} congregações no mapa.
           </span>
         </div>
       </motion.div>
