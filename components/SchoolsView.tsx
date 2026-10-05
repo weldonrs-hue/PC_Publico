@@ -21,7 +21,8 @@ const schools = [
     subtitle: 'Gestão de turmas, oradores e cartas de designação para os pioneiros.',
     badge: 'E.S.P.',
     color: '#10B981', // Emerald
-    iconBg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    iconBorder: 'border-emerald-500/40 dark:border-emerald-400/50',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
     icon: GraduationCap,
     inactive: false,
   },
@@ -31,7 +32,8 @@ const schools = [
     subtitle: 'Programação de 2027 para os corpos de anciãos do circuito.',
     badge: 'Anciãos (E.M.R.)',
     color: '#37616b', // Blue-gray
-    iconBg: 'bg-[#37616b]/10 text-[#37616b] border-[#37616b]/20',
+    iconBorder: 'border-[#37616b]/40 dark:border-[#528996]/50',
+    iconColor: 'text-[#37616b] dark:text-[#528996]',
     icon: Presentation,
     inactive: false,
   },
@@ -41,7 +43,8 @@ const schools = [
     subtitle: 'Programação de 2027 para os servos ministeriais do circuito.',
     badge: 'Servos (E.M.R.)',
     color: '#6366F1', // Indigo
-    iconBg: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+    iconBorder: 'border-indigo-500/40 dark:border-indigo-400/50',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
     icon: Presentation,
     inactive: false,
   },
@@ -77,9 +80,9 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
       {/* Cabeçalho da Página — Idêntico a EventsView */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-primary-200/10 text-primary-200 border border-primary-200/20">
-              <GraduationCap size={20} />
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-transparent border border-primary-200/40 dark:border-primary-200/50 text-primary-200 flex items-center justify-center shrink-0">
+              <GraduationCap size={20} strokeWidth={1.8} />
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
               Escolas Teocráticas
@@ -128,8 +131,8 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
               <div className="space-y-4">
                 {/* Top Row: Icon + Badge */}
                 <div className="flex items-start justify-between gap-3">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-xs transition-transform duration-300 group-hover:scale-105 ${school.iconBg}`}>
-                    <Icon size={24} />
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${school.iconBorder} ${school.iconColor} bg-transparent transition-all duration-300 group-hover:scale-105 group-hover:bg-surface-200/50`}>
+                    <Icon size={24} strokeWidth={1.8} />
                   </div>
 
                   <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-surface-200 text-typography-500 border border-surface-300">
@@ -166,8 +169,8 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
       {guestSchools.length > 0 && (
         <div className="space-y-4 pt-4 border-t border-surface-300">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-[#37616b]/10 text-[#37616b] border border-[#37616b]/20">
-              <UserCheck size={18} />
+            <div className="w-8 h-8 rounded-lg bg-transparent border border-[#37616b]/40 dark:border-[#528996]/50 text-[#37616b] dark:text-[#528996] flex items-center justify-center shrink-0">
+              <UserCheck size={17} strokeWidth={1.8} />
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-typography-900 tracking-tight">
@@ -190,8 +193,8 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
                 className="group relative flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-surface-100 border border-surface-300 hover:border-[#37616b]/40 shadow-xs hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-0.5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-[#37616b]/10 text-[#37616b] border border-[#37616b]/20 shrink-0">
-                    <GraduationCap size={20} />
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-transparent border border-[#37616b]/40 dark:border-[#528996]/50 text-[#37616b] dark:text-[#528996] transition-all group-hover:scale-105 group-hover:bg-surface-200/50 shrink-0">
+                    <GraduationCap size={20} strokeWidth={1.8} />
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-sm font-bold text-typography-900 truncate group-hover:text-[#37616b] transition-colors">
