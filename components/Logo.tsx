@@ -1,7 +1,5 @@
 'use client';
 
-import { useTheme } from '@/context/ThemeContext';
-
 interface LogoProps {
   className?: string;
   iconSize?: number | string;
@@ -15,24 +13,14 @@ interface LogoProps {
 
 export default function Logo({ 
   className = '', 
-  iconSize = 32, 
+  iconSize = 36, 
   textSize = 'text-2xl', 
   showText = true,
   forceShowText = false,
   textColor,
   outlineColor,
-  monochrome,
+  monochrome = false,
 }: LogoProps) {
-  const { theme } = useTheme();
-
-  // Se monochrome for passado explicitamente, respeita a prop.
-  // Caso contrário, decide automaticamente com base no tema ativo:
-  // - Tema Roxo (padrão '') e Tema Escuro ('theme-dark') exibem a logo original colorida.
-  // - Demais temas ('theme-teal' e 'theme-blue') exibem a versão monocromática elegante.
-  const isMonochrome = typeof monochrome === 'boolean'
-    ? monochrome
-    : (theme === 'theme-teal' || theme === 'theme-blue');
-
   // Determine if iconSize is a number or a class string
   const iconSizingClass = typeof iconSize === 'string' ? iconSize : '';
   const iconInlineStyle = typeof iconSize === 'number' ? { width: iconSize, height: iconSize } : {};
@@ -42,7 +30,7 @@ export default function Logo({
       {/* Brand Icon Badge - Clean, balanced, modern */}
       <div 
         className={`relative flex-shrink-0 flex items-center justify-center rounded-xl p-1.5 transition-all duration-300 ${
-          isMonochrome 
+          monochrome 
             ? 'bg-white/10 shadow-2xs border border-white/15' 
             : 'bg-white/15 shadow-2xs border border-white/20 backdrop-blur-xs'
         } ${iconSizingClass}`} 
@@ -52,7 +40,7 @@ export default function Logo({
           src="/ProgCir_Ico.svg" 
           alt="ProgCir Logo"
           className={`w-full h-full object-contain transition-all duration-300 group-hover:scale-105 ${
-            isMonochrome 
+            monochrome 
               ? 'brightness-0 invert opacity-95' 
               : 'drop-shadow-xs'
           }`}

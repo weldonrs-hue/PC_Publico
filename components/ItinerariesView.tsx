@@ -2046,6 +2046,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                       {/* Visit Status Pill */}
                       {isCongregation && item.evento && (
                         <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5 border shadow-2xs ${
+                          current ? 'print:hidden' : ''
+                        } ${
                           isWeekPast(item.semana)
                             ? 'bg-emerald-100 text-emerald-900 border-emerald-400 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-600'
                             : current
@@ -2276,11 +2278,11 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                               ) : (
                                 <div className="flex items-center gap-2 min-w-0">
                                   {isCongregation && (
-                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary-200/10 text-primary-200 border border-primary-200/25 shrink-0">
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-primary-200/10 text-primary-200 border border-primary-200/25 shrink-0 print:hidden">
                                       <MapPin size={13} />
                                     </span>
                                   )}
-                                  <span className="font-bold text-typography-900 text-sm truncate">
+                                  <span className="font-bold text-typography-900 text-sm truncate print:overflow-visible print:whitespace-normal">
                                     {item.evento || <span className="text-typography-400 italic font-normal text-xs">Vazio...</span>}
                                   </span>
                                 </div>
@@ -2289,6 +2291,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
                             {isCongregation && item.evento && (
                               <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5 border shadow-2xs ${
+                                current ? 'print:hidden' : ''
+                              } ${
                                 isWeekPast(item.semana)
                                   ? 'bg-emerald-100 text-emerald-900 border-emerald-400 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-600'
                                   : current
@@ -3036,6 +3040,12 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
 
         .pdf-capture .border-gray-300 {
           border-color: #d1d5db !important;
+        }
+
+        .pdf-capture .truncate {
+          overflow: visible !important;
+          white-space: normal !important;
+          text-overflow: clip !important;
         }
       `}</style>
     </div>

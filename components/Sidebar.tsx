@@ -189,13 +189,13 @@ export default function Sidebar({
     >
       {/* Top Logo Section (Landscape / Desktop) */}
       <div 
-        className="p-3 lg:p-5 landscape:block portrait:hidden border-b backdrop-blur-xs"
+        className="p-3.5 lg:p-5 landscape:block portrait:hidden border-b backdrop-blur-xs"
         style={{ borderColor: 'var(--sidebar-border)', backgroundColor: 'var(--sidebar-header-bg)' }}
       >
         <div className="flex items-center justify-center lg:justify-start">
           <Logo
-            iconSize="w-8 h-8 lg:w-9 lg:h-9"
-            textSize="text-lg lg:text-xl"
+            iconSize="w-9 h-9 lg:w-11 lg:h-11"
+            textSize="text-xl lg:text-2xl"
             showText={true}
             textColor="#ffffff"
             outlineColor="#ffffff"
