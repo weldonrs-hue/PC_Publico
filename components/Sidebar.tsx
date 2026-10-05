@@ -199,7 +199,6 @@ export default function Sidebar({
             showText={true}
             textColor="#ffffff"
             outlineColor="#ffffff"
-            monochrome={true}
           />
         </div>
       </div>
