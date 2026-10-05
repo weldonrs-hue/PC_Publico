@@ -79,22 +79,22 @@ export default function PublicVisitSchedulePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 space-y-4">
-        <div className="w-10 h-10 border-4 border-[#1a5c5a] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-semibold text-gray-700">Carregando programação da congregação...</p>
+      <div className="min-h-screen bg-surface-200 flex flex-col items-center justify-center p-6 space-y-4">
+        <div className="w-10 h-10 border-4 border-primary-200 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-semibold text-typography-700">Carregando programação da congregação...</p>
       </div>
     );
   }
 
   if (errorMsg && !schedule) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 text-center shadow-xl border border-gray-100 space-y-4">
+      <div className="min-h-screen bg-surface-200 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-surface-100 rounded-3xl p-8 text-center shadow-xl border border-surface-300 space-y-4">
           <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
             <AlertCircle size={30} />
           </div>
-          <h2 className="text-lg font-black text-gray-900">Link Não Encontrado</h2>
-          <p className="text-xs text-gray-600 leading-relaxed">{errorMsg}</p>
+          <h2 className="text-lg font-black text-typography-900">Link Não Encontrado</h2>
+          <p className="text-xs text-typography-600 leading-relaxed">{errorMsg}</p>
         </div>
       </div>
     );
@@ -103,21 +103,21 @@ export default function PublicVisitSchedulePage() {
   if (!schedule) return null;
 
   return (
-    <div className="min-h-screen bg-gray-100/70 pb-24 md:pb-12 pt-3 px-3 md:px-6">
+    <div className="min-h-screen bg-surface-200/60 pb-24 md:pb-12 pt-3 px-3 md:px-6">
       {/* CABEÇALHO SUPERIOR FIXO / COMPACTO */}
-      <div className="max-w-2xl mx-auto bg-white border border-gray-200/90 rounded-2xl p-4 shadow-sm mb-4 print:hidden space-y-3">
+      <div className="max-w-2xl mx-auto bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-sm mb-4 print:hidden space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-md">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-primary-200/10 text-primary-200 border border-primary-200/20 px-2 py-0.5 rounded-md">
                 Congregação {schedule.congregationName}
               </span>
-              <span className="text-xs text-gray-400">•</span>
-              <span className="text-xs font-semibold text-gray-500">
+              <span className="text-xs text-typography-400">•</span>
+              <span className="text-xs font-semibold text-typography-500">
                 {schedule.visitPeriod}
               </span>
             </div>
-            <h1 className="text-base font-black text-gray-900 mt-1 tracking-tight">
+            <h1 className="text-base font-black text-typography-900 mt-1 tracking-tight">
               Semana da Visita
             </h1>
           </div>
@@ -126,7 +126,7 @@ export default function PublicVisitSchedulePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 cursor-pointer"
             >
               {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
               {saving ? 'Salvando...' : 'Salvar Informações'}
@@ -134,7 +134,7 @@ export default function PublicVisitSchedulePage() {
 
             <button
               onClick={() => window.print()}
-              className="flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-colors"
+              className="flex items-center justify-center gap-1.5 bg-surface-200 hover:bg-surface-300 border border-surface-300 text-typography-800 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-colors cursor-pointer"
               title="Imprimir folha"
             >
               <Printer size={16} />
@@ -154,14 +154,14 @@ export default function PublicVisitSchedulePage() {
         )}
 
         {/* SELETOR DE MODO: FORMULÁRIO RESPONSIVO VS FOLHA A4 */}
-        <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 gap-2">
-          <div className="flex bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
+        <div className="flex items-center justify-between border-t border-surface-300 pt-2.5 gap-2">
+          <div className="flex bg-surface-200 p-1 rounded-xl w-full sm:w-auto">
             <button
               onClick={() => setViewMode('form')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'form'
-                  ? 'bg-white text-[#1a5c5a] shadow-xs'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-surface-100 text-primary-200 shadow-xs'
+                  : 'text-typography-500 hover:text-typography-800'
               }`}
             >
               <Smartphone size={14} />
@@ -170,10 +170,10 @@ export default function PublicVisitSchedulePage() {
 
             <button
               onClick={() => setViewMode('print')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'print'
-                  ? 'bg-white text-[#1a5c5a] shadow-xs'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-surface-100 text-primary-200 shadow-xs'
+                  : 'text-typography-500 hover:text-typography-800'
               }`}
             >
               <FileText size={14} />
@@ -213,9 +213,9 @@ export default function PublicVisitSchedulePage() {
       </div>
 
       {/* BARRA FLUTUANTE INFERIOR NO CELULAR (Garante que o botão de salvar está sempre visível) */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg md:hidden print:hidden z-50">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-surface-100/95 backdrop-blur-md border-t border-surface-300 shadow-lg md:hidden print:hidden z-50">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-          <div className="text-[11px] text-gray-500 truncate">
+          <div className="text-[11px] text-typography-500 truncate">
             {savedSuccess ? (
               <span className="text-emerald-600 font-bold flex items-center gap-1">
                 <Check size={14} /> Salvo!
@@ -227,7 +227,7 @@ export default function PublicVisitSchedulePage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 max-w-[200px] flex items-center justify-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50"
+            className="flex-1 max-w-[200px] flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
           >
             {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
             {saving ? 'Salvando...' : 'Salvar Informações'}

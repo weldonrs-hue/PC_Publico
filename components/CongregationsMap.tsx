@@ -104,7 +104,7 @@ function MapControls({ congregations, showNames, setShowNames }: { congregations
             e.stopPropagation();
             handleResetView();
           }}
-          className="bg-white hover:bg-gray-100 text-gray-700 w-[34px] h-[34px] flex items-center justify-center transition-colors shadow-md border-none rounded-sm"
+          className="bg-surface-100 hover:bg-surface-200 text-typography-700 w-[34px] h-[34px] flex items-center justify-center transition-colors shadow-md border border-surface-300 rounded-lg"
           title="Centralizar Visualização"
           type="button"
         >
@@ -117,8 +117,8 @@ function MapControls({ congregations, showNames, setShowNames }: { congregations
             e.stopPropagation();
             setShowNames(!showNames);
           }}
-          className={`w-[34px] h-[34px] flex items-center justify-center transition-all shadow-md border-none rounded-sm ${
-            showNames ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+          className={`w-[34px] h-[34px] flex items-center justify-center transition-all shadow-md border rounded-lg ${
+            showNames ? 'bg-primary-200 text-white border-primary-200' : 'bg-surface-100 text-typography-700 hover:bg-surface-200 border-surface-300'
           }`}
           title={showNames ? "Ocultar Nomes" : "Mostrar Nomes"}
           type="button"
@@ -139,7 +139,7 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
     setIsMounted(true);
   }, []);
 
-  if (!isMounted) return <div className="h-full w-full bg-gray-100 animate-pulse rounded-xl" />;
+  if (!isMounted) return <div className="h-full w-full bg-surface-200 animate-pulse rounded-xl" />;
 
   const validCongregations = congregations.map(c => ({
     ...c,
@@ -170,7 +170,7 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
             <Marker key={cong.id} position={cong.coords}>
               {showNames && (
                 <Tooltip permanent direction="top" offset={[0, -32]} opacity={1}>
-                  <span className="font-black uppercase tracking-tight text-[10px] text-amber-900">{cong.nome}</span>
+                  <span className="font-bold uppercase tracking-tight text-[10px] text-primary-200">{cong.nome}</span>
                 </Tooltip>
               )}
               <Popup>
@@ -185,14 +185,14 @@ export default function CongregationsMap({ congregations, onEdit }: Congregation
                     {onEdit && (
                       <button 
                         onClick={() => onEdit(cong)}
-                        className="w-full py-2 bg-amber-600 text-white text-[10px] font-bold rounded-lg hover:bg-amber-700 transition-colors shadow-sm"
+                        className="w-full py-2 bg-primary-200 text-white text-[10px] font-bold rounded-lg hover:bg-primary-150 transition-colors shadow-sm"
                       >
                         Editar Detalhes
                       </button>
                     )}
                     <button 
                       onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${cong.coords[0]},${cong.coords[1]}`, '_blank')}
-                      className="w-full py-2 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                      className="w-full py-2 bg-sky-600 text-white text-[10px] font-bold rounded-lg hover:bg-sky-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
                     >
                       <Navigation size={12} />
                       Como Chegar

@@ -158,8 +158,8 @@ export default function VisitScheduleManagerView({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-16 space-y-4">
-        <div className="w-8 h-8 border-4 border-[#1a5c5a] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-medium text-gray-600">Carregando programação da visita...</p>
+        <div className="w-8 h-8 border-4 border-primary-200 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-typography-600">Carregando programação da visita...</p>
       </div>
     );
   }
@@ -169,38 +169,38 @@ export default function VisitScheduleManagerView({
   return (
     <div className="space-y-6 max-w-6xl mx-auto w-full pb-16">
       {/* BARRA SUPERIOR DE AÇÕES (Não sai na impressão) */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 md:p-5 shadow-sm space-y-4 print:hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4">
+      <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 md:p-5 shadow-sm space-y-4 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-300 pb-4">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600"
+              className="p-2 sm:p-2.5 rounded-xl border border-surface-300 hover:bg-surface-200 text-typography-700 hover:text-typography-900 transition-colors shrink-0 shadow-2xs cursor-pointer"
               title="Voltar"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} />
             </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
+                  {schedule.congregationName}
+                </h1>
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-primary-200/10 text-primary-200 border border-primary-200/20 whitespace-nowrap">
                   Semana da Visita
                 </span>
-                <span className="text-xs text-gray-500">•</span>
-                <span className="text-xs font-semibold text-gray-500">
-                  {schedule.visitPeriod}
-                </span>
               </div>
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">
-                {schedule.congregationName}
-              </h1>
+              <div className="flex items-center gap-1.5 mt-0.5 text-xs text-typography-500 font-medium">
+                <Calendar size={13} className="text-primary-200 shrink-0" />
+                <span>{schedule.visitPeriod}</span>
+              </div>
             </div>
           </div>
 
           {/* Botões de Ação */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
             <button
               onClick={() => handleSave()}
               disabled={saving}
-              className="flex items-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 whitespace-nowrap cursor-pointer"
             >
               <Save size={15} />
               {saving ? 'Salvando...' : 'Salvar Alterações'}
@@ -208,7 +208,7 @@ export default function VisitScheduleManagerView({
 
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3.5 py-2 rounded-xl font-bold text-xs transition-colors"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-surface-200 hover:bg-surface-300 border border-surface-300 text-typography-800 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-colors whitespace-nowrap cursor-pointer"
             >
               <Printer size={15} />
               Imprimir / PDF
@@ -217,15 +217,15 @@ export default function VisitScheduleManagerView({
         </div>
 
         {/* ÁREA DE COMPARTILHAMENTO COM ANCIÃOS */}
-        <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-100 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="bg-primary-200/5 border border-primary-200/20 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Share2 size={16} className="text-[#1a5c5a]" />
-              <h3 className="text-xs font-bold uppercase tracking-wide text-[#1a5c5a]">
+              <Share2 size={16} className="text-primary-200" />
+              <h3 className="text-xs font-bold uppercase tracking-wide text-primary-200">
                 Link de Preenchimento para os Anciãos
               </h3>
             </div>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-typography-600">
               Envie este link para a congregação preencher os locais de campo, almoços e pastoreio sem precisar de login.
             </p>
           </div>
@@ -233,15 +233,15 @@ export default function VisitScheduleManagerView({
           <div className="flex items-center gap-2 w-full md:w-auto">
             <button
               onClick={handleCopyLink}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-white border border-teal-300 text-teal-800 hover:bg-teal-50 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors"
+              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-surface-100 border border-surface-300 text-typography-800 hover:bg-surface-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
             >
-              {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+              {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
               {copied ? 'Link Copiado!' : 'Copiar Link'}
             </button>
 
             <button
               onClick={handleWhatsAppShare}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors"
+              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
             >
               <MessageCircle size={14} />
               WhatsApp
@@ -252,7 +252,7 @@ export default function VisitScheduleManagerView({
                 href={publicUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="p-1.5 text-gray-400 hover:text-teal-700 rounded-lg hover:bg-white/80 transition-colors"
+                className="p-1.5 text-typography-400 hover:text-primary-200 rounded-lg hover:bg-surface-200 transition-colors"
                 title="Abrir página pública em nova aba"
               >
                 <ExternalLink size={16} />
@@ -272,13 +272,13 @@ export default function VisitScheduleManagerView({
         )}
 
         {/* NAVEGAÇÃO DE ABAS */}
-        <div className="flex border-b border-gray-100 gap-2 sm:gap-4 pt-1 overflow-x-auto no-scrollbar">
+        <div className="flex border-b border-surface-300 gap-2 sm:gap-4 pt-1 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('form')}
-            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
+            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'form'
-                ? 'border-[#1a5c5a] text-[#1a5c5a]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-primary-200 text-primary-200'
+                : 'border-transparent text-typography-500 hover:text-typography-800'
             }`}
           >
             <Smartphone size={15} />
@@ -287,10 +287,10 @@ export default function VisitScheduleManagerView({
 
           <button
             onClick={() => setActiveTab('preview')}
-            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
+            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'preview'
-                ? 'border-[#1a5c5a] text-[#1a5c5a]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-primary-200 text-primary-200'
+                : 'border-transparent text-typography-500 hover:text-typography-800'
             }`}
           >
             <Eye size={15} />
@@ -299,10 +299,10 @@ export default function VisitScheduleManagerView({
 
           <button
             onClick={() => setActiveTab('permissions')}
-            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
+            className={`pb-2.5 text-xs font-bold flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'permissions'
-                ? 'border-[#1a5c5a] text-[#1a5c5a]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-primary-200 text-primary-200'
+                : 'border-transparent text-typography-500 hover:text-typography-800'
             }`}
           >
             <Settings2 size={15} />
@@ -323,7 +323,7 @@ export default function VisitScheduleManagerView({
 
         {activeTab === 'preview' && (
           <div className="space-y-4">
-            <div className="text-center text-xs text-gray-500">
+            <div className="text-center text-xs text-typography-500">
               💡 <em>Você pode editar diretamente na folha abaixo. As alterações serão salvas ao clicar em Salvar Alterações.</em>
             </div>
 
@@ -339,10 +339,10 @@ export default function VisitScheduleManagerView({
         )}
 
         {activeTab === 'permissions' && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+          <div className="bg-surface-100 border border-surface-300 rounded-2xl p-6 shadow-xs space-y-6">
             <div>
-              <h2 className="text-base font-bold text-gray-900">O que os Anciãos podem preencher?</h2>
-              <p className="text-xs text-gray-500 mt-1">
+              <h2 className="text-base font-bold text-typography-900">O que os Anciãos podem preencher?</h2>
+              <p className="text-xs text-typography-500 mt-1">
                 Defina quais seções da folha ficarão liberadas para edição quando os anciãos abrirem o link público.
               </p>
             </div>
@@ -403,20 +403,20 @@ export default function VisitScheduleManagerView({
                     }}
                     className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
                       isAllowed
-                        ? 'border-[#1a5c5a] bg-teal-50/40 text-gray-900'
-                        : 'border-gray-100 bg-gray-50/50 text-gray-500'
+                        ? 'border-primary-200 bg-primary-200/10 text-typography-900'
+                        : 'border-surface-300 bg-surface-200/40 text-typography-500'
                     }`}
                   >
                     <div
                       className={`mt-0.5 p-1.5 rounded-lg ${
-                        isAllowed ? 'bg-[#1a5c5a] text-white' : 'bg-gray-200 text-gray-400'
+                        isAllowed ? 'bg-primary-200 text-white' : 'bg-surface-300 text-typography-400'
                       }`}
                     >
                       {isAllowed ? <Unlock size={14} /> : <Lock size={14} />}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold">{item.label}</h4>
-                      <p className="text-[11px] text-gray-500 mt-0.5">{item.desc}</p>
+                      <h4 className="text-xs font-bold text-typography-900">{item.label}</h4>
+                      <p className="text-[11px] text-typography-500 mt-0.5">{item.desc}</p>
                     </div>
                   </div>
                 );
@@ -436,12 +436,12 @@ export default function VisitScheduleManagerView({
       </div>
 
       {/* BARRA FLUTUANTE INFERIOR NO CELULAR */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg md:hidden print:hidden z-50">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-surface-100/95 backdrop-blur-md border-t border-surface-300 shadow-lg md:hidden print:hidden z-50">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <button
             onClick={() => handleSave()}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 bg-[#1a5c5a] hover:bg-[#155250] text-white py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
           >
             <Save size={16} />
             {saving ? 'Salvando...' : 'Salvar Alterações'}

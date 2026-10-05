@@ -148,10 +148,10 @@ export default function FloatingStopwatch() {
   if (!isOpen) return (
     <button 
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-6 portrait:bottom-20 right-6 bg-violet-600 text-white p-4 rounded-full shadow-2xl hover:bg-violet-700 transition-all hover:scale-110 active:scale-95 z-50 flex items-center justify-center"
+      className="fixed bottom-6 portrait:bottom-20 right-6 bg-primary-200 text-white p-3.5 rounded-full shadow-lg hover:opacity-90 transition-all hover:scale-105 active:scale-95 z-40 flex items-center justify-center cursor-pointer"
       title="Abrir Cronômetro"
     >
-      <Clock size={24} />
+      <Clock size={22} />
     </button>
   );
 

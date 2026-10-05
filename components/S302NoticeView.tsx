@@ -34,6 +34,7 @@ import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
 import SignaturePad from './SignaturePad';
 import DraggableSignature from './DraggableSignature';
+import CustomSelect from '@/components/CustomSelect';
 
 interface ElementLayout {
   top: number;
@@ -486,19 +487,21 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Elemento para ajustar</label>
-                  <select 
+                  <CustomSelect 
                     value={selectedElement || ''} 
-                    onChange={(e) => setSelectedElement(e.target.value as keyof S302Layout)}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#512da8] focus:border-[#512da8] outline-none font-medium"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="header">Cabeçalho (Título)</option>
-                    <option value="body">Texto de Instrução</option>
-                    <option value="congregation">Campo Congregação</option>
-                    <option value="visitor">Campo Superintendente</option>
-                    <option value="visitDate">Campo Data</option>
-                    <option value="signature">Assinatura / Nome</option>
-                  </select>
+                    onChange={(val) => setSelectedElement((val || null) as keyof S302Layout)}
+                    options={[
+                      { value: '', label: 'Selecione...' },
+                      { value: 'header', label: 'Cabeçalho (Título)' },
+                      { value: 'body', label: 'Texto de Instrução' },
+                      { value: 'congregation', label: 'Campo Congregação' },
+                      { value: 'visitor', label: 'Campo Superintendente' },
+                      { value: 'visitDate', label: 'Campo Data' },
+                      { value: 'signature', label: 'Assinatura / Nome' },
+                    ]}
+                    size="md"
+                    placeholder="Selecione..."
+                  />
                 </div>
 
                 {selectedElement && (
