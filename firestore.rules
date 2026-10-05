@@ -149,6 +149,16 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    // WebAuthn/Passkey Rules
+    match /webauthn_challenges/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /webauthn_credentials/{id} {
+      allow read: if true;
+      allow write, delete: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid || isAdmin());
+    }
+
     // Fallback para outras coleções menores
     match /{document=**} {
       allow read, write: if isSignedIn();

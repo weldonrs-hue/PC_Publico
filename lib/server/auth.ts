@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server';
 export interface AuthUser {
   uid: string;
   email?: string;
+  token: string;
   decodedToken: any;
 }
 
@@ -40,6 +41,7 @@ export async function validateAuth(req: NextRequest): Promise<AuthUser | null> {
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,
+      token,
       decodedToken
     };
   } catch (error: any) {

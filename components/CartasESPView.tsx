@@ -35,7 +35,7 @@ interface CartasESPViewProps {
   onBack: () => void;
 }
 
-export default function CartasESPView({ userId, isAdmin, canManage, onBack }: CartasESPViewProps) {
+export default function CartasESPView({ userId, isAdmin, canManage, initialMode, onBack }: CartasESPViewProps) {
   const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>('1');
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
   const [loadingInfo, setLoadingInfo] = useState(true);

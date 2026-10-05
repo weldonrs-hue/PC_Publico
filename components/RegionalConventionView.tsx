@@ -1387,7 +1387,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                   Alterações não salvas
                 </span>
                 <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
-                  {selectedYear} • Programa do Congresso
+                  Programa do Congresso
                 </span>
               </div>
             </div>
