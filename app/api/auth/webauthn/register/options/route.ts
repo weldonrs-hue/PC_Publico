@@ -3,29 +3,54 @@ import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { validateAuth } from '@/lib/server/auth';
 import { getWebAuthnConfig, generateAndStoreChallenge, getUserCredentials } from '@/lib/server/webauthn-utils';
 
-export async function GET(req: NextRequest) {
-  const user = await validateAuth(req);
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
+export async function GET(req: NextRequest) {
+  return handleRegisterOptions(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleRegisterOptions(req);
+}
+
+async function handleRegisterOptions(req: NextRequest) {
   try {
+    const user = await validateAuth(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Não autorizado. Por favor, faça login novamente.' }, { status: 401, headers: corsHeaders });
+    }
+
     const userCredentials = await getUserCredentials(user.uid, user.token);
     const { rpName, rpID } = getWebAuthnConfig(req);
     
     const displayName = user.decodedToken?.name || (user.email ? user.email.split('@')[0] : user.uid);
+    
     const options = await generateRegistrationOptions({
       rpName,
       rpID,
       userID: new TextEncoder().encode(user.uid),
       userName: displayName,
       userDisplayName: displayName,
-      // Exclui credenciais já existentes para este usuário
-      excludeCredentials: userCredentials.map(cred => ({
-        id: cred.id,
-        type: 'public-key',
-        transports: cred.transports,
-      })),
+      // Exclui credenciais válidas já existentes para este usuário
+      excludeCredentials: (userCredentials || [])
+        .filter(c => !!c && !!c.id)
+        .map(cred => ({
+          id: cred.id,
+          type: 'public-key' as const,
+          transports: cred.transports,
+        })),
       authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'preferred',
@@ -33,13 +58,13 @@ export async function GET(req: NextRequest) {
       attestationType: 'none',
     });
 
-    // Store challenge
+    // Armazena o desafio de registro
     const dbChallenge = await generateAndStoreChallenge('registration', user.uid);
     options.challenge = dbChallenge;
 
-    return NextResponse.json(options);
+    return NextResponse.json(options, { headers: corsHeaders });
   } catch (error: any) {
     console.error('[WebAuthn Register Options] Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Erro ao gerar opções de registro' }, { status: 500, headers: corsHeaders });
   }
 }

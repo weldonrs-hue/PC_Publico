@@ -50,6 +50,9 @@ export interface WebAuthnCredential {
   userId: string;
   email?: string;
   userName?: string;
+  deviceName?: string;
+  deviceType?: string;
+  browserName?: string;
   counter: number;
   transports?: any[];
   createdAt: string;
@@ -330,6 +333,9 @@ async function fetchUserCredentialsViaRest(userId: string, userToken: string): P
         userId: f.userId?.stringValue || userId,
         email: f.email?.stringValue,
         userName: f.userName?.stringValue,
+        deviceName: f.deviceName?.stringValue || 'Chave de acesso',
+        deviceType: f.deviceType?.stringValue || 'other',
+        browserName: f.browserName?.stringValue,
         counter: Number(f.counter?.integerValue || 0),
         transports,
         createdAt: f.createdAt?.stringValue || new Date().toISOString(),
@@ -360,7 +366,13 @@ export async function saveCredential(
     transports?: any[];
   },
   userToken?: string,
-  userInfo?: { email?: string; userName?: string }
+  userInfo?: { 
+    email?: string; 
+    userName?: string;
+    deviceName?: string;
+    deviceType?: string;
+    browserName?: string;
+  }
 ) {
   const now = new Date().toISOString();
   const pubBuffer = Buffer.from(credential.publicKey);
@@ -371,6 +383,9 @@ export async function saveCredential(
     userId,
     email: userInfo?.email,
     userName: userInfo?.userName,
+    deviceName: userInfo?.deviceName || 'Chave de acesso',
+    deviceType: userInfo?.deviceType || 'other',
+    browserName: userInfo?.browserName,
     counter: credential.counter,
     transports: credential.transports || [],
     createdAt: now,
@@ -400,6 +415,9 @@ export async function saveCredential(
             userId: { stringValue: userId },
             ...(userInfo?.email ? { email: { stringValue: userInfo.email } } : {}),
             ...(userInfo?.userName ? { userName: { stringValue: userInfo.userName } } : {}),
+            ...(userInfo?.deviceName ? { deviceName: { stringValue: userInfo.deviceName } } : { deviceName: { stringValue: 'Chave de acesso' } }),
+            ...(userInfo?.deviceType ? { deviceType: { stringValue: userInfo.deviceType } } : {}),
+            ...(userInfo?.browserName ? { browserName: { stringValue: userInfo.browserName } } : {}),
             counter: { integerValue: String(credential.counter) },
             publicKey: { bytesValue: pubBuffer.toString('base64') },
             transports: {
@@ -426,6 +444,9 @@ export async function saveCredential(
       userId,
       email: userInfo?.email || null,
       userName: userInfo?.userName || null,
+      deviceName: userInfo?.deviceName || 'Chave de acesso',
+      deviceType: userInfo?.deviceType || 'other',
+      browserName: userInfo?.browserName || null,
       counter: credential.counter,
       transports: credential.transports || [],
       createdAt: now,
@@ -475,6 +496,9 @@ export async function getUserCredentials(userId: string, userToken?: string): Pr
         userId: data.userId,
         email: data.email,
         userName: data.userName,
+        deviceName: data.deviceName || 'Chave de acesso',
+        deviceType: data.deviceType || 'other',
+        browserName: data.browserName,
         counter: data.counter,
         transports: data.transports,
         createdAt: data.createdAt,
@@ -551,6 +575,9 @@ export async function getCredentialById(credentialId: string, userToken?: string
             userId: f.userId?.stringValue || '',
             email: f.email?.stringValue,
             userName: f.userName?.stringValue,
+            deviceName: f.deviceName?.stringValue || 'Chave de acesso',
+            deviceType: f.deviceType?.stringValue || 'other',
+            browserName: f.browserName?.stringValue,
             counter: Number(f.counter?.integerValue || 0),
             transports: f.transports?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
             createdAt: f.createdAt?.stringValue || new Date().toISOString(),
@@ -581,6 +608,9 @@ export async function getCredentialById(credentialId: string, userToken?: string
           userId: data.userId,
           email: data.email,
           userName: data.userName,
+          deviceName: data.deviceName || 'Chave de acesso',
+          deviceType: data.deviceType || 'other',
+          browserName: data.browserName,
           counter: data.counter,
           transports: data.transports,
           createdAt: data.createdAt,

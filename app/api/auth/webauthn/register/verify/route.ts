@@ -3,18 +3,38 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { validateAuth } from '@/lib/server/auth';
 import { getWebAuthnConfig, consumeChallenge, saveCredential, extractChallengeFromClientData } from '@/lib/server/webauthn-utils';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 export async function POST(req: NextRequest) {
   const user = await validateAuth(req);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401, headers: corsHeaders });
   }
 
   try {
     const body = await req.json();
-    const { registrationResponse, expectedChallenge: clientProvidedChallenge } = body;
+    const { 
+      registrationResponse, 
+      expectedChallenge: clientProvidedChallenge,
+      deviceName,
+      deviceType,
+      browserName 
+    } = body;
 
     if (!registrationResponse) {
-      return NextResponse.json({ error: 'Dados ausentes' }, { status: 400 });
+      return NextResponse.json({ error: 'Dados da resposta de registro ausentes' }, { status: 400, headers: corsHeaders });
     }
 
     // Extrai o desafio do clientDataJSON ou do corpo da requisição
@@ -25,17 +45,25 @@ export async function POST(req: NextRequest) {
     
     if (!expectedChallenge) {
       console.warn('[WebAuthn Register Verify] Desafio não encontrado para o usuário:', user.uid);
-      return NextResponse.json({ error: 'Invalid or expired challenge' }, { status: 400 });
+      return NextResponse.json({ error: 'Desafio expirado ou inválido. Tente novamente.' }, { status: 400, headers: corsHeaders });
     }
 
     const { rpID, origin } = getWebAuthnConfig(req);
 
+    // Suporta origens com variações comuns (ex: com/sem barra, https, porta)
+    const expectedOrigins = [
+      origin,
+      origin.replace(/\/$/, ''),
+      `https://${rpID}`,
+      `http://${rpID}`,
+    ];
+
     const verification = await verifyRegistrationResponse({
       response: registrationResponse,
       expectedChallenge,
-      expectedOrigin: origin,
+      expectedOrigin: expectedOrigins,
       expectedRPID: rpID,
-      requireUserVerification: true,
+      requireUserVerification: false, // Permite ampla compatibilidade com biometria no Android e iOS
     });
 
     if (verification.verified && verification.registrationInfo) {
@@ -47,6 +75,30 @@ export async function POST(req: NextRequest) {
       const pubKeyBase64 = Buffer.from(publicKey).toString('base64');
       const now = new Date().toISOString();
 
+      const userAgent = req.headers.get('user-agent') || '';
+      let finalDeviceName = deviceName;
+      let finalDeviceType = deviceType;
+      let finalBrowserName = browserName;
+
+      if (!finalDeviceName) {
+        if (/android/i.test(userAgent)) {
+          finalDeviceName = 'Android (Chrome)';
+          finalDeviceType = 'android';
+        } else if (/iphone|ipad|ipod/i.test(userAgent)) {
+          finalDeviceName = 'iPhone / iPad';
+          finalDeviceType = 'ios';
+        } else if (/windows/i.test(userAgent)) {
+          finalDeviceName = 'Windows PC';
+          finalDeviceType = 'windows';
+        } else if (/macintosh|mac os x/i.test(userAgent)) {
+          finalDeviceName = 'Mac';
+          finalDeviceType = 'macos';
+        } else {
+          finalDeviceName = 'Chave de acesso';
+          finalDeviceType = 'other';
+        }
+      }
+
       await saveCredential(user.uid, {
         id: rawCredId,
         publicKey: publicKey,
@@ -55,6 +107,9 @@ export async function POST(req: NextRequest) {
       }, user.token, {
         email: user.email,
         userName: user.email?.split('@')[0],
+        deviceName: finalDeviceName,
+        deviceType: finalDeviceType,
+        browserName: finalBrowserName,
       });
 
       return NextResponse.json({ 
@@ -66,15 +121,18 @@ export async function POST(req: NextRequest) {
           userId: user.uid,
           email: user.email,
           userName: user.email?.split('@')[0],
+          deviceName: finalDeviceName,
+          deviceType: finalDeviceType,
+          browserName: finalBrowserName,
           transports: registrationResponse.response?.transports || [],
-          createdAt: now
+          createdAt: now,
         }
-      });
+      }, { headers: corsHeaders });
     }
 
-    return NextResponse.json({ verified: false, error: 'Verification failed' }, { status: 400 });
+    return NextResponse.json({ verified: false, error: 'A validação criptográfica da chave falhou' }, { status: 400, headers: corsHeaders });
   } catch (error: any) {
     console.error('[WebAuthn Register Verify] Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Erro interno ao verificar registro da chave' }, { status: 500, headers: corsHeaders });
   }
 }
