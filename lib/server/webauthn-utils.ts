@@ -17,10 +17,17 @@ export function getWebAuthnConfig(req?: NextRequest) {
     const originHeader = req.headers.get('origin');
     const hostHeader = req.headers.get('x-forwarded-host') || req.headers.get('host');
     const protoHeader = req.headers.get('x-forwarded-proto') || (hostHeader?.includes('localhost') ? 'http' : 'https');
+    const refererHeader = req.headers.get('referer');
 
     if (originHeader) {
       try {
         const u = new URL(originHeader);
+        hostname = u.hostname;
+        origin = u.origin;
+      } catch {}
+    } else if (refererHeader) {
+      try {
+        const u = new URL(refererHeader);
         hostname = u.hostname;
         origin = u.origin;
       } catch {}
@@ -35,6 +42,12 @@ export function getWebAuthnConfig(req?: NextRequest) {
       hostname = u.hostname;
       origin = u.origin;
     } catch {}
+  }
+
+  // Ensure clean hostname without port or scheme
+  hostname = hostname.replace(/^(?:https?:\/\/)?/i, '').split(':')[0].trim();
+  if (!hostname) {
+    hostname = 'localhost';
   }
 
   return {
@@ -150,10 +163,11 @@ function cleanupExpiredChallenges() {
  */
 export async function generateAndStoreChallenge(
   type: 'registration' | 'authentication',
-  userId?: string
+  userId?: string,
+  providedChallenge?: string
 ): Promise<string> {
   cleanupExpiredChallenges();
-  const challenge = crypto.randomBytes(32).toString('base64url');
+  const challenge = providedChallenge || crypto.randomBytes(32).toString('base64url');
   const expiresAtMs = Date.now() + 5 * 60 * 1000; // 5 minutes
 
   // Store in global memory
