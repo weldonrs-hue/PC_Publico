@@ -10,10 +10,10 @@ import RegionalConventionView from '@/components/RegionalConventionView';
 import CircuitAssemblyView from '@/components/CircuitAssemblyView';
 import SpecialPioneerMeetingView from '@/components/SpecialPioneerMeetingView';
 
-const DashboardCards = dynamic(() => import('@/components/DashboardCards'), { ssr: false });
-const SecondarySection = dynamic(() => import('@/components/SecondarySection'), { ssr: false });
-const AuthForm = dynamic(() => import('@/components/AuthForm'), { ssr: false });
-const PersonalDataView = dynamic(() => import('@/components/PersonalDataView'), { ssr: false });
+import DashboardCards from '@/components/DashboardCards';
+import SecondarySection from '@/components/SecondarySection';
+import AuthForm from '@/components/AuthForm';
+import PersonalDataView from '@/components/PersonalDataView';
 const CongregationsView = dynamic(() => import('@/components/CongregationsView'), { ssr: false });
 const SubstitutesView = dynamic(() => import('@/components/SubstitutesView'), { ssr: false });
 const ItinerariesView = dynamic(() => import('@/components/ItinerariesView'), { ssr: false });

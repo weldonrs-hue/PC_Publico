@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
+import { getAdminAuth } from '@/lib/server/firebase-admin';
 import { 
   getWebAuthnConfig, 
   consumeChallenge, 
@@ -117,8 +118,21 @@ export async function POST(req: NextRequest) {
         await updateCredentialCounter(credential.id, newCounter);
       } catch {}
 
+      let customToken: string | null = null;
+      try {
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+          const adminAuth = getAdminAuth();
+          if (adminAuth && credential.userId) {
+            customToken = await adminAuth.createCustomToken(credential.userId);
+          }
+        }
+      } catch {
+        // Fallback silencioso para sessão do cliente
+      }
+
       return NextResponse.json({ 
         verified: true, 
+        customToken,
         userId: credential.userId,
         email: credential.email || null,
         usuario: credential.userName || credential.email?.split('@')[0] || 'Usuário',
