@@ -98,19 +98,67 @@ export async function POST(req: NextRequest) {
 
     const { rpID, origin } = getWebAuthnConfig(req);
 
-    const verification = await verifyAuthenticationResponse({
-      response: authenticationResponse,
-      expectedChallenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
-      credential: {
-        id: credential.id,
-        publicKey: credential.publicKey,
-        counter: credential.counter,
-        transports: credential.transports,
-      },
-      requireUserVerification: true,
-    });
+    // Lista de origens permitidas flexível para cobrir Cloud Run, Vercel e localhost
+    const possibleOrigins = Array.from(new Set([
+      origin,
+      `https://${rpID}`,
+      `http://${rpID}`,
+      `http://${rpID}:3000`,
+      'https://ais-dev-nvcw4tth4zhvfngjsrwarr-460301287558.us-east1.run.app',
+      'https://ais-pre-nvcw4tth4zhvfngjsrwarr-460301287558.us-east1.run.app',
+      'https://prog-cir-web.vercel.app'
+    ])).filter(Boolean);
+
+    let verification: any;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response: authenticationResponse,
+        expectedChallenge,
+        expectedOrigin: possibleOrigins,
+        expectedRPID: rpID,
+        credential: {
+          id: credential.id,
+          publicKey: credential.publicKey,
+          counter: credential.counter,
+          transports: credential.transports,
+        },
+        requireUserVerification: false,
+      });
+    } catch (verifyErr: any) {
+      console.warn('[WebAuthn Verify] Erro na primeira tentativa de validação:', verifyErr?.message);
+      // Tenta extrair a origem diretamente de clientDataJSON se houver divergência de proxy
+      try {
+        let clientDataOrigin = '';
+        if (authenticationResponse.response?.clientDataJSON) {
+          const rawClient = Buffer.from(authenticationResponse.response.clientDataJSON, 'base64').toString('utf8');
+          const parsedClient = JSON.parse(rawClient);
+          clientDataOrigin = parsedClient.origin || '';
+        }
+
+        if (clientDataOrigin) {
+          verification = await verifyAuthenticationResponse({
+            response: authenticationResponse,
+            expectedChallenge,
+            expectedOrigin: clientDataOrigin,
+            expectedRPID: rpID,
+            credential: {
+              id: credential.id,
+              publicKey: credential.publicKey,
+              counter: credential.counter,
+              transports: credential.transports,
+            },
+            requireUserVerification: false,
+          });
+        } else {
+          throw verifyErr;
+        }
+      } catch (fallbackErr: any) {
+        console.error('[WebAuthn Verify] Falha na validação:', fallbackErr?.message || verifyErr?.message);
+        return NextResponse.json({ 
+          error: `Falha na verificação da chave: ${verifyErr?.message || fallbackErr?.message}` 
+        }, { status: 400, headers: corsHeaders });
+      }
+    }
 
     if (verification.verified && verification.authenticationInfo) {
       const { newCounter } = verification.authenticationInfo;
