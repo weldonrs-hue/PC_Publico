@@ -2268,23 +2268,23 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl sm:rounded-[32px] overflow-hidden shadow-2xl border border-gray-100"
+              className="bg-white w-full max-w-lg sm:max-w-xl max-h-[90vh] flex flex-col rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-gray-100"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header fixo do Modal */}
-              <div className="flex items-center justify-between px-5 sm:px-7 py-4 sm:py-5 border-b border-gray-100 shrink-0 bg-white">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100 shrink-0 bg-white">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 mr-2">
+                  <div className="p-2 sm:p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
                     <Fingerprint className="w-5 h-5" />
                   </div>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">Chaves de acesso (Passkeys)</h3>
-                    <p className="text-xs text-gray-500">Acesse sua conta sem senha com biometria ou PIN</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight truncate">Chaves de acesso (Passkeys)</h3>
+                    <p className="text-[11px] sm:text-xs text-gray-500 truncate">Acesse sua conta sem senha com biometria ou PIN</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsManagingPasskeys(false)}
-                  className="p-2 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-full transition-colors shrink-0"
                   aria-label="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -2292,15 +2292,15 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               </div>
               
               {/* Conteúdo com rolagem suave */}
-              <div className="p-4 sm:p-6 overflow-y-auto flex-1 overscroll-contain bg-gray-50/50">
+              <div className="p-3 sm:p-5 overflow-y-auto overflow-x-hidden flex-1 overscroll-contain bg-gray-50/50">
                 <WebAuthnSettings isInsideModal={true} />
               </div>
 
               {/* Rodapé fixo do Modal */}
-              <div className="px-5 sm:px-7 py-3.5 bg-white border-t border-gray-100 flex items-center justify-end shrink-0">
+              <div className="px-4 sm:px-6 py-3 bg-white border-t border-gray-100 flex items-center justify-end shrink-0">
                 <button
                   onClick={() => setIsManagingPasskeys(false)}
-                  className="px-6 py-2.5 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all active:scale-95 shadow-sm"
+                  className="px-5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all active:scale-95 shadow-sm"
                 >
                   Fechar
                 </button>

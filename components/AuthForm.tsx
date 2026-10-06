@@ -16,7 +16,11 @@ import {
   Key, 
   KeyRound, 
   Laptop, 
-  X 
+  X,
+  Sparkles,
+  Zap,
+  HelpCircle,
+  Smartphone
 } from 'lucide-react';
 
 import { auth, db } from '@/lib/firebase';
@@ -54,6 +58,7 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
   });
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeySupported, setPasskeySupported] = useState(true);
+  const [showPasskeyInfo, setShowPasskeyInfo] = useState(false);
 
   // Check WebAuthn support
   useEffect(() => {
@@ -481,7 +486,7 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
           </form>
 
           {isLogin && passkeySupported && (
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 space-y-3">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-100"></div>
@@ -491,24 +496,37 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handlePasskeyLogin();
-                }}
-                disabled={loading || passkeyLoading}
-                className="w-full bg-white border border-gray-200 hover:border-indigo-200 text-gray-700 font-bold py-3 rounded-2xl transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70 text-sm shadow-sm"
-              >
-                {passkeyLoading ? (
-                  <div className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Key className="w-4 h-4 text-indigo-500" />
-                    Chave de acesso
-                  </>
-                )}
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePasskeyLogin();
+                  }}
+                  disabled={loading || passkeyLoading}
+                  className="w-full bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/80 text-indigo-950 font-bold py-3 px-4 rounded-2xl transition-all flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-70 text-sm shadow-sm cursor-pointer group"
+                >
+                  <div className="p-1.5 bg-indigo-600 text-white rounded-xl shadow-xs">
+                    {passkeyLoading ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Fingerprint className="w-4 h-4" />
+                    )}
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold">Entrar com Chave de Acesso</span>
+                </button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasskeyInfo(true)}
+                    className="text-[11px] text-gray-400 hover:text-indigo-600 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <HelpCircle className="w-3 h-3" />
+                    Como funciona a Chave de Acesso?
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -560,6 +578,82 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
           </div>
         </div>
       </motion.div>
+
+      {/* Modal Educativo / Novidades de Passkeys */}
+      <AnimatePresence>
+        {showPasskeyInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowPasskeyInfo(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
+                    <Sparkles className="w-5 h-5 text-amber-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold">Chaves de Segurança (Passkeys)</h3>
+                    <p className="text-xs text-indigo-200">Acesso moderno e sem senhas</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPasskeyInfo(false)}
+                  className="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-3.5 overflow-y-auto text-xs text-gray-600 leading-relaxed">
+                <div className="flex items-start gap-3 p-3 bg-indigo-50/70 rounded-2xl border border-indigo-100">
+                  <Zap className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-gray-900 block mb-0.5">O que é uma Passkey?</span>
+                    É a forma mais rápida e segura de entrar no ProgCir. Em vez de digitar sua senha, você usa a mesma impressão digital, Face ID ou PIN que já usa para desbloquear seu celular ou computador.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-emerald-50/70 rounded-2xl border border-emerald-100">
+                  <Shield className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-gray-900 block mb-0.5">Como cadastrar a sua?</span>
+                    1. Faça login na sua conta normalmente com sua senha.<br/>
+                    2. Vá em <b>Ajustes ➔ Chaves de Acesso</b>.<br/>
+                    3. Toque em <b>&ldquo;Adicionar Chave deste Aparelho&rdquo;</b> e confirme sua digital.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-purple-50/70 rounded-2xl border border-purple-100">
+                  <Smartphone className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-gray-900 block mb-0.5">Vários aparelhos</span>
+                    Você pode cadastrar seu Celular Android, iPhone, Tablet ou Computador. Cada aparelho terá sua própria chave registrada de forma segura.
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={() => setShowPasskeyInfo(false)}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                >
+                  Entendi
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <TermsAndPrivacy 
         isOpen={showTerms} 
