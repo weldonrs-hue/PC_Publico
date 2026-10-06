@@ -148,6 +148,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
         });
       };
 
+      const processedUserIds = new Set<string>();
       const processedPdIds = new Set<string>();
       const processedEmails = new Set<string>();
       const processedNumbers = new Set<string>();
@@ -155,8 +156,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
       // 1. Processar todas as contas da coleção 'users'
       for (const u of usersDocs) {
+        if (processedUserIds.has(u.id)) continue;
+        processedUserIds.add(u.id);
+
         const pdData = findMatchingPd(u);
         if (pdData?.id) processedPdIds.add(pdData.id);
+        if (pdData?.userId) processedUserIds.add(pdData.userId);
 
         const email = (u.email || (u.usuario?.includes('@') ? u.usuario : '') || pdData?.emailPessoal || pdData?.emailJwpub || '').trim();
         const numeroPessoal = pdData?.numeroPessoal || u.usuario || (email.includes('@progcir') ? email.split('@')[0] : '') || '---';
@@ -206,6 +211,8 @@ export default function UsersView({ onBack }: UsersViewProps) {
       // 2. Processar registros de personal_data que não foram vinculados a um user doc ainda
       for (const pd of pdDocs) {
         if (processedPdIds.has(pd.id)) continue;
+        if (pd.userId && processedUserIds.has(pd.userId)) continue;
+        if (processedUserIds.has(pd.id)) continue;
 
         const email = (pd.emailPessoal || pd.emailJwpub || pd.email || '').trim();
         const numeroPessoal = pd.numeroPessoal || (email.includes('@progcir') ? email.split('@')[0] : '') || '---';
@@ -214,6 +221,9 @@ export default function UsersView({ onBack }: UsersViewProps) {
         if (email && processedEmails.has(email.toLowerCase())) continue;
         if (numeroPessoal !== '---' && processedNumbers.has(numeroPessoal)) continue;
 
+        const userUniqueId = pd.userId || pd.id;
+        if (processedUserIds.has(userUniqueId)) continue;
+        processedUserIds.add(userUniqueId);
         processedPdIds.add(pd.id);
         if (email) processedEmails.add(email.toLowerCase());
         if (numeroPessoal !== '---') processedNumbers.add(numeroPessoal);
@@ -236,14 +246,14 @@ export default function UsersView({ onBack }: UsersViewProps) {
         const nome = pd.nome || pubData?.name || (numeroPessoal !== '---' ? `Usuário ${numeroPessoal}` : 'Sem nome');
 
         usersData.push({
-          id: pd.userId || pd.id,
+          id: userUniqueId,
           nome,
           email,
           numeroPessoal,
           role,
           photoURL: pd.profilePhoto || pd.foto || null,
           isInactive: false,
-          hasPasskey: checkHasPasskey(pd.userId || pd.id, email, numeroPessoal),
+          hasPasskey: checkHasPasskey(userUniqueId, email, numeroPessoal),
           createdAt: pd.createdAt || null,
           lastLogin: pd.lastLogin || null,
         } as UserMetadata);
@@ -256,10 +266,14 @@ export default function UsersView({ onBack }: UsersViewProps) {
         if (processedEmails.has(email.toLowerCase())) continue;
         processedEmails.add(email.toLowerCase());
 
+        const pubUniqueId = pub.id || email;
+        if (processedUserIds.has(pubUniqueId)) continue;
+        processedUserIds.add(pubUniqueId);
+
         const tjSecNum = email.includes('@') ? email.split('@')[0] : '---';
 
         usersData.push({
-          id: pub.id || email,
+          id: pubUniqueId,
           nome: pub.name || 'Secretaria TJSec',
           email,
           numeroPessoal: tjSecNum,
@@ -272,14 +286,23 @@ export default function UsersView({ onBack }: UsersViewProps) {
         } as UserMetadata);
       }
 
+      // Desduplicação final por ID garantida
+      const uniqueUsersMap = new Map<string, UserMetadata>();
+      for (const item of usersData) {
+        if (!uniqueUsersMap.has(item.id)) {
+          uniqueUsersMap.set(item.id, item);
+        }
+      }
+      const finalUsers = Array.from(uniqueUsersMap.values());
+
       // Ordenar: mais recentes primeiro, usuários sem data ao final
-      usersData.sort((a, b) => {
+      finalUsers.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
       
-      setUsers(usersData);
+      setUsers(finalUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       handleFirestoreError(error, OperationType.GET, 'users_and_personal_data');
