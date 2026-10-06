@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { getAdminAuth } from '@/lib/server/firebase-admin';
-import { getWebAuthnConfig, consumeChallenge, getCredentialById, updateCredentialCounter, extractChallengeFromClientData } from '@/lib/server/webauthn-utils';
+import { 
+  getWebAuthnConfig, 
+  consumeChallenge, 
+  getCredentialById, 
+  saveCredential,
+  updateCredentialCounter, 
+  extractChallengeFromClientData 
+} from '@/lib/server/webauthn-utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,13 +32,26 @@ export async function POST(req: NextRequest) {
     const credentialId = authenticationResponse.id;
     let credential = await getCredentialById(credentialId);
 
-    // Fallback caso a credencial tenha sido salva pelo cliente em localStorage
+    // Fallback caso a credencial tenha sido enviada pelo cliente (via Firestore direto ou localStorage)
     if (!credential && body.clientPasskey) {
       const cp = body.clientPasskey;
-      const isIdMatch = cp.id === credentialId || Buffer.from(credentialId).toString('base64url') === cp.id;
+      const isIdMatch = cp.id === credentialId || Buffer.from(credentialId).toString('base64url') === cp.id || cp.id?.includes(credentialId) || credentialId?.includes(cp.id);
       if (isIdMatch && cp.publicKey) {
+        let pubKeyBuffer: Buffer;
+        if (Buffer.isBuffer(cp.publicKey)) {
+          pubKeyBuffer = cp.publicKey;
+        } else if (cp.publicKey.type === 'Buffer' && Array.isArray(cp.publicKey.data)) {
+          pubKeyBuffer = Buffer.from(cp.publicKey.data);
+        } else if (typeof cp.publicKey === 'string') {
+          pubKeyBuffer = Buffer.from(cp.publicKey, 'base64');
+        } else if (cp.publicKey instanceof Uint8Array || Array.isArray(cp.publicKey)) {
+          pubKeyBuffer = Buffer.from(cp.publicKey);
+        } else {
+          pubKeyBuffer = Buffer.alloc(0);
+        }
+
         credential = {
-          id: cp.id,
+          id: cp.id || credentialId,
           userId: cp.userId,
           email: cp.email,
           userName: cp.userName,
@@ -39,18 +59,20 @@ export async function POST(req: NextRequest) {
           transports: cp.transports || [],
           createdAt: cp.createdAt || new Date().toISOString(),
           lastUsedAt: new Date().toISOString(),
-          publicKey: Buffer.isBuffer(cp.publicKey) ? cp.publicKey : Buffer.from(cp.publicKey, 'base64'),
+          publicKey: pubKeyBuffer,
         };
         // Persiste no servidor para as próximas chamadas
-        await saveCredential(credential.userId, {
-          id: credential.id,
-          publicKey: credential.publicKey,
-          counter: credential.counter,
-          transports: credential.transports,
-        }, undefined, {
-          email: credential.email,
-          userName: credential.userName,
-        });
+        try {
+          await saveCredential(credential.userId, {
+            id: credential.id,
+            publicKey: credential.publicKey,
+            counter: credential.counter,
+            transports: credential.transports,
+          }, undefined, {
+            email: credential.email,
+            userName: credential.userName,
+          });
+        } catch {}
       }
     }
 

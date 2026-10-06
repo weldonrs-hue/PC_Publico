@@ -19,13 +19,14 @@ import {
   X 
 } from 'lucide-react';
 
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   updateProfile,
   signInWithCustomToken
 } from 'firebase/auth';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { 
   startAuthentication, 
   browserSupportsWebAuthnAutofill,
@@ -70,18 +71,39 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
     setSuccess('');
 
     try {
-      // Recupera registro local da chave se existir para garantir correspondência imediata
+      // Recupera registro da chave no Firestore ou localStorage para máxima resiliência
       let localPasskey = null;
       try {
-        const rawStored = localStorage.getItem('progcir_passkeys');
-        if (rawStored) {
-          const list = JSON.parse(rawStored);
-          if (Array.isArray(list)) {
-            localPasskey = list.find((item: any) => item.id === authResponse.id) || list[0] || null;
+        // 1. Tenta buscar diretamente no Firestore pelo ID retornado pelo autenticador
+        if (authResponse?.id) {
+          try {
+            const credDoc = await getDoc(doc(db, 'webauthn_credentials', authResponse.id));
+            if (credDoc.exists()) {
+              localPasskey = { id: credDoc.id, ...credDoc.data() };
+            } else {
+              const q = query(collection(db, 'webauthn_credentials'), where('id', '==', authResponse.id));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                localPasskey = { id: snap.docs[0].id, ...snap.docs[0].data() };
+              }
+            }
+          } catch (fireErr) {
+            console.warn('Consulta direta Firestore:', fireErr);
+          }
+        }
+
+        // 2. Fallback para localStorage
+        if (!localPasskey) {
+          const rawStored = localStorage.getItem('progcir_passkeys');
+          if (rawStored) {
+            const list = JSON.parse(rawStored);
+            if (Array.isArray(list)) {
+              localPasskey = list.find((item: any) => item.id === authResponse.id) || list[0] || null;
+            }
           }
         }
       } catch (e) {
-        console.warn('Local passkey read notice:', e);
+        console.warn('Passkey read notice:', e);
       }
 
       // Verify authentication response

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useDialog } from '@/hooks/useDialog';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -256,12 +256,39 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
 
       if (verifyData.credential) {
         setCurrentLocalId(verifyData.credential.id);
+        
+        // 4. Salva imediatamente no Firestore client-side para persistência definitiva
+        try {
+          await setDoc(doc(db, 'webauthn_credentials', verifyData.credential.id), {
+            id: verifyData.credential.id,
+            userId: user.uid,
+            email: user.email || null,
+            userName: user.email?.split('@')[0] || 'Usuário',
+            deviceName: clientDevice.deviceName,
+            deviceType: clientDevice.deviceType,
+            browserName: clientDevice.browserName,
+            counter: verifyData.credential.counter || 0,
+            publicKey: verifyData.credential.publicKey,
+            transports: verifyData.credential.transports || [],
+            createdAt: new Date().toISOString(),
+            lastUsedAt: new Date().toISOString(),
+          }, { merge: true });
+        } catch (firestoreErr) {
+          console.warn('Gravação direta no Firestore:', firestoreErr);
+        }
+
         try {
           const rawStored = localStorage.getItem('progcir_passkeys');
           const storedList = rawStored ? JSON.parse(rawStored) : [];
           const filtered = Array.isArray(storedList) ? storedList.filter((c: any) => c.id !== verifyData.credential.id) : [];
           filtered.push({
             ...verifyData.credential,
+            userId: user.uid,
+            email: user.email,
+            userName: user.email?.split('@')[0],
+            deviceName: clientDevice.deviceName,
+            deviceType: clientDevice.deviceType,
+            browserName: clientDevice.browserName,
             rpId: typeof window !== 'undefined' ? window.location.hostname : 'localhost',
           });
           localStorage.setItem('progcir_passkeys', JSON.stringify(filtered));

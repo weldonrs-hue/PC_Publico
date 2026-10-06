@@ -546,8 +546,10 @@ export async function getCredentialById(credentialId: string, userToken?: string
     try {
       const projectId = firebaseConfig.projectId;
       const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-      let docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${cid}`;
-      const headers: Record<string, string> = {};
+      let docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${encodeURIComponent(cid)}`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
 
       if (userToken) {
         headers['Authorization'] = `Bearer ${userToken}`;
@@ -595,6 +597,69 @@ export async function getCredentialById(credentialId: string, userToken?: string
     }
   }
 
+  // 2b. Query Firestore REST API using runQuery StructuredQuery
+  try {
+    const projectId = firebaseConfig.projectId;
+    const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+    let queryUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents:runQuery`;
+    if (firebaseConfig.apiKey) {
+      queryUrl += `?key=${firebaseConfig.apiKey}`;
+    }
+
+    const queryRes = await fetch(queryUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'webauthn_credentials' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'id' },
+              op: 'EQUAL',
+              value: { stringValue: credentialId }
+            }
+          },
+          limit: 1
+        }
+      })
+    });
+
+    if (queryRes.ok) {
+      const results = await queryRes.json();
+      if (Array.isArray(results) && results.length > 0 && results[0]?.document?.fields) {
+        const f = results[0].document.fields;
+        let pubKeyBuffer: Buffer;
+        if (f.publicKey?.bytesValue) {
+          pubKeyBuffer = Buffer.from(f.publicKey.bytesValue, 'base64');
+        } else if (f.publicKey?.stringValue) {
+          pubKeyBuffer = Buffer.from(f.publicKey.stringValue, 'base64');
+        } else {
+          pubKeyBuffer = Buffer.alloc(0);
+        }
+
+        const cred: WebAuthnCredential = {
+          id: f.id?.stringValue || credentialId,
+          userId: f.userId?.stringValue || '',
+          email: f.email?.stringValue,
+          userName: f.userName?.stringValue,
+          deviceName: f.deviceName?.stringValue || 'Chave de acesso',
+          deviceType: f.deviceType?.stringValue || 'other',
+          browserName: f.browserName?.stringValue,
+          counter: Number(f.counter?.integerValue || 0),
+          transports: f.transports?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
+          createdAt: f.createdAt?.stringValue || new Date().toISOString(),
+          lastUsedAt: f.lastUsedAt?.stringValue || new Date().toISOString(),
+          publicKey: pubKeyBuffer,
+        };
+        memoryCredentials.set(credentialId, cred);
+        persistCredentialsBackup();
+        return cred;
+      }
+    }
+  } catch (runErr: any) {
+    // Non-fatal
+  }
+
   // 3. Fallback to Admin SDK
   for (const cid of candidateIds) {
     try {
@@ -603,6 +668,30 @@ export async function getCredentialById(credentialId: string, userToken?: string
 
       if (doc.exists) {
         const data = doc.data()!;
+        const cred: WebAuthnCredential = {
+          id: data.id || cid,
+          userId: data.userId,
+          email: data.email,
+          userName: data.userName,
+          deviceName: data.deviceName || 'Chave de acesso',
+          deviceType: data.deviceType || 'other',
+          browserName: data.browserName,
+          counter: data.counter,
+          transports: data.transports,
+          createdAt: data.createdAt,
+          lastUsedAt: data.lastUsedAt,
+          publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
+        };
+        memoryCredentials.set(credentialId, cred);
+        memoryCredentials.set(cid, cred);
+        persistCredentialsBackup();
+        return cred;
+      }
+
+      // Query by id field in Admin SDK
+      const querySnap = await db.collection('webauthn_credentials').where('id', '==', cid).limit(1).get();
+      if (!querySnap.empty) {
+        const data = querySnap.docs[0].data();
         const cred: WebAuthnCredential = {
           id: data.id || cid,
           userId: data.userId,
