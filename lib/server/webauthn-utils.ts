@@ -181,12 +181,14 @@ export async function generateAndStoreChallenge(
   // Background save to Firestore via Admin SDK if available (non-blocking)
   try {
     const db = getAdminDb();
-    db.collection('webauthn_challenges').doc(challenge).set({
-      challenge,
-      userId: userId || null,
-      type,
-      expiresAt: new Date(expiresAtMs).toISOString(),
-    }).catch(() => {});
+    if (db) {
+      db.collection('webauthn_challenges').doc(challenge).set({
+        challenge,
+        userId: userId || null,
+        type,
+        expiresAt: new Date(expiresAtMs).toISOString(),
+      }).catch(() => {});
+    }
   } catch (err: any) {
     // Non-fatal: memory store already holds the challenge
   }
@@ -452,20 +454,22 @@ export async function saveCredential(
   // 3. Fallback attempt via Admin SDK
   try {
     const db = getAdminDb();
-    await db.collection('webauthn_credentials').doc(credential.id).set({
-      id: credential.id,
-      publicKey: pubBuffer,
-      userId,
-      email: userInfo?.email || null,
-      userName: userInfo?.userName || null,
-      deviceName: userInfo?.deviceName || 'Chave de acesso',
-      deviceType: userInfo?.deviceType || 'other',
-      browserName: userInfo?.browserName || null,
-      counter: credential.counter,
-      transports: credential.transports || [],
-      createdAt: now,
-      lastUsedAt: now,
-    });
+    if (db) {
+      await db.collection('webauthn_credentials').doc(credential.id).set({
+        id: credential.id,
+        publicKey: pubBuffer,
+        userId,
+        email: userInfo?.email || null,
+        userName: userInfo?.userName || null,
+        deviceName: userInfo?.deviceName || 'Chave de acesso',
+        deviceType: userInfo?.deviceType || 'other',
+        browserName: userInfo?.browserName || null,
+        counter: credential.counter,
+        transports: credential.transports || [],
+        createdAt: now,
+        lastUsedAt: now,
+      });
+    }
   } catch (adminErr: any) {
     // Non-fatal
   }
@@ -499,27 +503,29 @@ export async function getUserCredentials(userId: string, userToken?: string): Pr
   // 3. Try Admin SDK, catching any permission errors safely
   try {
     const db = getAdminDb();
-    const snapshot = await db.collection('webauthn_credentials')
-      .where('userId', '==', userId)
-      .get();
+    if (db) {
+      const snapshot = await db.collection('webauthn_credentials')
+        .where('userId', '==', userId)
+        .get();
 
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: data.id,
-        userId: data.userId,
-        email: data.email,
-        userName: data.userName,
-        deviceName: data.deviceName || 'Chave de acesso',
-        deviceType: data.deviceType || 'other',
-        browserName: data.browserName,
-        counter: data.counter,
-        transports: data.transports,
-        createdAt: data.createdAt,
-        lastUsedAt: data.lastUsedAt,
-        publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
-      } as WebAuthnCredential;
-    });
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: data.id,
+          userId: data.userId,
+          email: data.email,
+          userName: data.userName,
+          deviceName: data.deviceName || 'Chave de acesso',
+          deviceType: data.deviceType || 'other',
+          browserName: data.browserName,
+          counter: data.counter,
+          transports: data.transports,
+          createdAt: data.createdAt,
+          lastUsedAt: data.lastUsedAt,
+          publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
+        } as WebAuthnCredential;
+      });
+    }
   } catch (adminErr: any) {
     return [];
   }
@@ -678,52 +684,54 @@ export async function getCredentialById(credentialId: string, userToken?: string
   for (const cid of candidateIds) {
     try {
       const db = getAdminDb();
-      const doc = await db.collection('webauthn_credentials').doc(cid).get();
+      if (db) {
+        const doc = await db.collection('webauthn_credentials').doc(cid).get();
 
-      if (doc.exists) {
-        const data = doc.data()!;
-        const cred: WebAuthnCredential = {
-          id: data.id || cid,
-          userId: data.userId,
-          email: data.email,
-          userName: data.userName,
-          deviceName: data.deviceName || 'Chave de acesso',
-          deviceType: data.deviceType || 'other',
-          browserName: data.browserName,
-          counter: data.counter,
-          transports: data.transports,
-          createdAt: data.createdAt,
-          lastUsedAt: data.lastUsedAt,
-          publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
-        };
-        memoryCredentials.set(credentialId, cred);
-        memoryCredentials.set(cid, cred);
-        persistCredentialsBackup();
-        return cred;
-      }
+        if (doc.exists) {
+          const data = doc.data()!;
+          const cred: WebAuthnCredential = {
+            id: data.id || cid,
+            userId: data.userId,
+            email: data.email,
+            userName: data.userName,
+            deviceName: data.deviceName || 'Chave de acesso',
+            deviceType: data.deviceType || 'other',
+            browserName: data.browserName,
+            counter: data.counter,
+            transports: data.transports,
+            createdAt: data.createdAt,
+            lastUsedAt: data.lastUsedAt,
+            publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
+          };
+          memoryCredentials.set(credentialId, cred);
+          memoryCredentials.set(cid, cred);
+          persistCredentialsBackup();
+          return cred;
+        }
 
-      // Query by id field in Admin SDK
-      const querySnap = await db.collection('webauthn_credentials').where('id', '==', cid).limit(1).get();
-      if (!querySnap.empty) {
-        const data = querySnap.docs[0].data();
-        const cred: WebAuthnCredential = {
-          id: data.id || cid,
-          userId: data.userId,
-          email: data.email,
-          userName: data.userName,
-          deviceName: data.deviceName || 'Chave de acesso',
-          deviceType: data.deviceType || 'other',
-          browserName: data.browserName,
-          counter: data.counter,
-          transports: data.transports,
-          createdAt: data.createdAt,
-          lastUsedAt: data.lastUsedAt,
-          publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
-        };
-        memoryCredentials.set(credentialId, cred);
-        memoryCredentials.set(cid, cred);
-        persistCredentialsBackup();
-        return cred;
+        // Query by id field in Admin SDK
+        const querySnap = await db.collection('webauthn_credentials').where('id', '==', cid).limit(1).get();
+        if (!querySnap.empty) {
+          const data = querySnap.docs[0].data();
+          const cred: WebAuthnCredential = {
+            id: data.id || cid,
+            userId: data.userId,
+            email: data.email,
+            userName: data.userName,
+            deviceName: data.deviceName || 'Chave de acesso',
+            deviceType: data.deviceType || 'other',
+            browserName: data.browserName,
+            counter: data.counter,
+            transports: data.transports,
+            createdAt: data.createdAt,
+            lastUsedAt: data.lastUsedAt,
+            publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
+          };
+          memoryCredentials.set(credentialId, cred);
+          memoryCredentials.set(cid, cred);
+          persistCredentialsBackup();
+          return cred;
+        }
       }
     } catch (adminErr: any) {
       // Non-fatal
@@ -779,10 +787,12 @@ export async function updateCredentialCounter(credentialId: string, newCounter: 
   // Fallback to Admin SDK
   try {
     const db = getAdminDb();
-    await db.collection('webauthn_credentials').doc(credentialId).update({
-      counter: newCounter,
-      lastUsedAt: new Date().toISOString(),
-    });
+    if (db) {
+      await db.collection('webauthn_credentials').doc(credentialId).update({
+        counter: newCounter,
+        lastUsedAt: new Date().toISOString(),
+      });
+    }
   } catch (adminErr: any) {
     // Non-fatal
   }
@@ -824,7 +834,9 @@ export async function deleteCredential(credentialId: string, userId: string, use
   // 3. Exclui via Admin SDK
   try {
     const db = getAdminDb();
-    await db.collection('webauthn_credentials').doc(credentialId).delete();
+    if (db) {
+      await db.collection('webauthn_credentials').doc(credentialId).delete();
+    }
   } catch (adminErr: any) {
     // Non-fatal
   }
