@@ -137,76 +137,13 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
 
       const { customToken, userId, email, usuario } = verifyData;
 
-      // Ativa imediatamente a sessão no navegador para que a aplicação reconheça o acesso
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('progcir_session_active', 'true');
-      }
-
-      // Busca dados completos do perfil do usuário no Firestore (papel/role, foto, usuario, email)
-      let userRole = 'user';
-      let userPhotoURL: string | null = null;
-      let realUsuario = usuario;
-      let realEmail = email;
-
-      try {
-        if (userId) {
-          const userDocRef = doc(db, 'users', userId);
-          const userSnap = await getDoc(userDocRef);
-          if (userSnap.exists()) {
-            const uData = userSnap.data();
-            if (uData.role) userRole = uData.role;
-            if (uData.photoURL) userPhotoURL = uData.photoURL;
-            if (uData.usuario) realUsuario = uData.usuario;
-            if (uData.email) realEmail = uData.email;
-          }
-        }
-      } catch (errProfile) {
-        console.warn('Erro ao consultar perfil do usuário no Firestore:', errProfile);
-      }
-
-      // Validação explícita de administrador
-      const isAdminEmail = 
-        realEmail === 'weldonrs@gmail.com' || 
-        realEmail === '2283701@progcir.app' || 
-        realEmail === '2283701@progcir.com' ||
-        realEmail === '2283701@gmail.com' ||
-        realUsuario === '2283701' ||
-        userRole === 'admin';
-
-      if (isAdminEmail) {
-        userRole = 'admin';
-        if (!realEmail) realEmail = 'weldonrs@gmail.com';
-        if (!realUsuario) realUsuario = '2283701';
-      }
-
-      // Atualiza / sincroniza o documento do usuário no Firestore para garantir persistência definitiva
-      try {
-        if (userId) {
-          const userDocRef = doc(db, 'users', userId);
-          await setDoc(userDocRef, {
-            email: realEmail,
-            usuario: realUsuario,
-            role: userRole,
-            photoURL: userPhotoURL,
-            lastLogin: new Date().toISOString(),
-            migrationCompleted: true
-          }, { merge: true });
-        }
-      } catch (errSync) {
-        console.warn('Sync user profile notice:', errSync);
-      }
-
       if (customToken) {
         try {
           const userCredential = await signInWithCustomToken(auth, customToken);
           onLoginSuccess({
             id: userCredential.user.uid,
-            usuario: realUsuario || userCredential.user.displayName || userCredential.user.uid.substring(0, 8),
-            email: realEmail || userCredential.user.email,
-            role: userRole,
-            photoURL: userPhotoURL,
-            migrationCompleted: true,
-            itinerariesInitialized: true
+            usuario: userCredential.user.displayName || usuario || userCredential.user.uid.substring(0, 8),
+            email: userCredential.user.email || email
           });
           return;
         } catch (tokenErr) {
@@ -214,15 +151,11 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
         }
       }
 
-      // Conclui o login diretamente com as credenciais validadas e o papel (role) real do usuário
+      // Conclui o login diretamente com as credenciais validadas criptograficamente
       onLoginSuccess({
         id: userId,
-        usuario: realUsuario || (realEmail ? realEmail.split('@')[0] : userId.substring(0, 8)),
-        email: realEmail || `${realUsuario || 'usuario'}@progcir.app`,
-        role: userRole,
-        photoURL: userPhotoURL,
-        migrationCompleted: true,
-        itinerariesInitialized: true
+        usuario: usuario || (email ? email.split('@')[0] : userId.substring(0, 8)),
+        email: email || `${usuario || 'usuario'}@progcir.app`
       });
     } catch (err: any) {
       console.error('Passkey login error:', err);

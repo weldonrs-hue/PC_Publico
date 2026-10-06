@@ -10,10 +10,10 @@ import RegionalConventionView from '@/components/RegionalConventionView';
 import CircuitAssemblyView from '@/components/CircuitAssemblyView';
 import SpecialPioneerMeetingView from '@/components/SpecialPioneerMeetingView';
 
-import DashboardCards from '@/components/DashboardCards';
-import SecondarySection from '@/components/SecondarySection';
-import AuthForm from '@/components/AuthForm';
-import PersonalDataView from '@/components/PersonalDataView';
+const DashboardCards = dynamic(() => import('@/components/DashboardCards'), { ssr: false });
+const SecondarySection = dynamic(() => import('@/components/SecondarySection'), { ssr: false });
+const AuthForm = dynamic(() => import('@/components/AuthForm'), { ssr: false });
+const PersonalDataView = dynamic(() => import('@/components/PersonalDataView'), { ssr: false });
 const CongregationsView = dynamic(() => import('@/components/CongregationsView'), { ssr: false });
 const SubstitutesView = dynamic(() => import('@/components/SubstitutesView'), { ssr: false });
 const ItinerariesView = dynamic(() => import('@/components/ItinerariesView'), { ssr: false });
@@ -78,8 +78,6 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 export default function Home() {
   const { showAlert, showConfirm } = useDialog();
   const [user, setUser] = useState<any>(null);
-  const [personalData, setPersonalData] = useState<any>(null);
-  const [loadingPersonalData, setLoadingPersonalData] = useState(true);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
   const [guestCacoData, setGuestCacoData] = useState<{ ownerId: string } | null>(null);
@@ -95,16 +93,7 @@ export default function Home() {
   const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
   const [emrLetterSelection, setEmrLetterSelection] = useState<{ schoolType: 'ancians' | 'servants', turma: string, partId: string } | null>(null);
 
-  const isAdminUser = 
-    user?.role === 'admin' || 
-    user?.email === 'weldonrs@gmail.com' || 
-    user?.usuario === '2283701' || 
-    user?.email === '2283701@progcir.app' || 
-    user?.email === '2283701@progcir.com' ||
-    user?.email === '2283701@gmail.com' ||
-    personalData?.numeroPessoal === '2283701' ||
-    personalData?.emailPessoal === 'weldonrs@gmail.com' ||
-    personalData?.role === 'admin';
+  const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com';
 
   // Initialize client-side state and listen for quota events
   useEffect(() => {
@@ -223,6 +212,8 @@ export default function Home() {
     settings: 'settings',
     schools: 'schools'
   });
+  const [personalData, setPersonalData] = useState<any>(null);
+  const [loadingPersonalData, setLoadingPersonalData] = useState(true);
   const [congregations, setCongregations] = useState<any[]>([]);
   const [currentEvent, setCurrentEvent] = useState<string>('');
   const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
@@ -403,34 +394,18 @@ export default function Home() {
       const isSessionActive = typeof window !== 'undefined' && sessionStorage.getItem('progcir_session_active') === 'true';
 
       if (firebaseUser && isSessionActive) {
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        let userDocData: any = null;
-
-        try {
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            userDocData = userDoc.data();
-          }
-        } catch {}
-
-        const effectiveEmail = firebaseUser.email || userDocData?.email || (userDocData?.usuario && userDocData.usuario.includes('@') ? userDocData.usuario : null);
-        const effectiveUsuario = userDocData?.usuario || firebaseUser.displayName || (effectiveEmail ? effectiveEmail.split('@')[0] : '2283701');
-
-        const isAdminAccount = 
-          effectiveEmail === 'weldonrs@gmail.com' || 
-          effectiveEmail === '2283701@progcir.app' || 
-          effectiveEmail === '2283701@progcir.com' ||
-          effectiveEmail === '2283701@gmail.com' ||
-          effectiveUsuario === '2283701' ||
-          userDocData?.role === 'admin';
+        const isAdminEmail = 
+          firebaseUser.email === 'weldonrs@gmail.com' || 
+          firebaseUser.email === '2283701@progcir.app' ||
+          firebaseUser.email === '2283701@progcir.com';
 
         // Set a basic user state immediately
         const basicUserData = {
           id: firebaseUser.uid,
-          usuario: effectiveUsuario,
-          email: effectiveEmail || (isAdminAccount ? 'weldonrs@gmail.com' : `${effectiveUsuario}@progcir.app`),
-          role: isAdminAccount ? 'admin' : (userDocData?.role || 'user'),
-          photoURL: firebaseUser.photoURL || userDocData?.photoURL || null,
+          usuario: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
+          email: firebaseUser.email,
+          role: isAdminEmail ? 'admin' : 'user',
+          photoURL: firebaseUser.photoURL || null,
           migrationCompleted: true,
           itinerariesInitialized: true
         };
@@ -439,58 +414,58 @@ export default function Home() {
         if (isQuotaExceeded()) {
           setQuotaExceeded(true);
           console.log('Home: Quota exceeded flag active, skipping secondary fetches but allowing basic UI.');
+          // Don't return here, let the UI render with what it has
         }
 
-        // Sincronizar perfil no Firestore
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+
+        // Otimizar atualizações de perfil - Throttle por 1 hora
         try {
+          const lastUpdate = localStorage.getItem(`lastProfileSync_${firebaseUser.uid}`);
           const now = new Date().getTime();
-          if (!userDocData) {
-            await setDoc(userDocRef, {
-              email: basicUserData.email,
-              usuario: basicUserData.usuario,
-              role: isAdminAccount ? 'admin' : 'user',
-              photoURL: basicUserData.photoURL,
-              createdAt: new Date().toISOString(),
-              lastLogin: new Date().toISOString(),
-              migrationCompleted: true
-            }, { merge: true });
-          } else {
-            const updates: any = {};
-            if (isAdminAccount && userDocData.role !== 'admin') updates.role = 'admin';
-            if (basicUserData.email && !userDocData.email) updates.email = basicUserData.email;
-            if (basicUserData.usuario && !userDocData.usuario) updates.usuario = basicUserData.usuario;
-            updates.lastLogin = new Date().toISOString();
-            if (Object.keys(updates).length > 0) {
-              await updateDoc(userDocRef, updates);
-            }
+          
+          if (!lastUpdate || (now - parseInt(lastUpdate)) > 3600000) { 
+             const userDoc = await getDoc(userDocRef);
+             
+             if (!userDoc.exists()) {
+               await setDoc(userDocRef, {
+                 email: firebaseUser.email,
+                 role: isAdminEmail ? 'admin' : 'user',
+                 photoURL: firebaseUser.photoURL || null,
+                 createdAt: new Date().toISOString(),
+                 lastLogin: new Date().toISOString(),
+                 migrationCompleted: true
+               });
+             } else {
+               const data = userDoc.data();
+               const updates: any = {};
+               if (isAdminEmail && data.role !== 'admin') updates.role = 'admin';
+               updates.lastLogin = new Date().toISOString();
+               if (Object.keys(updates).length > 0) {
+                 await updateDoc(userDocRef, updates);
+               }
+             }
+             localStorage.setItem(`lastProfileSync_${firebaseUser.uid}`, now.toString());
           }
         } catch (error: any) {
           console.warn('Silent sync error (likely quota):', error);
           if (error.message?.includes('quota')) setQuotaExceededGlobal();
         }
         
-        unsubUser = onSnapshot(userDocRef, (userDoc) => {
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const isUserAdmin = 
-              isAdminAccount || 
-              data.role === 'admin' || 
-              data.email === 'weldonrs@gmail.com' || 
-              data.usuario === '2283701';
-
-            setUser((prev: any) => ({
-              ...prev,
-              usuario: data.usuario || prev?.usuario || (data.email ? data.email.split('@')[0] : 'Usuário'),
-              email: data.email || prev?.email,
-              role: isUserAdmin ? 'admin' : (data.role || 'user'),
-              photoURL: data.photoURL || prev?.photoURL || null,
-              migrationCompleted: data.migrationCompleted || false
-            }));
-          }
-        }, (error) => {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
-          setQuotaExceeded(isQuotaExceeded());
-        });
+    unsubUser = onSnapshot(userDocRef, (userDoc) => {
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUser((prev: any) => ({
+          ...prev,
+          role: isAdminEmail ? 'admin' : (data.role || 'user'),
+          photoURL: data.photoURL || null,
+          migrationCompleted: data.migrationCompleted || false
+        }));
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+      setQuotaExceeded(isQuotaExceeded());
+    });
       } else {
         if (unsubUser) { unsubUser(); unsubUser = null; }
         setUser(null);
@@ -1152,7 +1127,7 @@ export default function Home() {
           {currentView === 'congregations' && (
             <CongregationsView 
               userId={user.id} 
-              isAdmin={isAdminUser}
+              isAdmin={user.role === 'admin'}
               importEnabledForAll={appConfig.congregationImportEnabledForAll}
               userRole={personalData?.role || 'viajante'}
               onBack={() => {
@@ -1165,22 +1140,22 @@ export default function Home() {
 
           {currentView === 'personal_data' && (
             <PersonalDataView 
-              userId={user.id} 
+              userId={user.id}
               onBack={() => changeView('dashboard')} 
               onSave={handlePersonalDataSave}
             />
           )}
 
-          {currentView === 'substitutes' && (personalData?.role === 'viajante' || isAdminUser) && (
+          {currentView === 'substitutes' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <SubstitutesView 
-              userId={user.id} 
+              userId={user.id}
               onBack={() => changeView('dashboard')} 
             />
           )}
 
-          {currentView === 'itineraries' && (personalData?.role === 'viajante' || isAdminUser) && (
+          {currentView === 'itineraries' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <ItinerariesView 
-              userId={user.id} 
+              userId={user.id}
               user={user}
               onBack={() => changeView('dashboard')} 
             />
@@ -1188,8 +1163,8 @@ export default function Home() {
 
           {currentView === 'settings' && (
             <SettingsView 
-              userId={user.id} 
-              isAdmin={isAdminUser}
+              userId={user.id}
+              isAdmin={user.role === 'admin'}
               appConfig={appConfig}
               onBack={() => changeView('dashboard')} 
               onViewChange={(view) => changeView(view as any)}
@@ -1210,21 +1185,21 @@ export default function Home() {
 
           {currentView === 'aviso_de_visitas' && (
             <GlobalS302View 
-              userId={user.id} 
-              isAdmin={isAdminUser}
+              userId={user.id}
+              isAdmin={user.role === 'admin'}
               onBack={() => changeView('dashboard')} 
             />
           )}
 
-          {currentView === 'statistics' && (personalData?.role === 'viajante' || isAdminUser) && (
+          {currentView === 'statistics' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <CircuitStatisticsView 
-              userId={user.id} 
+              userId={user.id}
               personalData={personalData}
               onBack={() => changeView('dashboard')} 
             />
           )}
 
-          {currentView === 'congregation_statistics' && (personalData?.role === 'viajante' || isAdminUser) && (
+          {currentView === 'congregation_statistics' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
             <CongregationStatisticsView 
               userId={user.id} 
               onBack={() => changeView('dashboard')}
@@ -1232,7 +1207,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'schools' && ((personalData?.role === 'viajante' || isAdminUser) || hasGuestInvites) && (
+          {currentView === 'schools' && ((personalData?.role === 'viajante' || user?.role === 'admin') || hasGuestInvites) && (
             <SchoolsView 
               userId={user.id}
               congregations={congregations}
@@ -1263,7 +1238,7 @@ export default function Home() {
              />
           )}
 
-          {currentView === 'events' && (personalData?.role === 'viajante' || isAdminUser || acceptedCongressInvites.length > 0) && (
+          {currentView === 'events' && (personalData?.role === 'viajante' || user?.role === 'admin' || acceptedCongressInvites.length > 0) && (
             <EventsView 
               userId={user.id}
               acceptedCongressInvites={acceptedCongressInvites}
@@ -1346,7 +1321,7 @@ export default function Home() {
 
           {currentView === 'misc' && (
             <MiscView 
-              isAdmin={isAdminUser}
+              isAdmin={user?.role === 'admin'}
               appConfig={appConfig}
               onViewChange={(view) => changeView(view as any)}
             />
@@ -1390,7 +1365,7 @@ export default function Home() {
           {currentView === 'cartas_esp' && (
             <CartasESPView 
               userId={user.id}
-              isAdmin={isAdminUser}
+              isAdmin={user.role === 'admin'}
               canManage={true}
               initialMode={espInitialMode}
               onBack={() => changeView('cartas')}
@@ -1425,7 +1400,7 @@ export default function Home() {
           {currentView === 'cartas_emr' && (
             <CartasEMRView 
               userId={user.id}
-              isAdmin={isAdminUser}
+              isAdmin={user.role === 'admin'}
               canManage={isAdminUser || Boolean((appConfig as any)?.allowEMRUploadForAll)}
               initialMode={emrInitialMode}
               initialSchoolType={emrLetterSelection?.schoolType}
@@ -1442,7 +1417,7 @@ export default function Home() {
           {currentView === 'cartas_congresso' && (
             <CartasCongressoView 
               userId={user.id}
-              isAdmin={isAdminUser}
+              isAdmin={user.role === 'admin'}
               canManage={true}
               initialMode={congressoInitialMode}
               onBack={() => changeView('cartas')}
@@ -1452,7 +1427,7 @@ export default function Home() {
           {currentView === 'cartas_assembleias' && (
             <CartasAssembleiasView 
               userId={user.id}
-              isAdmin={isAdminUser}
+              isAdmin={user.role === 'admin'}
               canManage={true}
               initialMode={assembleiasInitialMode}
               onBack={() => changeView('cartas')}

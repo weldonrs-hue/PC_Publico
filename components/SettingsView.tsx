@@ -360,27 +360,23 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
         // Fetch current user role
         const userEmail = auth.currentUser?.email;
+        const isAdminEmail = 
+          userEmail === 'weldonrs@gmail.com' || 
+          userEmail === '2283701@progcir.app' ||
+          userEmail === '2283701@progcir.com';
+        
         const userDocRef = doc(db, 'users', userId);
         const userDocSnap = await getDoc(userDocRef).catch(err => {
-          console.warn('SettingsView: Failed to fetch user profile, using fallback for role check:', err);
+          console.warn('SettingsView: Failed to fetch user profile, using email for role check:', err);
           return null;
         });
 
-        const userDocData = userDocSnap?.exists() ? userDocSnap.data() : null;
-
-        const isEffectiveAdmin = 
-          isAdmin === true ||
-          userEmail === 'weldonrs@gmail.com' || 
-          userEmail === '2283701@progcir.app' || 
-          userEmail === '2283701@progcir.com' ||
-          userEmail === '2283701@gmail.com' ||
-          personalData?.numeroPessoal === '2283701' ||
-          personalData?.emailPessoal === 'weldonrs@gmail.com' ||
-          userDocData?.role === 'admin' ||
-          userDocData?.email === 'weldonrs@gmail.com' ||
-          userDocData?.usuario === '2283701';
-
-        setCurrentUserRole(isEffectiveAdmin ? 'admin' : (userDocData?.role || 'user'));
+        if (userDocSnap && userDocSnap.exists()) {
+          const data = userDocSnap.data();
+          setCurrentUserRole(isAdminEmail ? 'admin' : (data.role || 'user'));
+        } else {
+          setCurrentUserRole(isAdminEmail ? 'admin' : 'user');
+        }
       } catch (error) {
         console.error('Erro ao buscar configurações:', error);
       } finally {
@@ -1054,7 +1050,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {settingsButtons
             .filter(btn => {
-              if ((btn.id === 'usuarios' || btn.id === 'tjsec_accounts') && !isAdmin && currentUserRole !== 'admin') return false;
+              if ((btn.id === 'usuarios' || btn.id === 'tjsec_accounts') && currentUserRole !== 'admin') return false;
               
               if (btn.id === 'pioneer_access' || btn.id === 'congress_access') return false;
 
