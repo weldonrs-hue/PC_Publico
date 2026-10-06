@@ -7,7 +7,8 @@ import {
   getCredentialById, 
   saveCredential,
   updateCredentialCounter, 
-  extractChallengeFromClientData 
+  extractChallengeFromClientData,
+  parsePublicKey 
 } from '@/lib/server/webauthn-utils';
 
 export const dynamic = 'force-dynamic';
@@ -27,11 +28,11 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { authenticationResponse, expectedChallenge: clientProvidedChallenge } = body;
 
     if (!authenticationResponse) {
-      return NextResponse.json({ error: 'Dados ausentes' }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ error: 'Dados de autenticação ausentes' }, { status: 400, headers: corsHeaders });
     }
 
     const extractedChallenge = extractChallengeFromClientData(authenticationResponse.response?.clientDataJSON);
@@ -41,59 +42,49 @@ export async function POST(req: NextRequest) {
     
     if (!expectedChallenge) {
       console.warn('[WebAuthn Authenticate Verify] Desafio expirado ou não encontrado');
-      return NextResponse.json({ error: 'Invalid or expired challenge' }, { status: 400, headers: corsHeaders });
+      return NextResponse.json({ error: 'Desafio expirado. Tente novamente.' }, { status: 400, headers: corsHeaders });
     }
 
     const credentialId = authenticationResponse.id;
     let credential = await getCredentialById(credentialId);
 
-    // Fallback caso a credencial tenha sido enviada pelo cliente (via Firestore direto ou localStorage)
-    if (!credential && body.clientPasskey) {
-      const cp = body.clientPasskey;
-      const isIdMatch = cp.id === credentialId || Buffer.from(credentialId).toString('base64url') === cp.id || cp.id?.includes(credentialId) || credentialId?.includes(cp.id);
-      if (isIdMatch && cp.publicKey) {
-        let pubKeyBuffer: Buffer;
-        if (Buffer.isBuffer(cp.publicKey)) {
-          pubKeyBuffer = cp.publicKey;
-        } else if (cp.publicKey.type === 'Buffer' && Array.isArray(cp.publicKey.data)) {
-          pubKeyBuffer = Buffer.from(cp.publicKey.data);
-        } else if (typeof cp.publicKey === 'string') {
-          pubKeyBuffer = Buffer.from(cp.publicKey, 'base64');
-        } else if (cp.publicKey instanceof Uint8Array || Array.isArray(cp.publicKey)) {
-          pubKeyBuffer = Buffer.from(cp.publicKey);
-        } else {
-          pubKeyBuffer = Buffer.alloc(0);
-        }
+    // Se a credencial não foi localizada no servidor ou sua chave pública veio vazia, usa os dados do clientPasskey
+    if (!credential || !credential.publicKey || credential.publicKey.length === 0) {
+      if (body.clientPasskey) {
+        const cp = body.clientPasskey;
+        const pubKeyBuffer = parsePublicKey(cp.publicKey);
+        if (pubKeyBuffer && pubKeyBuffer.length > 0) {
+          credential = {
+            id: cp.id || credentialId,
+            userId: cp.userId,
+            email: cp.email,
+            userName: cp.userName,
+            counter: Number(cp.counter || 0),
+            transports: cp.transports || [],
+            createdAt: cp.createdAt || new Date().toISOString(),
+            lastUsedAt: new Date().toISOString(),
+            publicKey: pubKeyBuffer,
+          };
 
-        credential = {
-          id: cp.id || credentialId,
-          userId: cp.userId,
-          email: cp.email,
-          userName: cp.userName,
-          counter: Number(cp.counter || 0),
-          transports: cp.transports || [],
-          createdAt: cp.createdAt || new Date().toISOString(),
-          lastUsedAt: new Date().toISOString(),
-          publicKey: pubKeyBuffer,
-        };
-        // Persiste no servidor para as próximas chamadas
-        try {
-          await saveCredential(credential.userId, {
-            id: credential.id,
-            publicKey: credential.publicKey,
-            counter: credential.counter,
-            transports: credential.transports,
-          }, undefined, {
-            email: credential.email,
-            userName: credential.userName,
-          });
-        } catch {}
+          // Salva no cache do servidor para próximas chamadas
+          try {
+            await saveCredential(credential.userId, {
+              id: credential.id,
+              publicKey: credential.publicKey,
+              counter: credential.counter,
+              transports: credential.transports,
+            }, undefined, {
+              email: credential.email,
+              userName: credential.userName,
+            });
+          } catch {}
+        }
       }
     }
 
-    if (!credential) {
+    if (!credential || !credential.publicKey || credential.publicKey.length === 0) {
       console.warn('[WebAuthn Authenticate Verify] Credencial não encontrada para o ID:', credentialId);
-      return NextResponse.json({ error: 'Credential not found' }, { status: 404, headers: corsHeaders });
+      return NextResponse.json({ error: 'Chave de acesso não cadastrada neste dispositivo ou domínio.' }, { status: 404, headers: corsHeaders });
     }
 
     const { rpID, origin } = getWebAuthnConfig(req);
@@ -126,7 +117,7 @@ export async function POST(req: NextRequest) {
       });
     } catch (verifyErr: any) {
       console.warn('[WebAuthn Verify] Erro na primeira tentativa de validação:', verifyErr?.message);
-      // Tenta extrair a origem diretamente de clientDataJSON se houver divergência de proxy
+      // Tenta extrair a origem diretamente de clientDataJSON se houver divergência de proxy reverso
       try {
         let clientDataOrigin = '';
         if (authenticationResponse.response?.clientDataJSON) {
@@ -155,12 +146,12 @@ export async function POST(req: NextRequest) {
       } catch (fallbackErr: any) {
         console.error('[WebAuthn Verify] Falha na validação:', fallbackErr?.message || verifyErr?.message);
         return NextResponse.json({ 
-          error: `Falha na verificação da chave: ${verifyErr?.message || fallbackErr?.message}` 
+          error: `A validação da chave falhou: ${verifyErr?.message || fallbackErr?.message || 'Assinatura inválida'}` 
         }, { status: 400, headers: corsHeaders });
       }
     }
 
-    if (verification.verified && verification.authenticationInfo) {
+    if (verification?.verified && verification.authenticationInfo) {
       const { newCounter } = verification.authenticationInfo;
       try {
         await updateCredentialCounter(credential.id, newCounter);
@@ -187,9 +178,9 @@ export async function POST(req: NextRequest) {
       }, { headers: corsHeaders });
     }
 
-    return NextResponse.json({ verified: false, error: 'Verification failed' }, { status: 400, headers: corsHeaders });
+    return NextResponse.json({ verified: false, error: 'A validação criptográfica da chave falhou.' }, { status: 400, headers: corsHeaders });
   } catch (error: any) {
     console.error('[WebAuthn Auth Verify] Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500, headers: corsHeaders });
+    return NextResponse.json({ error: error.message || 'Erro interno ao validar chave de acesso' }, { status: 400, headers: corsHeaders });
   }
 }

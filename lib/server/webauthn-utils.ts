@@ -54,6 +54,35 @@ export function getWebAuthnConfig(req?: NextRequest) {
   };
 }
 
+export function parsePublicKey(rawKey: any): Buffer {
+  if (!rawKey) return Buffer.alloc(0);
+  if (Buffer.isBuffer(rawKey)) return rawKey;
+  if (rawKey instanceof Uint8Array) return Buffer.from(rawKey);
+  if (Array.isArray(rawKey)) return Buffer.from(rawKey);
+  if (typeof rawKey === 'string') {
+    const trimmed = rawKey.trim();
+    try {
+      return Buffer.from(trimmed, 'base64');
+    } catch {
+      return Buffer.from(trimmed, 'utf8');
+    }
+  }
+  if (rawKey.type === 'Buffer' && Array.isArray(rawKey.data)) {
+    return Buffer.from(rawKey.data);
+  }
+  if (rawKey.bytesValue) {
+    return Buffer.from(rawKey.bytesValue, 'base64');
+  }
+  if (rawKey.stringValue) {
+    return Buffer.from(rawKey.stringValue, 'base64');
+  }
+  if (rawKey.arrayValue?.values) {
+    const bytes = rawKey.arrayValue.values.map((v: any) => Number(v.integerValue || v.stringValue || 0));
+    return Buffer.from(bytes);
+  }
+  return Buffer.alloc(0);
+}
+
 export interface WebAuthnCredential {
   id: string;
   publicKey: Buffer;
