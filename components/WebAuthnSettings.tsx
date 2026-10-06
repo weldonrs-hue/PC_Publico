@@ -177,7 +177,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
       const user = auth.currentUser;
       if (!user) throw new Error('Sessão expirada. Por favor, faça login novamente.');
 
-      const token = await user.getIdToken();
+      let token = await user.getIdToken();
       const clientDevice = detectClientDevice();
 
       // 1. Obter opções de registro do servidor
@@ -191,14 +191,27 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
           cache: 'no-store',
         });
       } catch {
-        throw new Error('Falha de conexão com o servidor. Verifique sua internet e tente novamente.');
+        try {
+          token = await user.getIdToken(true);
+          optionsRes = await fetch('/api/auth/webauthn/register/options', {
+            headers: { 
+              'Accept': 'application/json',
+              Authorization: `Bearer ${token}` 
+            },
+            cache: 'no-store',
+          });
+        } catch {
+          throw new Error('Falha de conexão com o servidor. Verifique sua internet e tente novamente.');
+        }
       }
 
       let options: any;
+      const rawText = await optionsRes.text();
       try {
-        options = await optionsRes.json();
+        options = JSON.parse(rawText);
       } catch {
-        throw new Error('Resposta inválida do servidor ao preparar cadastro da chave.');
+        console.error('Resposta não-JSON do servidor:', rawText);
+        throw new Error(`Resposta do servidor indisponível (${optionsRes.status}). Tente novamente.`);
       }
 
       if (!optionsRes.ok || options.error) {
@@ -244,10 +257,12 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
       }
 
       let verifyData: any;
+      const rawVerifyText = await verifyRes.text();
       try {
-        verifyData = await verifyRes.json();
+        verifyData = JSON.parse(rawVerifyText);
       } catch {
-        throw new Error('Resposta inválida do servidor ao confirmar a chave.');
+        console.error('Resposta não-JSON na verificação:', rawVerifyText);
+        throw new Error(`Erro na confirmação da chave pelo servidor (${verifyRes.status}).`);
       }
 
       if (!verifyRes.ok || !verifyData.verified) {

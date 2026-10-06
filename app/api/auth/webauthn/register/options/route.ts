@@ -37,20 +37,22 @@ async function handleRegisterOptions(req: NextRequest) {
     
     const displayName = user.decodedToken?.name || (user.email ? user.email.split('@')[0] : user.uid);
     
+    const validExcludeCredentials = (userCredentials || [])
+      .filter(c => !!c && typeof c.id === 'string' && c.id.trim().length > 0)
+      .map(cred => ({
+        id: cred.id,
+        type: 'public-key' as const,
+        transports: Array.isArray(cred.transports) ? cred.transports : undefined,
+      }));
+
     const options = await generateRegistrationOptions({
       rpName,
       rpID,
-      userID: new TextEncoder().encode(user.uid),
+      userID: new Uint8Array(Buffer.from(user.uid, 'utf-8')),
       userName: displayName,
       userDisplayName: displayName,
       // Exclui credenciais válidas já existentes para este usuário
-      excludeCredentials: (userCredentials || [])
-        .filter(c => !!c && !!c.id)
-        .map(cred => ({
-          id: cred.id,
-          type: 'public-key' as const,
-          transports: cred.transports,
-        })),
+      excludeCredentials: validExcludeCredentials,
       authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'preferred',
