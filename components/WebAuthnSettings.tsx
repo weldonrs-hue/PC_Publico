@@ -211,11 +211,11 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
         options = JSON.parse(rawText);
       } catch {
         console.error('Resposta não-JSON do servidor:', rawText);
-        throw new Error(`Resposta do servidor indisponível (${optionsRes.status}). Tente novamente.`);
+        throw new Error(`Falha no servidor (${optionsRes.status}): ${rawText.slice(0, 120)}`);
       }
 
       if (!optionsRes.ok || options.error) {
-        throw new Error(options.error || 'Erro ao obter opções de registro');
+        throw new Error(options.error || `Erro (${optionsRes.status}) ao obter opções de registro`);
       }
 
       // 2. Iniciar registro nativo da chave biométrica no navegador

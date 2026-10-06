@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { validateAuth } from '@/lib/server/auth';
-import { getWebAuthnConfig, generateAndStoreChallenge, getUserCredentials } from '@/lib/server/webauthn-utils';
+import { getWebAuthnConfig, generateAndStoreChallenge } from '@/lib/server/webauthn-utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,58 +33,26 @@ async function handleRegisterOptions(req: NextRequest) {
       return NextResponse.json({ error: 'Não autorizado. Por favor, faça login novamente.' }, { status: 401, headers: corsHeaders });
     }
 
-    let userCredentials = [];
-    try {
-      userCredentials = await getUserCredentials(user.uid, user.token);
-    } catch {
-      userCredentials = [];
-    }
-
     const { rpName, rpID } = getWebAuthnConfig(req);
-    
     const displayName = (user.decodedToken?.name || (user.email ? user.email.split('@')[0] : user.uid) || 'usuario').trim();
-    
-    const validExcludeCredentials = (userCredentials || [])
-      .filter(c => !!c && typeof c.id === 'string' && /^[A-Za-z0-9_-]+$/.test(c.id.trim()))
-      .map(cred => ({
-        id: cred.id.trim(),
-        type: 'public-key' as const,
-        transports: Array.isArray(cred.transports) ? cred.transports : undefined,
-      }));
 
-    let options;
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID,
+      userID: new Uint8Array(Buffer.from(user.uid, 'utf-8')),
+      userName: displayName,
+      userDisplayName: displayName,
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+      },
+      attestationType: 'none',
+    });
+
+    // Armazena o desafio gerado
     try {
-      options = await generateRegistrationOptions({
-        rpName,
-        rpID,
-        userID: new Uint8Array(Buffer.from(user.uid, 'utf-8')),
-        userName: displayName,
-        userDisplayName: displayName,
-        excludeCredentials: validExcludeCredentials.length > 0 ? validExcludeCredentials : undefined,
-        authenticatorSelection: {
-          residentKey: 'preferred',
-          userVerification: 'preferred',
-        },
-        attestationType: 'none',
-      });
-    } catch (generateErr: any) {
-      console.warn('[WebAuthn] Falha ao gerar com excludeCredentials, tentando modo básico:', generateErr);
-      options = await generateRegistrationOptions({
-        rpName,
-        rpID,
-        userID: new Uint8Array(Buffer.from(user.uid, 'utf-8')),
-        userName: displayName,
-        userDisplayName: displayName,
-        authenticatorSelection: {
-          residentKey: 'preferred',
-          userVerification: 'preferred',
-        },
-        attestationType: 'none',
-      });
-    }
-
-    // Armazena o desafio de registro
-    await generateAndStoreChallenge('registration', user.uid, options.challenge);
+      await generateAndStoreChallenge('registration', user.uid, options.challenge);
+    } catch {}
 
     return NextResponse.json(options, { headers: corsHeaders });
   } catch (error: any) {

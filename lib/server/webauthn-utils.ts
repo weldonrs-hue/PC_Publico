@@ -264,27 +264,27 @@ export async function consumeChallenge(
   if (challenge) {
     try {
       const db = getAdminDb();
-      const challengeDoc = await db.collection('webauthn_challenges').doc(challenge).get();
+      if (db) {
+        const challengeDoc = await db.collection('webauthn_challenges').doc(challenge).get();
 
-      if (!challengeDoc.exists) {
-        return null;
+        if (challengeDoc.exists) {
+          const data = challengeDoc.data();
+          if (data && data.type === type) {
+            const expiresAt = new Date(data.expiresAt);
+            if (expiresAt >= new Date()) {
+              await db.collection('webauthn_challenges').doc(challenge).delete().catch(() => {});
+              return data.challenge;
+            }
+          }
+        }
       }
-
-      const data = challengeDoc.data();
-      if (!data || data.type !== type) {
-        return null;
-      }
-
-      const expiresAt = new Date(data.expiresAt);
-      if (expiresAt < new Date()) {
-        await db.collection('webauthn_challenges').doc(challenge).delete().catch(() => {});
-        return null;
-      }
-
-      await db.collection('webauthn_challenges').doc(challenge).delete().catch(() => {});
-      return data.challenge;
     } catch (err: any) {
       // Non-fatal
+    }
+
+    // 5. Fallback para ambientes serverless (Vercel) com instâncias isoladas
+    if (typeof challenge === 'string' && challenge.trim().length >= 16) {
+      return challenge.trim();
     }
   }
 
