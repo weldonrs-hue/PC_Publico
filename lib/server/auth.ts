@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminAuth } from './firebase-admin';
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfig from '@/firebase-applet-config.json';
 import { NextRequest } from 'next/server';
 
 export interface AuthUser {

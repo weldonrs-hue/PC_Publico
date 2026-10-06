@@ -10,6 +10,10 @@ import {
   extractChallengeFromClientData 
 } from '@/lib/server/webauthn-utils';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

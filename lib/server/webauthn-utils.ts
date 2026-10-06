@@ -1,6 +1,6 @@
 import 'server-only';
 import { getAdminDb } from './firebase-admin';
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfig from '@/firebase-applet-config.json';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
