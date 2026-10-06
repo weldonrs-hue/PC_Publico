@@ -78,6 +78,8 @@ const CONG_STORAGE_KEY = 'progcir_congregations';
 export default function Home() {
   const { showAlert, showConfirm } = useDialog();
   const [user, setUser] = useState<any>(null);
+  const [personalData, setPersonalData] = useState<any>(null);
+  const [loadingPersonalData, setLoadingPersonalData] = useState(true);
   const [guestPioneerData, setGuestPioneerData] = useState<{ ownerId: string; turma: string } | null>(null);
   const [guestCongressData, setGuestCongressData] = useState<{ ownerId: string } | null>(null);
   const [guestCacoData, setGuestCacoData] = useState<{ ownerId: string } | null>(null);
@@ -221,8 +223,6 @@ export default function Home() {
     settings: 'settings',
     schools: 'schools'
   });
-  const [personalData, setPersonalData] = useState<any>(null);
-  const [loadingPersonalData, setLoadingPersonalData] = useState(true);
   const [congregations, setCongregations] = useState<any[]>([]);
   const [currentEvent, setCurrentEvent] = useState<string>('');
   const [selectedCongregation, setSelectedCongregation] = useState<any>(null);
