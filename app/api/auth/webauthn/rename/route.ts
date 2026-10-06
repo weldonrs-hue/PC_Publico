@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuth } from '@/lib/server/auth';
-import { getAdminDb } from '@/lib/server/firebase-admin';
 import firebaseConfig from '@/firebase-applet-config.json';
 
 export const dynamic = 'force-dynamic';
@@ -35,37 +34,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'O nome não pode estar vazio' }, { status: 400, headers: corsHeaders });
     }
 
-    // 1. Atualizar via REST se token estiver disponível
-    if (user.token) {
-      try {
-        const projectId = firebaseConfig.projectId;
-        const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-        const docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${credentialId}?updateMask.fieldPaths=deviceName`;
-        await fetch(docUrl, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${user.token}`,
-          },
-          body: JSON.stringify({
-            fields: {
-              deviceName: { stringValue: trimmedName },
-            },
-          }),
-        });
-      } catch (err) {
-        console.warn('REST rename notice:', err);
-      }
-    }
-
-    // 2. Atualizar via Admin SDK
+    // Atualizar via REST
     try {
-      const db = getAdminDb();
-      await db.collection('webauthn_credentials').doc(credentialId).update({
-        deviceName: trimmedName,
+      const projectId = firebaseConfig.projectId;
+      const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+      let docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${encodeURIComponent(credentialId)}?updateMask.fieldPaths=deviceName`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (user.token) {
+        headers['Authorization'] = `Bearer ${user.token}`;
+      } else if (firebaseConfig.apiKey) {
+        docUrl += `&key=${firebaseConfig.apiKey}`;
+      }
+
+      await fetch(docUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          fields: {
+            deviceName: { stringValue: trimmedName },
+          },
+        }),
       });
-    } catch (adminErr) {
-      // Non-fatal
+    } catch (err) {
+      console.warn('REST rename notice:', err);
     }
 
     return NextResponse.json({ success: true, newName: trimmedName }, { headers: corsHeaders });

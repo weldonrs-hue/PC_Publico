@@ -1,9 +1,6 @@
 import 'server-only';
-import { getAdminDb } from './firebase-admin';
 import firebaseConfig from '@/firebase-applet-config.json';
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { NextRequest } from 'next/server';
 
 // Unified dynamic configuration
@@ -76,79 +73,13 @@ interface StoredChallenge {
   challenge: string;
   userId?: string | null;
   type: 'registration' | 'authentication';
-  expiresAt: number; // timestamp ms
+  expiresAt: number;
 }
 
-interface GlobalWebAuthnStore {
-  challenges: Map<string, StoredChallenge>;
-  credentials: Map<string, WebAuthnCredential>;
-}
+// In-memory challenge and credential cache
+const memoryChallenges = new Map<string, StoredChallenge>();
+const memoryCredentials = new Map<string, WebAuthnCredential>();
 
-declare global {
-  var __progcirWebAuthnStore: GlobalWebAuthnStore | undefined;
-}
-
-// Preserve in-memory store on globalThis across all Next.js compilation boundaries & worker threads
-if (!globalThis.__progcirWebAuthnStore) {
-  globalThis.__progcirWebAuthnStore = {
-    challenges: new Map(),
-    credentials: new Map(),
-  };
-}
-
-const memoryChallenges = globalThis.__progcirWebAuthnStore.challenges;
-const memoryCredentials = globalThis.__progcirWebAuthnStore.credentials;
-
-const CREDENTIALS_BACKUP_FILE = path.join('/tmp', 'progcir_webauthn_credentials.json');
-
-// Hydrate memoryCredentials from disk backup on startup
-function hydrateCredentialsBackup() {
-  try {
-    if (fs.existsSync(CREDENTIALS_BACKUP_FILE)) {
-      const raw = fs.readFileSync(CREDENTIALS_BACKUP_FILE, 'utf-8');
-      const list = JSON.parse(raw);
-      if (Array.isArray(list)) {
-        for (const item of list) {
-          if (item && item.id && item.publicKey) {
-            memoryCredentials.set(item.id, {
-              ...item,
-              publicKey: Buffer.from(item.publicKey, 'base64'),
-            });
-          }
-        }
-      }
-    }
-  } catch (err: any) {
-    console.warn('[WebAuthn] Falha ao hidratar backup de credenciais:', err.message || err);
-  }
-}
-hydrateCredentialsBackup();
-
-function persistCredentialsBackup() {
-  try {
-    const list: any[] = [];
-    for (const cred of memoryCredentials.values()) {
-      list.push({
-        id: cred.id,
-        userId: cred.userId,
-        email: cred.email,
-        userName: cred.userName,
-        counter: cred.counter,
-        transports: cred.transports,
-        createdAt: cred.createdAt,
-        lastUsedAt: cred.lastUsedAt,
-        publicKey: cred.publicKey.toString('base64'),
-      });
-    }
-    fs.writeFileSync(CREDENTIALS_BACKUP_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (err: any) {
-    console.warn('[WebAuthn] Falha ao persistir backup de credenciais:', err.message || err);
-  }
-}
-
-/**
- * Periodically purge expired in-memory challenges
- */
 function cleanupExpiredChallenges() {
   const now = Date.now();
   for (const [key, item] of memoryChallenges.entries()) {
@@ -159,7 +90,7 @@ function cleanupExpiredChallenges() {
 }
 
 /**
- * Generates a random challenge and stores it in memory (and Firestore as fallback).
+ * Generates a random challenge and stores it in memory.
  */
 export async function generateAndStoreChallenge(
   type: 'registration' | 'authentication',
@@ -170,28 +101,12 @@ export async function generateAndStoreChallenge(
   const challenge = providedChallenge || crypto.randomBytes(32).toString('base64url');
   const expiresAtMs = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-  // Store in global memory
   memoryChallenges.set(challenge, {
     challenge,
     userId: userId || null,
     type,
     expiresAt: expiresAtMs,
   });
-
-  // Background save to Firestore via Admin SDK if available (non-blocking)
-  try {
-    const db = getAdminDb();
-    if (db) {
-      db.collection('webauthn_challenges').doc(challenge).set({
-        challenge,
-        userId: userId || null,
-        type,
-        expiresAt: new Date(expiresAtMs).toISOString(),
-      }).catch(() => {});
-    }
-  } catch (err: any) {
-    // Non-fatal: memory store already holds the challenge
-  }
 
   return challenge;
 }
@@ -211,7 +126,7 @@ export function extractChallengeFromClientData(clientDataJSON?: string): string 
 }
 
 /**
- * Retrieves and deletes a challenge from memory or Firestore.
+ * Retrieves and consumes a challenge.
  */
 export async function consumeChallenge(
   challenge: string | undefined | null,
@@ -228,7 +143,6 @@ export async function consumeChallenge(
       if (memItem.type === type && memItem.expiresAt >= Date.now()) {
         return memItem.challenge;
       }
-      return null;
     }
   }
 
@@ -242,50 +156,17 @@ export async function consumeChallenge(
     }
   }
 
-  // 3. Match any active authentication challenge in memory store
-  if (type === 'authentication') {
-    let latestKey: string | null = null;
-    let latestItem: StoredChallenge | null = null;
-    for (const [key, item] of memoryChallenges.entries()) {
-      if (item.type === type && item.expiresAt >= Date.now()) {
-        if (!latestItem || item.expiresAt > latestItem.expiresAt) {
-          latestKey = key;
-          latestItem = item;
-        }
-      }
-    }
-    if (latestKey && latestItem) {
-      memoryChallenges.delete(latestKey);
-      return latestItem.challenge;
+  // 3. Match any active challenge in memory for this type
+  for (const [key, item] of memoryChallenges.entries()) {
+    if (item.type === type && item.expiresAt >= Date.now()) {
+      memoryChallenges.delete(key);
+      return item.challenge;
     }
   }
 
-  // 4. Fallback to Firestore Admin SDK if challenge key is available
-  if (challenge) {
-    try {
-      const db = getAdminDb();
-      if (db) {
-        const challengeDoc = await db.collection('webauthn_challenges').doc(challenge).get();
-
-        if (challengeDoc.exists) {
-          const data = challengeDoc.data();
-          if (data && data.type === type) {
-            const expiresAt = new Date(data.expiresAt);
-            if (expiresAt >= new Date()) {
-              await db.collection('webauthn_challenges').doc(challenge).delete().catch(() => {});
-              return data.challenge;
-            }
-          }
-        }
-      }
-    } catch (err: any) {
-      // Non-fatal
-    }
-
-    // 5. Fallback para ambientes serverless (Vercel) com instâncias isoladas
-    if (typeof challenge === 'string' && challenge.trim().length >= 16) {
-      return challenge.trim();
-    }
+  // 4. Fallback for serverless (Vercel) stateless instances
+  if (typeof challenge === 'string' && challenge.trim().length >= 16) {
+    return challenge.trim();
   }
 
   return null;
@@ -294,18 +175,24 @@ export async function consumeChallenge(
 /**
  * Helper to fetch credentials via Firestore REST API with the user's ID token.
  */
-async function fetchUserCredentialsViaRest(userId: string, userToken: string): Promise<WebAuthnCredential[]> {
+async function fetchUserCredentialsViaRest(userId: string, userToken?: string): Promise<WebAuthnCredential[]> {
   try {
     const projectId = firebaseConfig.projectId;
     const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents:runQuery`;
+    let url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents:runQuery`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (userToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    } else if (firebaseConfig.apiKey) {
+      url += `?key=${firebaseConfig.apiKey}`;
+    }
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${userToken}`,
-      },
+      headers,
       body: JSON.stringify({
         structuredQuery: {
           from: [{ collectionId: 'webauthn_credentials' }],
@@ -363,7 +250,6 @@ async function fetchUserCredentialsViaRest(userId: string, userToken: string): P
       memoryCredentials.set(id, credItem);
     }
 
-    persistCredentialsBackup();
     return credentials;
   } catch (err: any) {
     return [];
@@ -384,7 +270,7 @@ export async function saveCredential(
   userToken?: string,
   userInfo?: { 
     email?: string; 
-    userName?: string;
+    userName?: string; 
     deviceName?: string;
     deviceType?: string;
     browserName?: string;
@@ -408,85 +294,61 @@ export async function saveCredential(
     lastUsedAt: now,
   };
 
-  // 1. Store in memory cache & disk backup
+  // 1. Store in memory cache
   memoryCredentials.set(credential.id, credObj);
-  persistCredentialsBackup();
 
-  // 2. If userToken is provided, save via Firestore REST API
-  if (userToken) {
-    try {
-      const projectId = firebaseConfig.projectId;
-      const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-      const docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${credential.id}`;
-
-      await fetch(docUrl, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userToken}`,
-        },
-        body: JSON.stringify({
-          fields: {
-            id: { stringValue: credential.id },
-            userId: { stringValue: userId },
-            ...(userInfo?.email ? { email: { stringValue: userInfo.email } } : {}),
-            ...(userInfo?.userName ? { userName: { stringValue: userInfo.userName } } : {}),
-            ...(userInfo?.deviceName ? { deviceName: { stringValue: userInfo.deviceName } } : { deviceName: { stringValue: 'Chave de acesso' } }),
-            ...(userInfo?.deviceType ? { deviceType: { stringValue: userInfo.deviceType } } : {}),
-            ...(userInfo?.browserName ? { browserName: { stringValue: userInfo.browserName } } : {}),
-            counter: { integerValue: String(credential.counter) },
-            publicKey: { bytesValue: pubBuffer.toString('base64') },
-            transports: {
-              arrayValue: {
-                values: (credential.transports || []).map((t: string) => ({ stringValue: t })),
-              },
-            },
-            createdAt: { stringValue: now },
-            lastUsedAt: { stringValue: now },
-          },
-        }),
-      });
-    } catch (restErr: any) {
-      console.warn('[saveCredential] REST save notice:', restErr.message || restErr);
-    }
-  }
-
-  // 3. Fallback attempt via Admin SDK
+  // 2. Save via Firestore REST API if userToken or apiKey is available
   try {
-    const db = getAdminDb();
-    if (db) {
-      await db.collection('webauthn_credentials').doc(credential.id).set({
-        id: credential.id,
-        publicKey: pubBuffer,
-        userId,
-        email: userInfo?.email || null,
-        userName: userInfo?.userName || null,
-        deviceName: userInfo?.deviceName || 'Chave de acesso',
-        deviceType: userInfo?.deviceType || 'other',
-        browserName: userInfo?.browserName || null,
-        counter: credential.counter,
-        transports: credential.transports || [],
-        createdAt: now,
-        lastUsedAt: now,
-      });
+    const projectId = firebaseConfig.projectId;
+    const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+    let docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${encodeURIComponent(credential.id)}`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (userToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    } else if (firebaseConfig.apiKey) {
+      docUrl += `?key=${firebaseConfig.apiKey}`;
     }
-  } catch (adminErr: any) {
-    // Non-fatal
+
+    await fetch(docUrl, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        fields: {
+          id: { stringValue: credential.id },
+          userId: { stringValue: userId },
+          ...(userInfo?.email ? { email: { stringValue: userInfo.email } } : {}),
+          ...(userInfo?.userName ? { userName: { stringValue: userInfo.userName } } : {}),
+          ...(userInfo?.deviceName ? { deviceName: { stringValue: userInfo.deviceName } } : { deviceName: { stringValue: 'Chave de acesso' } }),
+          ...(userInfo?.deviceType ? { deviceType: { stringValue: userInfo.deviceType } } : {}),
+          ...(userInfo?.browserName ? { browserName: { stringValue: userInfo.browserName } } : {}),
+          counter: { integerValue: String(credential.counter) },
+          publicKey: { bytesValue: pubBuffer.toString('base64') },
+          transports: {
+            arrayValue: {
+              values: (credential.transports || []).map((t: string) => ({ stringValue: t })),
+            },
+          },
+          createdAt: { stringValue: now },
+          lastUsedAt: { stringValue: now },
+        },
+      }),
+    });
+  } catch (restErr: any) {
+    console.warn('[saveCredential] REST save notice:', restErr.message || restErr);
   }
 }
 
 /**
- * Retrieves all credentials for a specific user without throwing PERMISSION_DENIED.
+ * Retrieves all credentials for a specific user.
  */
 export async function getUserCredentials(userId: string, userToken?: string): Promise<WebAuthnCredential[]> {
-  hydrateCredentialsBackup();
-
-  // 1. If userToken is available, try querying Firestore via REST API
-  if (userToken) {
-    const restCreds = await fetchUserCredentialsViaRest(userId, userToken);
-    if (restCreds && restCreds.length > 0) {
-      return restCreds;
-    }
+  // 1. Try querying Firestore via REST API
+  const restCreds = await fetchUserCredentialsViaRest(userId, userToken);
+  if (restCreds && restCreds.length > 0) {
+    return restCreds;
   }
 
   // 2. Check memory cache for this user
@@ -496,47 +358,13 @@ export async function getUserCredentials(userId: string, userToken?: string): Pr
       cachedForUser.push(cred);
     }
   }
-  if (cachedForUser.length > 0) {
-    return cachedForUser;
-  }
-
-  // 3. Try Admin SDK, catching any permission errors safely
-  try {
-    const db = getAdminDb();
-    if (db) {
-      const snapshot = await db.collection('webauthn_credentials')
-        .where('userId', '==', userId)
-        .get();
-
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: data.id,
-          userId: data.userId,
-          email: data.email,
-          userName: data.userName,
-          deviceName: data.deviceName || 'Chave de acesso',
-          deviceType: data.deviceType || 'other',
-          browserName: data.browserName,
-          counter: data.counter,
-          transports: data.transports,
-          createdAt: data.createdAt,
-          lastUsedAt: data.lastUsedAt,
-          publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
-        } as WebAuthnCredential;
-      });
-    }
-  } catch (adminErr: any) {
-    return [];
-  }
+  return cachedForUser;
 }
 
 /**
  * Retrieves a specific credential by ID.
  */
 export async function getCredentialById(credentialId: string, userToken?: string): Promise<WebAuthnCredential | null> {
-  hydrateCredentialsBackup();
-
   const candidateIds = new Set<string>();
   candidateIds.add(credentialId);
   try {
@@ -561,7 +389,7 @@ export async function getCredentialById(credentialId: string, userToken?: string
     }
   }
 
-  // 2. Query Firestore REST API for all candidate IDs
+  // 2. Query Firestore REST API for candidate IDs
   for (const cid of candidateIds) {
     try {
       const projectId = firebaseConfig.projectId;
@@ -608,7 +436,6 @@ export async function getCredentialById(credentialId: string, userToken?: string
           };
           memoryCredentials.set(credentialId, cred);
           memoryCredentials.set(cid, cred);
-          persistCredentialsBackup();
           return cred;
         }
       }
@@ -617,7 +444,7 @@ export async function getCredentialById(credentialId: string, userToken?: string
     }
   }
 
-  // 2b. Query Firestore REST API using runQuery StructuredQuery
+  // 3. Query Firestore REST API using runQuery StructuredQuery
   try {
     const projectId = firebaseConfig.projectId;
     const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
@@ -672,7 +499,6 @@ export async function getCredentialById(credentialId: string, userToken?: string
           publicKey: pubKeyBuffer,
         };
         memoryCredentials.set(credentialId, cred);
-        persistCredentialsBackup();
         return cred;
       }
     }
@@ -680,65 +506,7 @@ export async function getCredentialById(credentialId: string, userToken?: string
     // Non-fatal
   }
 
-  // 3. Fallback to Admin SDK
-  for (const cid of candidateIds) {
-    try {
-      const db = getAdminDb();
-      if (db) {
-        const doc = await db.collection('webauthn_credentials').doc(cid).get();
-
-        if (doc.exists) {
-          const data = doc.data()!;
-          const cred: WebAuthnCredential = {
-            id: data.id || cid,
-            userId: data.userId,
-            email: data.email,
-            userName: data.userName,
-            deviceName: data.deviceName || 'Chave de acesso',
-            deviceType: data.deviceType || 'other',
-            browserName: data.browserName,
-            counter: data.counter,
-            transports: data.transports,
-            createdAt: data.createdAt,
-            lastUsedAt: data.lastUsedAt,
-            publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
-          };
-          memoryCredentials.set(credentialId, cred);
-          memoryCredentials.set(cid, cred);
-          persistCredentialsBackup();
-          return cred;
-        }
-
-        // Query by id field in Admin SDK
-        const querySnap = await db.collection('webauthn_credentials').where('id', '==', cid).limit(1).get();
-        if (!querySnap.empty) {
-          const data = querySnap.docs[0].data();
-          const cred: WebAuthnCredential = {
-            id: data.id || cid,
-            userId: data.userId,
-            email: data.email,
-            userName: data.userName,
-            deviceName: data.deviceName || 'Chave de acesso',
-            deviceType: data.deviceType || 'other',
-            browserName: data.browserName,
-            counter: data.counter,
-            transports: data.transports,
-            createdAt: data.createdAt,
-            lastUsedAt: data.lastUsedAt,
-            publicKey: data.publicKey instanceof Buffer ? data.publicKey : (data.publicKey?.toBuffer ? data.publicKey.toBuffer() : Buffer.from(data.publicKey || [])),
-          };
-          memoryCredentials.set(credentialId, cred);
-          memoryCredentials.set(cid, cred);
-          persistCredentialsBackup();
-          return cred;
-        }
-      }
-    } catch (adminErr: any) {
-      // Non-fatal
-    }
-  }
-
-  // 4. Se houver apenas 1 credencial em memória, retorne-a como fallback seguro
+  // 4. Se houver apenas 1 credencial em memória, retorne-a como fallback
   if (memoryCredentials.size === 1) {
     const [single] = Array.from(memoryCredentials.values());
     return single;
@@ -751,27 +519,30 @@ export async function getCredentialById(credentialId: string, userToken?: string
  * Updates the signature counter for a credential.
  */
 export async function updateCredentialCounter(credentialId: string, newCounter: number, userToken?: string) {
-  // Update memory
   if (memoryCredentials.has(credentialId)) {
     const existing = memoryCredentials.get(credentialId)!;
     existing.counter = newCounter;
     existing.lastUsedAt = new Date().toISOString();
-    persistCredentialsBackup();
   }
 
-  // Update REST if userToken provided
-  if (userToken) {
+  if (userToken || firebaseConfig.apiKey) {
     try {
       const projectId = firebaseConfig.projectId;
       const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-      const docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${credentialId}?updateMask.fieldPaths=counter&updateMask.fieldPaths=lastUsedAt`;
+      let docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${encodeURIComponent(credentialId)}?updateMask.fieldPaths=counter&updateMask.fieldPaths=lastUsedAt`;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (userToken) {
+        headers['Authorization'] = `Bearer ${userToken}`;
+      } else if (firebaseConfig.apiKey) {
+        docUrl += `&key=${firebaseConfig.apiKey}`;
+      }
 
       await fetch(docUrl, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${userToken}`,
-        },
+        headers,
         body: JSON.stringify({
           fields: {
             counter: { integerValue: String(newCounter) },
@@ -783,64 +554,33 @@ export async function updateCredentialCounter(credentialId: string, newCounter: 
       // Non-fatal
     }
   }
-
-  // Fallback to Admin SDK
-  try {
-    const db = getAdminDb();
-    if (db) {
-      await db.collection('webauthn_credentials').doc(credentialId).update({
-        counter: newCounter,
-        lastUsedAt: new Date().toISOString(),
-      });
-    }
-  } catch (adminErr: any) {
-    // Non-fatal
-  }
 }
 
 /**
- * Exclui uma credencial do cache local e do Firestore.
+ * Exclui uma credencial do cache local e do Firestore via REST API.
  */
 export async function deleteCredential(credentialId: string, userId: string, userToken?: string): Promise<boolean> {
-  hydrateCredentialsBackup();
+  memoryCredentials.delete(credentialId);
 
-  // 1. Remove do cache em memória e backup local
-  const existing = memoryCredentials.get(credentialId);
-  if (existing && existing.userId === userId) {
-    memoryCredentials.delete(credentialId);
-    persistCredentialsBackup();
-  } else if (!existing) {
-    memoryCredentials.delete(credentialId);
-    persistCredentialsBackup();
-  }
-
-  // 2. Exclui no Firestore via REST API se tiver userToken
-  if (userToken) {
-    try {
-      const projectId = firebaseConfig.projectId;
-      const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-      const docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${credentialId}`;
-      await fetch(docUrl, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-        },
-      });
-    } catch (restErr: any) {
-      console.warn('[deleteCredential] REST delete notice:', restErr.message || restErr);
-    }
-  }
-
-  // 3. Exclui via Admin SDK
   try {
-    const db = getAdminDb();
-    if (db) {
-      await db.collection('webauthn_credentials').doc(credentialId).delete();
+    const projectId = firebaseConfig.projectId;
+    const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+    let docUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/webauthn_credentials/${encodeURIComponent(credentialId)}`;
+    
+    const headers: Record<string, string> = {};
+    if (userToken) {
+      headers['Authorization'] = `Bearer ${userToken}`;
+    } else if (firebaseConfig.apiKey) {
+      docUrl += `?key=${firebaseConfig.apiKey}`;
     }
-  } catch (adminErr: any) {
-    // Non-fatal
+
+    await fetch(docUrl, {
+      method: 'DELETE',
+      headers,
+    });
+  } catch (restErr: any) {
+    console.warn('[deleteCredential] REST delete notice:', restErr.message || restErr);
   }
 
   return true;
 }
-

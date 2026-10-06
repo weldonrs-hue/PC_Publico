@@ -110,7 +110,9 @@ export async function POST(req: NextRequest) {
       if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
         try {
           const adminAuth = getAdminAuth();
-          customToken = await adminAuth.createCustomToken(credential.userId);
+          if (adminAuth) {
+            customToken = await adminAuth.createCustomToken(credential.userId);
+          }
         } catch {
           // Não-fatal caso a assinatura de token não esteja configurada
         }
