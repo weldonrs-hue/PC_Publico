@@ -131,11 +131,23 @@ export default function UsersView({ onBack }: UsersViewProps) {
         // Check if this account should be shown
         const isRealUser = !!userData || !!pdData || (pubData && pubData.hasAppAccess);
 
+        const isAdminUser = 
+          userData?.role === 'admin' || 
+          email === 'weldonrs@gmail.com' || 
+          email === '2283701@progcir.app' || 
+          email === '2283701@progcir.com' || 
+          email === '2283701@gmail.com' ||
+          userData?.usuario === '2283701' || 
+          pdData?.numeroPessoal === '2283701' ||
+          pdData?.role === 'admin';
+
+        const computedRole = isAdminUser ? 'admin' : (pdData?.role || userData?.role || 'user');
+
         return {
           id: uid,
           ...userData,
           nome: pdData?.nome || pubData?.name || userData?.nome || (userData?.displayName || (userData?.usuario && userData?.usuario.length > 5 ? userData?.usuario : 'Sem nome')),
-          role: pdData?.role || userData?.role || 'user',
+          role: computedRole,
           numeroPessoal: pdData?.numeroPessoal || userData?.usuario || tjSecNumber || '---',
           photoURL: pdData?.profilePhoto || userData?.photoURL || null,
           isInactive: !!userData?.isInactive,

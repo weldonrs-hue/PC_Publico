@@ -169,11 +169,31 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
         realEmail === 'weldonrs@gmail.com' || 
         realEmail === '2283701@progcir.app' || 
         realEmail === '2283701@progcir.com' ||
+        realEmail === '2283701@gmail.com' ||
         realUsuario === '2283701' ||
         userRole === 'admin';
 
       if (isAdminEmail) {
         userRole = 'admin';
+        if (!realEmail) realEmail = 'weldonrs@gmail.com';
+        if (!realUsuario) realUsuario = '2283701';
+      }
+
+      // Atualiza / sincroniza o documento do usuário no Firestore para garantir persistência definitiva
+      try {
+        if (userId) {
+          const userDocRef = doc(db, 'users', userId);
+          await setDoc(userDocRef, {
+            email: realEmail,
+            usuario: realUsuario,
+            role: userRole,
+            photoURL: userPhotoURL,
+            lastLogin: new Date().toISOString(),
+            migrationCompleted: true
+          }, { merge: true });
+        }
+      } catch (errSync) {
+        console.warn('Sync user profile notice:', errSync);
       }
 
       if (customToken) {
@@ -181,8 +201,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
           const userCredential = await signInWithCustomToken(auth, customToken);
           onLoginSuccess({
             id: userCredential.user.uid,
-            usuario: userCredential.user.displayName || realUsuario || userCredential.user.uid.substring(0, 8),
-            email: userCredential.user.email || realEmail,
+            usuario: realUsuario || userCredential.user.displayName || userCredential.user.uid.substring(0, 8),
+            email: realEmail || userCredential.user.email,
             role: userRole,
             photoURL: userPhotoURL,
             migrationCompleted: true,

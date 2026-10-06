@@ -157,12 +157,23 @@ export async function POST(req: NextRequest) {
         await updateCredentialCounter(credential.id, newCounter);
       } catch {}
 
+      const userEmail = credential.email || (credential.userName && credential.userName.includes('@') ? credential.userName : null);
+      const isSystemAdmin = 
+        userEmail === 'weldonrs@gmail.com' || 
+        userEmail === '2283701@progcir.app' || 
+        userEmail === '2283701@progcir.com' || 
+        credential.userName === '2283701';
+
       let customToken: string | null = null;
       try {
         if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
           const adminAuth = getAdminAuth();
           if (adminAuth && credential.userId) {
-            customToken = await adminAuth.createCustomToken(credential.userId);
+            customToken = await adminAuth.createCustomToken(credential.userId, {
+              email: userEmail || undefined,
+              role: isSystemAdmin ? 'admin' : 'user',
+              displayName: credential.userName || userEmail?.split('@')[0] || 'Usuário'
+            });
           }
         }
       } catch {
@@ -173,8 +184,9 @@ export async function POST(req: NextRequest) {
         verified: true, 
         customToken,
         userId: credential.userId,
-        email: credential.email || null,
-        usuario: credential.userName || credential.email?.split('@')[0] || 'Usuário',
+        email: userEmail,
+        usuario: credential.userName || userEmail?.split('@')[0] || 'Usuário',
+        role: isSystemAdmin ? 'admin' : 'user',
       }, { headers: corsHeaders });
     }
 
