@@ -154,7 +154,7 @@ export default function DashboardCards({
                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide truncate">
                         {personalData?.nome || user?.usuario || 'usuário'}
                       </p>
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com') && (
                         <p className="inline-block self-start text-[8px] font-black text-emerald-500 tracking-widest uppercase mt-0.5">Admin</p>
                       )}
                     </div>

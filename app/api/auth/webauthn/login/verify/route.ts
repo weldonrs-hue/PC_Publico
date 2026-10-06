@@ -68,9 +68,20 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const isAdminAccount = 
+        credential.email === 'weldonrs@gmail.com' ||
+        credential.email === '2283701@progcir.app' ||
+        credential.email === '2283701@progcir.com' ||
+        credential.email === '2283701@gmail.com' ||
+        credential.userName === '2283701' ||
+        credential.userId === '2283701';
+
       return NextResponse.json({ 
         verified: true, 
         userId: credential.userId,
+        email: credential.email || null,
+        usuario: credential.userName || credential.email?.split('@')[0] || 'Usuário',
+        role: isAdminAccount ? 'admin' : 'user',
         customToken: customToken || undefined,
         message: 'Autenticação verificada com sucesso.'
       });

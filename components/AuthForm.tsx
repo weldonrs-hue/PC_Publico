@@ -137,13 +137,22 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
 
       const { customToken, userId, email, usuario } = verifyData;
 
+      const isAdminAccount = 
+        email === 'weldonrs@gmail.com' || 
+        email === '2283701@progcir.app' || 
+        email === '2283701@progcir.com' ||
+        email === '2283701@gmail.com' ||
+        usuario === '2283701' ||
+        userId === '2283701';
+
       if (customToken) {
         try {
           const userCredential = await signInWithCustomToken(auth, customToken);
           onLoginSuccess({
             id: userCredential.user.uid,
             usuario: userCredential.user.displayName || usuario || userCredential.user.uid.substring(0, 8),
-            email: userCredential.user.email || email
+            email: userCredential.user.email || email,
+            role: isAdminAccount ? 'admin' : undefined
           });
           return;
         } catch (tokenErr) {
@@ -155,7 +164,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
       onLoginSuccess({
         id: userId,
         usuario: usuario || (email ? email.split('@')[0] : userId.substring(0, 8)),
-        email: email || `${usuario || 'usuario'}@progcir.app`
+        email: email || `${usuario || 'usuario'}@progcir.app`,
+        role: isAdminAccount ? 'admin' : 'user'
       });
     } catch (err: any) {
       console.error('Passkey login error:', err);
@@ -319,10 +329,18 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
           }
         }
 
+        const isAdminAccount = 
+          userCredential.user.email === 'weldonrs@gmail.com' || 
+          userCredential.user.email === '2283701@progcir.app' || 
+          userCredential.user.email === '2283701@progcir.com' ||
+          userCredential.user.email === '2283701@gmail.com' ||
+          formattedUsuario === '2283701';
+
         onLoginSuccess({
           id: userCredential.user.uid,
           usuario: formattedUsuario,
-          email: userCredential.user.email
+          email: userCredential.user.email,
+          role: isAdminAccount ? 'admin' : 'user'
         });
       } else {
         if (formData.senha !== formData.confirmarSenha) {

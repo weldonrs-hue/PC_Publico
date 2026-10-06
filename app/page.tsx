@@ -93,7 +93,14 @@ export default function Home() {
   const [termsType, setTermsType] = useState<'terms' | 'privacy'>('terms');
   const [emrLetterSelection, setEmrLetterSelection] = useState<{ schoolType: 'ancians' | 'servants', turma: string, partId: string } | null>(null);
 
-  const isAdminUser = user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com';
+  const isAdminUser = 
+    user?.role === 'admin' || 
+    user?.email === 'weldonrs@gmail.com' || 
+    user?.usuario === '2283701' || 
+    user?.email === '2283701@progcir.app' || 
+    user?.email === '2283701@progcir.com' ||
+    user?.email === '2283701@gmail.com' ||
+    user?.id === '2283701';
 
   // Initialize client-side state and listen for quota events
   useEffect(() => {
@@ -397,7 +404,10 @@ export default function Home() {
         const isAdminEmail = 
           firebaseUser.email === 'weldonrs@gmail.com' || 
           firebaseUser.email === '2283701@progcir.app' ||
-          firebaseUser.email === '2283701@progcir.com';
+          firebaseUser.email === '2283701@progcir.com' ||
+          firebaseUser.email === '2283701@gmail.com' ||
+          firebaseUser.displayName === '2283701' ||
+          firebaseUser.uid === '2283701';
 
         // Set a basic user state immediately
         const basicUserData = {
@@ -452,17 +462,17 @@ export default function Home() {
           if (error.message?.includes('quota')) setQuotaExceededGlobal();
         }
         
-    unsubUser = onSnapshot(userDocRef, (userDoc) => {
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setUser((prev: any) => ({
-          ...prev,
-          role: isAdminEmail ? 'admin' : (data.role || 'user'),
-          photoURL: data.photoURL || null,
-          migrationCompleted: data.migrationCompleted || false
-        }));
-      }
-    }, (error) => {
+        unsubUser = onSnapshot(userDocRef, (userDoc) => {
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setUser((prev: any) => ({
+              ...prev,
+              role: (isAdminEmail || data.role === 'admin') ? 'admin' : (data.role || 'user'),
+              photoURL: data.photoURL || null,
+              migrationCompleted: data.migrationCompleted || false
+            }));
+          }
+        }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
       setQuotaExceeded(isQuotaExceeded());
     });
@@ -507,7 +517,7 @@ export default function Home() {
         });
       } else {
         console.log('Home: App settings doc not found.');
-        if (user?.role === 'admin') {
+        if (isAdminUser) {
           console.log('Home: Initializing app settings for admin...');
           setDoc(configRef, { 
             reportEnabledForAll: false,
@@ -593,26 +603,53 @@ export default function Home() {
 
         // Fetch if no cache OR is dashboard (to ensure fresh data)
         if (!cachedPD || isDashboard) {
+          let pdDataFound = null;
+
+          // 1. Direct doc by activeUid
           const pdDocRef = doc(db, 'personal_data', activeUid);
-          const pdDoc = await getDoc(pdDocRef);
-          
-          if (pdDoc.exists()) {
-            const data = pdDoc.data();
-            setPersonalData(data);
-            sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
-          } else {
-            // Fallback query (only once per session)
-            const fallbackKey = `fallbackDone_${activeUid}`;
-            if (!sessionStorage.getItem(fallbackKey)) {
-              const q = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
-              const snap = await getDocs(q);
-              if (!snap.empty) {
-                const data = snap.docs[0].data();
-                setPersonalData(data);
-                sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(data));
-                sessionStorage.setItem(fallbackKey, 'true');
-              }
+          const pdDoc = await getDoc(pdDocRef).catch(() => null);
+          if (pdDoc && pdDoc.exists()) {
+            pdDataFound = pdDoc.data();
+          }
+
+          // 2. Fallback: doc by user.usuario if available (e.g. numeroPessoal)
+          if (!pdDataFound && user?.usuario) {
+            const userDocSnap = await getDoc(doc(db, 'personal_data', user.usuario)).catch(() => null);
+            if (userDocSnap && userDocSnap.exists()) {
+              pdDataFound = userDocSnap.data();
             }
+          }
+
+          // 3. Fallback: query by userId
+          if (!pdDataFound) {
+            const q = query(collection(db, 'personal_data'), where('userId', '==', activeUid), limit(1));
+            const snap = await getDocs(q).catch(() => null);
+            if (snap && !snap.empty) {
+              pdDataFound = snap.docs[0].data();
+            }
+          }
+
+          // 4. Fallback: query by numeroPessoal
+          if (!pdDataFound && user?.usuario) {
+            const qNum = query(collection(db, 'personal_data'), where('numeroPessoal', '==', user.usuario), limit(1));
+            const snapNum = await getDocs(qNum).catch(() => null);
+            if (snapNum && !snapNum.empty) {
+              pdDataFound = snapNum.docs[0].data();
+            }
+          }
+
+          // 5. Fallback: query by emailPessoal
+          if (!pdDataFound && user?.email) {
+            const qEmail = query(collection(db, 'personal_data'), where('emailPessoal', '==', user.email), limit(1));
+            const snapEmail = await getDocs(qEmail).catch(() => null);
+            if (snapEmail && !snapEmail.empty) {
+              pdDataFound = snapEmail.docs[0].data();
+            }
+          }
+
+          if (pdDataFound) {
+            setPersonalData(pdDataFound);
+            sessionStorage.setItem(`pd_${activeUid}`, JSON.stringify(pdDataFound));
           }
         }
 
@@ -780,7 +817,19 @@ export default function Home() {
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('progcir_session_active', 'true');
           }
-          setUser(userData);
+          const isAdmin = 
+            userData?.role === 'admin' ||
+            userData?.email === 'weldonrs@gmail.com' ||
+            userData?.email === '2283701@progcir.app' ||
+            userData?.email === '2283701@progcir.com' ||
+            userData?.email === '2283701@gmail.com' ||
+            userData?.usuario === '2283701' ||
+            userData?.id === '2283701';
+
+          setUser({
+            ...userData,
+            role: isAdmin ? 'admin' : (userData?.role || 'user')
+          });
         }} 
       />
     );
@@ -1127,7 +1176,7 @@ export default function Home() {
           {currentView === 'congregations' && (
             <CongregationsView 
               userId={user.id} 
-              isAdmin={user.role === 'admin'}
+              isAdmin={isAdminUser}
               importEnabledForAll={appConfig.congregationImportEnabledForAll}
               userRole={personalData?.role || 'viajante'}
               onBack={() => {
@@ -1146,14 +1195,14 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'substitutes' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+          {currentView === 'substitutes' && (personalData?.role === 'viajante' || isAdminUser) && (
             <SubstitutesView 
               userId={user.id}
               onBack={() => changeView('dashboard')} 
             />
           )}
 
-          {currentView === 'itineraries' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+          {currentView === 'itineraries' && (personalData?.role === 'viajante' || isAdminUser) && (
             <ItinerariesView 
               userId={user.id}
               user={user}
@@ -1164,7 +1213,7 @@ export default function Home() {
           {currentView === 'settings' && (
             <SettingsView 
               userId={user.id}
-              isAdmin={user.role === 'admin'}
+              isAdmin={isAdminUser}
               appConfig={appConfig}
               onBack={() => changeView('dashboard')} 
               onViewChange={(view) => changeView(view as any)}
@@ -1191,7 +1240,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'statistics' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+          {currentView === 'statistics' && (personalData?.role === 'viajante' || isAdminUser) && (
             <CircuitStatisticsView 
               userId={user.id}
               personalData={personalData}
@@ -1199,7 +1248,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'congregation_statistics' && (personalData?.role === 'viajante' || user?.role === 'admin') && (
+          {currentView === 'congregation_statistics' && (personalData?.role === 'viajante' || isAdminUser) && (
             <CongregationStatisticsView 
               userId={user.id} 
               onBack={() => changeView('dashboard')}
@@ -1207,7 +1256,7 @@ export default function Home() {
             />
           )}
 
-          {currentView === 'schools' && ((personalData?.role === 'viajante' || user?.role === 'admin') || hasGuestInvites) && (
+          {currentView === 'schools' && ((personalData?.role === 'viajante' || isAdminUser) || hasGuestInvites) && (
             <SchoolsView 
               userId={user.id}
               congregations={congregations}
@@ -1238,7 +1287,7 @@ export default function Home() {
              />
           )}
 
-          {currentView === 'events' && (personalData?.role === 'viajante' || user?.role === 'admin' || acceptedCongressInvites.length > 0) && (
+          {currentView === 'events' && (personalData?.role === 'viajante' || isAdminUser || acceptedCongressInvites.length > 0) && (
             <EventsView 
               userId={user.id}
               acceptedCongressInvites={acceptedCongressInvites}
@@ -1321,7 +1370,7 @@ export default function Home() {
 
           {currentView === 'misc' && (
             <MiscView 
-              isAdmin={user?.role === 'admin'}
+              isAdmin={isAdminUser}
               appConfig={appConfig}
               onViewChange={(view) => changeView(view as any)}
             />
@@ -1365,7 +1414,7 @@ export default function Home() {
           {currentView === 'cartas_esp' && (
             <CartasESPView 
               userId={user.id}
-              isAdmin={user.role === 'admin'}
+              isAdmin={isAdminUser}
               canManage={true}
               initialMode={espInitialMode}
               onBack={() => changeView('cartas')}
@@ -1400,7 +1449,7 @@ export default function Home() {
           {currentView === 'cartas_emr' && (
             <CartasEMRView 
               userId={user.id}
-              isAdmin={user.role === 'admin'}
+              isAdmin={isAdminUser}
               canManage={isAdminUser || Boolean((appConfig as any)?.allowEMRUploadForAll)}
               initialMode={emrInitialMode}
               initialSchoolType={emrLetterSelection?.schoolType}
@@ -1417,7 +1466,7 @@ export default function Home() {
           {currentView === 'cartas_congresso' && (
             <CartasCongressoView 
               userId={user.id}
-              isAdmin={user.role === 'admin'}
+              isAdmin={isAdminUser}
               canManage={true}
               initialMode={congressoInitialMode}
               onBack={() => changeView('cartas')}
@@ -1427,7 +1476,7 @@ export default function Home() {
           {currentView === 'cartas_assembleias' && (
             <CartasAssembleiasView 
               userId={user.id}
-              isAdmin={user.role === 'admin'}
+              isAdmin={isAdminUser}
               canManage={true}
               initialMode={assembleiasInitialMode}
               onBack={() => changeView('cartas')}

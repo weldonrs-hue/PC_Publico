@@ -361,9 +361,12 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         // Fetch current user role
         const userEmail = auth.currentUser?.email;
         const isAdminEmail = 
+          isAdmin ||
+          userId === '2283701' ||
           userEmail === 'weldonrs@gmail.com' || 
           userEmail === '2283701@progcir.app' ||
-          userEmail === '2283701@progcir.com';
+          userEmail === '2283701@progcir.com' ||
+          userEmail === '2283701@gmail.com';
         
         const userDocRef = doc(db, 'users', userId);
         const userDocSnap = await getDoc(userDocRef).catch(err => {
@@ -373,9 +376,9 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
         if (userDocSnap && userDocSnap.exists()) {
           const data = userDocSnap.data();
-          setCurrentUserRole(isAdminEmail ? 'admin' : (data.role || 'user'));
+          setCurrentUserRole((isAdmin || isAdminEmail || data.role === 'admin') ? 'admin' : (data.role || 'user'));
         } else {
-          setCurrentUserRole(isAdminEmail ? 'admin' : 'user');
+          setCurrentUserRole((isAdmin || isAdminEmail) ? 'admin' : 'user');
         }
       } catch (error) {
         console.error('Erro ao buscar configurações:', error);
@@ -1050,7 +1053,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {settingsButtons
             .filter(btn => {
-              if ((btn.id === 'usuarios' || btn.id === 'tjsec_accounts') && currentUserRole !== 'admin') return false;
+              if ((btn.id === 'usuarios' || btn.id === 'tjsec_accounts') && currentUserRole !== 'admin' && !isAdmin) return false;
               
               if (btn.id === 'pioneer_access' || btn.id === 'congress_access') return false;
 
