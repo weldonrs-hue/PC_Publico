@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { getAdminAuth } from '@/lib/server/firebase-admin';
 import { 
   getWebAuthnConfig, 
   consumeChallenge, 
@@ -14,13 +13,24 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const runtime = 'nodejs';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { authenticationResponse, expectedChallenge: clientProvidedChallenge } = body;
 
     if (!authenticationResponse) {
-      return NextResponse.json({ error: 'Dados ausentes' }, { status: 400 });
+      return NextResponse.json({ error: 'Dados ausentes' }, { status: 400, headers: corsHeaders });
     }
 
     const extractedChallenge = extractChallengeFromClientData(authenticationResponse.response?.clientDataJSON);
@@ -30,7 +40,7 @@ export async function POST(req: NextRequest) {
     
     if (!expectedChallenge) {
       console.warn('[WebAuthn Authenticate Verify] Desafio expirado ou não encontrado');
-      return NextResponse.json({ error: 'Invalid or expired challenge' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid or expired challenge' }, { status: 400, headers: corsHeaders });
     }
 
     const credentialId = authenticationResponse.id;
@@ -82,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     if (!credential) {
       console.warn('[WebAuthn Authenticate Verify] Credencial não encontrada para o ID:', credentialId);
-      return NextResponse.json({ error: 'Credential not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Credential not found' }, { status: 404, headers: corsHeaders });
     }
 
     const { rpID, origin } = getWebAuthnConfig(req);
@@ -103,33 +113,21 @@ export async function POST(req: NextRequest) {
 
     if (verification.verified && verification.authenticationInfo) {
       const { newCounter } = verification.authenticationInfo;
-      await updateCredentialCounter(credential.id, newCounter);
-
-      // Gera Firebase Custom Token caso FIREBASE_SERVICE_ACCOUNT_JSON esteja configurado
-      let customToken: string | null = null;
-      if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-        try {
-          const adminAuth = getAdminAuth();
-          if (adminAuth) {
-            customToken = await adminAuth.createCustomToken(credential.userId);
-          }
-        } catch {
-          // Não-fatal caso a assinatura de token não esteja configurada
-        }
-      }
+      try {
+        await updateCredentialCounter(credential.id, newCounter);
+      } catch {}
 
       return NextResponse.json({ 
         verified: true, 
         userId: credential.userId,
         email: credential.email || null,
         usuario: credential.userName || credential.email?.split('@')[0] || 'Usuário',
-        customToken: customToken || undefined
-      });
+      }, { headers: corsHeaders });
     }
 
-    return NextResponse.json({ verified: false, error: 'Verification failed' }, { status: 400 });
+    return NextResponse.json({ verified: false, error: 'Verification failed' }, { status: 400, headers: corsHeaders });
   } catch (error: any) {
     console.error('[WebAuthn Auth Verify] Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500, headers: corsHeaders });
   }
 }

@@ -117,38 +117,41 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
         }),
       });
 
-      if (!verifyRes.ok) {
-        const errData = await verifyRes.json();
-        throw new Error(errData.error || 'A verificação da chave de acesso falhou');
+      const rawVerifyText = await verifyRes.text();
+      let verifyData: any;
+      try {
+        verifyData = JSON.parse(rawVerifyText);
+      } catch {
+        console.error('Resposta de verificação não-JSON:', rawVerifyText);
+        throw new Error(`Erro na validação do login (${verifyRes.status}). Tente novamente.`);
       }
 
-      const verifyData = await verifyRes.json();
-      const { verified, customToken, userId, email, usuario } = verifyData;
+      if (!verifyRes.ok || !verifyData.verified) {
+        throw new Error(verifyData?.error || 'A verificação da chave de acesso falhou.');
+      }
 
-      if (verified) {
-        if (customToken) {
-          try {
-            const userCredential = await signInWithCustomToken(auth, customToken);
-            onLoginSuccess({
-              id: userCredential.user.uid,
-              usuario: userCredential.user.displayName || usuario || userCredential.user.uid.substring(0, 8),
-              email: userCredential.user.email || email
-            });
-            return;
-          } catch (tokenErr) {
-            console.warn('[Passkey] signInWithCustomToken notice:', tokenErr);
-          }
+      const { customToken, userId, email, usuario } = verifyData;
+
+      if (customToken) {
+        try {
+          const userCredential = await signInWithCustomToken(auth, customToken);
+          onLoginSuccess({
+            id: userCredential.user.uid,
+            usuario: userCredential.user.displayName || usuario || userCredential.user.uid.substring(0, 8),
+            email: userCredential.user.email || email
+          });
+          return;
+        } catch (tokenErr) {
+          console.warn('[Passkey] signInWithCustomToken notice:', tokenErr);
         }
-
-        // Conclui o login diretamente com as credenciais validadas criptograficamente
-        onLoginSuccess({
-          id: userId,
-          usuario: usuario || (email ? email.split('@')[0] : userId.substring(0, 8)),
-          email: email || `${usuario || 'usuario'}@progcir.app`
-        });
-      } else {
-        throw new Error('Falha na autenticação via chave de acesso');
       }
+
+      // Conclui o login diretamente com as credenciais validadas criptograficamente
+      onLoginSuccess({
+        id: userId,
+        usuario: usuario || (email ? email.split('@')[0] : userId.substring(0, 8)),
+        email: email || `${usuario || 'usuario'}@progcir.app`
+      });
     } catch (err: any) {
       console.error('Passkey login error:', err);
       setError(err.message || 'Erro ao entrar com chave de acesso');
@@ -192,10 +195,17 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
       }
 
       if (!optionsRes || !optionsRes.ok) {
-        throw new Error('Falha ao obter opções de autenticação do servidor');
+        throw new Error(`Falha ao obter opções do servidor (${optionsRes?.status || 500})`);
       }
       
-      const options = await optionsRes.json();
+      const rawOptText = await optionsRes.text();
+      let options: any;
+      try {
+        options = JSON.parse(rawOptText);
+      } catch {
+        throw new Error(`Resposta do servidor inválida (${optionsRes.status})`);
+      }
+
       options.allowCredentials = [];
 
       let authResponse;
@@ -231,7 +241,14 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
           cache: 'no-store'
         });
         if (!optionsRes.ok || isCancelled) return;
-        const options = await optionsRes.json();
+        const rawOptText = await optionsRes.text();
+        let options: any;
+        try {
+          options = JSON.parse(rawOptText);
+        } catch {
+          return;
+        }
+
         options.allowCredentials = [];
 
         // Inicia a escuta silenciosa nativa no campo com autoComplete="username webauthn"
