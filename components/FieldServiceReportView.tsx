@@ -19,7 +19,11 @@ import {
   Check,
   UserCircle2,
   ExternalLink,
-  Edit3
+  Edit3,
+  Table as TableIcon,
+  LayoutList,
+  ArrowLeft,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -88,6 +92,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
   };
   const resolvedProfileId = getCleanProfileId();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'tabela' | 'lista'>('tabela');
   const [report, setReport] = useState<MonthlyReport>({ days: {}, goal: 50 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -570,135 +575,160 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
   const wifeDisplayName = wifeName?.trim() ? wifeName.trim() : 'Esposa';
 
   return (
-    <div className="bg-[#FDFCFB] min-h-screen flex flex-col font-sans text-[#1A1A1A] p-4 sm:p-6 lg:p-8 space-y-8">
-      {/* Top Header Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto w-full print:hidden">
-        <div className="flex items-center gap-6">
-          {!isPublic && onBack && (
-            <button
-              onClick={onBack}
-              className="p-3 hover:bg-[#000666] hover:text-white rounded-2xl transition-all text-[#000666] bg-white shadow-xl shadow-black/5 border border-gray-100 group"
-            >
-              <ChevronLeft size={28} strokeWidth={3} className="group-hover:-translate-x-1 transition-transform" />
-            </button>
-          )}
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-6 h-1 bg-[#000666] rounded-full" />
-              <h2 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#000666]">
-                {isPublic ? `Acesso de ${wifeDisplayName}` : 'Gestão Pessoal'}
-              </h2>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900 leading-tight">
-              Relatório de <span className="font-serif italic font-normal text-[#000666]">{isPublic ? wifeDisplayName : 'Pregação'}</span>
-            </h1>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Botão Salvar e Status na Nuvem (Exclusivo para o relatório da esposa no link) */}
-          {isPublic && (
-            <>
-              {saveStatus === 'saving' && (
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200/70 text-amber-700 rounded-2xl text-xs font-bold shadow-sm">
-                  <Loader2 size={14} className="animate-spin text-amber-600" />
-                  <span className="hidden sm:inline">Salvando...</span>
-                </div>
-              )}
-              {saveStatus === 'saved' && (
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200/70 text-emerald-700 rounded-2xl text-xs font-bold shadow-sm" title="Todos os dados estão salvos com segurança">
-                  <Check size={14} strokeWidth={3} className="text-emerald-600" />
-                  <span className="hidden sm:inline">Salvo na nuvem</span>
-                </div>
-              )}
-              {saveStatus === 'error' && (
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 border border-rose-200/70 text-rose-700 rounded-2xl text-xs font-bold shadow-sm">
-                  <X size={14} strokeWidth={3} className="text-rose-600" />
-                  <span className="hidden sm:inline">Erro ao salvar</span>
-                </div>
-              )}
-
+    <div className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
+      {/* Top Header Row (no-print) */}
+      <div className="space-y-3 no-print">
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            {!isPublic && onBack && (
               <button
-                type="button"
-                onClick={handleManualSave}
-                disabled={saveStatus === 'saving'}
-                className="p-3 bg-[#000666] hover:bg-[#000666]/90 text-white rounded-2xl shadow-xl shadow-[#000666]/20 flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all active:scale-95 disabled:opacity-70 cursor-pointer"
-                title="Salvar imediatamente todas as atividades no banco de dados"
+                onClick={onBack}
+                className="h-9 w-9 sm:h-10 sm:w-10 p-1.5 sm:p-2 hover:bg-surface-200 active:scale-95 rounded-xl transition-all text-typography-900 bg-surface-200/80 shadow-xs border border-surface-300 flex items-center justify-center shrink-0 cursor-pointer"
+                title="Voltar para Diversos"
               >
-                {saveStatus === 'saving' ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Save size={18} />
-                )}
-                <span className="inline">Salvar</span>
+                <ChevronLeft size={18} strokeWidth={2.5} />
               </button>
-            </>
-          )}
+            )}
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-black text-typography-900 tracking-tight leading-none truncate">
+                  {isPublic ? `Relatório de ${wifeDisplayName}` : 'Relatório de Pregação'}
+                </h1>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 shrink-0">
+                  {isPublic ? 'Esposa' : 'Mensal'}
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate mt-0.5">
+                {isPublic ? `Acesso independente de ${wifeDisplayName}` : 'Gestão mensal de horas e metas'}
+              </p>
+            </div>
+          </div>
 
-          <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-xl shadow-black/5 border border-gray-50">
+          {/* Mês Seletor */}
+          <div className="flex items-center gap-1 bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
             <button
               onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
-              className="p-2.5 rounded-xl hover:bg-gray-50 text-gray-400 transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 transition-colors cursor-pointer"
               title="Mês Anterior"
             >
-              <ChevronLeft size={20} strokeWidth={3} />
+              <ChevronLeft size={16} strokeWidth={2.5} />
             </button>
-            <div className="px-6 flex flex-col items-center min-w-[160px]">
-              <span className="text-xs font-black uppercase tracking-widest text-[#000666]/40 leading-none mb-1">{currentYear}</span>
-              <span className="text-lg font-black text-gray-900 capitalize font-serif italic">{monthNames[currentMonth]}</span>
+            <div className="px-2 sm:px-3 flex items-center gap-1.5 min-w-[120px] justify-center">
+              <span className="text-xs sm:text-sm font-black text-typography-900 capitalize">{monthNames[currentMonth]}</span>
+              <span className="text-[10px] font-bold text-typography-400">{currentYear}</span>
             </div>
             <button
               onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
-              className="p-2.5 rounded-xl hover:bg-gray-50 text-gray-400 transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 transition-colors cursor-pointer"
               title="Próximo Mês"
             >
-              <ChevronRight size={20} strokeWidth={3} />
+              <ChevronRight size={16} strokeWidth={2.5} />
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowSettings(true)}
-            className="p-3 bg-white hover:bg-gray-50 rounded-2xl shadow-xl shadow-black/5 border border-gray-50 text-[#000666] flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-            title={isPublic ? "Configurar Meta e Turnos" : "Configurações do Relatório"}
-          >
-            <Settings2 size={20} />
-            <span className="hidden sm:inline">Configurar</span>
-          </button>
+          {/* Alternador de Modo: Tabela vs Lista */}
+          <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+            <button
+              onClick={() => setViewMode('tabela')}
+              className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'tabela'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-600 hover:text-typography-900'
+              }`}
+              title="Modo Calendário/Tabela"
+            >
+              <TableIcon size={14} />
+              <span>Tabela</span>
+            </button>
+            <button
+              onClick={() => setViewMode('lista')}
+              className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'lista'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-600 hover:text-typography-900'
+              }`}
+              title="Modo Lista (Ideal para celular)"
+            >
+              <LayoutList size={14} />
+              <span>Lista</span>
+            </button>
+          </div>
+
+          {/* Action Bar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
+            {isPublic && (
+              <>
+                {saveStatus === 'saving' && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-600 rounded-xl text-xs font-bold shadow-xs">
+                    <Loader2 size={13} className="animate-spin text-amber-600" />
+                    <span className="hidden sm:inline">Salvando...</span>
+                  </div>
+                )}
+                {saveStatus === 'saved' && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 rounded-xl text-xs font-bold shadow-xs" title="Todos os dados estão salvos">
+                    <Check size={13} strokeWidth={3} className="text-emerald-600" />
+                    <span className="hidden sm:inline">Salvo</span>
+                  </div>
+                )}
+                {saveStatus === 'error' && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 rounded-xl text-xs font-bold shadow-xs">
+                    <X size={13} strokeWidth={3} className="text-rose-600" />
+                    <span className="hidden sm:inline">Erro</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleManualSave}
+                  disabled={saveStatus === 'saving'}
+                  className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  title="Salvar imediatamente todas as atividades no banco de dados"
+                >
+                  {saveStatus === 'saving' ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Save size={14} />
+                  )}
+                  <span>Salvar</span>
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              title="Imprimir relatório"
+            >
+              <Printer size={14} className="shrink-0 text-typography-500" />
+              <span className="hidden sm:inline">Imprimir</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSettings(true)}
+              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              title={isPublic ? "Configurar Meta e Turnos" : "Configurações do Relatório"}
+            >
+              <Settings2 size={14} className="shrink-0 text-typography-500" />
+              <span className="hidden sm:inline">Configurar</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto w-full space-y-10">
-        {/* Full Width Calendar - At the top as requested */}
+      <div className="max-w-7xl mx-auto w-full space-y-8">
+        {/* Main Content: Tabela (Calendário) ou Lista Responsiva */}
         <motion.div
           ref={calendarRef}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col w-full overflow-hidden"
+          className="flex flex-col w-full"
         >
-          {/* Unified Horizontal Scroll Container: weekday headers and calendar grid scroll together */}
-          <div className="overflow-x-auto custom-scrollbar-wide pb-4">
-            <div className="min-w-[700px] flex flex-col gap-3">
-              {/* Calendar Header Navigation */}
-              <header className="bg-[#1a237e] rounded-2xl p-1.5 shadow-lg" data-purpose="calendar-header">
-                <nav className="grid grid-cols-7 items-center h-12 text-white font-bold text-xs sm:text-sm uppercase tracking-[0.15em]">
-                  {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((day) => (
-                    <div key={day} className="text-center py-2">
-                      {day}
-                    </div>
-                  ))}
-                </nav>
-              </header>
-
-              {/* Calendar Grid */}
-              <div className="calendar-grid bg-white rounded-xl overflow-hidden shadow-2xl border-l border-t border-[#c6c5d4]">
-                <div className="grid grid-cols-7">
-                {/* Empty cells from previous month */}
-                {Array.from({ length: firstDay }).map((_, i) => (
-                  <div key={`pad-${i}`} className="calendar-cell bg-gray-50/50 p-4" />
-                ))}
-
-                {/* Monthly Days */}
+          {viewMode === 'lista' ? (
+            /* Modo Lista Responsiva para Celular / Visual Clean */
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {daysInMonthArray.map(day => {
                   const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                   const dayData = report.days[dateKey] || { hours: '', notes: '' };
@@ -706,67 +736,85 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                   const dObj = new Date(currentYear, currentMonth, day);
                   const dayOfWeek = dObj.getDay();
                   const isPlanned = (report.shifts?.[dayOfWeek] ?? 0) > 0;
-                  const hasHours = dayData.hours && dayData.hours !== '0:00' && dayData.hours !== '00:00';
-                  const isDayRemaining = !isPastMonth && ((isCurrentMonth && day >= today.getDate()) || isFutureMonth) && !hasHours;
-                  const isWeekend = (firstDay + day - 1) % 7 >= 5;
+                  const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
                   return (
                     <div
                       key={day}
-                      className={`calendar-cell p-4 flex flex-col transition-all duration-200 group relative ${isWeekend ? 'weekend-cell' : 'bg-white'} ${isToday ? 'bg-primary-fixed/30 ring-2 ring-inset ring-[#000666] z-10' : ''}`}
+                      className={`p-3.5 rounded-2xl border transition-all bg-surface-100 flex flex-col justify-between gap-2.5 shadow-2xs ${
+                        isToday 
+                          ? 'border-primary-200 ring-2 ring-primary-200/20 bg-primary-200/5' 
+                          : 'border-surface-300 hover:border-surface-400'
+                      }`}
                     >
-                      {/* Day Header */}
-                      <div 
-                        onClick={() => {
-                          if (isPublic) openDayModal(day);
-                        }}
-                        className={`w-full flex justify-between items-start mb-2 ${isPublic ? 'cursor-pointer group/header hover:opacity-80 transition-opacity' : ''}`}
-                        title={isPublic ? "Toque para abrir formulário do dia" : undefined}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className={`font-black text-sm ${isToday ? 'text-[#000666]' : 'text-[#454652]'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
+                            isToday ? 'bg-primary-200 text-white' : 'bg-surface-200 text-typography-900'
+                          }`}>
                             {day.toString().padStart(2, '0')}
                           </span>
-                          {isPublic && (
-                            <span className="opacity-0 group-hover/header:opacity-100 sm:group-hover:opacity-80 transition-opacity text-[#000666]">
-                              <Edit3 size={12} />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-bold text-typography-900 truncate">
+                              {dayNames[dayOfWeek]}
+                            </span>
+                            <span className="text-[10px] text-typography-400 uppercase font-medium">
+                              {monthNames[currentMonth].slice(0, 3)} {currentYear}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isPlanned && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              Planejado
                             </span>
                           )}
+                          {isPublic && (
+                            <button
+                              type="button"
+                              onClick={() => openDayModal(day)}
+                              className="p-1 rounded-lg hover:bg-surface-200 text-typography-400 hover:text-typography-900 transition-colors"
+                              title="Editar em janela"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                          )}
                         </div>
-                        {isPlanned && (
-                          <div className="w-2.5 h-2.5 bg-[#88d982] rounded-full shadow-sm ring-2 ring-[#88d982]/30" title="Serviço programado" />
-                        )}
                       </div>
 
-                      {/* Content Area */}
-                      <div className="flex-1 flex flex-col items-center justify-between gap-1 overflow-hidden">
+                      <div className="space-y-1.5 pt-2 border-t border-surface-300/60">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-typography-400">Horas:</span>
+                          <input
+                            type="text"
+                            value={dayData.hours}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9:]/g, '');
+                              if (val.length <= 5) updateDayData(dateKey, 'hours', val);
+                            }}
+                            onBlur={(e) => {
+                              let val = e.target.value;
+                              if (val && !val.includes(':')) {
+                                updateDayData(dateKey, 'hours', `${val}:00`);
+                              }
+                            }}
+                            placeholder={
+                              isShiftPlanningActive
+                                ? (isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00")
+                                : minutesToTime(Math.round(minutesPerDay))
+                            }
+                            className="w-24 text-right px-2.5 py-1 rounded-xl bg-surface-200/70 border border-surface-300 font-black text-sm text-typography-900 tracking-tight outline-none focus:border-primary-200 focus:bg-surface-100 transition-all placeholder:text-typography-400/50"
+                          />
+                        </div>
+
                         <input
                           type="text"
-                          value={dayData.hours}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9:]/g, '');
-                            if (val.length <= 5) updateDayData(dateKey, 'hours', val);
-                          }}
-                          onBlur={(e) => {
-                            let val = e.target.value;
-                            if (val && !val.includes(':')) {
-                              updateDayData(dateKey, 'hours', `${val}:00`);
-                            }
-                          }}
-                          placeholder={
-                            isShiftPlanningActive
-                              ? (isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00")
-                              : minutesToTime(Math.round(minutesPerDay))
-                          }
-                          className="w-full text-center text-xl sm:text-2xl font-black text-[#000666] tracking-tight bg-transparent border-none outline-none p-0 placeholder:text-[#e1e3e4]"
-                        />
-
-                        <textarea
                           value={dayData.notes}
                           onChange={(e) => updateDayData(dateKey, 'notes', e.target.value)}
-                          placeholder="Nota..."
-                          rows={2}
-                          className="w-full text-center text-[10px] text-[#454652] italic leading-tight bg-transparent border-none outline-none resize-none px-1 overflow-y-auto no-scrollbar placeholder:opacity-0 group-hover:placeholder:opacity-30 focus:placeholder:opacity-30"
+                          placeholder="Nota ou atividade..."
+                          className="w-full px-2.5 py-1 rounded-xl bg-surface-200/40 border border-transparent hover:border-surface-300 focus:border-primary-200/60 focus:bg-surface-100 text-xs text-typography-700 outline-none transition-all placeholder:text-typography-400/60"
                         />
                       </div>
                     </div>
@@ -774,63 +822,142 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 })}
               </div>
             </div>
-          </div>
-        </div>
+          ) : (
+            /* Modo Calendário/Tabela */
+            <div className="bg-surface-100 rounded-3xl border border-surface-300 shadow-xs p-3 sm:p-5 overflow-hidden">
+              <div className="overflow-x-auto custom-scrollbar-wide pb-2">
+                <div className="min-w-[700px] flex flex-col gap-3">
+                  {/* Calendar Header Navigation */}
+                  <header className="bg-surface-200/90 rounded-2xl p-1.5 border border-surface-300/80 shadow-2xs" data-purpose="calendar-header">
+                    <nav className="grid grid-cols-7 items-center h-10 text-typography-700 font-extrabold text-xs uppercase tracking-wider">
+                      {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((day) => (
+                        <div key={day} className="text-center py-1">
+                          {day}
+                        </div>
+                      ))}
+                    </nav>
+                  </header>
 
-          <footer className="mt-6 flex flex-col sm:flex-row justify-between items-center px-4 gap-4 text-gray-400">
-            <div className="flex items-center gap-3">
-              <span className="w-2.5 h-2.5 bg-[#88d982] rounded-full shadow-sm"></span>
-              <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">Dias com serviço programado</span>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="text-[11px] font-medium italic text-gray-400 text-center sm:text-right">
-                {isPublic 
-                  ? "* Toque no número do dia para abrir o formulário ou edite diretamente."
-                  : "* Edite as horas e notas diretamente no calendário."}
+                  {/* Calendar Grid */}
+                  <div className="calendar-grid bg-surface-100 rounded-2xl overflow-hidden border-l border-t border-surface-300 shadow-2xs">
+                    <div className="grid grid-cols-7">
+                    {/* Empty cells from previous month */}
+                    {Array.from({ length: firstDay }).map((_, i) => (
+                      <div key={`pad-${i}`} className="calendar-cell bg-surface-200/30 p-4 border-r border-b border-surface-300" />
+                    ))}
+
+                    {/* Monthly Days */}
+                    {daysInMonthArray.map(day => {
+                      const dateKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                      const dayData = report.days[dateKey] || { hours: '', notes: '' };
+                      const isToday = isCurrentMonth && day === today.getDate();
+                      const dObj = new Date(currentYear, currentMonth, day);
+                      const dayOfWeek = dObj.getDay();
+                      const isPlanned = (report.shifts?.[dayOfWeek] ?? 0) > 0;
+                      const hasHours = dayData.hours && dayData.hours !== '0:00' && dayData.hours !== '00:00';
+                      const isWeekend = (firstDay + day - 1) % 7 >= 5;
+
+                      return (
+                        <div
+                          key={day}
+                          className={`calendar-cell p-3 sm:p-4 flex flex-col transition-all duration-200 group relative border-r border-b border-surface-300 hover:bg-surface-200/40 ${isWeekend ? 'bg-surface-200/20' : 'bg-surface-100'} ${isToday ? 'bg-primary-200/5 ring-2 ring-inset ring-primary-200 z-10' : ''}`}
+                        >
+                          {/* Day Header */}
+                          <div 
+                            onClick={() => {
+                              if (isPublic) openDayModal(day);
+                            }}
+                            className={`w-full flex justify-between items-start mb-2 ${isPublic ? 'cursor-pointer group/header hover:opacity-80 transition-opacity' : ''}`}
+                            title={isPublic ? "Toque para abrir formulário do dia" : undefined}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className={`font-black text-sm ${isToday ? 'text-primary-200 font-extrabold' : 'text-typography-700'}`}>
+                                {day.toString().padStart(2, '0')}
+                              </span>
+                              {isPublic && (
+                                <span className="opacity-0 group-hover/header:opacity-100 sm:group-hover:opacity-80 transition-opacity text-primary-200">
+                                  <Edit3 size={12} />
+                                </span>
+                              )}
+                            </div>
+                            {isPlanned && (
+                              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm ring-2 ring-emerald-500/30" title="Serviço programado" />
+                            )}
+                          </div>
+
+                          {/* Content Area */}
+                          <div className="flex-1 flex flex-col items-center justify-between gap-1 overflow-hidden">
+                            <input
+                              type="text"
+                              value={dayData.hours}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9:]/g, '');
+                                if (val.length <= 5) updateDayData(dateKey, 'hours', val);
+                              }}
+                              onBlur={(e) => {
+                                let val = e.target.value;
+                                if (val && !val.includes(':')) {
+                                  updateDayData(dateKey, 'hours', `${val}:00`);
+                                }
+                              }}
+                              placeholder={
+                                isShiftPlanningActive
+                                  ? (isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00")
+                                  : minutesToTime(Math.round(minutesPerDay))
+                              }
+                              className="w-full text-center text-xl sm:text-2xl font-black text-typography-900 tracking-tight bg-transparent border-none outline-none p-0 placeholder:text-typography-400/40"
+                            />
+
+                            <textarea
+                              value={dayData.notes}
+                              onChange={(e) => updateDayData(dateKey, 'notes', e.target.value)}
+                              placeholder="Nota..."
+                              rows={2}
+                              className="w-full text-center text-[10px] text-typography-600 italic leading-tight bg-transparent border-none outline-none resize-none px-1 overflow-y-auto no-scrollbar placeholder:opacity-0 group-hover:placeholder:opacity-40 focus:placeholder:opacity-40"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-              {isPublic && (
-                <button
-                  type="button"
-                  onClick={handleManualSave}
-                  disabled={saveStatus === 'saving'}
-                  className="px-4 py-2 bg-[#000666] hover:bg-[#000666]/90 text-white rounded-xl shadow-md text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 cursor-pointer"
-                >
-                  {saveStatus === 'saving' ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span>Salvando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={14} />
-                      <span>Salvar Atividades</span>
-                    </>
-                  )}
-                </button>
-              )}
+            </div>
+          </div>
+          )}
+
+          <footer className="mt-4 flex flex-col sm:flex-row justify-between items-center px-2 gap-4 text-typography-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-xs"></span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-typography-500">Dias com serviço programado</span>
+            </div>
+            <div className="text-[11px] font-medium text-typography-400 text-center sm:text-right">
+              {isPublic 
+                ? "* Toque no número do dia para abrir o formulário ou edite diretamente."
+                : "* Edite as horas e notas diretamente no formulário."}
             </div>
           </footer>
         </motion.div>
 
         {/* Bottom Section: Stats & Progress Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Sidebar Panel - Stats & Dynamic Goal */}
-          <div className="lg:col-span-12 xl:col-span-4 space-y-8 print:hidden">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-8">
+          <div className="lg:col-span-12 xl:col-span-4 space-y-4 sm:space-y-6 print:hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4 sm:gap-6">
               {/* Progress Card */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-black/5 border border-gray-50 relative overflow-hidden group"
+                className="bg-surface-100 rounded-3xl p-5 sm:p-7 shadow-xs border border-surface-300 relative overflow-hidden group"
               >
-                <div className="relative z-10 space-y-6">
+                <div className="relative z-10 space-y-5">
                   <div className="flex justify-between items-start">
-                    <div className="bg-[#000666]/5 p-3 rounded-2xl text-[#000666]">
-                      <Target size={24} />
+                    <div className="bg-primary-200/10 p-2.5 sm:p-3 rounded-2xl text-primary-200 border border-primary-200/20">
+                      <Target size={22} />
                     </div>
                     <button
                       onClick={() => setShowSettings(true)}
-                      className="text-[11px] font-black uppercase tracking-widest text-[#000666] hover:bg-[#000666] hover:text-white px-4 py-2 rounded-full transition-all border border-[#000666]/20"
+                      className="text-[11px] font-extrabold uppercase tracking-wider text-primary-200 bg-primary-200/10 hover:bg-primary-200 hover:text-white px-3.5 py-1.5 rounded-full transition-all border border-primary-200/20 cursor-pointer active:scale-95"
                     >
                       Meta: {report.goal}h
                     </button>
@@ -838,39 +965,39 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
 
                   <div>
                     <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-3xl font-black tracking-tighter text-gray-900 leading-none">{minutesToTime(totalMinutesDone)}</span>
-                      <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">horas totais</span>
+                      <span className="text-3xl sm:text-4xl font-black tracking-tight text-typography-900 leading-none">{minutesToTime(totalMinutesDone)}</span>
+                      <span className="text-xs font-bold text-typography-400 uppercase tracking-wider">horas totais</span>
                     </div>
-                    <p className="text-base font-serif italic text-gray-600 font-medium">Progresso realizado este mês</p>
+                    <p className="text-sm font-medium text-typography-500">Progresso realizado este mês</p>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                  <div className="space-y-3">
+                    <div className="h-3.5 bg-surface-200 rounded-full overflow-hidden shadow-inner">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${percentComplete}%` }}
                         transition={{ duration: 1, ease: "circOut" }}
-                        className="h-full bg-gradient-to-r from-[#000666] to-[#343d96] rounded-full shadow-[0_0_20px_rgba(0,6,102,0.3)]"
+                        className="h-full bg-primary-200 rounded-full"
                       />
                     </div>
-                    <div className="flex justify-between text-sm font-black uppercase tracking-widest">
-                      <span className="text-[#000666]">{percentComplete.toFixed(0)}% Concluído</span>
-                      <span className="text-gray-600">{minutesToTime(minutesRemaining)} restantes</span>
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
+                      <span className="text-primary-200 font-extrabold">{percentComplete.toFixed(0)}% Concluído</span>
+                      <span className="text-typography-600">{minutesToTime(minutesRemaining)} restantes</span>
                     </div>
                   </div>
 
                   {/* Link do Relatório de [Esposa] - Abaixo da Linha de Progressão */}
                   {!isPublic && (
-                    <div className="pt-6 border-t border-gray-100 space-y-3.5">
+                    <div className="pt-5 border-t border-surface-300 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Share2 size={16} className="text-[#000666]" />
-                          <span className="text-xs font-black uppercase tracking-wider text-[#000666]">
-                            Link do Relatório de {wifeDisplayName}
+                          <Share2 size={15} className="text-primary-200" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-typography-800">
+                            Link de {wifeDisplayName}
                           </span>
                         </div>
                         {wifeProfile && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             Ativo
                           </span>
@@ -882,44 +1009,44 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                           type="button"
                           onClick={createWifeProfile}
                           disabled={creatingProfile}
-                          className="w-full py-3.5 px-4 bg-gray-50 hover:bg-[#000666] hover:text-white text-gray-700 rounded-2xl border border-dashed border-gray-300 flex items-center justify-center gap-2 transition-all font-bold text-xs group shadow-sm"
+                          className="w-full py-3 px-4 bg-surface-200/60 hover:bg-surface-200 text-typography-700 rounded-2xl border border-dashed border-surface-300 flex items-center justify-center gap-2 transition-all font-bold text-xs group shadow-2xs cursor-pointer active:scale-95"
                         >
                           {creatingProfile ? (
-                            <Loader2 className="animate-spin text-[#000666] group-hover:text-white" size={16} />
+                            <Loader2 className="animate-spin text-primary-200" size={16} />
                           ) : (
                             <>
-                              <UserCircle2 size={18} className="text-gray-400 group-hover:text-white transition-colors" />
+                              <UserCircle2 size={16} className="text-typography-400 group-hover:text-primary-200 transition-colors" />
                               <span>Gerar link exclusivo para {wifeDisplayName}</span>
                             </>
                           )}
                         </button>
                       ) : (
-                        <div className="space-y-2.5">
-                          <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-200">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 bg-surface-200/70 p-1.5 rounded-xl border border-surface-300">
                             <input
                               type="text"
                               readOnly
                               value={typeof window !== 'undefined' ? `${window.location.origin}/public-report/${wifeProfile.id}` : ''}
-                              className="flex-1 bg-transparent text-[11px] font-mono text-gray-600 outline-none px-2 select-all truncate"
+                              className="flex-1 bg-transparent text-[11px] font-mono text-typography-700 outline-none px-2 select-all truncate"
                             />
                             <button
                               type="button"
                               onClick={copyWifeLink}
-                              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 active:scale-95 cursor-pointer ${
                                 copyingLink 
-                                  ? 'bg-emerald-600 text-white shadow-sm' 
-                                  : 'bg-[#000666] text-white hover:bg-[#000666]/90'
+                                  ? 'bg-emerald-600 text-white shadow-2xs' 
+                                  : 'bg-primary-200 text-white hover:bg-primary-200/90 shadow-2xs'
                               }`}
                               title="Copiar link"
                             >
                               {copyingLink ? (
                                 <>
-                                  <Check size={14} />
+                                  <Check size={13} />
                                   <span>Copiado!</span>
                                 </>
                               ) : (
                                 <>
-                                  <Copy size={14} />
+                                  <Copy size={13} />
                                   <span>Copiar</span>
                                 </>
                               )}
@@ -928,13 +1055,13 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                               href={`/public-report/${wifeProfile.id}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-2 text-gray-400 hover:text-[#000666] hover:bg-white rounded-xl transition-colors shrink-0"
+                              className="p-1.5 text-typography-400 hover:text-primary-200 hover:bg-surface-100 rounded-lg transition-colors shrink-0"
                               title={`Abrir relatório de ${wifeDisplayName} em nova aba`}
                             >
-                              <ExternalLink size={16} />
+                              <ExternalLink size={15} />
                             </a>
                           </div>
-                          <p className="text-[11px] text-gray-500 italic leading-snug">
+                          <p className="text-[11px] text-typography-400 italic leading-snug">
                             Envie este link para {wifeDisplayName}. Ela registrará o relatório dela de forma independente sem precisar fazer login.
                           </p>
                         </div>
@@ -942,7 +1069,6 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                     </div>
                   )}
                 </div>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#000666] opacity-[0.02] rounded-full -translate-y-1/2 translate-x-1/2" />
               </motion.div>
 
               {/* Dynamic Suggestion Card */}
@@ -950,48 +1076,46 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-[#1A1A1A] rounded-[2.5rem] p-8 text-white shadow-2xl shadow-black/20 border border-black/10 relative overflow-hidden"
+                className="bg-surface-100 rounded-3xl p-5 sm:p-7 shadow-xs border border-surface-300 relative overflow-hidden group"
               >
-                <div className="relative z-10 space-y-6">
+                <div className="relative z-10 space-y-5">
                   <div className="flex items-center gap-3">
-                    <div className={`bg-white/10 p-2 rounded-xl ${paceTextColor}`}>
-                      <TrendingUp size={20} />
+                    <div className="bg-primary-200/10 p-2.5 rounded-xl text-primary-200 border border-primary-200/20">
+                      <TrendingUp size={18} />
                     </div>
-                    <span className="text-xs font-black uppercase tracking-[0.3em] text-white/50">Sugestão Dinâmica</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-typography-500">Sugestão Dinâmica</span>
                   </div>
 
                   <div>
                     <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 mb-1">
                       <div className="flex items-baseline gap-2">
-                        <span className={`text-3xl font-black tracking-tighter ${paceTextColor} font-mono leading-none`}>
+                        <span className={`text-3xl font-black tracking-tight ${paceTextColor} font-mono leading-none`}>
                           {minutesToTime(Math.round(minutesPerShift))}
                         </span>
-                        <span className="text-sm font-bold text-white/40 uppercase tracking-widest">/ turno</span>
+                        <span className="text-xs font-bold text-typography-400 uppercase tracking-wider">/ turno</span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className={`text-3xl font-black tracking-tighter ${paceTextColor} font-mono leading-none`}>
+                        <span className={`text-3xl font-black tracking-tight ${paceTextColor} font-mono leading-none`}>
                           {minutesToTime(Math.round(minutesTodayTarget))}
                         </span>
-                        <span className="text-sm font-bold text-white/40 uppercase tracking-widest">/ hoje</span>
+                        <span className="text-xs font-bold text-typography-400 uppercase tracking-wider">/ hoje</span>
                       </div>
                     </div>
-                    <p className="text-base font-serif italic text-white/80 leading-relaxed font-medium">
+                    <p className="text-sm font-medium text-typography-500 leading-relaxed mt-2">
                       Baseado em {totalRemainingShifts} turnos planejados restantes até o fim de {monthNames[currentMonth].toLowerCase()}.
                     </p>
                   </div>
 
-                  <div className="bg-white/5 rounded-2xl p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${paceBadgeColor} ${paceShadow}`} />
-                      <span className="text-sm font-bold uppercase tracking-widest text-white/90">Ritmo Atual</span>
+                  <div className="bg-surface-200/70 rounded-2xl p-4 flex items-center justify-between border border-surface-300">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-2.5 h-2.5 rounded-full ${paceBadgeColor} ${paceShadow}`} />
+                      <span className="text-xs font-bold uppercase tracking-wider text-typography-700">Ritmo Atual</span>
                     </div>
-                    <span className={`text-sm font-mono font-black ${paceTextColor} uppercase tracking-[0.2em]`}>
+                    <span className={`text-xs font-mono font-black ${paceTextColor} uppercase tracking-wider`}>
                       {paceLabel}
                     </span>
                   </div>
                 </div>
-                <div className="absolute -bottom-8 -right-8 w-40 h-40 border border-white/5 rounded-full" />
-                <div className="absolute -bottom-12 -right-12 w-48 h-48 border border-white/5 rounded-full" />
               </motion.div>
             </div>
           </div>
@@ -1002,56 +1126,58 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-black/5 border border-gray-50 print:hidden h-full min-h-[300px] flex flex-col"
+              className="bg-surface-100 rounded-3xl p-5 sm:p-7 shadow-xs border border-surface-300 print:hidden h-full min-h-[340px] flex flex-col"
             >
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <TrendingUp size={20} className="text-[#000666]" />
-                  <h3 className="text-base font-black uppercase tracking-widest text-[#000666]">Curva de Progressão</h3>
+                  <div className="p-2 bg-primary-200/10 text-primary-200 rounded-xl border border-primary-200/20">
+                    <TrendingUp size={18} />
+                  </div>
+                  <h3 className="text-base font-black tracking-tight text-typography-900">Curva de Progressão</h3>
                 </div>
-                <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-4 sm:gap-6 text-[11px] font-extrabold uppercase tracking-wider">
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#000666]" />
-                    <span className="text-gray-600">Acumulado</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary-200" />
+                    <span className="text-typography-700">Acumulado</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-gray-200" />
-                    <span className="text-gray-400">Meta</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-surface-300" />
+                    <span className="text-typography-400">Meta</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex-1 w-full -ml-8">
+              <div className="flex-1 w-full min-h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorAcumulado" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#000666" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#000666" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-surface-300/60" />
                     <XAxis
                       dataKey="name"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fontWeight: 900, fill: '#bbb' }}
+                      tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
                       dy={10}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fontWeight: 900, fill: '#bbb' }}
+                      tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '12px', fontWeight: '900' }}
-                      labelStyle={{ color: '#000666', marginBottom: '4px' }}
+                      contentStyle={{ borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', fontSize: '12px', fontWeight: '800' }}
+                      labelStyle={{ color: '#0f172a', marginBottom: '4px' }}
                     />
                     <Area
                       type="monotone"
                       dataKey="acumulado"
-                      stroke="#000666"
-                      strokeWidth={4}
+                      stroke="#2563eb"
+                      strokeWidth={3}
                       fillOpacity={1}
                       fill="url(#colorAcumulado)"
                       name="Horas Reais"
@@ -1059,9 +1185,9 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                     <Line
                       type="monotone"
                       dataKey="meta"
-                      stroke="#e5e7eb"
+                      stroke="#94a3b8"
                       strokeWidth={2}
-                      strokeDasharray="5 5"
+                      strokeDasharray="4 4"
                       dot={false}
                       name="Projeção Meta"
                     />
@@ -1077,32 +1203,39 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
       {/* Settings Modal (Responsive Fix) */}
       <AnimatePresence>
         {showSettings && (
-          <div className="fixed inset-0 bg-[#1A1A1A]/90 backdrop-blur-md flex items-center justify-center z-[2000] p-4 sm:p-6 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-[2000] p-4 sm:p-6 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white rounded-[2rem] shadow-[0_40px_100px_rgba(0,0,0,0.4)] p-6 sm:p-10 max-w-md w-full my-auto flex flex-col gap-6 sm:gap-8 max-h-[90vh] overflow-hidden"
+              className="bg-surface-100 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full my-auto flex flex-col gap-6 max-h-[90vh] overflow-hidden border border-surface-300"
             >
               <div className="flex justify-between items-center shrink-0">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-black tracking-tight text-gray-900">Ajustar <span className="font-serif italic font-normal text-[#000666]">Objetivo</span></h3>
-                  <p className="text-sm text-gray-400 font-medium italic font-serif">Configure seu ritmo espiritual</p>
+                <div className="space-y-0.5">
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-typography-900">
+                    Ajustar <span className="text-primary-200">Objetivo</span>
+                  </h3>
+                  <p className="text-xs text-typography-500 font-medium">Configure seu ritmo espiritual</p>
                 </div>
-                <button onClick={() => setShowSettings(false)} className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-colors text-gray-400">
-                  <X size={20} />
+                <button 
+                  onClick={() => setShowSettings(false)} 
+                  className="w-9 h-9 bg-surface-200 hover:bg-surface-300/80 rounded-xl flex items-center justify-center transition-colors text-typography-500 hover:text-typography-900 cursor-pointer"
+                >
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-8">
+              <div className="flex-1 overflow-y-auto pr-1 space-y-6">
                 <div className="relative pt-2">
                   <input
                     type="number"
                     value={tempGoal}
                     onChange={(e) => setTempGoal(Number(e.target.value))}
-                    className="w-full text-6xl font-black tracking-tighter text-[#000666] p-0 bg-transparent border-none outline-none text-center selection:bg-blue-50 font-mono"
+                    className="w-full text-5xl sm:text-6xl font-black tracking-tight text-primary-200 p-0 bg-transparent border-none outline-none text-center selection:bg-primary-200/20 font-mono"
                   />
-                  <div className="text-center font-bold text-xs uppercase tracking-[0.2em] text-orange-400 mt-3">Horas {isSettingAllMonths ? 'como Padrão' : 'este Mês'}</div>
+                  <div className="text-center font-bold text-xs uppercase tracking-wider text-typography-400 mt-2">
+                    Horas {isSettingAllMonths ? 'como Padrão' : 'este Mês'}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -1110,43 +1243,48 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                     <button
                       key={h}
                       onClick={() => setTempGoal(h)}
-                      className={`h-12 rounded-xl font-black text-sm transition-all ${tempGoal === h ? 'bg-[#000666] text-white shadow-lg' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                      className={`h-11 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                        tempGoal === h 
+                          ? 'bg-primary-200 text-white shadow-2xs' 
+                          : 'bg-surface-200/80 text-typography-700 hover:bg-surface-200 border border-surface-300'
+                      }`}
                     >
                       {h}h
                     </button>
                   ))}
                 </div>
 
-                <div className="space-y-6 pt-6 border-t border-orange-50">
+                <div className="space-y-6 pt-5 border-t border-surface-300">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Meta Padrão</h4>
-                      <p className="text-[11px] text-gray-400 italic">Aplicar em todos os meses futuros.</p>
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-typography-800">Meta Padrão</h4>
+                      <p className="text-[11px] text-typography-400 italic">Aplicar em todos os meses futuros.</p>
                     </div>
                     <button
+                      type="button"
                       onClick={() => setIsSettingAllMonths(!isSettingAllMonths)}
-                      className={`relative w-12 h-6 rounded-full transition-all duration-300 ${isSettingAllMonths ? 'bg-[#000666]' : 'bg-gray-100'}`}
+                      className={`relative w-12 h-6 rounded-full transition-all duration-300 cursor-pointer ${isSettingAllMonths ? 'bg-primary-200' : 'bg-surface-300'}`}
                     >
                       <motion.div
                         animate={{ x: isSettingAllMonths ? 24 : 4 }}
-                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-xs"
                       />
                     </button>
                   </div>
 
                   {/* Programação de Turnos */}
-                  <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <div className="space-y-3 pt-5 border-t border-surface-300">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Programação de Turnos</h4>
-                        <p className="text-[11px] text-gray-400 italic">Planeje a rotina de turnos por dia da semana</p>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-typography-800">Programação de Turnos</h4>
+                        <p className="text-[11px] text-typography-400 italic">Planeje a rotina de turnos por dia da semana</p>
                       </div>
-                      <span className="text-xs font-black px-2.5 py-1 rounded-full bg-[#000666]/5 text-[#000666]">
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary-200/10 text-primary-200 border border-primary-200/20">
                         {Object.values(tempShifts).reduce((acc, v) => acc + (Number(v) || 0), 0)} {Object.values(tempShifts).reduce((acc, v) => acc + (Number(v) || 0), 0) === 1 ? 'turno' : 'turnos'}/sem
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-2">
+                    <div className="grid grid-cols-7 gap-1.5">
                       {[
                         { idx: 0, name: 'Dom', fullName: 'Domingo' },
                         { idx: 1, name: 'Seg', fullName: 'Segunda-feira' },
@@ -1158,41 +1296,41 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                       ].map((day) => {
                         const shifts = tempShifts[day.idx] || 0;
                         return (
-                          <div key={day.idx} className="flex flex-col items-center gap-1.5">
-                            <span className="text-[10px] font-black text-gray-500 uppercase">{day.name}</span>
+                          <div key={day.idx} className="flex flex-col items-center gap-1">
+                            <span className="text-[10px] font-bold text-typography-500 uppercase">{day.name}</span>
                             <button
                               type="button"
                               onClick={() => {
                                 const next = (shifts + 1) % 4;
                                 setTempShifts(prev => ({ ...prev, [day.idx]: next }));
                               }}
-                              className={`w-full aspect-square rounded-xl font-mono font-bold text-sm transition-all flex flex-col items-center justify-center border-2 ${
+                              className={`w-full aspect-square rounded-xl font-mono font-bold text-xs transition-all flex flex-col items-center justify-center border cursor-pointer ${
                                 shifts > 0 
-                                  ? 'bg-[#000666] border-[#000666] text-white shadow-md shadow-[#000666]/20' 
-                                  : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-400'
+                                  ? 'bg-primary-200 border-primary-200 text-white shadow-2xs' 
+                                  : 'bg-surface-200/60 hover:bg-surface-200 border-surface-300 text-typography-500'
                               }`}
                               title={`${day.fullName}: ${shifts} ${shifts === 1 ? 'turno' : 'turnos'}`}
                             >
                               <span>{shifts}</span>
                             </button>
-                            <span className="text-[9px] font-bold text-gray-400">
+                            <span className="text-[9px] font-semibold text-typography-400">
                               {shifts > 0 ? `${shifts}t` : 'livre'}
                             </span>
                           </div>
                         );
                       })}
                     </div>
-                    <p className="text-[10px] text-gray-400 italic text-center">
+                    <p className="text-[10px] text-typography-400 italic text-center">
                       Toque em qualquer dia para alternar entre 0, 1, 2 ou 3 turnos.
                     </p>
                   </div>
 
                   {/* Shared Access Section (Apenas para o titular da conta) */}
                   {!isPublic && (
-                    <div className="space-y-4 pt-6 border-t border-gray-100">
+                    <div className="space-y-3 pt-5 border-t border-surface-300">
                       <div className="flex items-center gap-2">
-                        <Share2 size={16} className="text-[#000666]" />
-                        <h4 className="text-xs font-black uppercase tracking-widest text-[#000666]">Acesso Compartilhado</h4>
+                        <Share2 size={15} className="text-primary-200" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-typography-800">Acesso Compartilhado</h4>
                       </div>
 
                       {!wifeProfile ? (
@@ -1200,53 +1338,55 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                           type="button"
                           onClick={createWifeProfile}
                           disabled={creatingProfile}
-                          className="w-full py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 transition-all group"
+                          className="w-full py-3.5 bg-surface-200/60 hover:bg-surface-200 rounded-2xl border border-dashed border-surface-300 flex flex-col items-center justify-center gap-1 transition-all group cursor-pointer"
                         >
                           {creatingProfile ? (
-                            <Loader2 className="animate-spin text-[#000666]" />
+                            <Loader2 className="animate-spin text-primary-200" />
                           ) : (
                             <>
-                              <UserCircle2 className="text-gray-400 group-hover:text-[#000666] transition-colors" />
-                              <span className="text-xs font-bold text-gray-500 group-hover:text-[#000666]">
+                              <UserCircle2 className="text-typography-400 group-hover:text-primary-200 transition-colors" size={20} />
+                              <span className="text-xs font-bold text-typography-600 group-hover:text-primary-200">
                                 Criar link para {wifeDisplayName}
                               </span>
                             </>
                           )}
                         </button>
                       ) : (
-                        <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100">
+                        <div className="bg-surface-200/60 rounded-2xl p-3.5 space-y-3 border border-surface-300">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                              <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
+                              <span className="text-xs font-bold text-typography-800 uppercase tracking-wider">
                                 Link de {wifeDisplayName} Ativo
                               </span>
                             </div>
                             <button
                               type="button"
                               onClick={deleteWifeProfile}
-                              className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
                               title={`Desativar link de ${wifeDisplayName}`}
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={15} />
                             </button>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-white p-3 rounded-xl border border-gray-200 text-[10px] font-mono text-gray-400 truncate">
+                            <div className="flex-1 bg-surface-100 p-2 rounded-xl border border-surface-300 text-[10px] font-mono text-typography-600 truncate">
                               {typeof window !== 'undefined' ? `${window.location.origin}/public-report/${wifeProfile.id}` : ''}
                             </div>
                             <button
                               type="button"
                               onClick={copyWifeLink}
-                              className={`p-3 rounded-xl transition-all ${copyingLink ? 'bg-emerald-500 text-white' : 'bg-[#000666] text-white'}`}
+                              className={`p-2 rounded-xl transition-all cursor-pointer ${
+                                copyingLink ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-primary-200 text-white hover:bg-primary-200/90 shadow-2xs'
+                              }`}
                               title="Copiar link"
                             >
-                              {copyingLink ? <Check size={18} /> : <Copy size={18} />}
+                              {copyingLink ? <Check size={16} /> : <Copy size={16} />}
                             </button>
                           </div>
 
-                          <p className="text-[10px] text-gray-400 italic leading-tight">
+                          <p className="text-[10px] text-typography-400 italic leading-tight">
                             Envie este link para {wifeDisplayName}. Ela poderá registrar o relatório dela de forma independente sem precisar logar.
                           </p>
                         </div>
@@ -1256,12 +1396,12 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 shrink-0 pt-4">
+              <div className="grid grid-cols-2 gap-3 shrink-0 pt-3 border-t border-surface-300">
                 <button
                   type="button"
                   id="settings-cancel-btn"
                   onClick={() => setShowSettings(false)}
-                  className="h-14 text-gray-400 font-bold hover:text-gray-900 transition-all text-xs uppercase tracking-widest border border-gray-100 rounded-2xl cursor-pointer"
+                  className="h-11 sm:h-12 text-typography-500 font-bold hover:text-typography-900 hover:bg-surface-200/60 transition-all text-xs uppercase tracking-wider border border-surface-300 rounded-xl cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1270,7 +1410,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                   id="settings-save-btn"
                   onClick={handleSaveGoal}
                   disabled={saving}
-                  className="h-14 bg-[#1A1A1A] text-white font-black rounded-2xl hover:bg-[#000666] transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2 text-xs uppercase tracking-widest cursor-pointer disabled:opacity-50"
+                  className="h-11 sm:h-12 bg-primary-200 text-white font-bold rounded-xl hover:bg-primary-200/90 transition-all shadow-xs flex items-center justify-center gap-2 text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                   Salvar
@@ -1282,23 +1422,23 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
 
         {/* Modal de Lançamento de Atividade do Dia */}
         {editingDay && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 border border-gray-100"
+              className="bg-surface-100 rounded-3xl p-5 sm:p-7 max-w-md w-full shadow-2xl space-y-5 border border-surface-300"
             >
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center justify-between pb-3.5 border-b border-surface-300">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#000666]/5 flex items-center justify-center text-[#000666]">
-                    <Clock size={20} />
+                  <div className="w-9 h-9 rounded-xl bg-primary-200/10 flex items-center justify-center text-primary-200 border border-primary-200/20">
+                    <Clock size={18} />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-gray-900 tracking-tight">
+                    <h3 className="text-base font-black text-typography-900 tracking-tight">
                       Lançar Atividade
                     </h3>
-                    <p className="text-xs text-gray-500 font-medium">
+                    <p className="text-xs text-typography-500 font-medium">
                       {editingDay.dayName}, {editingDay.day} de {monthNames[currentMonth]}
                     </p>
                   </div>
@@ -1306,16 +1446,16 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 <button
                   type="button"
                   onClick={() => setEditingDay(null)}
-                  className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-typography-400 hover:text-typography-900 hover:bg-surface-200 transition-colors cursor-pointer"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {/* Horas */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-[#000666]">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-typography-700">
                     Horas no Ministério (HH:mm)
                   </label>
                   <div className="relative">
@@ -1334,7 +1474,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                         }
                       }}
                       placeholder="0:00"
-                      className="w-full text-center text-3xl font-black text-[#000666] tracking-tight bg-gray-50 focus:bg-white border-2 border-gray-100 focus:border-[#000666] rounded-2xl py-3 px-4 outline-none transition-all"
+                      className="w-full text-center text-3xl font-black text-primary-200 tracking-tight bg-surface-200/60 focus:bg-surface-100 border border-surface-300 focus:border-primary-200 rounded-2xl py-2.5 px-4 outline-none transition-all font-mono"
                     />
                   </div>
 
@@ -1355,7 +1495,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                           const newMins = currentMins + btn.minutes;
                           setEditingDay(prev => prev ? ({ ...prev, hours: minutesToTime(newMins) }) : null);
                         }}
-                        className="px-2.5 py-1.5 bg-gray-100 hover:bg-[#000666] hover:text-white rounded-xl text-[11px] font-bold text-gray-600 transition-all active:scale-95 cursor-pointer"
+                        className="px-2.5 py-1.5 bg-surface-200/80 hover:bg-primary-200 hover:text-white rounded-xl text-[11px] font-bold text-typography-700 border border-surface-300/60 transition-all active:scale-95 cursor-pointer"
                       >
                         {btn.label}
                       </button>
@@ -1363,7 +1503,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                     <button
                       type="button"
                       onClick={() => setEditingDay(prev => prev ? ({ ...prev, hours: '' }) : null)}
-                      className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-[11px] font-bold transition-all active:scale-95 cursor-pointer"
+                      className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-xl text-[11px] font-bold border border-red-500/20 transition-all active:scale-95 cursor-pointer"
                     >
                       Limpar
                     </button>
@@ -1371,8 +1511,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 </div>
 
                 {/* Notas / Observações */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-[#000666]">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-typography-700">
                     Notas e Observações
                   </label>
                   <textarea
@@ -1380,7 +1520,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                     onChange={(e) => setEditingDay(prev => prev ? ({ ...prev, notes: e.target.value }) : null)}
                     placeholder="Ex: 2 revisitas, testemunho de carrinho, 1 estudo bíblico..."
                     rows={3}
-                    className="w-full text-sm text-gray-700 bg-gray-50 focus:bg-white border-2 border-gray-100 focus:border-[#000666] rounded-2xl p-3 outline-none transition-all resize-none"
+                    className="w-full text-xs text-typography-900 bg-surface-200/60 focus:bg-surface-100 border border-surface-300 focus:border-primary-200 rounded-2xl p-3 outline-none transition-all resize-none"
                   />
                 </div>
               </div>
@@ -1389,7 +1529,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 <button
                   type="button"
                   onClick={() => setEditingDay(null)}
-                  className="h-12 text-gray-400 font-bold hover:text-gray-900 transition-all text-xs uppercase tracking-widest border border-gray-100 rounded-2xl cursor-pointer"
+                  className="h-11 text-typography-500 font-bold hover:text-typography-900 hover:bg-surface-200/60 transition-all text-xs uppercase tracking-wider border border-surface-300 rounded-xl cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1397,7 +1537,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                   type="button"
                   onClick={handleSaveDayModal}
                   disabled={savingDay}
-                  className="h-12 bg-[#000666] text-white font-black rounded-2xl hover:bg-[#000666]/90 transition-all shadow-xl shadow-[#000666]/20 flex items-center justify-center gap-2 text-xs uppercase tracking-widest active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="h-11 bg-primary-200 text-white font-bold rounded-xl hover:bg-primary-200/90 transition-all shadow-xs flex items-center justify-center gap-2 text-xs uppercase tracking-wider active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   {savingDay ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                   Salvar Atividade

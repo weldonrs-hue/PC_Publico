@@ -24,35 +24,20 @@ import {
   Loader2,
   Copy,
   Mail,
-  Archive,
   FileEdit,
-  ExternalLink,
   ChevronDown,
-  Menu,
   Paperclip,
-  Smile,
-  Type,
-  Bold,
-  Italic,
-  Underline,
-  List as ListIcon,
-  ListOrdered,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Link2,
-  Image as ImageIcon,
-  RotateCcw,
-  RotateCw,
-  MoreHorizontal,
-  ChevronUp,
-  Maximize2,
   Save,
   ArrowLeft,
-  Folder,
-  Layers,
   X,
-  Check
+  Check,
+  Inbox,
+  SendHorizonal,
+  PenLine,
+  MailOpen,
+  SidebarOpen,
+  SidebarClose,
+  MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
@@ -138,18 +123,15 @@ export default function InboxView({ onBack }: InboxViewProps) {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Check Microsoft connection
-    const checkConnection = async () => {
-      try {
-        onSnapshot(doc(db, 'microsoft_connections', user.uid), (snap) => {
-          setIsMicrosoftConnected(snap.exists());
-        });
-      } catch (err) {
-        console.error('Error checking MS connection:', err);
-      }
-    };
-
-    checkConnection();
+    // Check Microsoft connection — store unsubscribe so it's cleaned up on unmount
+    let unsubscribeMs: (() => void) | undefined;
+    try {
+      unsubscribeMs = onSnapshot(doc(db, 'microsoft_connections', user.uid), (snap) => {
+        setIsMicrosoftConnected(snap.exists());
+      });
+    } catch (err) {
+      console.error('Error checking MS connection:', err);
+    }
 
     const q = query(
       collection(db, 'email_drafts'),
@@ -157,7 +139,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
       orderBy('updatedAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snap) => {
+    const unsubscribeDrafts = onSnapshot(q, (snap) => {
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Draft));
       setDrafts(docs);
       setLoading(false);
@@ -166,7 +148,10 @@ export default function InboxView({ onBack }: InboxViewProps) {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeMs?.();
+      unsubscribeDrafts();
+    };
   }, []);
 
   // Fetch personal data for signature
@@ -365,7 +350,6 @@ export default function InboxView({ onBack }: InboxViewProps) {
       }, 50);
     } else if (selectedId) {
       // If we have an ID but no draft yet (e.g. just created), reset form to empty
-      // This prevents seeing the previous draft's data
       setForm({
         recipient: '',
         cc: '',
@@ -398,7 +382,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      setCurrentFolder('drafts'); // Ensure we are in drafts folder to see it
+      setCurrentFolder('drafts');
       setSelectedId(docRef.id);
       setActiveMobilePane('editor');
     } catch (err) {
@@ -665,6 +649,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
         setSelectedId(null);
         setForm({
           recipient: '',
+          cc: '',
           subject: '',
           content: '',
           attachments: []
@@ -696,7 +681,6 @@ export default function InboxView({ onBack }: InboxViewProps) {
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     filtered.forEach(d => {
-      // Use updatedAt if available, fallback to createdAt, then to now (for new unsynced docs)
       const timestamp = d.updatedAt || d.createdAt;
       const date = timestamp?.toDate ? timestamp.toDate() : new Date();
       
@@ -712,17 +696,20 @@ export default function InboxView({ onBack }: InboxViewProps) {
     return groups;
   }, [drafts, search, currentFolder]);
 
+  const draftsCount = drafts.filter(d => (d.folder || 'drafts') === 'drafts').length;
+  const sentCount = drafts.filter(d => d.folder === 'sent').length;
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-[#de4b39]" />
-        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Carregando Caixa de Entrada...</p>
+        <Loader2 className="w-8 h-8 animate-spin text-primary-200" />
+        <p className="text-sm font-bold text-typography-400 uppercase tracking-widest">Carregando Caixa de Entrada...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-6.5rem)] md:h-[calc(100vh-7.5rem)] min-h-[500px] w-full bg-white shadow-2xl border border-gray-200 rounded-xl md:rounded-2xl overflow-hidden font-sans text-[#323130] selection:bg-[#fdedec]">
+    <div className="flex flex-col h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-6.5rem)] md:h-[calc(100vh-7.5rem)] min-h-[500px] w-full">
       {/* Hidden File Input */}
       <input 
         type="file" 
@@ -731,69 +718,84 @@ export default function InboxView({ onBack }: InboxViewProps) {
         onChange={handleFileChange} 
         className="hidden" 
       />
-      
-      {/* Outlook Top Header Ribbon */}
-      <header className="h-12 md:h-11 flex-shrink-0 flex items-center justify-between border-b border-gray-200 bg-white px-2 md:px-3 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          {/* Back to App Menu / Diversos button */}
+
+      {/* ================================================================ */}
+      {/* TOP BAR                                                           */}
+      {/* ================================================================ */}
+      <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap mb-3 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Back Button */}
           {onBack && (
             <button
               onClick={onBack}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors text-xs font-semibold flex-shrink-0"
-              title="Voltar para o menu principal"
+              className="h-9 w-9 sm:h-10 sm:w-10 p-1.5 sm:p-2 hover:bg-surface-200 active:scale-95 rounded-xl transition-all text-typography-900 bg-surface-200/80 shadow-xs border border-surface-300 flex items-center justify-center shrink-0 cursor-pointer"
+              title="Voltar para Diversos"
             >
-              <ArrowLeft size={16} className="text-[#de4b39]" />
-              <span className="hidden sm:inline">Voltar</span>
+              <ArrowLeft size={18} strokeWidth={2.5} />
             </button>
           )}
 
-          {/* Sidebar Toggle Button - Visible on all screens now */}
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-black text-typography-900 tracking-tight leading-none truncate">
+                Caixa de Entrada
+              </h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-primary-200/10 text-primary-200 border border-primary-200/20 shrink-0">
+                {currentFolder === 'drafts' ? 'Rascunhos' : 'Enviados'}
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate mt-0.5">
+              Composição e envio de e-mails para congregações
+            </p>
+          </div>
+        </div>
+
+        {/* Top Action Bar */}
+        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
+          {/* Sidebar Toggle */}
           <button
             onClick={() => {
               setIsSidebarOpen(!isSidebarOpen);
               if (!isSidebarOpen) setActiveMobilePane('folders');
             }}
-            className="flex p-1.5 hover:bg-gray-100 rounded text-gray-600 transition-colors"
-            title={isSidebarOpen ? "Ocultar pastas" : "Mostrar pastas"}
+            className={`h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-xs cursor-pointer active:scale-95 ${
+              isSidebarOpen
+                ? 'bg-primary-200/10 text-primary-200 border-primary-200/30'
+                : 'bg-surface-200/80 text-typography-600 hover:text-typography-900 border-surface-300'
+            }`}
+            title={isSidebarOpen ? 'Ocultar pastas' : 'Mostrar pastas'}
           >
-            <Menu size={16} />
+            {isSidebarOpen ? <SidebarClose size={15} /> : <SidebarOpen size={15} />}
+            <span className="hidden sm:inline">{isSidebarOpen ? 'Ocultar' : 'Pastas'}</span>
           </button>
 
-          {/* Search Box - Responsive */}
-          <div className="w-40 sm:w-56 md:w-64 flex items-center bg-[#faf9f8] hover:bg-[#f3f2f1] border border-transparent focus-within:border-[#de4b39] px-2 py-1 rounded transition-colors">
-            <input 
-              type="text"
-              placeholder="Pesquisar..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent border-none p-0 text-xs focus:ring-0 placeholder:text-gray-500 text-gray-800"
-            />
-            {search ? (
-              <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600 ml-1">
-                <X size={12} />
-              </button>
-            ) : (
-              <Search size={14} className="text-[#de4b39] ml-1 flex-shrink-0" />
-            )}
-          </div>
-        </div>
+          {/* Novo Rascunho */}
+          {currentFolder === 'drafts' && (
+            <button
+              onClick={handleCreateNew}
+              disabled={saving}
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              title="Criar novo rascunho"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin shrink-0 text-typography-500" /> : <PenLine size={14} className="shrink-0 text-typography-500" />}
+              <span className="hidden sm:inline">Novo</span>
+            </button>
+          )}
 
-        {/* Top Actions Ribbon */}
-        <div className="flex items-center gap-1 text-xs font-normal">
-          {/* Primary Send Button */}
-          <button 
+          {/* Send Button */}
+          <button
             onClick={handleSendEmail}
             disabled={!selectedId || sending}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-white font-medium bg-[#de4b39] hover:bg-[#c73e2d] transition-all shadow-sm ${(!selectedId || sending) ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}`}
+            className={`h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-40 cursor-pointer ${(!selectedId || sending) ? 'cursor-not-allowed' : ''}`}
             title="Enviar pelo Outlook"
           >
-            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            <span className="hidden xs:inline sm:inline">{sending ? 'Enviando' : 'Enviar'}</span>
+            {sending ? <Loader2 size={14} className="animate-spin shrink-0" /> : <SendHorizonal size={14} className="shrink-0" />}
+            <span>{sending ? 'Enviando...' : 'Enviar'}</span>
           </button>
 
-          {/* Attach Button - Only visible if Microsoft is connected */}
+          {/* Attach Button */}
           {isMicrosoftConnected && (
-            <button 
+            <button
               onClick={() => {
                 if (!selectedId) {
                   showAlert('Selecione ou crie um rascunho primeiro para anexar arquivos.', 'Aviso');
@@ -802,229 +804,228 @@ export default function InboxView({ onBack }: InboxViewProps) {
                 fileInputRef.current?.click();
               }}
               disabled={!selectedId}
-              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded text-gray-700 hover:text-[#de4b39] hover:bg-gray-100 transition-colors ${!selectedId ? 'opacity-40 cursor-not-allowed' : ''}`}
+              className={`h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer ${!selectedId ? 'opacity-40 cursor-not-allowed' : ''}`}
               title="Anexar arquivos"
             >
-              <Paperclip size={14} className="text-[#de4b39]" />
+              <Paperclip size={14} className="shrink-0 text-typography-500" />
               <span className="hidden sm:inline">Anexar</span>
             </button>
           )}
 
-          {/* Discard / Delete Button */}
+          {/* Delete Button */}
           {selectedId && (
-            <button 
-              onClick={(e) => handleDelete(selectedId, e)}
-              className="flex items-center gap-1 px-2 py-1.5 rounded text-gray-700 hover:text-red-600 hover:bg-red-50 transition-colors"
-              title="Descartar rascunho"
-            >
-              <Trash2 size={14} />
-              <span className="hidden md:inline">Descartar</span>
-            </button>
-          )}
-
-          {/* New Draft Button (Desktop) - Visible when in Drafts folder */}
-          {currentFolder === 'drafts' && (
             <button
-              onClick={handleCreateNew}
-              disabled={saving}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors font-semibold"
-              title="Criar novo rascunho"
+              onClick={(e) => handleDelete(selectedId, e)}
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              title="Excluir rascunho"
             >
-              <Plus size={14} className="text-[#de4b39]" />
-              <span className="text-xs">Novo</span>
+              <Trash2 size={14} className="shrink-0" />
+              <span className="hidden md:inline">Excluir</span>
             </button>
           )}
         </div>
-      </header>
+      </div>
 
-      {/* Main Multi-Pane Body - Allows horizontal navigation on narrow screens */}
-      <div className="flex-1 flex overflow-x-auto lg:overflow-hidden relative custom-scrollbar">
-        {/* ============================================================== */}
-        {/* PANE 1: Folders Navigation (Pastas) */}
-        {/* ============================================================== */}
-        <nav 
-          className={`
-            bg-[#fbfaf9] border-r border-[#edebe9] flex flex-col py-2 z-10 flex-shrink-0 transition-all duration-300
-            w-64 md:w-48 lg:w-52
-            ${isSidebarOpen ? 'flex' : 'hidden'}
-          `}
-        >
-          <div className="px-3 py-2 flex items-center justify-between border-b border-gray-100 md:border-none">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Caixas de Correio</span>
-            {activeMobilePane === 'folders' && (
-              <button 
-                onClick={() => setActiveMobilePane('list')} 
-                className="md:hidden text-xs text-[#de4b39] font-bold px-2 py-0.5 rounded hover:bg-gray-200"
-              >
-                Ver Lista &rarr;
-              </button>
-            )}
-          </div>
+      {/* ================================================================ */}
+      {/* MAIN BODY — 3 PANES                                               */}
+      {/* ================================================================ */}
+      <div className="flex-1 flex gap-3 overflow-hidden min-h-0">
 
-          <div className="mb-3 px-1">
-            <div className="flex items-center px-3 py-1.5 text-xs font-semibold text-gray-700">
-              <ChevronDown size={12} className="mr-2 text-gray-400" />
-              <span>Favoritos</span>
-            </div>
-            <ul className="mt-1 space-y-1">
-              <li>
+        {/* ============================================================== */}
+        {/* PANE 1: Folder Navigation (Pastas)                              */}
+        {/* ============================================================== */}
+        <AnimatePresence initial={false}>
+          {isSidebarOpen && (
+            <motion.nav
+              key="sidebar"
+              initial={{ opacity: 0, x: -20, width: 0 }}
+              animate={{ opacity: 1, x: 0, width: 'auto' }}
+              exit={{ opacity: 0, x: -20, width: 0 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="bg-surface-100 rounded-3xl border border-surface-300 shadow-xs flex flex-col overflow-hidden flex-shrink-0 w-56 lg:w-64"
+            >
+              <div className="px-4 pt-4 pb-2 flex items-center justify-between border-b border-surface-300">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-typography-500">Pastas</span>
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1 rounded-lg text-typography-400 hover:text-typography-700 hover:bg-surface-200 transition-colors md:hidden cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-3 space-y-1">
+                {/* Rascunhos */}
                 <button
                   onClick={() => {
                     setCurrentFolder('drafts');
                     setActiveMobilePane('list');
+                    if (window.innerWidth < 768) setIsSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2 text-xs transition-colors ${currentFolder === 'drafts' ? 'bg-[#f3c4c0]/50 font-bold border-l-4 border-[#de4b39] text-gray-800' : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'}`}
+                  className={`w-full flex items-center justify-between px-3 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer ${
+                    currentFolder === 'drafts'
+                      ? 'bg-primary-200/10 text-primary-200 border border-primary-200/20'
+                      : 'text-typography-700 hover:bg-surface-200 border border-transparent'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <FileEdit size={14} className={currentFolder === 'drafts' ? 'text-[#de4b39]' : 'text-gray-500'} />
-                    <span className="truncate">Rascunhos</span>
+                  <div className="flex items-center gap-3">
+                    <FileEdit size={15} className={currentFolder === 'drafts' ? 'text-primary-200' : 'text-typography-400'} />
+                    <span>Rascunhos</span>
                   </div>
-                  <span className={`text-xs ${currentFolder === 'drafts' ? 'bg-[#de4b39] text-white' : 'bg-gray-200 text-gray-500'} px-1.5 py-0.2 rounded-full font-bold`}>
-                    {drafts.filter(d => (d.folder || 'drafts') === 'drafts').length}
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                    currentFolder === 'drafts'
+                      ? 'bg-primary-200 text-white'
+                      : 'bg-surface-300 text-typography-500'
+                  }`}>
+                    {draftsCount}
                   </span>
                 </button>
-              </li>
-              <li>
+
+                {/* Itens Enviados */}
                 <button
                   onClick={() => {
                     setCurrentFolder('sent');
                     setActiveMobilePane('list');
+                    if (window.innerWidth < 768) setIsSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2 text-xs transition-colors ${currentFolder === 'sent' ? 'bg-[#f3c4c0]/50 font-bold border-l-4 border-[#de4b39] text-gray-800' : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'}`}
+                  className={`w-full flex items-center justify-between px-3 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer ${
+                    currentFolder === 'sent'
+                      ? 'bg-primary-200/10 text-primary-200 border border-primary-200/20'
+                      : 'text-typography-700 hover:bg-surface-200 border border-transparent'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Send size={14} className={currentFolder === 'sent' ? 'text-[#de4b39]' : 'text-gray-500'} />
-                    <span className="truncate">Itens Enviados</span>
+                  <div className="flex items-center gap-3">
+                    <Send size={15} className={currentFolder === 'sent' ? 'text-primary-200' : 'text-typography-400'} />
+                    <span>Enviados</span>
                   </div>
-                  <span className={`text-xs ${currentFolder === 'sent' ? 'bg-[#de4b39] text-white' : 'bg-gray-200 text-gray-500'} px-1.5 py-0.2 rounded-full font-bold`}>
-                    {drafts.filter(d => d.folder === 'sent').length}
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                    currentFolder === 'sent'
+                      ? 'bg-primary-200 text-white'
+                      : 'bg-surface-300 text-typography-500'
+                  }`}>
+                    {sentCount}
                   </span>
                 </button>
-              </li>
-            </ul>
-          </div>
+              </div>
 
-          {/* Mobile Back to Dashboard option */}
-          {onBack && (
-            <div className="md:hidden mx-3 mb-3">
-              <button
-                onClick={onBack}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors"
-              >
-                <ArrowLeft size={14} />
-                <span>Voltar ao Menu Principal</span>
-              </button>
-            </div>
+              {/* New Draft CTA at bottom of sidebar */}
+              {currentFolder === 'drafts' && (
+                <div className="p-3 border-t border-surface-300">
+                  <button
+                    onClick={handleCreateNew}
+                    disabled={saving}
+                    className="w-full py-2.5 bg-primary-200 hover:bg-primary-200/90 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    Novo Rascunho
+                  </button>
+                </div>
+              )}
+            </motion.nav>
           )}
-
-          <div className="mt-auto px-3 py-2 border-t border-[#edebe9]">
-            {currentFolder === 'drafts' && (
-              <button 
-                onClick={handleCreateNew}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#de4b39] hover:bg-[#c73e2d] text-white rounded-lg text-xs font-bold transition-all shadow-md active:scale-95"
-              >
-                <Plus size={16} />
-                <span>Novo Rascunho</span>
-              </button>
-            )}
-          </div>
-        </nav>
+        </AnimatePresence>
 
         {/* ============================================================== */}
-        {/* PANE 2: Drafts List (Lista de Rascunhos) */}
+        {/* PANE 2: Drafts List (Lista)                                     */}
         {/* ============================================================== */}
-        <section 
-          className={`
-            bg-white border-r border-[#edebe9] flex flex-col h-full overflow-hidden flex-shrink-0
-            w-full md:w-72 lg:w-80
-            ${selectedId && activeMobilePane === 'editor' ? 'hidden md:flex' : 'flex'}
-          `}
+        <div
+          className={`bg-surface-100 rounded-3xl border border-surface-300 shadow-xs flex flex-col overflow-hidden flex-shrink-0 w-full sm:w-80 lg:w-96 ${
+            selectedId && activeMobilePane === 'editor' ? 'hidden sm:flex' : 'flex'
+          }`}
         >
-          {/* Subheader: Rascunhos title + count + actions */}
-          <div className="flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-gray-100 flex-shrink-0 bg-gray-50/50">
+          {/* List Header */}
+          <div className="px-4 pt-4 pb-3 border-b border-surface-300 flex items-center justify-between gap-2 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-base md:text-lg font-bold text-gray-800">
+              <h2 className="text-sm font-black text-typography-900 tracking-tight">
                 {currentFolder === 'drafts' ? 'Rascunhos' : 'Itens Enviados'}
-              </h1>
-              <span className="text-xs bg-red-100 text-[#de4b39] font-bold px-2 py-0.5 rounded-full">
+              </h2>
+              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-primary-200/10 text-primary-200 border border-primary-200/20">
                 {drafts.filter(d => (d.folder || 'drafts') === currentFolder).length}
               </span>
             </div>
-
-            {/* Mobile New button right in the header - Visible when in Drafts folder */}
+            {/* Mobile New button */}
             {currentFolder === 'drafts' && (
               <button
                 onClick={handleCreateNew}
                 disabled={saving}
-                className="flex md:hidden items-center gap-1 px-3 py-1.5 bg-[#de4b39] text-white rounded-lg text-xs font-bold shadow-sm active:scale-95"
+                className="flex sm:hidden items-center gap-1 px-2.5 py-1.5 bg-primary-200 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
               >
-                <Plus size={14} />
-                <span>Novo</span>
+                <Plus size={13} />
+                Novo
               </button>
             )}
           </div>
 
-          {/* Drafts List Items */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 custom-scrollbar">
+          {/* Search */}
+          <div className="px-3 py-2.5 border-b border-surface-300/60 flex-shrink-0">
+            <div className="flex items-center gap-2 bg-surface-200/60 border border-surface-300 focus-within:border-primary-200/60 focus-within:ring-2 focus-within:ring-primary-200/20 rounded-2xl px-3 py-2 transition-all">
+              <Search size={13} className="text-typography-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-transparent text-xs text-typography-800 placeholder:text-typography-400 outline-none"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="text-typography-400 hover:text-typography-600 cursor-pointer">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List Items */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
             {Object.entries(groupedDrafts).map(([groupName, groupItems]) => (
               groupItems.length > 0 && (
-                <div key={groupName} className="flex flex-col">
-                  <div className="px-3 pt-3 pb-1 text-[11px] font-bold text-[#de4b39] uppercase tracking-wider bg-gray-50/40">
+                <div key={groupName}>
+                  <div className="px-4 pt-3 pb-1.5 text-[10px] font-extrabold text-typography-400 uppercase tracking-wider">
                     {groupName}
                   </div>
                   {groupItems.map((draft) => {
                     const isSelected = selectedId === draft.id;
                     const draftAttachmentsCount = (draft.attachments?.length || 0);
+                    const timestamp = draft.sentAt || draft.updatedAt;
+                    const timeStr = timestamp?.toDate
+                      ? timestamp.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                      : '';
 
                     return (
-                      <article
+                      <button
                         key={draft.id}
                         onClick={() => handleSelectDraft(draft.id)}
-                        className={`p-3 cursor-pointer transition-all border-l-4 ${
-                          isSelected 
-                            ? 'bg-[#fdedec] border-[#de4b39]' 
-                            : 'hover:bg-gray-50 border-transparent'
+                        className={`w-full text-left px-3 py-3.5 rounded-2xl transition-all cursor-pointer mb-1 ${
+                          isSelected
+                            ? 'bg-primary-200/10 border border-primary-200/20'
+                            : 'hover:bg-surface-200/60 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-start gap-2.5">
-                          <input 
-                            type="checkbox" 
-                            readOnly 
-                            checked={isSelected}
-                            className="mt-1 rounded text-[#de4b39] focus:ring-0 border-gray-300 w-3.5 h-3.5 pointer-events-none" 
-                          />
+                        <div className="flex items-start gap-3">
+                          <div className={`mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                            isSelected ? 'bg-primary-200 text-white' : 'bg-surface-200 text-typography-500'
+                          }`}>
+                            {draft.folder === 'sent' ? <Send size={13} /> : <FileEdit size={13} />}
+                          </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex justify-between items-baseline gap-1">
-                              <span className={`text-[10px] font-bold truncate px-1.5 py-0.5 rounded ${
-                                (draft.folder === 'sent') 
-                                  ? 'bg-blue-100 text-blue-700' 
-                                  : 'bg-red-50 text-[#de4b39]'
-                              }`}>
-                                {draft.folder === 'sent' ? 'ENVIADO' : 'RASCUNHO'}
+                            <div className="flex justify-between items-baseline gap-1 mb-1">
+                              <span className={`text-xs font-black truncate leading-tight ${isSelected ? 'text-primary-200' : 'text-typography-800'}`}>
+                                {draft.subject || '(Sem assunto)'}
                               </span>
-                              <span className="text-[10px] text-gray-400 flex-shrink-0">
-                                {draft.sentAt?.toDate 
-                                  ? draft.sentAt.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-                                  : (draft.updatedAt?.toDate ? draft.updatedAt.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')}
-                              </span>
+                              <span className="text-[10px] text-typography-400 shrink-0 font-medium">{timeStr}</span>
                             </div>
-                            <h2 className="text-xs font-bold text-gray-800 truncate mt-0.5">
-                              {draft.subject || '(Sem assunto)'}
-                            </h2>
-                            <p className="text-xs text-gray-500 truncate mt-0.5">
-                              {draft.recipient ? `${draft.recipient} — ` : ''}
-                              {draft.content || '(Nenhum texto de mensagem)'}
+                            <p className="text-[11px] text-typography-500 truncate leading-tight">
+                              {draft.recipient || 'Sem destinatário'}
                             </p>
                             {draftAttachmentsCount > 0 && (
-                              <div className="flex items-center gap-1 mt-1 text-[10px] text-blue-600 font-medium">
-                                <Paperclip size={11} />
+                              <div className="flex items-center gap-1 mt-1.5 text-[10px] text-blue-500 font-medium">
+                                <Paperclip size={10} />
                                 <span>{draftAttachmentsCount} anexo(s)</span>
                               </div>
                             )}
                           </div>
                         </div>
-                      </article>
+                      </button>
                     );
                   })}
                 </div>
@@ -1032,168 +1033,184 @@ export default function InboxView({ onBack }: InboxViewProps) {
             ))}
 
             {Object.values(groupedDrafts).flat().length === 0 && (
-              <div className="p-8 md:p-12 text-center text-gray-400">
-                <Mail size={40} className="mx-auto mb-3 opacity-25" />
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                  {currentFolder === 'drafts' ? 'Nenhum rascunho' : 'Nenhuma mensagem enviada'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {currentFolder === 'drafts' 
-                    ? 'Clique em "+ Novo" para começar a redigir.' 
-                    : 'Suas mensagens enviadas aparecerão aqui.'}
-                </p>
+              <div className="p-8 text-center text-typography-400 flex flex-col items-center gap-3">
+                <MailOpen size={36} className="opacity-25" />
+                <div>
+                  <p className="text-xs font-bold text-typography-500">
+                    {currentFolder === 'drafts' ? 'Nenhum rascunho' : 'Nenhuma mensagem enviada'}
+                  </p>
+                  <p className="text-[11px] text-typography-400 mt-0.5">
+                    {currentFolder === 'drafts'
+                      ? 'Clique em "Novo" para começar.'
+                      : 'Suas mensagens enviadas aparecerão aqui.'}
+                  </p>
+                </div>
                 {currentFolder === 'drafts' && (
                   <button
                     onClick={handleCreateNew}
-                    className="mt-4 px-4 py-2 bg-[#de4b39] text-white rounded-lg text-xs font-bold shadow-sm"
+                    className="mt-2 px-4 py-2 bg-primary-200 text-white rounded-2xl text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
                   >
-                    Criar Primeiro Rascunho
+                    Criar Rascunho
                   </button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Floating Action Button for Mobile - Visible when in Drafts folder */}
+          {/* Mobile FAB */}
           {currentFolder === 'drafts' && (
-            <div className="md:hidden absolute bottom-4 right-4 z-20">
+            <div className="sm:hidden absolute bottom-4 right-4 z-20">
               <button
                 onClick={handleCreateNew}
                 disabled={saving}
-                className="p-3.5 bg-[#de4b39] hover:bg-[#c73e2d] text-white rounded-full shadow-xl flex items-center justify-center active:scale-95 transition-all"
+                className="p-4 bg-primary-200 hover:bg-primary-200/90 text-white rounded-2xl shadow-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                 title="Novo Rascunho"
               >
-                <Plus size={22} />
+                <Plus size={20} />
               </button>
             </div>
           )}
-        </section>
+        </div>
 
         {/* ============================================================== */}
-        {/* PANE 3: Editor / Message Compose (Editor de Mensagem) */}
+        {/* PANE 3: Editor (Compor Mensagem)                                */}
         {/* ============================================================== */}
-        <main 
-          className={`
-            flex-1 flex flex-col bg-white overflow-hidden min-w-[320px] md:min-w-[400px]
-            ${selectedId && activeMobilePane === 'editor' ? 'flex' : 'hidden md:flex'}
-          `}
+        <div
+          className={`flex-1 bg-surface-100 rounded-3xl border border-surface-300 shadow-xs flex flex-col overflow-hidden min-w-0 ${
+            selectedId && activeMobilePane === 'editor' ? 'flex' : 'hidden sm:flex'
+          }`}
         >
           {selectedId ? (
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Mobile Editor Top Bar: Back to List Button + Quick Send */}
-              <div className="md:hidden flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+              {/* Mobile Editor Top Bar: Back to List */}
+              <div className="sm:hidden flex items-center justify-between px-4 py-3 border-b border-surface-300 flex-shrink-0">
                 <button
                   onClick={() => setActiveMobilePane('list')}
-                  className="flex items-center gap-1.5 text-xs font-bold text-gray-700 hover:text-[#de4b39]"
+                  className="flex items-center gap-1.5 text-xs font-bold text-typography-700 hover:text-primary-200 cursor-pointer transition-colors"
                 >
-                  <ArrowLeft size={16} className="text-[#de4b39]" />
-                  <span>Voltar para Lista ({drafts.length})</span>
+                  <ArrowLeft size={15} className="text-primary-200" />
+                  <span>Lista ({drafts.length})</span>
                 </button>
-
                 <div className="flex items-center gap-1">
                   <button
+                    onClick={handleDuplicate}
+                    className="p-2 text-typography-500 hover:text-primary-200 rounded-xl hover:bg-surface-200 transition-colors cursor-pointer"
+                    title="Duplicar modelo"
+                  >
+                    <Copy size={15} />
+                  </button>
+                  <button
                     onClick={(e) => handleDelete(selectedId, e)}
-                    className="p-1.5 text-gray-500 hover:text-red-600 rounded"
+                    className="p-2 text-typography-500 hover:text-rose-500 rounded-xl hover:bg-rose-500/10 transition-colors cursor-pointer"
                     title="Excluir"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
-                {/* Recipient Headers */}
-                <section className="p-3 md:p-4 border-b border-gray-100 flex-shrink-0 space-y-2.5 bg-white">
-                  {/* "Para" row */}
-                  <div className="flex items-center gap-2 relative">
-                    <span className="w-12 py-1 px-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded text-center select-none flex-shrink-0">
-                      Para
-                    </span>
-                    <div className="flex-1 relative">
-                      <input 
-                        type="text"
-                        placeholder="destinatario@jwpub.org"
-                        value={form.recipient}
-                        onChange={(e) => handleUpdate('recipient', e.target.value)}
-                        onBlur={() => setTimeout(() => setActiveSuggestionField(null), 200)}
-                        className="w-full bg-transparent border border-transparent hover:border-gray-200 focus:border-[#de4b39] rounded px-2 py-1 text-xs md:text-sm font-normal text-gray-800 focus:ring-0 placeholder:text-gray-400"
-                      />
-                      
-                      <AnimatePresence>
-                        {activeSuggestionField === 'recipient' && recipientSuggestions.length > 0 && (
-                          <motion.div 
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"
-                          >
-                            {recipientSuggestions.map((c, i) => (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => selectSuggestion('recipient', c)}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-none"
-                              >
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xs font-bold text-gray-800">{c.name}</span>
-                                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">{c.type}</span>
-                                </div>
-                                <div className="flex justify-between items-center mt-0.5">
-                                  <span className="text-[11px] text-gray-500 font-mono">{c.email}</span>
-                                  <span className="text-[10px] text-[#de4b39] font-semibold">{c.congName}</span>
-                                </div>
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                    <button 
-                      onClick={() => setShowCc(!showCc)}
-                      className={`text-xs px-2 py-1 rounded transition-colors flex-shrink-0 ${showCc ? 'bg-red-50 text-[#de4b39] font-bold' : 'text-gray-500 hover:text-gray-800'}`}
-                    >
-                      Cc
-                    </button>
-                  </div>
+              {/* Recipient Headers */}
+              <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-surface-300 flex-shrink-0 space-y-2.5">
+                {/* Para row */}
+                <div className="flex items-center gap-2.5 relative">
+                  <span className="w-10 py-1 px-2 bg-surface-200 text-typography-600 text-[10px] font-bold rounded-lg text-center select-none flex-shrink-0 uppercase tracking-wider">
+                    Para
+                  </span>
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      placeholder="destinatario@jwpub.org"
+                      value={form.recipient}
+                      onChange={(e) => handleUpdate('recipient', e.target.value)}
+                      onBlur={() => setTimeout(() => setActiveSuggestionField(null), 200)}
+                      className="w-full bg-transparent border border-transparent hover:border-surface-300 focus:border-primary-200/60 focus:ring-2 focus:ring-primary-200/20 rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-normal text-typography-800 outline-none placeholder:text-typography-400 transition-all"
+                    />
 
-                  {/* Optional "Cc" row */}
+                    <AnimatePresence>
+                      {activeSuggestionField === 'recipient' && recipientSuggestions.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          className="absolute left-0 right-0 top-full mt-1 bg-surface-100 border border-surface-300 rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto"
+                        >
+                          {recipientSuggestions.map((c, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => selectSuggestion('recipient', c)}
+                              className="w-full text-left px-3 py-2.5 hover:bg-surface-200/60 flex flex-col border-b border-surface-300/50 last:border-none transition-colors cursor-pointer"
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold text-typography-800">{c.name}</span>
+                                <span className="text-[10px] bg-surface-200 text-typography-500 px-1.5 py-0.5 rounded-full uppercase font-bold">{c.type}</span>
+                              </div>
+                              <div className="flex justify-between items-center mt-0.5">
+                                <span className="text-[11px] text-typography-500 font-mono">{c.email}</span>
+                                <span className="text-[10px] text-primary-200 font-semibold">{c.congName}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <button
+                    onClick={() => setShowCc(!showCc)}
+                    className={`text-[10px] px-2 py-1.5 rounded-xl transition-colors flex-shrink-0 font-bold cursor-pointer ${
+                      showCc
+                        ? 'bg-primary-200/10 text-primary-200 border border-primary-200/20'
+                        : 'text-typography-500 hover:text-typography-800 hover:bg-surface-200 border border-transparent'
+                    }`}
+                  >
+                    Cc
+                  </button>
+                </div>
+
+                {/* Optional Cc row */}
+                <AnimatePresence>
                   {showCc && (
-                    <div className="flex items-center gap-2 relative">
-                      <span className="w-12 py-1 px-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded text-center select-none flex-shrink-0">
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-2.5 relative overflow-hidden"
+                    >
+                      <span className="w-10 py-1 px-2 bg-surface-200 text-typography-600 text-[10px] font-bold rounded-lg text-center select-none flex-shrink-0 uppercase tracking-wider">
                         Cc
                       </span>
                       <div className="flex-1 relative">
-                        <input 
+                        <input
                           type="text"
                           placeholder="copia@jwpub.org"
                           value={form.cc}
                           onChange={(e) => handleUpdate('cc', e.target.value)}
                           onBlur={() => setTimeout(() => setActiveSuggestionField(null), 200)}
-                          className="w-full bg-transparent border border-transparent hover:border-gray-200 focus:border-[#de4b39] rounded px-2 py-1 text-xs md:text-sm font-normal text-gray-800 focus:ring-0 placeholder:text-gray-400"
+                          className="w-full bg-transparent border border-transparent hover:border-surface-300 focus:border-primary-200/60 focus:ring-2 focus:ring-primary-200/20 rounded-xl px-2.5 py-1.5 text-xs sm:text-sm font-normal text-typography-800 outline-none placeholder:text-typography-400 transition-all"
                         />
 
                         <AnimatePresence>
                           {activeSuggestionField === 'cc' && ccSuggestions.length > 0 && (
-                            <motion.div 
-                              initial={{ opacity: 0, y: -10 }}
+                            <motion.div
+                              initial={{ opacity: 0, y: -8 }}
                               animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"
+                              exit={{ opacity: 0, y: -8 }}
+                              className="absolute left-0 right-0 top-full mt-1 bg-surface-100 border border-surface-300 rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto"
                             >
                               {ccSuggestions.map((c, i) => (
                                 <button
                                   key={i}
                                   type="button"
                                   onClick={() => selectSuggestion('cc', c)}
-                                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-none"
+                                  className="w-full text-left px-3 py-2.5 hover:bg-surface-200/60 flex flex-col border-b border-surface-300/50 last:border-none transition-colors cursor-pointer"
                                 >
                                   <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-gray-800">{c.name}</span>
-                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">{c.type}</span>
+                                    <span className="text-xs font-bold text-typography-800">{c.name}</span>
+                                    <span className="text-[10px] bg-surface-200 text-typography-500 px-1.5 py-0.5 rounded-full uppercase font-bold">{c.type}</span>
                                   </div>
                                   <div className="flex justify-between items-center mt-0.5">
-                                    <span className="text-[11px] text-gray-500 font-mono">{c.email}</span>
-                                    <span className="text-[10px] text-[#de4b39] font-semibold">{c.congName}</span>
+                                    <span className="text-[11px] text-typography-500 font-mono">{c.email}</span>
+                                    <span className="text-[10px] text-primary-200 font-semibold">{c.congName}</span>
                                   </div>
                                 </button>
                               ))}
@@ -1201,160 +1218,171 @@ export default function InboxView({ onBack }: InboxViewProps) {
                           )}
                         </AnimatePresence>
                       </div>
-                    </div>
+                    </motion.div>
                   )}
+                </AnimatePresence>
 
-                  {/* Subject row */}
-                  <div className="pt-1">
-                    <input 
-                      type="text"
-                      placeholder="Adicione um assunto"
-                      value={form.subject}
-                      onChange={(e) => handleUpdate('subject', e.target.value)}
-                      className="w-full border-b border-gray-200 focus:border-[#de4b39] px-1 py-1.5 text-xs md:text-sm font-semibold text-gray-800 focus:ring-0 placeholder:text-gray-400"
-                    />
-                  </div>
-                </section>
-
-                {/* Attachments Bar */}
-                {(form.attachments.length > 0 || volatileAttachments.length > 0) && (
-                  <section className="px-3 md:px-4 py-2 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                    {/* Saved Attachments */}
-                    {form.attachments.map((file, idx) => (
-                      <div key={`saved-${idx}`} className="flex items-center gap-2 px-2.5 py-1 bg-white border border-blue-200 rounded-lg shadow-2xs group max-w-full">
-                        <div className="p-1 bg-blue-50 rounded text-blue-600 flex-shrink-0">
-                          <Save size={12} />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[11px] font-semibold text-gray-800 truncate max-w-[140px] md:max-w-[200px]">
-                            {file.name}
-                          </span>
-                          <span className="text-[9px] text-gray-400">
-                            {formatFileSize(file.size)} (Salvo)
-                          </span>
-                        </div>
-                        <button 
-                          onClick={() => removeAttachment(idx, false)}
-                          className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors ml-1"
-                          title="Remover anexo"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* Volatile Attachments */}
-                    {volatileAttachments.map((file, idx) => (
-                      <div key={`volatile-${idx}`} className="flex items-center gap-2 px-2.5 py-1 bg-white border border-gray-200 rounded-lg shadow-2xs group max-w-full">
-                        <div className="p-1 bg-gray-100 rounded text-gray-600 flex-shrink-0">
-                          <Paperclip size={12} />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[11px] font-semibold text-gray-800 truncate max-w-[140px] md:max-w-[200px]">
-                            {file.name}
-                          </span>
-                          <span className="text-[9px] text-amber-600">
-                            {formatFileSize(file.size)} (Na memória)
-                          </span>
-                        </div>
-                        <button 
-                          onClick={() => removeAttachment(idx, true)}
-                          className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors ml-1"
-                          title="Remover anexo"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </section>
-                )}
-
-                {/* Message Body */}
-                <div className="flex-1 p-3 md:p-6 min-h-[300px]">
-                  <textarea 
-                    name="message-body"
-                    placeholder="Escreva sua mensagem aqui..."
-                    value={form.content}
-                    onChange={(e) => handleUpdate('content', e.target.value)}
-                    className="w-full h-full border-none p-0 text-xs md:text-sm text-gray-900 leading-relaxed focus:ring-0 resize-none font-sans overflow-hidden"
-                    style={{ minHeight: '300px' }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = 'auto';
-                      target.style.height = target.scrollHeight + 'px';
-                    }}
+                {/* Subject row */}
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Adicione um assunto..."
+                    value={form.subject}
+                    onChange={(e) => handleUpdate('subject', e.target.value)}
+                    className="w-full bg-transparent border-b border-surface-300 focus:border-primary-200/60 px-1 py-1.5 text-xs sm:text-sm font-semibold text-typography-800 outline-none placeholder:text-typography-400 transition-all"
                   />
                 </div>
               </div>
 
-              {/* Footer Toolbar: Action Buttons */}
-              <footer className="border-t border-gray-200 p-2 md:p-2.5 bg-[#fcfbfa] flex-shrink-0 flex flex-col gap-2">
-                {/* Send / Discard / Duplicate Buttons */}
-                <div className="flex items-center justify-between pt-1 gap-2">
+              {/* Attachments Bar */}
+              {(form.attachments.length > 0 || volatileAttachments.length > 0) && (
+                <div className="px-4 sm:px-6 py-2.5 border-b border-surface-300 flex flex-wrap gap-2 max-h-28 overflow-y-auto flex-shrink-0 bg-surface-200/30">
+                  {/* Saved Attachments */}
+                  {form.attachments.map((file, idx) => (
+                    <div key={`saved-${idx}`} className="flex items-center gap-2 px-2.5 py-1.5 bg-surface-100 border border-blue-500/20 rounded-xl shadow-2xs group">
+                      <div className="p-1 bg-blue-500/10 rounded-lg text-blue-500 flex-shrink-0">
+                        <Save size={11} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[11px] font-semibold text-typography-800 truncate max-w-[120px] sm:max-w-[180px]">
+                          {file.name}
+                        </span>
+                        <span className="text-[10px] text-typography-400">
+                          {formatFileSize(file.size)} · Salvo
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeAttachment(idx, false)}
+                        className="p-1 text-typography-400 hover:text-rose-500 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        title="Remover anexo"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Volatile Attachments */}
+                  {volatileAttachments.map((file, idx) => (
+                    <div key={`volatile-${idx}`} className="flex items-center gap-2 px-2.5 py-1.5 bg-surface-100 border border-amber-500/20 rounded-xl shadow-2xs group">
+                      <div className="p-1 bg-amber-500/10 rounded-lg text-amber-500 flex-shrink-0">
+                        <Paperclip size={11} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[11px] font-semibold text-typography-800 truncate max-w-[120px] sm:max-w-[180px]">
+                          {file.name}
+                        </span>
+                        <span className="text-[10px] text-amber-500">
+                          {formatFileSize(file.size)} · Na memória
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeAttachment(idx, true)}
+                        className="p-1 text-typography-400 hover:text-rose-500 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        title="Remover anexo"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Message Body */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <textarea
+                  name="message-body"
+                  placeholder="Escreva sua mensagem aqui..."
+                  value={form.content}
+                  onChange={(e) => handleUpdate('content', e.target.value)}
+                  className="w-full h-full border-none p-4 sm:p-6 text-xs sm:text-sm text-typography-800 leading-relaxed focus:ring-0 resize-none font-sans bg-transparent outline-none"
+                  style={{ minHeight: '300px' }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = target.scrollHeight + 'px';
+                  }}
+                />
+              </div>
+
+              {/* Footer Toolbar */}
+              <div className="border-t border-surface-300 px-4 sm:px-6 py-3 bg-surface-200/30 flex-shrink-0">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <button 
+                    {/* Send */}
+                    <button
                       onClick={handleSendEmail}
                       disabled={sending}
-                      className="bg-[#de4b39] hover:bg-[#c73e2d] text-white text-xs font-bold px-4 md:px-5 py-2 rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                      className="bg-primary-200 hover:bg-primary-200/90 text-white text-xs font-bold px-4 sm:px-5 py-2.5 rounded-2xl shadow-xs transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                     >
-                      {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                      {sending ? <Loader2 size={13} className="animate-spin" /> : <SendHorizonal size={13} />}
                       <span>{sending ? 'Enviando...' : 'Enviar'}</span>
                     </button>
 
-                    <button 
+                    {/* Delete */}
+                    <button
                       onClick={(e) => handleDelete(selectedId, e)}
-                      className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-700 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                      className="px-3 py-2.5 rounded-2xl text-xs font-bold text-typography-600 hover:text-rose-500 bg-surface-200/80 hover:bg-rose-500/10 border border-surface-300 hover:border-rose-500/20 transition-all cursor-pointer"
                       title="Excluir este rascunho"
                     >
-                      <Trash2 size={13} className="md:hidden" />
-                      <span className="hidden md:inline">Descartar</span>
+                      <Trash2 size={13} className="sm:hidden" />
+                      <span className="hidden sm:inline">Descartar</span>
                     </button>
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <button 
+                    {/* Duplicate */}
+                    <button
                       onClick={handleDuplicate}
-                      className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors flex items-center gap-1 text-xs" 
+                      className="p-2.5 hover:bg-surface-200 rounded-xl text-typography-500 hover:text-typography-800 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
                       title="Duplicar modelo"
                     >
                       <Copy size={14} />
-                      <span className="hidden lg:inline text-xs">Duplicar</span>
+                      <span className="hidden lg:inline">Duplicar</span>
                     </button>
+
+                    {/* Attach - visible for MS connected */}
+                    {isMicrosoftConnected && (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2.5 hover:bg-surface-200 rounded-xl text-typography-500 hover:text-typography-800 transition-colors cursor-pointer"
+                        title="Anexar arquivo"
+                      >
+                        <Paperclip size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
-              </footer>
+              </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 text-center space-y-4">
-              <div className="relative">
-                <div className="p-8 md:p-10 bg-white rounded-3xl shadow-xl border border-gray-100">
-                  <FileEdit size={48} className="text-[#de4b39] md:w-16 md:h-16" />
-                </div>
+            // Empty state — no draft selected
+            <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 text-center space-y-4">
+              <div className="w-20 h-20 rounded-3xl bg-surface-200 border border-surface-300 flex items-center justify-center">
+                <Inbox size={36} className="text-typography-400" />
               </div>
               <div className="max-w-xs space-y-2">
-                <h3 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tight">Caixa de Entrada</h3>
-                <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed">
-                  Selecione um rascunho na lista para editar ou clique em "Novo Rascunho" para criar uma nova mensagem.
+                <h3 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">Caixa de Entrada</h3>
+                <p className="text-xs sm:text-sm text-typography-500 font-medium leading-relaxed">
+                  Selecione um rascunho na lista para editar, ou crie uma nova mensagem.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-center gap-2">
-                <button 
+              <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                <button
                   onClick={handleCreateNew}
-                  className="px-6 py-2.5 bg-[#de4b39] text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-[#c73e2d] transition-all active:scale-95 shadow-lg shadow-red-100"
+                  className="px-5 py-2.5 bg-primary-200 text-white rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-primary-200/90 transition-all active:scale-95 shadow-xs cursor-pointer"
                 >
                   Novo Rascunho
                 </button>
-                {/* On mobile, also provide a button to switch to the drafts list */}
                 <button
                   onClick={() => setActiveMobilePane('list')}
-                  className="md:hidden px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-200 transition-colors"
+                  className="sm:hidden px-4 py-2.5 bg-surface-200 text-typography-700 rounded-2xl text-xs font-semibold hover:bg-surface-300 transition-colors cursor-pointer border border-surface-300"
                 >
                   Ver Lista ({drafts.length})
                 </button>
               </div>
             </div>
           )}
-        </main>
+        </div>
       </div>
     </div>
   );

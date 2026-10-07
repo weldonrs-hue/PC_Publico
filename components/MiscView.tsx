@@ -1,6 +1,6 @@
 'use client';
-// Force rebuild - 2026-05-02
-import { FileText, Shapes, Calendar, Receipt, Inbox } from 'lucide-react';
+// Force rebuild - 2026-10-05
+import { FileText, Shapes, Calendar, Receipt, Inbox, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface MiscViewProps {
@@ -14,92 +14,145 @@ interface MiscViewProps {
 const miscItems = [
   {
     id: 'file_viewer',
-    title: 'LEITOR DE ARQUIVOS',
-    subtitle: 'VISUALIZADOR DOCX, PDF E MAIS',
+    title: 'Leitor de Arquivos',
+    subtitle: 'Visualize documentos DOCX, PDF e outros formatos diretamente no navegador.',
+    badge: 'Visualizador',
     color: '#3B82F6', // Blue
-    gradient: 'from-blue-500 to-indigo-600',
+    iconBorder: 'border-blue-500/40 dark:border-blue-400/50',
+    iconColor: 'text-blue-600 dark:text-blue-400',
     icon: FileText,
+    active: true,
+    requiresAdmin: false,
   },
   {
     id: 'field_service_report',
-    title: 'RELATÓRIO DE PREGAÇÃO',
-    subtitle: 'CONTROLE MENSAL DE HORAS E METAS',
+    title: 'Relatório de Pregação',
+    subtitle: 'Registre e acompanhe horas, metas e atividades mensais de campo.',
+    badge: 'Mensal',
     color: '#D81B60', // Magenta
-    gradient: 'from-pink-500 to-rose-600',
+    iconBorder: 'border-pink-500/40 dark:border-pink-400/50',
+    iconColor: 'text-pink-600 dark:text-pink-400',
     icon: Calendar,
+    active: true,
+    requiresAdmin: true,
   },
   {
     id: 'weekly_expenses',
-    title: 'DESPESAS DA SEMANA',
-    subtitle: 'RECIBO E CONTROLE FINANCEIRO',
+    title: 'Despesas da Semana',
+    subtitle: 'Controle financeiro semanal com geração de recibo para reembolso.',
+    badge: 'Financeiro',
     color: '#10B981', // Emerald
-    gradient: 'from-emerald-500 to-teal-600',
+    iconBorder: 'border-emerald-500/40 dark:border-emerald-400/50',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
     icon: Receipt,
+    active: true,
+    requiresAdmin: false,
   },
   {
     id: 'inbox',
-    title: 'CAIXA DE ENTRADA',
-    subtitle: 'RASCUNHOS E ENVIO DE E-MAIL',
+    title: 'Caixa de Entrada',
+    subtitle: 'Gerencie rascunhos, compose e envie e-mails diretamente pelo sistema.',
+    badge: 'E-mail',
     color: '#6366F1', // Indigo
-    gradient: 'from-indigo-500 to-blue-600',
+    iconBorder: 'border-indigo-500/40 dark:border-indigo-400/50',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
     icon: Inbox,
+    active: true,
+    requiresAdmin: false,
   },
 ];
 
 export default function MiscView({ onViewChange, isAdmin, appConfig }: MiscViewProps) {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <div className="bg-violet-100 p-3 rounded-2xl text-violet-600 shadow-inner">
-          <Shapes size={24} strokeWidth={2.5} />
+    <div className="space-y-8 pb-20">
+      {/* Cabeçalho da Página */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-transparent border border-primary-200/40 dark:border-primary-200/50 text-primary-200 flex items-center justify-center shrink-0">
+              <Shapes size={20} strokeWidth={1.8} />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
+              Diversos
+            </h2>
+          </div>
+          <p className="text-xs sm:text-sm text-typography-500 pl-12">
+            Ferramentas e utilitários complementares para a administração do circuito.
+          </p>
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
-          Diversos
-        </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Grid de Opções */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {miscItems.map((item, index) => {
-          const isReport = item.id === 'field_service_report';
-          
-          const isInactive = (isReport && !isAdmin && !appConfig?.reportEnabledForAll);
+          const Icon = item.icon;
+          const isInactive =
+            item.requiresAdmin && !isAdmin && !appConfig?.reportEnabledForAll;
 
           return (
             <motion.div
-              key={item.title}
-              initial={{ opacity: 0, y: 20 }}
+              key={item.id}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              onClick={() => !isInactive && onViewChange(item.id)}
-              className={`relative group h-20 ${isInactive ? 'cursor-not-allowed grayscale' : 'cursor-pointer'}`}
+              transition={{ delay: index * 0.06 }}
+              onClick={() => !isInactive && item.active && onViewChange(item.id)}
+              className={`group relative flex flex-col justify-between p-5 sm:p-6 rounded-3xl bg-surface-100 border border-surface-300 shadow-xs overflow-hidden transition-all duration-300 ${
+                isInactive || !item.active
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'cursor-pointer hover:border-primary-200/40 hover:shadow-xl hover:-translate-y-0.5'
+              }`}
             >
-              {/* Background Glow */}
-              <div 
-                className={`absolute -inset-0.5 blur-md transition-opacity duration-500 rounded-2xl ${isInactive ? 'opacity-0' : 'opacity-20 group-hover:opacity-40'}`}
-                style={{ backgroundColor: isInactive ? '#e2e8f0' : item.color }}
+              {/* Brilho decorativo suave */}
+              <div
+                className="absolute -top-16 -right-16 w-32 h-32 rounded-full blur-3xl opacity-10 group-hover:opacity-25 transition-opacity pointer-events-none"
+                style={{ backgroundColor: item.color }}
               />
-              
-              <div className={`relative flex bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 transition-all duration-300 h-full group ${!isInactive && 'hover:border-transparent'}`}>
-                {/* Vibrant Vertical Accent */}
-                <div className={`w-1.5 h-full bg-gradient-to-b ${item.gradient} ${isInactive ? 'opacity-10' : 'opacity-40 group-hover:opacity-100'} transition-opacity`}></div>
-                
-                <div className="flex-1 flex items-center px-4 gap-4">
-                  <div 
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 shadow-lg shadow-black/5 ${isInactive ? 'bg-gray-200' : `bg-gradient-to-br ${item.gradient} group-hover:scale-105 group-hover:rotate-2`}`}
+
+              {/* Barra superior de destaque */}
+              <div
+                className="absolute top-0 left-0 right-0 h-1 opacity-80 group-hover:opacity-100 transition-opacity"
+                style={{ backgroundImage: `linear-gradient(to right, ${item.color}, transparent)` }}
+              />
+
+              <div className="space-y-4">
+                {/* Top Row: Icon + Badge */}
+                <div className="flex items-start justify-between gap-3">
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${item.iconBorder} ${item.iconColor} bg-transparent transition-all duration-300 group-hover:scale-105 group-hover:bg-surface-200/50`}
                   >
-                    <item.icon size={22} strokeWidth={2.5} className={isInactive ? 'text-gray-400' : 'text-white drop-shadow-md'} />
+                    <Icon size={24} strokeWidth={1.8} />
                   </div>
 
-                  <div className="text-left flex flex-col justify-center overflow-hidden pr-2">
-                    <div className={`font-black text-[10px] md:text-xs leading-tight uppercase mb-0.5 transition-colors ${isInactive ? 'text-gray-400' : 'text-gray-900 group-hover:text-black'}`}>
-                      {item.title}
-                      {isInactive && <span className="ml-2 text-[7px] font-black bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">INATIVO</span>}
-                    </div>
-                    
-                    <div className={`text-[8px] font-bold uppercase tracking-widest ${isInactive ? 'text-gray-300' : 'text-gray-400'}`}>
-                      {isInactive ? 'INDISPONÍVEL NO MOMENTO' : item.subtitle}
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    {isInactive && (
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-300 text-typography-400 border border-surface-300">
+                        INATIVO
+                      </span>
+                    )}
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-surface-200 text-typography-500 border border-surface-300">
+                      {item.badge}
+                    </span>
                   </div>
+                </div>
+
+                {/* Título & Descrição */}
+                <div className="space-y-1">
+                  <h3 className="text-base sm:text-lg font-black text-typography-900 group-hover:text-primary-200 transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-typography-500 leading-relaxed">
+                    {isInactive ? 'Indisponível no momento.' : item.subtitle}
+                  </p>
+                </div>
+              </div>
+
+              {/* Rodapé do Card */}
+              <div className="pt-4 mt-4 border-t border-surface-300/60 flex items-center justify-between text-xs font-bold text-typography-500 group-hover:text-primary-200 transition-colors">
+                <span className="tracking-wide">
+                  {isInactive || !item.active ? 'Indisponível' : 'Acessar'}
+                </span>
+                <div className="w-7 h-7 rounded-full bg-surface-200 group-hover:bg-primary-200/10 flex items-center justify-center transition-all group-hover:translate-x-1">
+                  <ChevronRight size={15} />
                 </div>
               </div>
             </motion.div>
