@@ -1,24 +1,47 @@
 'use client';
-// Force rebuild
-import { useState } from 'react';
+// Force rebuild - WebAuthn Conditional UI
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
-import { User, Lock, ArrowRight, UserPlus, LogIn, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
+import { 
+  User, 
+  Lock, 
+  ArrowRight, 
+  UserPlus, 
+  LogIn, 
+  AlertCircle, 
+  CheckCircle2, 
+  Shield, 
+  Fingerprint, 
+  Key, 
+  KeyRound, 
+  Laptop, 
+  X,
+  Sparkles,
+  Zap,
+  HelpCircle,
+  Smartphone
+} from 'lucide-react';
 
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  signInWithCustomToken
 } from 'firebase/auth';
-
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { 
+  startAuthentication, 
+  browserSupportsWebAuthnAutofill,
+  WebAuthnAbortService 
+} from '@simplewebauthn/browser';
 import TermsAndPrivacy from './TermsAndPrivacy';
+import Logo from './Logo';
 
 interface AuthFormProps {
   onLoginSuccess: (user: any) => void;
 }
-
-import Logo from './Logo';
 
 export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
   const [isLogin, setIsLogin] = useState(true);
@@ -33,12 +56,246 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
     senha: '',
     confirmarSenha: ''
   });
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(true);
+  const [showPasskeyInfo, setShowPasskeyInfo] = useState(false);
+
+  // Check WebAuthn support
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!window.PublicKeyCredential) {
+        setPasskeySupported(false);
+      }
+    }
+  }, []);
+
+  // Shared verification logic
+  const handleVerifyAuthResponse = async (authResponse: any, challenge: string) => {
+    setPasskeyLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      // Recupera registro da chave no Firestore ou localStorage para máxima resiliência
+      let localPasskey = null;
+      try {
+        // 1. Tenta buscar diretamente no Firestore pelo ID retornado pelo autenticador
+        if (authResponse?.id) {
+          try {
+            const credDoc = await getDoc(doc(db, 'webauthn_credentials', authResponse.id));
+            if (credDoc.exists()) {
+              localPasskey = { id: credDoc.id, ...credDoc.data() };
+            } else {
+              const q = query(collection(db, 'webauthn_credentials'), where('id', '==', authResponse.id));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                localPasskey = { id: snap.docs[0].id, ...snap.docs[0].data() };
+              }
+            }
+          } catch (fireErr) {
+            console.warn('Consulta direta Firestore:', fireErr);
+          }
+        }
+
+        // 2. Fallback para localStorage
+        if (!localPasskey) {
+          const rawStored = localStorage.getItem('progcir_passkeys');
+          if (rawStored) {
+            const list = JSON.parse(rawStored);
+            if (Array.isArray(list)) {
+              localPasskey = list.find((item: any) => item.id === authResponse.id) || list[0] || null;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Passkey read notice:', e);
+      }
+
+      // Verify authentication response
+      const verifyRes = await fetch('/api/auth/webauthn/authenticate/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          authenticationResponse: authResponse,
+          expectedChallenge: challenge,
+          clientPasskey: localPasskey,
+        }),
+      });
+
+      const rawVerifyText = await verifyRes.text();
+      let verifyData: any;
+      try {
+        verifyData = JSON.parse(rawVerifyText);
+      } catch {
+        console.error('Resposta de verificação não-JSON:', rawVerifyText);
+        throw new Error(`Erro na validação do login (${verifyRes.status}). Tente novamente.`);
+      }
+
+      if (!verifyRes.ok || !verifyData.verified) {
+        throw new Error(verifyData?.error || 'A verificação da chave de acesso falhou.');
+      }
+
+      const { customToken, userId, email, usuario } = verifyData;
+
+      const isAdminAccount = 
+        email === 'weldonrs@gmail.com' || 
+        email === '2283701@progcir.app' || 
+        email === '2283701@progcir.com' ||
+        email === '2283701@gmail.com' ||
+        usuario === '2283701' ||
+        userId === '2283701';
+
+      if (customToken) {
+        try {
+          const userCredential = await signInWithCustomToken(auth, customToken);
+          onLoginSuccess({
+            id: userCredential.user.uid,
+            usuario: userCredential.user.displayName || usuario || userCredential.user.uid.substring(0, 8),
+            email: userCredential.user.email || email,
+            role: isAdminAccount ? 'admin' : undefined
+          });
+          return;
+        } catch (tokenErr) {
+          console.warn('[Passkey] signInWithCustomToken notice:', tokenErr);
+        }
+      }
+
+      // Conclui o login diretamente com as credenciais validadas criptograficamente
+      onLoginSuccess({
+        id: userId,
+        usuario: usuario || (email ? email.split('@')[0] : userId.substring(0, 8)),
+        email: email || `${usuario || 'usuario'}@progcir.app`,
+        role: isAdminAccount ? 'admin' : 'user'
+      });
+    } catch (err: any) {
+      console.error('Passkey login error:', err);
+      setError(err.message || 'Erro ao entrar com chave de acesso');
+    } finally {
+      setPasskeyLoading(false);
+    }
+  };
+
+  // Explicit passkey login trigger (quando clicado no botão inferior)
+  const handlePasskeyLogin = async () => {
+    setPasskeyLoading(true);
+    setError('');
+    setSuccess('');
+
+    // Cancela escuta em segundo plano para liberar o navegador
+    try {
+      WebAuthnAbortService.cancelCeremony();
+    } catch {}
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      let optionsRes: Response | null = null;
+      try {
+        optionsRes = await fetch('/api/auth/webauthn/authenticate/options', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          cache: 'no-store',
+        });
+      } catch (netErr) {
+        try {
+          optionsRes = await fetch('/api/auth/webauthn/authenticate/options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({}),
+            cache: 'no-store',
+          });
+        } catch {
+          throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
+        }
+      }
+
+      if (!optionsRes || !optionsRes.ok) {
+        throw new Error(`Falha ao obter opções do servidor (${optionsRes?.status || 500})`);
+      }
+      
+      const rawOptText = await optionsRes.text();
+      let options: any;
+      try {
+        options = JSON.parse(rawOptText);
+      } catch {
+        throw new Error(`Resposta do servidor inválida (${optionsRes.status})`);
+      }
+
+      options.allowCredentials = [];
+
+      let authResponse;
+      try {
+        authResponse = await startAuthentication({ optionsJSON: options });
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError') {
+          setPasskeyLoading(false);
+          return;
+        }
+        throw err;
+      }
+
+      await handleVerifyAuthResponse(authResponse, options.challenge);
+    } catch (err: any) {
+      console.error('Passkey login error:', err);
+      setError(err.message || 'Erro ao entrar com chave de acesso');
+      setPasskeyLoading(false);
+    }
+  };
+
+  // WebAuthn Conditional Mediation (Autofill padrão JW.ORG / W3C)
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function initAutofill() {
+      if (!isLogin) return;
+      try {
+        const isSupported = await browserSupportsWebAuthnAutofill();
+        if (!isSupported || isCancelled) return;
+
+        const optionsRes = await fetch('/api/auth/webauthn/authenticate/options', {
+          cache: 'no-store'
+        });
+        if (!optionsRes.ok || isCancelled) return;
+        const rawOptText = await optionsRes.text();
+        let options: any;
+        try {
+          options = JSON.parse(rawOptText);
+        } catch {
+          return;
+        }
+
+        options.allowCredentials = [];
+
+        // Inicia a escuta silenciosa nativa no campo com autoComplete="username webauthn"
+        const authResponse = await startAuthentication({
+          optionsJSON: options,
+          useBrowserAutofill: true,
+        });
+
+        if (isCancelled) return;
+        await handleVerifyAuthResponse(authResponse, options.challenge);
+      } catch (err: any) {
+        if (err.name === 'AbortError' || err.name === 'NotAllowedError') {
+          return;
+        }
+      }
+    }
+
+    initAutofill();
+
+    return () => {
+      isCancelled = true;
+      try {
+        WebAuthnAbortService.cancelCeremony();
+      } catch {}
+    };
+  }, [isLogin]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     if (e.target.name === 'usuario') {
-      // Only allow numbers
-      value = value.replace(/\D/g, '');
+      // Aceita formato de usuário e números
+      value = value.replace(/\s+/g, '');
     }
     setFormData({ ...formData, [e.target.name]: value });
     setError('');
@@ -50,31 +307,21 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
     setError('');
     setSuccess('');
 
-    // Validate username format: numeric personal number (7-10 digits)
-    const usernameRegex = /^\d{7,10}$/;
-    if (!usernameRegex.test(formData.usuario)) {
-      setError('Formato inválido. Use seu número pessoal de 7 a 10 dígitos (ex: 2283701)');
-      setLoading(false);
-      return;
-    }
-
     const formattedUsuario = formData.usuario;
-    const emailApp = `${formattedUsuario}@progcir.app`;
-    const emailCom = `${formattedUsuario}@progcir.com`;
+    const isEmail = formattedUsuario.includes('@');
+    const emailApp = isEmail ? formattedUsuario : `${formattedUsuario}@progcir.app`;
+    const emailCom = isEmail ? formattedUsuario : `${formattedUsuario}@progcir.com`;
 
     try {
       if (isLogin) {
         let userCredential;
         try {
-          // Try with the new domain first
           userCredential = await signInWithEmailAndPassword(auth, emailApp, formData.senha);
         } catch (err: any) {
-          // If it fails with user not found or invalid credential, try the old domain
           if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/user-disabled') {
             try {
               userCredential = await signInWithEmailAndPassword(auth, emailCom, formData.senha);
             } catch (secondErr: any) {
-              // If both fail, throw the second error (or the first one)
               throw secondErr;
             }
           } else {
@@ -82,16 +329,23 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
           }
         }
 
+        const isAdminAccount = 
+          userCredential.user.email === 'weldonrs@gmail.com' || 
+          userCredential.user.email === '2283701@progcir.app' || 
+          userCredential.user.email === '2283701@progcir.com' ||
+          userCredential.user.email === '2283701@gmail.com' ||
+          formattedUsuario === '2283701';
+
         onLoginSuccess({
           id: userCredential.user.uid,
           usuario: formattedUsuario,
-          email: userCredential.user.email
+          email: userCredential.user.email,
+          role: isAdminAccount ? 'admin' : 'user'
         });
       } else {
         if (formData.senha !== formData.confirmarSenha) {
           throw new Error('As senhas não coincidem');
         }
-        // Always create new accounts with the .app domain
         const userCredential = await createUserWithEmailAndPassword(auth, emailApp, formData.senha);
         await updateProfile(userCredential.user, { displayName: formattedUsuario });
         
@@ -102,7 +356,7 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
     } catch (err: any) {
       let message = 'Ocorreu um erro inesperado';
       if (err.code === 'auth/operation-not-allowed') {
-        message = 'O login por E-mail/Senha não está ativado no Console do Firebase. Por favor, ative-o em Authentication > Sign-in method.';
+        message = 'O login por E-mail/Senha não está ativado no Console do Firebase.';
       } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         message = 'Usuário ou senha incorretos';
       } else if (err.code === 'auth/email-already-in-use') {
@@ -142,22 +396,25 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
             </motion.div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">Acesso ao Sistema ProgCir</h1>
             <p className="text-gray-500 text-xs mt-1.5">
-              {isLogin ? 'Entre com sua identificação para continuar' : 'Use seu número pessoal de 7 dígitos'}
+              {isLogin ? 'Entre com sua identificação para continuar' : 'Use seu número pessoal ou identificação'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Identificação (Usuário)</label>
+              <label htmlFor="usuario" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">
+                Nome de usuário
+              </label>
+              
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                 <input
                   type="text"
                   name="usuario"
+                  id="usuario"
+                  autoComplete="username webauthn"
                   value={formData.usuario}
                   onChange={handleChange}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
                   placeholder="Ex: 2283701"
                   className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#6c40bd] focus:border-transparent transition-all outline-none text-sm text-gray-700"
                   required
@@ -166,12 +423,14 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Senha</label>
+              <label htmlFor="senha" className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider ml-1">Senha</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="password"
                   name="senha"
+                  id="senha"
+                  autoComplete="current-password"
                   value={formData.senha}
                   onChange={handleChange}
                   placeholder="Sua senha secreta"
@@ -230,8 +489,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-[#6c40bd] hover:bg-[#5a35a0] text-white font-bold py-3 rounded-2xl shadow-lg shadow-purple-100 transition-all flex items-center justify-center gap-2 disabled:opacity-70 group text-sm"
+              disabled={loading || passkeyLoading}
+              className="w-full bg-[#6c40bd] hover:bg-[#5a35a0] text-white font-bold py-3 rounded-2xl transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 text-sm group"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -243,6 +502,51 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
               )}
             </button>
           </form>
+
+          {isLogin && passkeySupported && (
+            <div className="mt-6 space-y-3">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-100"></div>
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+                  <span className="bg-white px-3 text-gray-400">Ou use biometria</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePasskeyLogin();
+                  }}
+                  disabled={loading || passkeyLoading}
+                  className="w-full bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/80 text-indigo-950 font-bold py-3 px-4 rounded-2xl transition-all flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-70 text-sm shadow-sm cursor-pointer group"
+                >
+                  <div className="p-1.5 bg-indigo-600 text-white rounded-xl shadow-xs">
+                    {passkeyLoading ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Fingerprint className="w-4 h-4" />
+                    )}
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold">Entrar com Chave de Acesso</span>
+                </button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasskeyInfo(true)}
+                    className="text-[11px] text-gray-400 hover:text-indigo-600 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <HelpCircle className="w-3 h-3" />
+                    Como funciona a Chave de Acesso?
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 pt-4 border-t border-gray-100 text-center space-y-4">
             <button
@@ -287,11 +591,87 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
               <p className="text-[9px] text-gray-400/80 flex items-center justify-center gap-1">
                 <Shield size={10} /> Sistema Seguro e Protegido
               </p>
-              <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.2em] mt-2">v0.1.1</p>
+              <p className="text-[8px] text-gray-300 font-black uppercase tracking-[0.2em] mt-2">v1.5.0</p>
             </div>
           </div>
         </div>
       </motion.div>
+
+      {/* Modal Educativo / Novidades de Passkeys */}
+      <AnimatePresence>
+        {showPasskeyInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowPasskeyInfo(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
+                    <Sparkles className="w-5 h-5 text-amber-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold">Chaves de Segurança (Passkeys)</h3>
+                    <p className="text-xs text-indigo-200">Acesso moderno e sem senhas</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPasskeyInfo(false)}
+                  className="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-3.5 overflow-y-auto text-xs text-gray-600 leading-relaxed">
+                <div className="flex items-start gap-3 p-3 bg-indigo-50/70 rounded-2xl border border-indigo-100">
+                  <Zap className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-gray-900 block mb-0.5">O que é uma Passkey?</span>
+                    É a forma mais rápida e segura de entrar no ProgCir. Em vez de digitar sua senha, você usa a mesma impressão digital, Face ID ou PIN que já usa para desbloquear seu celular ou computador.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-emerald-50/70 rounded-2xl border border-emerald-100">
+                  <Shield className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-gray-900 block mb-0.5">Como cadastrar a sua?</span>
+                    1. Faça login na sua conta normalmente com sua senha.<br/>
+                    2. Vá em <b>Ajustes ➔ Chaves de Acesso</b>.<br/>
+                    3. Toque em <b>&ldquo;Adicionar Chave deste Aparelho&rdquo;</b> e confirme sua digital.
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-purple-50/70 rounded-2xl border border-purple-100">
+                  <Smartphone className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-gray-900 block mb-0.5">Vários aparelhos</span>
+                    Você pode cadastrar seu Celular Android, iPhone, Tablet ou Computador. Cada aparelho terá sua própria chave registrada de forma segura.
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={() => setShowPasskeyInfo(false)}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                >
+                  Entendi
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <TermsAndPrivacy 
         isOpen={showTerms} 

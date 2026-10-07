@@ -155,7 +155,7 @@ export default function DashboardCards({
                       <span className="text-xs text-typography-500 truncate">
                         {personalData?.nome || user?.usuario || 'Seu perfil'}
                       </span>
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || user?.email === 'weldonrs@gmail.com' || user?.usuario === '2283701' || user?.email === '2283701@progcir.app' || user?.email === '2283701@progcir.com') && (
                         <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded">
                           Admin
                         </span>

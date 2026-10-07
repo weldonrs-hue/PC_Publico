@@ -167,6 +167,15 @@ export default function Sidebar({
     }
   };
 
+  const isAdminUser = 
+    user?.role === 'admin' || 
+    user?.usuario === '2283701' || 
+    user?.email === 'weldonrs@gmail.com' ||
+    user?.email === '2283701@progcir.app' ||
+    user?.email === '2283701@progcir.com' ||
+    user?.email === '2283701@gmail.com' ||
+    user?.id === '2283701';
+
   const menuItems = navItems.filter((item) => {
     const role = personalData?.role || 'viajante';
     if (role === 'pioneiro_especial' || role === 'pioneiro_regular') {
@@ -315,6 +324,9 @@ export default function Sidebar({
             <LogOut size={18} strokeWidth={1.8} />
             <span className="text-[10px] font-medium mt-0.5 truncate" style={{ color: 'var(--sidebar-text)' }}>Sair</span>
           </button>
+          <div className="portrait:flex landscape:hidden items-center justify-center px-4 opacity-20 select-none">
+            <span className="text-[8px] font-black tracking-widest">v1.5.0</span>
+          </div>
         </nav>
 
         {/* Right Scroll Arrow (Mobile Portrait only) */}
@@ -354,7 +366,7 @@ export default function Sidebar({
         </button>
 
         <div className="pt-2 text-[9px] text-white/40 font-bold uppercase tracking-wider text-center hidden lg:block">
-          ProgCir v1.4.0
+          ProgCir v1.5.0
         </div>
       </div>
 

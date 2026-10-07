@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -17,9 +17,9 @@ const app = getApps().length > 0 ? getApp() : initializeApp(effectiveConfig);
 console.log('[Firebase] App initialized with project:', effectiveConfig.projectId);
 export const auth = getAuth(app);
 
-// Set persistence to local (kept after tab close, cleared only on logout)
+// Define persistência por sessão (exige login explícito por senha ou chave de acesso ao abrir o aplicativo)
 if (typeof window !== 'undefined') {
-  setPersistence(auth, browserLocalPersistence).catch((error) => {
+  setPersistence(auth, browserSessionPersistence).catch((error) => {
     console.error('Error setting auth persistence:', error);
   });
 }

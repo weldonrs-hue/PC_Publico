@@ -372,6 +372,33 @@
         "syncTime": { "type": "string", "format": "date-time", "description": "Server timestamp when the state was last synced" }
       },
       "required": ["userId", "mode", "isRunning", "time", "syncTime"]
+    },
+    "webauthn_authenticator": {
+      "title": "WebAuthn Authenticator",
+      "description": "Registered WebAuthn credential for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Base64url encoded credential ID" },
+        "publicKey": { "type": "object", "description": "Firestore Blob (Public Key)" },
+        "counter": { "type": "integer", "description": "Signature counter" },
+        "transports": { "type": "array", "items": { "type": "string" } },
+        "userId": { "type": "string", "description": "UID of the owner" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastUsedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "publicKey", "counter", "userId"]
+    },
+    "webauthn_challenge": {
+      "title": "WebAuthn Challenge",
+      "description": "Temporary challenge for registration or authentication",
+      "type": "object",
+      "properties": {
+        "challenge": { "type": "string" },
+        "userId": { "type": "string", "description": "Optional: userId for registration" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["registration", "authentication"] }
+      },
+      "required": ["challenge", "expiresAt", "type"]
     }
   },
   "firestore": {
@@ -474,6 +501,14 @@
     "/circuit_assembly_branch_invitations/{invitationId}": {
       "schema": "circuit_assembly_invitation",
       "description": "Invitations for CAbr assembly assistants"
+    },
+    "/webauthn_credentials/{credentialId}": {
+      "schema": "webauthn_authenticator",
+      "description": "Flat collection of registered WebAuthn credentials"
+    },
+    "/webauthn_challenges/{challengeId}": {
+      "schema": "webauthn_challenge",
+      "description": "Temporary collection of WebAuthn challenges"
     }
   }
 }

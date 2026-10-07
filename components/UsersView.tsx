@@ -51,10 +51,11 @@ interface UserMetadata {
   role: string;
   createdAt: any;
   lastLogin: any;
-  photoURL?: string;
+  photoURL?: string | null;
   nome?: string;
   numeroPessoal?: string;
   isInactive?: boolean;
+  hasPasskey?: boolean;
 }
 
 interface RoleChangeRequest {
@@ -95,66 +96,213 @@ export default function UsersView({ onBack }: UsersViewProps) {
   const fetchUsers = async () => {
     setRefreshing(true);
     try {
-      // Fetch users, personal data and publishers in parallel
-      const [usersSnapshot, personalDataSnapshot, publishersSnapshot] = await Promise.all([
+      // Fetch collections using Promise.allSettled so a failure or empty collection in one doesn't crash the other
+      const [usersRes, pdRes, pubRes, credsRes] = await Promise.allSettled([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'personal_data')),
-        getDocs(collection(db, 'publishers'))
+        getDocs(collection(db, 'publishers')),
+        getDocs(collection(db, 'webauthn_credentials'))
       ]);
 
-      const usersDocs = usersSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-      const pdDocs = personalDataSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-      const pubDocs = publishersSnapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const usersDocs: any[] = usersRes.status === 'fulfilled' ? usersRes.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+      const pdDocs: any[] = pdRes.status === 'fulfilled' ? pdRes.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+      const pubDocs: any[] = pubRes.status === 'fulfilled' ? pubRes.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+      const credsDocs: any[] = credsRes.status === 'fulfilled' ? credsRes.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
 
-      // Create a set of all unique identifiers (UIDs or emails)
-      const allUids = Array.from(new Set([
-        ...usersDocs.map(u => u.id),
-        ...pdDocs.map(p => p.userId).filter(Boolean),
-        ...pdDocs.map(p => p.id),
-        ...pubDocs.filter(p => p.hasAppAccess).map(p => p.email).filter(Boolean)
-      ]));
-      
-      const usersData = allUids.map(uid => {
-        const userData = usersDocs.find(u => u.id === uid || u.email === uid);
-        const pdData = pdDocs.find(p => p.id === uid || p.userId === uid || p.emailPessoal === uid || p.emailJwpub === uid);
-        const pubData = pubDocs.find(p => p.email === uid || (userData?.email && p.email === userData.email));
-        
-        // Use UID as fallback for email if it looks like an email (TJSec pattern)
-        const email = (userData?.email || (userData?.usuario?.includes('@') ? userData.usuario : '') || pdData?.emailPessoal || pdData?.emailJwpub || pubData?.email || (uid.includes('@') ? uid : '')).trim();
-        
-        // Account identification (visual tags only, does not grant permission)
-        const isTjSec = /@tjsec\.app$/i.test(email) || pdData?.role === 'secretaria' || userData?.role === 'secretaria' || (pubData && pubData.hasAppAccess);
-        
-        // If it's a TJSec account, we try to extract the congregation number from the email or use other fields
-        const tjSecNumber = isTjSec ? (email.includes('@') ? email.split('@')[0] : (pdData?.numeroPessoal || userData?.usuario || '')) : '';
-        
-        // Check if this account should be shown
-        const isRealUser = !!userData || !!pdData || (pubData && pubData.hasAppAccess);
+      // Helper para encontrar personal_data correspondente com busca abrangente
+      const findMatchingPd = (userData?: any, fallbackId?: string) => {
+        if (!userData && !fallbackId) return null;
+        const uid = userData?.id || fallbackId;
+        const usuario = userData?.usuario;
+        const email = (userData?.email || '').toLowerCase().trim();
+        const emailPrefix = email.includes('@') ? email.split('@')[0] : '';
 
-        return {
-          id: uid,
-          ...userData,
-          nome: pdData?.nome || pubData?.name || userData?.nome || (userData?.displayName || (userData?.usuario && userData?.usuario.length > 5 ? userData?.usuario : 'Sem nome')),
-          role: pdData?.role || userData?.role || 'user',
-          numeroPessoal: pdData?.numeroPessoal || userData?.usuario || tjSecNumber || '---',
-          photoURL: pdData?.profilePhoto || userData?.photoURL || null,
-          isInactive: !!userData?.isInactive,
-          email: email,
-          isRealUser: isRealUser 
-        } as UserMetadata;
-      });
+        return pdDocs.find(p => {
+          // 1. Por UID exato ou userId
+          if (uid && (p.id === uid || p.userId === uid)) return true;
+          
+          // 2. Por numeroPessoal / usuario
+          if (usuario && (p.numeroPessoal === usuario || p.id === usuario || p.userId === usuario || p.usuario === usuario)) return true;
+          
+          // 3. Por prefixo do email (ex: 2283701@progcir.app -> numeroPessoal: 2283701)
+          if (emailPrefix && (p.numeroPessoal === emailPrefix || p.id === emailPrefix || p.userId === emailPrefix)) return true;
 
-      // Filter to only show real users (Auth, TJSec or with Personal Data)
-      const filteredRealUsers = usersData.filter(u => (u as any).isRealUser);
+          // 4. Por email pessoal ou institucional
+          if (email) {
+            if (p.emailPessoal && p.emailPessoal.toLowerCase().trim() === email) return true;
+            if (p.emailJwpub && p.emailJwpub.toLowerCase().trim() === email) return true;
+            if (p.email && p.email.toLowerCase().trim() === email) return true;
+          }
 
-      // Sort in-memory: newest first, users without date at the end
-      filteredRealUsers.sort((a, b) => {
+          return false;
+        }) || null;
+      };
+
+      // Helper para verificar se um usuário possui passkey cadastrada
+      const checkHasPasskey = (uid?: string, email?: string, usuario?: string) => {
+        return credsDocs.some(c => {
+          if (uid && (c.userId === uid || c.id === uid)) return true;
+          if (email && c.email && c.email.toLowerCase().trim() === email.toLowerCase().trim()) return true;
+          if (usuario && c.userName && c.userName === usuario) return true;
+          return false;
+        });
+      };
+
+      const processedUserIds = new Set<string>();
+      const processedPdIds = new Set<string>();
+      const processedEmails = new Set<string>();
+      const processedNumbers = new Set<string>();
+      const usersData: UserMetadata[] = [];
+
+      // 1. Processar todas as contas da coleção 'users'
+      for (const u of usersDocs) {
+        if (processedUserIds.has(u.id)) continue;
+        processedUserIds.add(u.id);
+
+        const pdData = findMatchingPd(u);
+        if (pdData?.id) processedPdIds.add(pdData.id);
+        if (pdData?.userId) processedUserIds.add(pdData.userId);
+
+        const email = (u.email || (u.usuario?.includes('@') ? u.usuario : '') || pdData?.emailPessoal || pdData?.emailJwpub || '').trim();
+        const numeroPessoal = pdData?.numeroPessoal || u.usuario || (email.includes('@progcir') ? email.split('@')[0] : '') || '---';
+
+        if (email) processedEmails.add(email.toLowerCase());
+        if (numeroPessoal && numeroPessoal !== '---') processedNumbers.add(numeroPessoal);
+
+        const pubData = pubDocs.find(p => (email && p.email?.toLowerCase() === email.toLowerCase()) || (u.displayName && p.name === u.displayName));
+
+        const isAdmin = 
+          u.role === 'admin' ||
+          pdData?.role === 'admin' ||
+          email.toLowerCase() === 'weldonrs@gmail.com' ||
+          email.toLowerCase() === '2283701@progcir.app' ||
+          email.toLowerCase() === '2283701@progcir.com' ||
+          email.toLowerCase() === '2283701@gmail.com' ||
+          numeroPessoal === '2283701' ||
+          u.usuario === '2283701' ||
+          u.id === '2283701';
+
+        const isTjSec = /@tjsec\.app$/i.test(email) || pdData?.role === 'secretaria' || u.role === 'secretaria' || Boolean(pubData?.hasAppAccess);
+        const role = isAdmin ? 'admin' : (pdData?.role || u.role || (isTjSec ? 'secretaria' : 'user'));
+
+        const nome = 
+          pdData?.nome || 
+          pubData?.name || 
+          u.nome || 
+          u.displayName || 
+          (numeroPessoal !== '---' ? `Usuário ${numeroPessoal}` : '') ||
+          'Sem nome';
+
+        usersData.push({
+          id: u.id,
+          ...u,
+          nome,
+          email,
+          numeroPessoal,
+          role,
+          photoURL: pdData?.profilePhoto || pdData?.foto || u.photoURL || null,
+          isInactive: Boolean(u.isInactive),
+          hasPasskey: checkHasPasskey(u.id, email, u.usuario),
+          createdAt: u.createdAt || pdData?.createdAt || null,
+          lastLogin: u.lastLogin || pdData?.lastLogin || null,
+        } as UserMetadata);
+      }
+
+      // 2. Processar registros de personal_data que não foram vinculados a um user doc ainda
+      for (const pd of pdDocs) {
+        if (processedPdIds.has(pd.id)) continue;
+        if (pd.userId && processedUserIds.has(pd.userId)) continue;
+        if (processedUserIds.has(pd.id)) continue;
+
+        const email = (pd.emailPessoal || pd.emailJwpub || pd.email || '').trim();
+        const numeroPessoal = pd.numeroPessoal || (email.includes('@progcir') ? email.split('@')[0] : '') || '---';
+
+        // Evitar duplicar se o email ou número já foram processados na primeira etapa
+        if (email && processedEmails.has(email.toLowerCase())) continue;
+        if (numeroPessoal !== '---' && processedNumbers.has(numeroPessoal)) continue;
+
+        const userUniqueId = pd.userId || pd.id;
+        if (processedUserIds.has(userUniqueId)) continue;
+        processedUserIds.add(userUniqueId);
+        processedPdIds.add(pd.id);
+        if (email) processedEmails.add(email.toLowerCase());
+        if (numeroPessoal !== '---') processedNumbers.add(numeroPessoal);
+
+        const pubData = pubDocs.find(p => (email && p.email?.toLowerCase() === email.toLowerCase()) || (pd.nome && p.name === pd.nome));
+
+        const isAdmin = 
+          pd.role === 'admin' ||
+          email.toLowerCase() === 'weldonrs@gmail.com' ||
+          email.toLowerCase() === '2283701@progcir.app' ||
+          email.toLowerCase() === '2283701@progcir.com' ||
+          email.toLowerCase() === '2283701@gmail.com' ||
+          numeroPessoal === '2283701' ||
+          pd.id === '2283701' ||
+          pd.userId === '2283701';
+
+        const isTjSec = /@tjsec\.app$/i.test(email) || pd.role === 'secretaria' || Boolean(pubData?.hasAppAccess);
+        const role = isAdmin ? 'admin' : (pd.role || (isTjSec ? 'secretaria' : 'user'));
+
+        const nome = pd.nome || pubData?.name || (numeroPessoal !== '---' ? `Usuário ${numeroPessoal}` : 'Sem nome');
+
+        usersData.push({
+          id: userUniqueId,
+          nome,
+          email,
+          numeroPessoal,
+          role,
+          photoURL: pd.profilePhoto || pd.foto || null,
+          isInactive: false,
+          hasPasskey: checkHasPasskey(userUniqueId, email, numeroPessoal),
+          createdAt: pd.createdAt || null,
+          lastLogin: pd.lastLogin || null,
+        } as UserMetadata);
+      }
+
+      // 3. Processar contas TJSec ou publicadores com acesso que não foram listados
+      for (const pub of pubDocs) {
+        if (!pub.hasAppAccess || !pub.email) continue;
+        const email = pub.email.trim();
+        if (processedEmails.has(email.toLowerCase())) continue;
+        processedEmails.add(email.toLowerCase());
+
+        const pubUniqueId = pub.id || email;
+        if (processedUserIds.has(pubUniqueId)) continue;
+        processedUserIds.add(pubUniqueId);
+
+        const tjSecNum = email.includes('@') ? email.split('@')[0] : '---';
+
+        usersData.push({
+          id: pubUniqueId,
+          nome: pub.name || 'Secretaria TJSec',
+          email,
+          numeroPessoal: tjSecNum,
+          role: 'secretaria',
+          photoURL: null,
+          isInactive: false,
+          hasPasskey: checkHasPasskey(undefined, email),
+          createdAt: pub.createdAt || null,
+          lastLogin: null,
+        } as UserMetadata);
+      }
+
+      // Desduplicação final por ID garantida
+      const uniqueUsersMap = new Map<string, UserMetadata>();
+      for (const item of usersData) {
+        if (!uniqueUsersMap.has(item.id)) {
+          uniqueUsersMap.set(item.id, item);
+        }
+      }
+      const finalUsers = Array.from(uniqueUsersMap.values());
+
+      // Ordenar: mais recentes primeiro, usuários sem data ao final
+      finalUsers.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
       
-      setUsers(filteredRealUsers);
+      setUsers(finalUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       handleFirestoreError(error, OperationType.GET, 'users_and_personal_data');
@@ -720,6 +868,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
                                 Secretaria (TJSec)
                               </span>
                             )}
+                            {user.hasPasskey && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase border border-indigo-200" title="Possui chave de acesso (passkey) cadastrada">
+                                <Fingerprint size={8} />
+                                Passkey
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -771,7 +925,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
                         >
                           <Fingerprint size={16} />
                         </button>
-                        {auth.currentUser?.uid !== user.id && (
+                        {auth.currentUser?.uid !== user.id && user.role !== 'admin' && user.email !== 'weldonrs@gmail.com' && (
                           <button
                             onClick={() => setUserToDelete(user)}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
