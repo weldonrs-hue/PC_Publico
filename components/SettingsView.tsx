@@ -1125,6 +1125,18 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                       : "cursor-pointer hover:border-primary-200 hover:shadow-md hover:-translate-y-0.5"
                   )}
                 >
+                  {/* Brilho decorativo no canto */}
+                  <div 
+                    className="absolute -top-16 -right-16 w-32 h-32 rounded-full blur-3xl opacity-10 group-hover:opacity-25 transition-opacity pointer-events-none"
+                    style={{ backgroundColor: btn.color }}
+                  />
+
+                  {/* Barra superior de destaque em gradiente */}
+                  <div 
+                    className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundImage: `linear-gradient(to right, ${btn.color}, transparent)` }}
+                  />
+
                   <div className="space-y-4">
                     {/* Top Row: Icon + Badge / Counter */}
                     <div className="flex items-center justify-between">
