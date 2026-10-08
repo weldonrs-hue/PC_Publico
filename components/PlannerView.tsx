@@ -47,6 +47,7 @@ import {
 import { useDialog } from '@/hooks/useDialog';
 import { cn } from '@/lib/utils';
 import PlannerItemModal from './PlannerItemModal';
+import CustomSelect from '@/components/CustomSelect';
 
 interface PlannerViewProps {
   userId?: string;
@@ -452,16 +453,19 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
         <div className="flex items-center gap-2.5 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-surface-300/60 justify-end">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-black uppercase tracking-wider text-typography-400">Prioridade:</span>
-            <select
+            <CustomSelect
               value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-2.5 py-1 bg-surface-200 border border-surface-300 rounded-xl text-xs text-typography-900 font-bold outline-none cursor-pointer focus:border-primary-200"
-            >
-              <option value="all">Todas</option>
-              <option value="high">Alta (🔴)</option>
-              <option value="medium">Média (🟡)</option>
-              <option value="low">Baixa (🟢)</option>
-            </select>
+              onChange={setPriorityFilter}
+              size="sm"
+              align="right"
+              className="w-32 sm:w-36"
+              options={[
+                { value: 'all', label: 'Todas' },
+                { value: 'high', label: 'Alta (🔴)' },
+                { value: 'medium', label: 'Média (🟡)' },
+                { value: 'low', label: 'Baixa (🟢)' },
+              ]}
+            />
           </div>
 
           {/* Alternador de Layout: Grade (agrupada) vs Lista */}
