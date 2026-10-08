@@ -400,7 +400,8 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         }
       `}</style>
       {/* Header - Hidden in Print */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-surface-100 border border-surface-300 p-4 sm:p-5 rounded-3xl shadow-sm print:hidden gap-4">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-surface-100 border border-surface-300 p-4 sm:p-5 rounded-3xl shadow-sm print:hidden gap-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
         <div className="flex items-center gap-3">
           <button 
             onClick={onBack} 

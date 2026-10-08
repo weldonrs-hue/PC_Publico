@@ -2578,8 +2578,9 @@ export default function PioneerSchoolView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-md overflow-hidden"
+              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-md overflow-hidden relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-transparent z-10" />
               <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50">
                 <h3 className="text-base font-black text-typography-900 uppercase tracking-wider">
                   {editingStudent ? 'Editar Aluno' : 'Novo Aluno'}
@@ -2683,8 +2684,9 @@ export default function PioneerSchoolView({
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-5 sm:p-6 text-center"
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-5 sm:p-6 text-center relative"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
               <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
                 <AlertTriangle size={24} />
               </div>
@@ -2731,17 +2733,18 @@ export default function PioneerSchoolView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-surface-100 rounded-3xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 relative text-typography-900"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-transparent z-10" />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50">
                 <div className="flex items-center gap-2">
-                  <ClipboardPaste className="text-[#37616b]" size={24} />
-                  <h3 className="text-lg font-bold text-gray-800">
+                  <ClipboardPaste className="text-teal-600 dark:text-teal-400" size={24} />
+                  <h3 className="text-lg font-bold text-typography-900">
                     Importar da Área de Transferência
                   </h3>
                 </div>
-                <button onClick={() => setIsImportModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
+                <button onClick={() => setIsImportModalOpen(false)} className="text-typography-400 hover:text-typography-900 p-1 rounded-xl hover:bg-surface-200 transition-colors cursor-pointer">
+                  <X size={20} />
                 </button>
               </div>
 

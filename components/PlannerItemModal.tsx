@@ -179,9 +179,16 @@ export default function PlannerItemModal({
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        className="bg-surface-100 border border-surface-300 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden text-typography-900 my-auto flex flex-col max-h-[92vh]"
+        className="bg-surface-100 border border-surface-300 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden text-typography-900 my-auto flex flex-col max-h-[92vh] relative"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Dynamic top gradient line */}
+        <div 
+          className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90 transition-all z-10"
+          style={{
+            backgroundImage: `linear-gradient(to right, ${type === 'task' ? '#6d42be' : '#3b82f6'}, transparent)`
+          }}
+        />
         {/* Header */}
         <div className="p-4 sm:p-5 bg-surface-200/50 border-b border-surface-300 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">

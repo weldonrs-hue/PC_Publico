@@ -1667,8 +1667,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden p-5 sm:p-6 text-center"
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden p-5 sm:p-6 text-center relative"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
               <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
                 <AlertTriangle size={24} />
               </div>
@@ -1713,8 +1714,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-100 border border-surface-300 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh] relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
               <div className="bg-surface-200 border-b border-surface-300 px-5 py-4 text-typography-900 flex justify-between items-center shrink-0">
                 <h3 className="font-bold flex items-center gap-2">
                   <Calculator size={22} className="text-primary-200" /> Média de Pioneiro Individual
@@ -1845,8 +1847,9 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-100 border border-surface-300 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
               <div className="bg-surface-200 border-b border-surface-300 px-5 py-4 text-typography-900 flex justify-between items-center">
                 <h3 className="font-bold flex items-center gap-2">
                   <Calculator size={22} className="text-primary-200" /> Calcular Média

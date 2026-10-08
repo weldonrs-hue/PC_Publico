@@ -673,8 +673,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
           <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="bg-surface-100 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-surface-300 text-center"
+            className="bg-surface-100 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-surface-300 text-center relative overflow-hidden"
           >
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
             <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
               <AlertTriangle size={24} />
             </div>

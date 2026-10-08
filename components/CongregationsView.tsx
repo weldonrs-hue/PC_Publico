@@ -1269,8 +1269,9 @@ export default function CongregationsView({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="bg-surface-100 rounded-2xl shadow-sm border border-surface-300 overflow-hidden"
+            className="bg-surface-100 rounded-3xl shadow-sm border border-surface-300 overflow-hidden relative"
           >
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-transparent z-10" />
             <div className="bg-gradient-to-r from-primary-200 to-primary-150 p-4 sm:p-5 text-white flex justify-between items-center gap-2">
               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <button
@@ -1838,8 +1839,9 @@ export default function CongregationsView({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 text-typography-900"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 text-typography-900 relative"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-transparent z-10" />
               <div className="bg-gradient-to-r from-primary-200 to-primary-150 p-6 text-white flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-lg">

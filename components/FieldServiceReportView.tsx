@@ -1208,8 +1208,9 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-surface-100 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full my-auto flex flex-col gap-6 max-h-[90vh] overflow-hidden border border-surface-300"
+              className="bg-surface-100 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full my-auto flex flex-col gap-6 max-h-[90vh] overflow-hidden border border-surface-300 relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
               <div className="flex justify-between items-center shrink-0">
                 <div className="space-y-0.5">
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-typography-900">
@@ -1427,8 +1428,9 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-surface-100 rounded-3xl p-5 sm:p-7 max-w-md w-full shadow-2xl space-y-5 border border-surface-300"
+              className="bg-surface-100 rounded-3xl p-5 sm:p-7 max-w-md w-full shadow-2xl space-y-5 border border-surface-300 relative overflow-hidden text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
               <div className="flex items-center justify-between pb-3.5 border-b border-surface-300">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-primary-200/10 flex items-center justify-center text-primary-200 border border-primary-200/20">

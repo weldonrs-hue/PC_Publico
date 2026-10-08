@@ -2397,8 +2397,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="bg-surface-100 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-surface-300"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-surface-300 relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
               {/* Modal Header */}
               <div className="px-5 py-3.5 border-b border-surface-300 bg-surface-200/40 flex justify-between items-center">
                 <h3 className="font-bold text-typography-900 flex items-center gap-2 text-sm sm:text-base">

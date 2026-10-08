@@ -1062,28 +1062,18 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         className="space-y-8 relative pb-20"
       >
         {/* Cabeçalho da Página */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-transparent border border-primary-200/40 dark:border-primary-200/50 text-primary-200 flex items-center justify-center shrink-0">
-                <Settings size={20} strokeWidth={1.8} />
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
-                Ajustes
-              </h2>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-transparent border border-primary-200/40 dark:border-primary-200/50 text-primary-200 flex items-center justify-center shrink-0">
+              <Settings size={20} strokeWidth={1.8} />
             </div>
-            <p className="text-xs sm:text-sm text-typography-500 pl-12">
-              Configurações da conta, permissões, ferramentas e integrações do sistema.
-            </p>
+            <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
+              Ajustes
+            </h2>
           </div>
-          <button 
-            onClick={onBack}
-            className="self-start sm:self-center p-2 sm:p-2.5 bg-surface-100 hover:bg-surface-200 text-typography-700 hover:text-typography-900 rounded-2xl border border-surface-300 shadow-xs transition-all active:scale-95 shrink-0 flex items-center gap-2 text-xs font-bold"
-            title="Fechar Ajustes"
-          >
-            <X size={18} strokeWidth={2.5} />
-            <span className="sm:hidden">Fechar</span>
-          </button>
+          <p className="text-xs sm:text-sm text-typography-500 pl-12">
+            Configurações da conta, permissões, ferramentas e integrações do sistema.
+          </p>
         </div>
 
         {/* Grid de Opções */}
@@ -1493,8 +1483,9 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface-100 rounded-3xl w-full max-w-5xl shadow-2xl flex flex-col overflow-hidden min-h-[600px] max-h-[95vh] border border-surface-300"
+              className="bg-surface-100 rounded-3xl w-full max-w-5xl shadow-2xl flex flex-col overflow-hidden min-h-[600px] max-h-[95vh] border border-surface-300 relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
               {/* Modal Header/Tabs */}
               <div className="bg-surface-100 px-6 sm:px-8 pt-6 sm:pt-8 border-b border-surface-300">
                 <div className="flex items-center justify-between mb-6">
@@ -2215,8 +2206,9 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface-100 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 border border-surface-300"
+              className="bg-surface-100 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 border border-surface-300 relative overflow-hidden text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-transparent" />
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
@@ -2320,9 +2312,10 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-surface-100 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-surface-300"
+              className="bg-surface-100 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-surface-300 relative text-typography-900"
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-transparent" />
               <div className="p-6 sm:p-8 space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -2367,9 +2360,10 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-surface-100 w-full max-w-lg sm:max-w-xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl border border-surface-300"
+              className="bg-surface-100 w-full max-w-lg sm:max-w-xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl border border-surface-300 relative text-typography-900"
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-transparent z-10" />
               {/* Header fixo do Modal */}
               <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-surface-300 shrink-0 bg-surface-100">
                 <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 mr-2">
@@ -2422,8 +2416,9 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface-100 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 border border-surface-300"
+              className="bg-surface-100 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 border border-surface-300 relative overflow-hidden text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-transparent" />
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">
@@ -2509,7 +2504,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
           >
-            <div className="bg-surface-100 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 border border-surface-300">
+            <div className="bg-surface-100 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 border border-surface-300 relative overflow-hidden text-typography-900">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
               <div className="w-16 h-16 bg-primary-200/10 border border-primary-200/30 rounded-2xl flex items-center justify-center mx-auto text-primary-200">
                 <Loader2 size={32} className="animate-spin" />
               </div>
@@ -2570,8 +2566,9 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-surface-100 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar border border-surface-300"
+              className="bg-surface-100 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar border border-surface-300 relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-transparent z-10" />
               <div className="flex items-center justify-between sticky top-0 bg-surface-100 pb-4 border-b border-surface-300">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">

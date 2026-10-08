@@ -306,8 +306,9 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-surface-300"
+        className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-surface-300 relative text-typography-900"
       >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
         {/* Header/Tabs */}
         <div className="flex border-b border-surface-300 bg-surface-200/40">
           <button 
