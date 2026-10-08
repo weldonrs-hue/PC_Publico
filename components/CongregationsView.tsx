@@ -1027,7 +1027,8 @@ export default function CongregationsView({
             className="space-y-4"
           >
             {/* Search and Add Bar */}
-            <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-surface-100 p-3 sm:p-4 rounded-2xl shadow-xs border border-surface-300">
+            <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-surface-100 p-3 sm:p-4 rounded-2xl shadow-xs border border-surface-300 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-transparent opacity-85" />
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <div className="relative flex-1 md:w-80">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" size={16} />
@@ -1121,8 +1122,9 @@ export default function CongregationsView({
                   filteredCongregations.map((cong) => (
                     <div 
                       key={cong.id}
-                      className="bg-surface-100 p-4 sm:p-5 rounded-2xl shadow-xs border border-surface-300 hover:border-primary-200/40 hover:shadow-md transition-all group flex flex-col justify-between"
+                      className="bg-surface-100 p-4 sm:p-5 rounded-2xl shadow-xs border border-surface-300 hover:border-amber-500/40 hover:shadow-md transition-all group flex flex-col justify-between relative overflow-hidden"
                     >
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-transparent opacity-85 group-hover:opacity-100 transition-opacity" />
                       <div>
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex items-center gap-3 min-w-0">
