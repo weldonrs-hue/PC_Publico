@@ -23,7 +23,8 @@ import {
   Building2,
   CheckCircle2,
   Shield,
-  Sparkles
+  Sparkles,
+  Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '@/lib/firebase';
@@ -61,7 +62,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   const [personalData, setPersonalData] = useState<any>(null);
   
   // Tab Switch: 'form' (Mobile/Editor) vs 'preview' (Folha A4)
-  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('preview');
   // Auto-fit mode for mobile preview
   const [autoFit, setAutoFit] = useState(true);
 
@@ -309,6 +310,28 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
     });
   };
 
+  const addLine = (type: keyof LetterData) => {
+    setLetterData(prev => ({
+      ...prev,
+      [type]: [...prev[type], '']
+    }));
+  };
+
+  const removeLine = (type: keyof LetterData, index: number) => {
+    setLetterData(prev => {
+      if (prev[type].length <= 1) {
+        return {
+          ...prev,
+          [type]: ['']
+        };
+      }
+      return {
+        ...prev,
+        [type]: prev[type].filter((_, i) => i !== index)
+      };
+    });
+  };
+
   const saveSignature = async (image: string | null) => {
     if (!userId) return;
     try {
@@ -511,12 +534,24 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
           {/* Card: Anciãos Designados */}
           <div className="bg-surface-100 rounded-2xl p-4 sm:p-5 border border-surface-300 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-typography-500 uppercase tracking-wider flex items-center gap-1.5">
-                <Shield size={14} className="text-purple-500" />
-                <span>Ancião(s) Designado(s)</span>
-              </h3>
-              <span className="text-[11px] text-typography-400">Até 4 designações</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-xs font-bold text-typography-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Shield size={14} className="text-purple-500" />
+                  <span>Ancião(s) Designado(s)</span>
+                </h3>
+                <p className="text-[11px] text-typography-500 mt-0.5">
+                  Pode colocar vários nomes na mesma linha ou adicionar novas linhas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => addLine('ancianosDesignados')}
+                className="self-start sm:self-auto px-2.5 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Adicionar Linha</span>
+              </button>
             </div>
 
             <div className="space-y-2.5">
@@ -530,16 +565,16 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                     value={name}
                     onChange={(e) => updateField('ancianosDesignados', i, e.target.value)}
                     className="flex-1 px-3.5 py-2 bg-surface-200 border border-surface-300 rounded-xl text-sm text-typography-900 placeholder:text-typography-400 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-colors"
-                    placeholder={`Nome completo do ancião ${i + 1} (opcional)`}
+                    placeholder={`Linha ${i + 1}: digite um ou mais nomes...`}
                   />
-                  {name && (
+                  {letterData.ancianosDesignados.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => updateField('ancianosDesignados', i, '')}
+                      onClick={() => removeLine('ancianosDesignados', i)}
                       className="p-1.5 text-typography-400 hover:text-red-500 rounded-lg hover:bg-surface-200 transition-colors cursor-pointer"
-                      title="Limpar"
+                      title="Remover linha"
                     >
-                      <X size={15} />
+                      <Trash2 size={15} />
                     </button>
                   )}
                 </div>
@@ -549,12 +584,24 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
           {/* Card: Servos Ministeriais Designados */}
           <div className="bg-surface-100 rounded-2xl p-4 sm:p-5 border border-surface-300 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-typography-500 uppercase tracking-wider flex items-center gap-1.5">
-                <UserPlus size={14} className="text-purple-500" />
-                <span>Servo(s) Ministerial(is) Designado(s)</span>
-              </h3>
-              <span className="text-[11px] text-typography-400">Até 4 designações</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-xs font-bold text-typography-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <UserPlus size={14} className="text-purple-500" />
+                  <span>Servo(s) Ministerial(is) Designado(s)</span>
+                </h3>
+                <p className="text-[11px] text-typography-500 mt-0.5">
+                  Pode colocar vários nomes na mesma linha ou adicionar novas linhas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => addLine('servosDesignados')}
+                className="self-start sm:self-auto px-2.5 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Adicionar Linha</span>
+              </button>
             </div>
 
             <div className="space-y-2.5">
@@ -568,16 +615,16 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                     value={name}
                     onChange={(e) => updateField('servosDesignados', i, e.target.value)}
                     className="flex-1 px-3.5 py-2 bg-surface-200 border border-surface-300 rounded-xl text-sm text-typography-900 placeholder:text-typography-400 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-colors"
-                    placeholder={`Nome completo do servo ministerial ${i + 1} (opcional)`}
+                    placeholder={`Linha ${i + 1}: digite um ou mais nomes...`}
                   />
-                  {name && (
+                  {letterData.servosDesignados.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => updateField('servosDesignados', i, '')}
+                      onClick={() => removeLine('servosDesignados', i)}
                       className="p-1.5 text-typography-400 hover:text-red-500 rounded-lg hover:bg-surface-200 transition-colors cursor-pointer"
-                      title="Limpar"
+                      title="Remover linha"
                     >
-                      <X size={15} />
+                      <Trash2 size={15} />
                     </button>
                   )}
                 </div>
@@ -587,12 +634,24 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
 
           {/* Card: Irmãos Removidos / Cancelados */}
           <div className="bg-surface-100 rounded-2xl p-4 sm:p-5 border border-surface-300 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-typography-500 uppercase tracking-wider flex items-center gap-1.5">
-                <UserMinus size={14} className="text-rose-500" />
-                <span>Irmão(s) Removido(s) / Cancelamento(s)</span>
-              </h3>
-              <span className="text-[11px] text-typography-400">Até 4 cancelamentos</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-xs font-bold text-typography-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <UserMinus size={14} className="text-rose-500" />
+                  <span>Irmão(s) Removido(s) / Cancelamento(s)</span>
+                </h3>
+                <p className="text-[11px] text-typography-500 mt-0.5">
+                  Pode colocar vários nomes na mesma linha ou adicionar novas linhas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => addLine('irmaosRemovidos')}
+                className="self-start sm:self-auto px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Adicionar Linha</span>
+              </button>
             </div>
 
             <div className="space-y-2.5">
@@ -606,16 +665,16 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
                     value={name}
                     onChange={(e) => updateField('irmaosRemovidos', i, e.target.value)}
                     className="flex-1 px-3.5 py-2 bg-surface-200 border border-surface-300 rounded-xl text-sm text-typography-900 placeholder:text-typography-400 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 transition-colors"
-                    placeholder={`Nome completo do irmão cancelado ${i + 1} (opcional)`}
+                    placeholder={`Linha ${i + 1}: digite um ou mais nomes...`}
                   />
-                  {name && (
+                  {letterData.irmaosRemovidos.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => updateField('irmaosRemovidos', i, '')}
+                      onClick={() => removeLine('irmaosRemovidos', i)}
                       className="p-1.5 text-typography-400 hover:text-red-500 rounded-lg hover:bg-surface-200 transition-colors cursor-pointer"
-                      title="Limpar"
+                      title="Remover linha"
                     >
-                      <X size={15} />
+                      <Trash2 size={15} />
                     </button>
                   )}
                 </div>

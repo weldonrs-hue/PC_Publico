@@ -121,7 +121,7 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const [generating, setGenerating] = useState(false);
   
   // Tab Switch: 'form' (Mobile/Editor) vs 'preview' (Folha S-302)
-  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('preview');
   // Auto-fit mode for mobile preview
   const [autoFit, setAutoFit] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);

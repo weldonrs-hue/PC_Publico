@@ -64,7 +64,7 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
   const [reportHeight, setReportHeight] = useState(90);
   
   // Tab Switch: 'form' (Mobile/Editor) vs 'preview' (Folha A4)
-  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('preview');
   // Auto-fit mode for mobile preview
   const [autoFit, setAutoFit] = useState(true);
 
