@@ -45,6 +45,7 @@ import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededG
 import { motion, AnimatePresence } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
 import { cn } from '@/lib/utils';
+import CustomSelect from '@/components/CustomSelect';
 
 interface UserMetadata {
   id: string;
@@ -598,19 +599,22 @@ export default function UsersView({ onBack }: UsersViewProps) {
           </div>
 
           {/* Filtro de Categoria */}
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-3.5 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs sm:text-sm font-bold text-typography-900 focus:border-primary-200 outline-none transition-all cursor-pointer"
-          >
-            <option value="all">Todas as Categorias</option>
-            <option value="admin">Administradores</option>
-            <option value="viajante">Viajantes</option>
-            <option value="pioneiro_especial">Pioneiros Especiais</option>
-            <option value="pioneiro_regular">Pioneiros Regulares</option>
-            <option value="secretaria">Secretarias (TJSec)</option>
-            <option value="user">Usuários Comuns</option>
-          </select>
+          <div className="w-full sm:w-56">
+            <CustomSelect
+              value={roleFilter}
+              onChange={(val) => setRoleFilter(val)}
+              options={[
+                { value: 'all', label: 'Todas as Categorias' },
+                { value: 'admin', label: 'Administradores' },
+                { value: 'viajante', label: 'Viajantes' },
+                { value: 'pioneiro_especial', label: 'Pioneiros Especiais' },
+                { value: 'pioneiro_regular', label: 'Pioneiros Regulares' },
+                { value: 'secretaria', label: 'Secretarias (TJSec)' },
+                { value: 'user', label: 'Usuários Comuns' },
+              ]}
+              size="sm"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -1138,8 +1142,9 @@ export default function UsersView({ onBack }: UsersViewProps) {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-surface-100 border border-surface-300 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden text-typography-900"
+              className="bg-surface-100 border border-surface-300 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden text-typography-900 relative"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-transparent opacity-80" />
               <div className="p-6">
                 {deleteStatus === 'idle' && (
                   <div className="space-y-6">
@@ -1277,8 +1282,9 @@ export default function UsersView({ onBack }: UsersViewProps) {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-surface-100 border border-surface-300 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden text-typography-900"
+              className="bg-surface-100 border border-surface-300 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden text-typography-900 relative"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 to-transparent opacity-80" />
               <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-typography-900">Alterar Categoria</h3>

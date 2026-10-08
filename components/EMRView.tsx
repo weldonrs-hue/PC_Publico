@@ -2193,8 +2193,14 @@ export default function EMRView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-100 rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-surface-300"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-surface-300 relative text-typography-900"
             >
+              <div 
+                className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+                style={{ 
+                  backgroundImage: `linear-gradient(to right, ${selectedSchoolType === 'ancians' ? '#37616b' : '#6366f1'}, transparent)` 
+                }} 
+              />
               <div className={`p-6 border-b flex items-center justify-between ${
                 selectedSchoolType === 'ancians'
                   ? 'bg-[#37616b]/5 border-[#37616b]/10'

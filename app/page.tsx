@@ -875,9 +875,10 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl sm:rounded-[2rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden border border-amber-200/80 my-auto"
+              className="bg-surface-100 rounded-3xl shadow-2xl max-w-lg w-full flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden border border-surface-300 my-auto text-typography-900 relative"
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent z-10" />
               {/* Header - Fixed / Non-collapsing */}
               <div className="bg-gradient-to-br from-amber-600 via-amber-500 to-amber-600 p-4 sm:p-5 text-white relative shrink-0">
                 <div className="flex items-center justify-between gap-3">
@@ -913,30 +914,30 @@ export default function Home() {
               </div>
               
               {/* Content Body - Smooth independent scrolling */}
-              <div className="p-5 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white overscroll-contain">
+              <div className="p-5 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-surface-100 overscroll-contain">
                 <div className="space-y-1.5">
-                  <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-snug">
+                  <h3 className="text-base sm:text-lg font-black text-typography-900 tracking-tight leading-snug">
                     {newsContent.title}
                   </h3>
                   <div className="w-10 h-1 bg-amber-500 rounded-full" />
                 </div>
                 
-                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-amber-50/40 p-3.5 sm:p-4 rounded-2xl border border-amber-100/70">
+                <div className="text-typography-700 font-medium text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-surface-200/50 p-3.5 sm:p-4 rounded-2xl border border-surface-300">
                   {newsContent.content}
                 </div>
               </div>
 
               {/* Sticky Footer Bar - ALWAYS visible and accessible */}
-              <div className="p-3.5 sm:p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5 shrink-0">
+              <div className="p-3.5 sm:p-4 bg-surface-200/40 border-t border-surface-300 flex items-center justify-end gap-2.5 shrink-0">
                 <button
                   onClick={closeNews}
-                  className="px-4 py-2.5 sm:py-3 bg-white hover:bg-gray-100 active:scale-95 text-gray-600 font-bold text-xs uppercase tracking-wider rounded-xl border border-gray-200 transition-all cursor-pointer"
+                  className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
                 >
                   Fechar
                 </button>
                 <button
                   onClick={closeNews}
-                  className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Check size={16} strokeWidth={3} />
                   <span>Entendido</span>

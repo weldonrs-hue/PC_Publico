@@ -1273,9 +1273,10 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 15 }}
               transition={{ duration: 0.2 }}
-              className="bg-surface-100 rounded-3xl sm:rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] my-auto border border-surface-300"
+              className="bg-surface-100 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] my-auto border border-surface-300 relative text-typography-900"
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent z-10" />
               <form onSubmit={handleUpdateNews} className="flex flex-col flex-1 min-h-0 overflow-hidden">
                 {/* Header */}
                 <div className="bg-surface-100 border-b border-surface-300 p-4 sm:p-5 text-typography-900 flex items-center justify-between shrink-0">
@@ -1404,9 +1405,10 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.2 }}
-              className="bg-surface-100 rounded-3xl sm:rounded-[2rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden border border-surface-300 my-auto"
+              className="bg-surface-100 rounded-3xl shadow-2xl max-w-lg w-full flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden border border-surface-300 my-auto relative text-typography-900"
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
               {/* Header */}
               <div className="bg-surface-100 border-b border-surface-300 p-4 sm:p-5 text-typography-900 relative shrink-0">
                 <div className="flex items-center justify-between gap-3">

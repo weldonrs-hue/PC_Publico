@@ -31,6 +31,7 @@ import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useDialog } from '@/hooks/useDialog';
 import DraggableSignature from './DraggableSignature';
+import CustomSelect from './CustomSelect';
 
 interface WeeklyExpensesReceiptProps {
   onBack: () => void;
@@ -401,16 +402,13 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
         <div className="space-y-4">
           <div>
             <h3 className="font-bold text-sm mb-2 uppercase tracking-wider text-gray-600">Congregação:</h3>
-            <select
+            <CustomSelect
               value={selectedCongregation}
-              onChange={(e) => setSelectedCongregation(e.target.value)}
-              className="w-full border-b-2 border-gray-200 focus:border-black bg-transparent outline-none py-1 transition-colors"
-            >
-              <option value="">Selecione...</option>
-              {congregations.map(c => (
-                <option key={c.id} value={c.nome}>{c.nome}</option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedCongregation(val)}
+              options={congregations.map(c => ({ value: c.nome, label: c.nome }))}
+              placeholder="Selecione..."
+              searchable={true}
+            />
           </div>
         </div>
         <div>
@@ -735,16 +733,14 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
                     <label className="text-xs font-bold uppercase tracking-wider text-typography-700">
                       Congregação
                     </label>
-                    <select
+                    <CustomSelect
                       value={selectedCongregation}
-                      onChange={(e) => setSelectedCongregation(e.target.value)}
-                      className="w-full bg-surface-200/60 border border-surface-300 focus:border-primary-200 rounded-2xl px-3.5 py-3 text-xs sm:text-sm font-semibold text-typography-900 outline-none transition-all cursor-pointer"
-                    >
-                      <option value="">Selecione a Congregação...</option>
-                      {congregations.map(c => (
-                        <option key={c.id} value={c.nome}>{c.nome}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => setSelectedCongregation(val)}
+                      options={congregations.map(c => ({ value: c.nome, label: c.nome }))}
+                      placeholder="Selecione a Congregação..."
+                      searchable={true}
+                      size="md"
+                    />
                   </div>
 
                   {/* Tipo de Recibo */}

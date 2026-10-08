@@ -9,7 +9,8 @@ import {
   TrendingDown, 
   Minus, 
   Info, 
-  ArrowLeft, 
+  ArrowLeft,
+  ChevronLeft,
   DollarSign,
   ChevronDown,
   Search,
@@ -378,7 +379,8 @@ export default function CongregationStatisticsView({ userId, onBack, initialCong
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 pb-16">
       {/* CARD PRINCIPAL COM CABEÇALHO */}
-      <div className="bg-surface-100 border border-surface-300 rounded-3xl shadow-sm overflow-hidden">
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl shadow-sm overflow-hidden relative">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
         <div className="p-5 md:p-6 border-b border-surface-300 bg-surface-200/40">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             
@@ -389,7 +391,7 @@ export default function CongregationStatisticsView({ userId, onBack, initialCong
                 className="p-2 sm:p-2.5 rounded-xl border border-surface-300 hover:bg-surface-200 text-typography-700 hover:text-typography-900 transition-colors shadow-2xs cursor-pointer group"
                 title="Voltar ao Painel"
               >
-                <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+                <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
               </button>
 
               <div className="p-2.5 bg-primary-200/10 text-primary-200 border border-primary-200/20 rounded-2xl shadow-2xs">

@@ -1906,8 +1906,8 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <Loader2 size={40} className="text-[#512da8] animate-spin" />
-        <p className="text-gray-500 font-medium">Carregando programação...</p>
+        <Loader2 size={40} className="text-primary-200 animate-spin" />
+        <p className="text-typography-500 font-medium">Carregando programação...</p>
       </div>
     );
   }
@@ -3100,14 +3100,15 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         {/* Orphaned Parts / Revisions Section (Below A4 Sheet) */}
         {Object.keys(currentPart.orphanedParts || {}).length > 0 && (
           <div className="mt-8 sm:mt-12 w-full max-w-5xl mx-auto px-4 no-print">
-            <div className="bg-amber-50 rounded-[2rem] border border-amber-200 p-6 sm:p-8 shadow-sm">
+            <div className="bg-amber-500/10 rounded-3xl border border-amber-500/20 p-6 sm:p-8 shadow-xs relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
               <div className="flex items-start gap-4 mb-6">
-                <div className="p-3 bg-amber-100 rounded-2xl text-amber-600">
+                <div className="p-3 bg-amber-500/20 rounded-2xl text-amber-500 shrink-0">
                   <AlertTriangle size={28} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black uppercase tracking-tight text-amber-900 leading-tight">Itens Órfãos / Revisões Necessárias</h3>
-                  <p className="text-sm text-amber-700 font-medium mt-1">
+                  <h3 className="text-xl font-black uppercase tracking-tight text-typography-900 leading-tight">Itens Órfãos / Revisões Necessárias</h3>
+                  <p className="text-sm text-typography-600 font-medium mt-1">
                     Estes dados foram preservados de versões anteriores mas não possuem correspondência automática na programação atual.
                   </p>
                 </div>
@@ -3115,13 +3116,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.entries(currentPart.orphanedParts || {}).map(([oldId, data]: [string, any], orphanIdx: number) => (
-                  <div key={`orphan-${oldId || orphanIdx}-${orphanIdx}`} className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm hover:shadow-md transition-all group">
+                  <div key={`orphan-${oldId || orphanIdx}-${orphanIdx}`} className="bg-surface-100 p-5 rounded-2xl border border-surface-300 shadow-xs hover:border-amber-500/40 transition-all group">
                     <div className="flex justify-between items-start mb-4">
                       <div className="min-w-0">
-                        <div className="text-[10px] font-black uppercase text-amber-600 mb-1 px-2 py-0.5 bg-amber-50 rounded-full inline-block">
+                        <div className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 mb-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-full inline-block">
                           {data.reason || 'Diferença de Versão'}
                         </div>
-                        <h4 className="text-base font-bold text-gray-900 leading-tight line-clamp-2">{data.originalTitle || 'Título Desconhecido'}</h4>
+                        <h4 className="text-base font-bold text-typography-900 leading-tight line-clamp-2">{data.originalTitle || 'Título Desconhecido'}</h4>
                         <div className="text-xs text-gray-500 font-medium mt-0.5">{data.originalTime || '--:--'}</div>
                       </div>
                       <button 
@@ -3231,13 +3232,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={handleConfirmNewSeason}
-                    className="w-full py-3 bg-[#512da8] text-white font-bold rounded-xl shadow-lg shadow-violet-200 hover:bg-[#4527a0] transition-all"
+                    className="w-full py-3 bg-primary-200 text-white font-bold rounded-2xl shadow-md hover:bg-primary-150 transition-all cursor-pointer"
                   >
                     Adicionar nova temporada
                   </button>
                   <button
                     onClick={() => setNextSeasonPreview(null)}
-                    className="w-full py-3 bg-white text-gray-400 font-bold rounded-xl hover:bg-gray-50 transition-all"
+                    className="w-full py-3 bg-surface-200 text-typography-600 font-bold rounded-2xl hover:bg-surface-300 transition-all cursor-pointer"
                   >
                     Agora não
                   </button>
@@ -3253,12 +3254,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }} 
               animate={{ opacity: 1, scale: 1 }} 
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 relative text-typography-900"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
               {/* Header */}
-              <div className="p-6 border-b border-gray-100 bg-indigo-50/50">
-                <h3 className="text-xl font-black text-indigo-900 uppercase tracking-tight">Reatribuir Designação</h3>
-                <p className="text-sm text-indigo-700">Mover dados preservados para uma parte da programação atual.</p>
+              <div className="p-6 border-b border-surface-300 bg-surface-200/40">
+                <h3 className="text-xl font-black text-typography-900 uppercase tracking-tight">Reatribuir Designação</h3>
+                <p className="text-sm text-typography-500 font-medium">Mover dados preservados para uma parte da programação atual.</p>
               </div>
 
               {/* Orphan Info */}
@@ -3429,20 +3431,21 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-surface-300 relative text-typography-900"
             >
-              <div className="p-6 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
+              <div className="p-6 bg-surface-200/40 border-b border-surface-300 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-amber-100 rounded-xl text-amber-600">
+                  <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500">
                     <CalendarDays size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight">Detalhes do Evento</h3>
-                    <p className="text-xs text-amber-700">Informações que aparecem no cabeçalho da folha.</p>
+                    <h3 className="text-lg font-black text-typography-900 uppercase tracking-tight">Detalhes do Evento</h3>
+                    <p className="text-xs text-typography-500 font-medium">Informações que aparecem no cabeçalho da folha.</p>
                   </div>
                 </div>
-                <button onClick={() => setShowEditDetailsModal(false)} className="p-2 text-amber-400 hover:text-amber-600 transition-colors">
-                  <X size={24} />
+                <button onClick={() => setShowEditDetailsModal(false)} className="p-2 text-typography-400 hover:text-typography-900 hover:bg-surface-200 rounded-xl transition-all cursor-pointer">
+                  <X size={20} />
                 </button>
               </div>
 

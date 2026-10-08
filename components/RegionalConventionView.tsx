@@ -801,8 +801,8 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <Loader2 size={40} className="text-[#512da8] animate-spin" />
-        <p className="text-gray-500 font-medium">Carregando programação...</p>
+        <Loader2 size={40} className="text-primary-200 animate-spin" />
+        <p className="text-typography-500 font-medium">Carregando programação...</p>
       </div>
     );
   }

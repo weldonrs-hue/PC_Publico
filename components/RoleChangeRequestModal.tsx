@@ -74,7 +74,8 @@ export default function RoleChangeRequestModal({ userId, currentRole, userName, 
   if (pendingRequest) {
     return (
       <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-surface-100 border border-surface-300 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-6 shadow-2xl text-typography-900">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-surface-100 border border-surface-300 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-6 shadow-2xl text-typography-900 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
           <div className="bg-amber-500/10 border border-amber-500/20 w-16 h-16 rounded-2xl flex items-center justify-center text-amber-500 mx-auto">
             <Info size={32} />
           </div>
@@ -98,8 +99,9 @@ export default function RoleChangeRequestModal({ userId, currentRole, userName, 
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden text-typography-900"
+        className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden text-typography-900 relative"
       >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
         <div className="bg-surface-200/60 border-b border-surface-300 p-5 sm:p-6 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-primary-200/10 border border-primary-200/20 text-primary-200 flex items-center justify-center shrink-0">

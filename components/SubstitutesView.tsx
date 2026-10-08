@@ -1,34 +1,34 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { 
-  UserRound, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  ChevronLeft,
-  Search,
-  MapPin,
-  Store,
-  Save,
-  Loader2
+import {
+    ChevronLeft,
+    Edit2,
+    Loader2,
+    MapPin,
+    Plus,
+    Save,
+    Search,
+    Store,
+    Trash2,
+    UserRound
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { auth, db } from '@/lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  setDoc, 
-  doc, 
-  deleteDoc,
-  onSnapshot
-} from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { useDialog } from '@/hooks/useDialog';
 import CustomSelect from '@/components/CustomSelect';
+import { useDialog } from '@/hooks/useDialog';
+import { auth, db } from '@/lib/firebase';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import {
+    collection,
+    deleteDoc,
+    doc,
+    getDocs,
+    onSnapshot,
+    query,
+    setDoc,
+    where
+} from 'firebase/firestore';
 
 interface Congregation {
   id: string;

@@ -388,7 +388,8 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
       className="space-y-6"
     >
       {/* Header */}
-      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 sm:p-6 shadow-xs flex flex-col gap-4">
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 sm:p-6 shadow-xs flex flex-col gap-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button 
@@ -684,8 +685,9 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-typography-900"
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-typography-900 relative"
             >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
               <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/40">
                 <div className="flex items-center gap-2.5">
                   <ClipboardPaste className="text-primary-200" size={20} />
