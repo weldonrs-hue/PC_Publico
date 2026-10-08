@@ -400,7 +400,7 @@ export default function AppointmentLetterView({ userId, congregation, visitDate,
   return (
     <div className="space-y-6 w-full pb-12">
       {/* Header Unificado com Design System */}
-      <div className="relative bg-surface-100 p-4 sm:p-5 rounded-2xl border border-surface-300 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-hidden print:hidden">
+      <div className="relative bg-surface-100 p-4 sm:p-5 rounded-3xl border border-surface-300 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-hidden print:hidden">
         {/* Faixa Gradiente Superior */}
         <div 
           className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"

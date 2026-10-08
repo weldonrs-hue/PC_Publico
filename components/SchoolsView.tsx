@@ -190,8 +190,9 @@ export default function SchoolsView({ userId, onBack, onViewChange, congregation
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.08 }}
                 onClick={() => onViewChange(`pioneer_school_guest:${gs.ownerId}:${gs.turma}`)}
-                className="group relative flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-surface-100 border border-surface-300 hover:border-[#37616b]/40 shadow-xs hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-0.5"
+                className="group relative flex items-center justify-between p-4 sm:p-5 rounded-3xl bg-surface-100 border border-surface-300 hover:border-[#37616b]/40 shadow-xs hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-0.5 overflow-hidden"
               >
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#37616b] to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-transparent border border-[#37616b]/40 dark:border-[#528996]/50 text-[#37616b] dark:text-[#528996] transition-all group-hover:scale-105 group-hover:bg-surface-200/50 shrink-0">
                     <GraduationCap size={20} strokeWidth={1.8} />

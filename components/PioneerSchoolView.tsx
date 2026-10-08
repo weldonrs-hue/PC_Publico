@@ -23,6 +23,8 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Calendar,
+  CalendarDays,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -325,6 +327,7 @@ export default function PioneerSchoolView({
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
   const [originalSchoolInfo, setOriginalSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
   const [isSavingInfo, setIsSavingInfo] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
@@ -523,6 +526,10 @@ export default function PioneerSchoolView({
   const hasInfoChanges = !isEqualInfo(schoolInfo, originalSchoolInfo);
 
   const handleTabChange = (tab: 'students' | 'workshops' | 'info' | 'templates_pss') => {
+    if (tab === 'info') {
+      setIsInfoModalOpen(true);
+      return;
+    }
     if (activeTab === 'info' && hasInfoChanges) {
       setPendingAction(() => () => setActiveTab(tab));
       setIsUnsavedModalOpen(true);
@@ -1337,7 +1344,12 @@ export default function PioneerSchoolView({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-5 print:hidden">
+      {/* Barra Superior / Header Card */}
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 md:p-5 shadow-xs space-y-4 print:hidden relative overflow-hidden">
+        <div 
+          className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+          style={{ backgroundImage: 'linear-gradient(to right, #10B981, #059669, transparent)' }}
+        />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button 
@@ -1349,10 +1361,10 @@ export default function PioneerSchoolView({
                   onBack();
                 }
               }}
-              className="p-2.5 hover:bg-surface-200 text-typography-700 bg-surface-100 rounded-2xl shadow-xs border border-surface-300 transition-all cursor-pointer shrink-0"
+              className="p-2 sm:p-2.5 hover:bg-surface-200 text-typography-700 bg-surface-200/60 rounded-xl shadow-2xs border border-surface-300 transition-all cursor-pointer shrink-0"
               title="Voltar"
             >
-              <ChevronLeft size={22} strokeWidth={2.5} />
+              <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
             <div className="min-w-0">
               <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight truncate flex items-center gap-2">
@@ -1397,7 +1409,7 @@ export default function PioneerSchoolView({
                 </div>
 
                 {/* Alternador de Modo: Tabela vs Lista (igual ao Itinerário) */}
-                <div className="flex items-center bg-surface-100 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+                <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
                   <button 
                     type="button"
                     onClick={() => handleViewModeChange('table')}
@@ -1447,7 +1459,7 @@ export default function PioneerSchoolView({
               <>
                 {/* Alternador de Modo para Sessão de Treino */}
                 {activeTab === 'workshops' && (
-                  <div className="flex items-center bg-surface-100 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+                  <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
                     <button 
                       type="button"
                       onClick={() => handleWorkshopViewModeChange('table')}
@@ -1504,6 +1516,17 @@ export default function PioneerSchoolView({
               </>
             )}
 
+            {/* Dados da Turma / Modal Trigger */}
+            <button
+              onClick={() => setIsInfoModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-[0.98] cursor-pointer"
+              title="Editar dados da turma (data, instrutores, local, entrega de livros)"
+            >
+              <CalendarDays size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="hidden sm:inline">Dados da Turma</span>
+              <span className="sm:hidden">Dados</span>
+            </button>
+
             {/* Action Buttons: PDF Download */}
             {activeTab !== 'info' && activeTab !== 'templates_pss' && (
               <button
@@ -1520,7 +1543,7 @@ export default function PioneerSchoolView({
         </div>
 
         {/* Tabs Row */}
-        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-surface-300 -mx-4 px-4 md:mx-0 md:px-0 print:hidden">
+        <div className="flex items-center gap-3 sm:gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-surface-300 pt-1">
           <button 
             onClick={() => handleTabChange('students')}
             className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'students' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
@@ -2309,11 +2332,12 @@ export default function PioneerSchoolView({
             workshopAssignments={workshopAssignments}
           />
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-[#37616b] p-4 text-white">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <Info size={20} />
-                Informações da Escola
+          <div className="bg-surface-100 rounded-3xl shadow-xs border border-surface-300 overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-transparent" />
+            <div className="bg-surface-200/50 p-4 border-b border-surface-300 text-typography-900 flex items-center justify-between">
+              <h3 className="text-base font-black flex items-center gap-2">
+                <Info size={18} className="text-emerald-500" />
+                Informações da Escola (Turma {selectedTurma})
               </h3>
             </div>
 
@@ -2570,6 +2594,202 @@ export default function PioneerSchoolView({
               </button>
             </div>
           </motion.div>
+        )}
+
+        {isInfoModalOpen && (
+          <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md no-print">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-2xl overflow-hidden relative text-typography-900 flex flex-col max-h-[90vh]"
+            >
+              <div 
+                className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90 z-10"
+                style={{ backgroundImage: 'linear-gradient(to right, #10B981, #059669, transparent)' }}
+              />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <CalendarDays size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-typography-900 uppercase tracking-tight">
+                      Dados da Escola (Turma {selectedTurma})
+                    </h3>
+                    <p className="text-xs text-typography-500">
+                      Datas, locais, instrutores e confirmações da ESP
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsInfoModalOpen(false)} 
+                  className="p-1.5 rounded-xl text-typography-400 hover:text-typography-800 hover:bg-surface-200 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Data da Turma</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.dataTurma}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, dataTurma: e.target.value })}
+                      placeholder="Ex: 06/07/2026 - 11/07/2026"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Local da Escola</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.localEscola}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, localEscola: e.target.value })}
+                      placeholder="Congregação - Cidade UF"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Instrutor A</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.instrutorA}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
+                      placeholder="Nome do Instrutor A"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Instrutor B</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.instrutorB}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
+                      placeholder="Nome do Instrutor B"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Endereço da Escola</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.enderecoEscola}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, enderecoEscola: e.target.value })}
+                      placeholder="Endereço completo da escola"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-surface-300 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-typography-700 flex items-center gap-1.5">
+                    <LayoutList size={14} className="text-emerald-500" />
+                    Entrega do Livro
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Endereço de Entrega</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.entregaLivroEndereco}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroEndereco: e.target.value })}
+                        placeholder="Local de entrega dos livros"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Data e Hora de Entrega</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.entregaLivroDataHora}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroDataHora: e.target.value })}
+                        placeholder="Ex: sábado, 06/06/2026 às 09:00"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-surface-300 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-typography-700 flex items-center gap-1.5">
+                    <Users size={14} className="text-emerald-500" />
+                    Confirmação de Frequência
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Data Limite</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoDataLimite}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoDataLimite: e.target.value })}
+                        placeholder="Data limite"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                    <div className="p-3 bg-blue-500/5 rounded-2xl border border-blue-500/20 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block">Instrutor A</span>
+                      <input
+                        type="email"
+                        value={schoolInfo.confirmacaoEmail}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
+                        placeholder="E-mail"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoWhatsapp}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
+                        placeholder="WhatsApp"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div className="p-3 bg-amber-500/5 rounded-2xl border border-amber-500/20 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block">Instrutor B</span>
+                      <input
+                        type="email"
+                        value={schoolInfo.confirmacaoEmailB}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmailB: e.target.value })}
+                        placeholder="E-mail B"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoWhatsappB}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsappB: e.target.value })}
+                        placeholder="WhatsApp B"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-surface-300 bg-surface-200/50 flex items-center justify-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsInfoModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-typography-600 hover:text-typography-900 rounded-xl transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleSaveInfo();
+                    setIsInfoModalOpen(false);
+                  }}
+                  disabled={isSavingInfo}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingInfo ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>{isSavingInfo ? 'Salvando...' : 'Salvar Alterações'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
 
         {isModalOpen && (

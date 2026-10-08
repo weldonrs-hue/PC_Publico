@@ -722,7 +722,8 @@ export default function InboxView({ onBack }: InboxViewProps) {
       {/* ================================================================ */}
       {/* TOP BAR                                                           */}
       {/* ================================================================ */}
-      <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap mb-3 flex-shrink-0">
+      <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap mb-3 flex-shrink-0 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
         <div className="flex items-center gap-3 min-w-0">
           {/* Back Button */}
           {onBack && (

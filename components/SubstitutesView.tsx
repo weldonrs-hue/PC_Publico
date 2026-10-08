@@ -286,7 +286,8 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
             className="space-y-4"
           >
             {/* Barra de Pesquisa e Botão Novo */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-surface-100 p-3 sm:p-4 rounded-2xl shadow-xs border border-surface-300">
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-surface-100 p-3 sm:p-4 rounded-2xl shadow-xs border border-surface-300 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 via-pink-400 to-transparent opacity-85" />
               <div className="relative w-full sm:w-80">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-typography-400" size={16} />
                 <input 

@@ -583,7 +583,8 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
     <div className="space-y-4 pb-12 print:p-0 print:m-0 print:space-y-0">
       {/* Screen Header & Top Controls (no-print) */}
       <div className="space-y-3 no-print">
-        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-transparent" />
           <div className="flex items-center gap-3 min-w-0">
             <button 
               onClick={onBack}

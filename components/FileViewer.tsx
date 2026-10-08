@@ -281,7 +281,8 @@ export default function FileViewer({ onBack }: FileViewerProps) {
       </AnimatePresence>
 
       {/* Screen Header & Top Controls */}
-      <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
+      <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-sky-500 to-transparent" />
         <div className="flex items-center gap-3 min-w-0">
           <button 
             onClick={onBack}

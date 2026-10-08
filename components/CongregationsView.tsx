@@ -1272,17 +1272,20 @@ export default function CongregationsView({
             className="bg-surface-100 rounded-3xl shadow-sm border border-surface-300 overflow-hidden relative"
           >
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-transparent z-10" />
-            <div className="bg-gradient-to-r from-primary-200 to-primary-150 p-4 sm:p-5 text-white flex justify-between items-center gap-2">
+            <div className="bg-surface-200/50 border-b border-surface-300 p-4 sm:p-5 text-typography-900 flex justify-between items-center gap-2">
               <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="p-1.5 bg-white/15 hover:bg-white/25 rounded-lg transition-all text-white flex items-center justify-center cursor-pointer shrink-0"
+                  className="p-1.5 bg-surface-100 hover:bg-surface-200 border border-surface-300 rounded-lg transition-all text-typography-700 flex items-center justify-center cursor-pointer shrink-0 shadow-xs"
                   title="Voltar para a lista"
                 >
                   <ChevronLeft size={18} />
                 </button>
-                <h3 className="font-bold text-sm sm:text-lg truncate">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Store size={16} />
+                </div>
+                <h3 className="font-bold text-sm sm:text-base text-typography-900 truncate">
                   {selectedCong ? 'Editar Congregação' : 'Nova Congregação'}
                 </h3>
               </div>
@@ -1292,9 +1295,9 @@ export default function CongregationsView({
                   <button 
                     type="button"
                     onClick={() => setIsPasting(true)}
-                    className="flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-sm whitespace-nowrap shrink-0"
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
                   >
-                    <ClipboardPaste size={14} className="shrink-0" />
+                    <ClipboardPaste size={14} className="text-amber-500 shrink-0" />
                     <span className="whitespace-nowrap">Colar Dados</span>
                   </button>
                 )}
@@ -1842,21 +1845,21 @@ export default function CongregationsView({
               className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 text-typography-900 relative"
             >
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-transparent z-10" />
-              <div className="bg-gradient-to-r from-primary-200 to-primary-150 p-6 text-white flex justify-between items-center">
+              <div className="bg-surface-200/50 border-b border-surface-300 p-5 sm:p-6 text-typography-900 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <ClipboardPaste size={24} />
+                  <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl">
+                    <ClipboardPaste size={22} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Importação em Massa</h3>
-                    <p className="text-xs text-white/80">Importe dados de congregações com Coordenador, Secretário e Reuniões</p>
+                    <h3 className="font-bold text-base sm:text-lg text-typography-900">Importação em Massa</h3>
+                    <p className="text-xs text-typography-500 font-medium">Importe dados de congregações com Coordenador, Secretário e Reuniões</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsImportModalOpen(false)}
-                  className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                  className="p-1.5 rounded-xl text-typography-400 hover:text-typography-900 hover:bg-surface-200 transition-colors cursor-pointer"
                 >
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
 

@@ -2023,9 +2023,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         : 'bg-surface-100 border-surface-300 hover:border-primary-200/40 shadow-2xs'
                     }`}
                   >
-                    {current && (
-                      <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-primary-200 rounded-r" />
-                    )}
+                    {/* Top gradient accent line (novo padrão) */}
+                    <div 
+                      className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
+                        current
+                          ? 'from-amber-500 via-amber-400 to-transparent opacity-100'
+                          : 'from-primary-200 via-primary-150 to-transparent opacity-60 hover:opacity-100'
+                      }`} 
+                    />
 
                     {/* Card Header: Week + Status Badge */}
                     <div className="flex items-center justify-between gap-2">
@@ -2220,7 +2225,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         onDoubleClick={() => handleRowDoubleClick(item)}
                         className={`border-b border-surface-300 transition-colors cursor-pointer select-none ${
                           current 
-                            ? 'bg-amber-500/10 dark:bg-amber-500/15 border-l-4 border-l-primary-200 hover:bg-amber-500/20' 
+                            ? 'bg-amber-500/10 dark:bg-amber-500/15 hover:bg-amber-500/20' 
                             : 'hover:bg-surface-200/40'
                         }`}
                       >

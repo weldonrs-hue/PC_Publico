@@ -1450,7 +1450,11 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       {/* Screen Header & Top Controls (no-print) */}
       <div className="space-y-3 no-print">
         {/* Top bar: Back, Title, Mode Switch & Action Bar */}
-        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden">
+          <div 
+            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+            style={{ backgroundImage: 'linear-gradient(to right, #8B5CF6, #7C3AED, transparent)' }}
+          />
           <div className="flex items-center gap-3">
             <button 
               onClick={handleBackClick} 

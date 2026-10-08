@@ -941,7 +941,11 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
       `}</style>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-3xl bg-surface-100 border border-surface-300 shadow-xs no-print">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-3xl bg-surface-100 border border-surface-300 shadow-xs no-print relative overflow-hidden">
+        <div 
+          className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+          style={{ backgroundImage: 'linear-gradient(to right, #10B981, #059669, transparent)' }}
+        />
         <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
           <button 
             onClick={handleBackClick}

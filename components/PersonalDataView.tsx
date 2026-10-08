@@ -322,8 +322,9 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
       <motion.div 
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-surface-100 rounded-2xl shadow-sm border border-surface-300 overflow-hidden"
+        className="bg-surface-100 rounded-3xl shadow-sm border border-surface-300 overflow-hidden relative"
       >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
         {/* Card Header Strip */}
         <div className="px-5 sm:px-6 py-4 border-b border-surface-300 bg-surface-200/40 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">

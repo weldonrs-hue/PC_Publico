@@ -591,7 +591,8 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
     <>
       <div className="space-y-4 max-w-7xl mx-auto pb-12 px-2 sm:px-4">
         {/* Header - Navigation & Actions */}
-        <header className="no-print w-full bg-surface-100 border border-surface-300 flex flex-col sm:flex-row justify-between items-center px-4 sm:px-6 py-4 rounded-2xl shadow-xs gap-4">
+        <header className="no-print w-full bg-surface-100 border border-surface-300 flex flex-col sm:flex-row justify-between items-center px-4 sm:px-6 py-4 rounded-3xl shadow-xs gap-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <button 
               onClick={handleBack}
@@ -710,7 +711,8 @@ export default function ActivityAnalysisView({ userId, congregationName, congreg
         {viewMode === 'form' && (
           <div className="space-y-6 print:hidden">
             {/* Header Summary Card */}
-            <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 sm:p-5 shadow-xs space-y-4 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-300 pb-3">
                 <div>
                   <span className="text-[10px] font-bold text-typography-500 uppercase tracking-widest block">Congregação</span>

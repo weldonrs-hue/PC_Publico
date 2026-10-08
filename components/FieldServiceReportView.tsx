@@ -578,7 +578,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
     <div className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
       {/* Top Header Row (no-print) */}
       <div className="space-y-3 no-print">
-        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap">
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 via-rose-500 to-transparent" />
           <div className="flex items-center gap-3 min-w-0">
             {!isPublic && onBack && (
               <button
@@ -950,6 +951,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                 animate={{ opacity: 1, x: 0 }}
                 className="bg-surface-100 rounded-3xl p-5 sm:p-7 shadow-xs border border-surface-300 relative overflow-hidden group"
               >
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 via-rose-500 to-transparent" />
                 <div className="relative z-10 space-y-5">
                   <div className="flex justify-between items-start">
                     <div className="bg-primary-200/10 p-2.5 sm:p-3 rounded-2xl text-primary-200 border border-primary-200/20">

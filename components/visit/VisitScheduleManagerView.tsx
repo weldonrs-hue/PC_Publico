@@ -169,7 +169,8 @@ export default function VisitScheduleManagerView({
   return (
     <div className="space-y-6 max-w-6xl mx-auto w-full pb-16">
       {/* BARRA SUPERIOR DE AÇÕES (Não sai na impressão) */}
-      <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 md:p-5 shadow-sm space-y-4 print:hidden">
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 md:p-5 shadow-sm space-y-4 print:hidden relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-300 pb-4">
           <div className="flex items-center gap-3">
             <button
@@ -339,7 +340,8 @@ export default function VisitScheduleManagerView({
         )}
 
         {activeTab === 'permissions' && (
-          <div className="bg-surface-100 border border-surface-300 rounded-2xl p-6 shadow-xs space-y-6">
+          <div className="bg-surface-100 border border-surface-300 rounded-3xl p-6 shadow-xs space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
             <div>
               <h2 className="text-base font-bold text-typography-900">O que os Anciãos podem preencher?</h2>
               <p className="text-xs text-typography-500 mt-1">

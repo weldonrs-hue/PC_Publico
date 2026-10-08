@@ -2057,7 +2057,13 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       {/* Screen Header & Top Controls (no-print) */}
       <div className="space-y-3 no-print">
         {/* Top bar: Back, Title & Action Bar */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs relative overflow-hidden">
+          <div 
+            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+            style={{ 
+              backgroundImage: `linear-gradient(to right, ${type === 'supt' ? '#F59E0B' : '#F43F5E'}, transparent)` 
+            }} 
+          />
           {/* Back button & Title hierarchy */}
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
