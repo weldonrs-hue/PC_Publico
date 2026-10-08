@@ -154,23 +154,23 @@ export default function MicrosoftConnectionSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 p-4 text-gray-500">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span className="text-sm">Verificando conexões...</span>
+      <div className="flex items-center justify-center gap-2 p-6 text-typography-500">
+        <Loader2 className="w-5 h-5 animate-spin text-primary-200" />
+        <span className="text-sm font-medium">Verificando conexões...</span>
       </div>
     );
   }
 
   return (
-    <div className="bg-white/50 backdrop-blur-sm border border-gray-100 rounded-2xl p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-surface-100 border border-surface-300 rounded-3xl p-5 sm:p-6 shadow-xs text-typography-900">
+      <div className="flex items-center justify-between mb-6 gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-blue-50 rounded-xl">
-            <Mail className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 bg-primary-200/10 border border-primary-200/20 text-primary-200 rounded-2xl flex items-center justify-center shrink-0">
+            <Mail className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">Conta Microsoft / JW</h3>
-            <p className="text-xs text-gray-500">Para envio de relatórios S-302</p>
+            <h3 className="font-bold text-typography-900 text-sm sm:text-base">Conta Microsoft / JW</h3>
+            <p className="text-xs text-typography-500 font-medium">Para envio de relatórios S-302</p>
           </div>
         </div>
         
@@ -180,7 +180,7 @@ export default function MicrosoftConnectionSettings() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium border border-emerald-100"
+              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               Conectada
@@ -190,21 +190,20 @@ export default function MicrosoftConnectionSettings() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-500 rounded-full text-xs font-medium border border-gray-100"
+              className="flex items-center gap-1.5 px-3 py-1 bg-surface-200 text-typography-500 rounded-full text-xs font-bold border border-surface-300"
             >
               Não conectada
             </motion.div>
-          )
-          }
+          )}
         </AnimatePresence>
       </div>
 
       <div className="space-y-4">
         {status?.connected ? (
           <div className="flex flex-col gap-4">
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <span className="text-xs text-gray-500 block mb-1">E-mail conectado</span>
-              <span className="text-sm font-medium text-gray-900">{status.email}</span>
+            <div className="p-4 bg-surface-200/60 rounded-2xl border border-surface-300">
+              <span className="text-xs text-typography-500 block mb-1 font-medium">E-mail conectado</span>
+              <span className="text-sm font-bold text-typography-900">{status.email}</span>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -212,15 +211,15 @@ export default function MicrosoftConnectionSettings() {
                 href="https://mail.jwpub.org/owa/?path=/mail/action/compose&to=SouzaL1@jwpub.org&subject=Aviso%20de%20visita%20do%20SC"
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-gray-200 text-gray-600 text-sm font-bold rounded-xl transition-all hover:bg-gray-50"
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-surface-200 hover:bg-surface-300 text-typography-900 border border-surface-300 text-xs sm:text-sm font-bold rounded-2xl transition-all cursor-pointer shadow-xs"
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4 text-primary-200" />
                 Novo E-mail
               </a>
               <button
                 onClick={handleDisconnect}
                 disabled={actionLoading}
-                className="flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-100 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 py-3 px-4 text-xs sm:text-sm font-bold text-red-500 hover:bg-red-500/10 rounded-2xl transition-colors border border-red-500/20 disabled:opacity-50 cursor-pointer"
               >
                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlink className="w-4 h-4" />}
                 Desconectar
@@ -229,7 +228,7 @@ export default function MicrosoftConnectionSettings() {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-gray-600 leading-relaxed mb-1">
+            <p className="text-xs sm:text-sm text-typography-600 leading-relaxed">
               Escolha uma das opções abaixo para configurar seu acesso:
             </p>
             
@@ -239,24 +238,24 @@ export default function MicrosoftConnectionSettings() {
                 href="https://mail.jwpub.org/owa/?path=/mail/action/compose&to=SouzaL1@jwpub.org&subject=Aviso%20de%20visita%20do%20SC"
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-white border-2 border-gray-100 hover:border-blue-200 text-gray-700 text-sm font-bold rounded-2xl transition-all shadow-sm active:scale-95"
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-surface-200 hover:bg-surface-300 text-typography-900 border border-surface-300 text-xs sm:text-sm font-bold rounded-2xl transition-all shadow-xs cursor-pointer active:scale-95"
               >
-                <ExternalLink className="w-4 h-4 text-blue-500" />
-                1. Abrir Webmail (Novo E-mail)
+                <ExternalLink className="w-4 h-4 text-primary-200" />
+                1. Abrir Webmail
               </a>
 
               {/* Versão 2: Autorização Entra */}
               <button
                 onClick={handleConnect}
                 disabled={actionLoading}
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-primary-200 hover:opacity-90 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-lg shadow-primary-200/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
                 2. Autorizar ProgCir
               </button>
             </div>
 
-            <p className="text-[10px] text-gray-400 font-medium leading-tight">
+            <p className="text-[11px] text-typography-500 font-medium leading-tight">
               <b>Dica:</b> Abra o Webmail primeiro para herdar o login, depois clique em Autorizar.
             </p>
           </div>
@@ -266,7 +265,7 @@ export default function MicrosoftConnectionSettings() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-100 text-xs"
+            className="flex items-center gap-2 p-3.5 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 text-xs font-medium"
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
@@ -274,7 +273,7 @@ export default function MicrosoftConnectionSettings() {
         )}
       </div>
 
-      <p className="mt-6 text-[10px] text-gray-400 text-center uppercase tracking-wider font-medium">
+      <p className="mt-6 text-[10px] text-typography-400 text-center uppercase tracking-wider font-bold">
         Segurança JW: O ProgCir não tem acesso à sua senha.
       </p>
     </div>

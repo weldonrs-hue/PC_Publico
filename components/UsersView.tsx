@@ -44,6 +44,7 @@ import {
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal } from '@/utils/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
+import { cn } from '@/lib/utils';
 
 interface UserMetadata {
   id: string;
@@ -536,48 +537,90 @@ export default function UsersView({ onBack }: UsersViewProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="space-y-6"
+      className="space-y-6 pb-20"
     >
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-[#512da8] bg-white shadow-md border border-gray-200"
-            title="Voltar"
-          >
-            <ChevronLeft size={22} strokeWidth={3} />
-          </button>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 leading-tight">
+      {/* Cabeçalho da Página */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <button 
+              onClick={onBack}
+              className="p-2 sm:p-2.5 bg-surface-100 hover:bg-surface-200 text-typography-700 hover:text-typography-900 rounded-2xl border border-surface-300 shadow-xs transition-all active:scale-95 shrink-0"
+              title="Voltar"
+            >
+              <ChevronLeft size={18} strokeWidth={2.5} />
+            </button>
+            <div className="w-10 h-10 rounded-xl bg-transparent border border-primary-200/40 dark:border-primary-200/50 text-primary-200 flex items-center justify-center shrink-0">
+              <Users size={20} strokeWidth={1.8} />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
               Usuários do Sistema
             </h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Gerencie os acessos do sistema</p>
           </div>
+          <p className="text-xs sm:text-sm text-typography-500 pl-14 sm:pl-16">
+            Gerenciamento de contas, categorias de acesso e membros cadastrados.
+          </p>
         </div>
-        
-          <div className="flex items-center flex-wrap gap-2">
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#512da8]/10 focus:border-[#512da8] transition-all font-bold text-gray-700"
-            >
-              <option value="all">Todas Categorias</option>
-              <option value="admin">Administradores</option>
-              <option value="viajante">Viajantes</option>
-              <option value="pioneiro_especial">Pioneiros Especiais</option>
-              <option value="pioneiro_regular">Pioneiros Regulares</option>
-              <option value="secretaria">Secretarias (TJSec)</option>
-              <option value="user">Usuários Comuns</option>
-            </select>
 
-            <button 
-              onClick={async () => {
+        <div className="flex items-center gap-2 self-start sm:self-auto pl-14 sm:pl-0">
+          <button 
+            onClick={fetchUsers}
+            disabled={refreshing}
+            className="p-2.5 bg-surface-100 hover:bg-surface-200 text-typography-700 hover:text-typography-900 rounded-2xl border border-surface-300 shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+            title="Recarregar dados"
+          >
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+          <button 
+            onClick={onBack}
+            className="p-2.5 bg-surface-100 hover:bg-surface-200 text-typography-700 hover:text-typography-900 rounded-2xl border border-surface-300 shadow-xs transition-all active:scale-95 shrink-0 sm:hidden flex items-center gap-1.5 text-xs font-bold"
+            title="Fechar"
+          >
+            <X size={16} strokeWidth={2.5} />
+            <span>Fechar</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Barra de Filtros e Busca */}
+      <div className="bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          {/* Busca */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-typography-400" size={16} />
+            <input
+              type="text"
+              placeholder="Buscar por nome, e-mail ou número..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs sm:text-sm font-medium text-typography-900 placeholder:text-typography-400 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/20 outline-none transition-all"
+            />
+          </div>
+
+          {/* Filtro de Categoria */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-3.5 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs sm:text-sm font-bold text-typography-900 focus:border-primary-200 outline-none transition-all cursor-pointer"
+          >
+            <option value="all">Todas as Categorias</option>
+            <option value="admin">Administradores</option>
+            <option value="viajante">Viajantes</option>
+            <option value="pioneiro_especial">Pioneiros Especiais</option>
+            <option value="pioneiro_regular">Pioneiros Regulares</option>
+            <option value="secretaria">Secretarias (TJSec)</option>
+            <option value="user">Usuários Comuns</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <button 
+            onClick={async () => {
               if (isQuotaExceeded()) {
                 await showAlert('Limite diário de cota excedido. Não é possível realizar operações de escrita no momento.', 'Aviso de Cota');
                 return;
               }
-              const confirmMsg = `AVISO DE COTA FIRESTORE:\n\nEsta operação irá comparar e atualizar TODOS os usuários cadastrados. \nDependendo do número de usuários, isso pode consumir centenas de "WRITES" da sua cota diária.\n\nDeseja realmente continuar?`;
+              const confirmMsg = `AVISO DE COTA FIRESTORE:\n\nEsta operação irá comparar e atualizar TODOS os usuários cadastrados.\nDependendo do número de usuários, isso pode consumir escritas da sua cota diária.\n\nDeseja realmente continuar?`;
               const confirmed = await showConfirm(confirmMsg, 'Confirmar Sincronização em Lote');
               if (!confirmed) return;
               
@@ -594,13 +637,10 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
                 usersSnapshot.docs.forEach(uDoc => {
                   const uData = uDoc.data();
-                  // Try to find personal data by UID (document ID) or by numeroPessoal
                   const pd = pdDocs.find(p => p.id === uDoc.id || p.userId === uDoc.id || (uData.usuario && p.numeroPessoal === uData.usuario));
                   
                   if (pd && (pd.nome || pd.role)) {
                     const update: any = {};
-                    // SYNC Logic: Only update from personal_data (explicit source)
-                    // We DO NOT infer roles from other collections here.
                     if (pd.nome && pd.nome !== uData.nome) update.nome = pd.nome;
                     if (pd.role && pd.role !== uData.role) update.role = pd.role;
                     if (pd.profilePhoto && pd.profilePhoto !== uData.photoURL) update.photoURL = pd.profilePhoto;
@@ -627,39 +667,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
               }
             }}
             disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg border border-indigo-200 text-[10px] font-black transition-all disabled:opacity-50 uppercase tracking-widest"
-            title="Sincronizar nomes e categorias de todos os usuários"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-200 hover:bg-surface-300 text-primary-200 font-bold rounded-xl border border-surface-300 text-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Sincronizar nomes e categorias"
           >
-            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-            SYNC GERAL
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+            <span>Sincronizar</span>
           </button>
-          <div className="relative flex-1 min-w-[150px] md:w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#512da8]/10 focus:border-[#512da8] transition-all"
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button 
-              onClick={fetchUsers}
-              disabled={refreshing}
-              className="p-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 text-gray-500 transition-all disabled:opacity-50"
-              title="Recarregar"
-            >
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            </button>
-            <button 
-              onClick={onBack}
-              className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg border border-red-200 transition-all flex items-center justify-center shadow-sm active:scale-95 shrink-0"
-              title="Fechar"
-            >
-              <X size={16} strokeWidth={3} />
-            </button>
-          </div>
         </div>
       </div>
 
@@ -667,9 +680,9 @@ export default function UsersView({ onBack }: UsersViewProps) {
       {roleRequests.some(r => r.status === 'pending') && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 ml-1">
-            <RefreshCw className="text-purple-600" size={20} />
-            <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">Solicitações de Categoria Pendentes</h3>
-            <span className="bg-purple-100 text-purple-600 text-[10px] font-black px-2 py-0.5 rounded-full">
+            <RefreshCw className="text-primary-200" size={18} />
+            <h3 className="text-xs font-black text-typography-900 uppercase tracking-widest">Solicitações de Categoria Pendentes</h3>
+            <span className="bg-primary-200/10 text-primary-200 text-[10px] font-black px-2 py-0.5 rounded-full border border-primary-200/20">
               {roleRequests.filter(r => r.status === 'pending').length}
             </span>
           </div>
@@ -681,45 +694,45 @@ export default function UsersView({ onBack }: UsersViewProps) {
                 layout
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm space-y-4"
+                className="bg-surface-100 p-5 rounded-3xl border border-surface-300 shadow-xs space-y-4"
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-black text-sm text-gray-900 uppercase tracking-tight">{request.userName || 'Usuário'}</h4>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{formatDate(request.createdAt)}</p>
+                    <h4 className="font-bold text-sm text-typography-900 uppercase tracking-tight">{request.userName || 'Usuário'}</h4>
+                    <p className="text-[10px] text-typography-500 font-bold uppercase mt-0.5">{formatDate(request.createdAt)}</p>
                   </div>
-                  <div className="bg-purple-50 p-2 rounded-xl text-purple-600">
-                    <Fingerprint size={20} />
+                  <div className="w-9 h-9 rounded-xl bg-primary-200/10 border border-primary-200/30 text-primary-200 flex items-center justify-center shrink-0">
+                    <Fingerprint size={18} />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
+                <div className="flex items-center gap-3 bg-surface-200/60 p-3 rounded-2xl border border-surface-300">
                   <div className="flex-1 text-center">
-                    <p className="text-[9px] text-gray-400 font-black uppercase">Atual</p>
-                    <p className="text-[10px] font-bold text-gray-600 uppercase truncate">{request.currentRole.replace('_', ' ')}</p>
+                    <p className="text-[9px] text-typography-400 font-black uppercase">Atual</p>
+                    <p className="text-[10px] font-bold text-typography-700 uppercase truncate">{request.currentRole.replace('_', ' ')}</p>
                   </div>
-                  <div className="text-purple-300">→</div>
+                  <div className="text-typography-400">→</div>
                   <div className="flex-1 text-center font-black">
-                    <p className="text-[9px] text-purple-400 uppercase">Solicitada</p>
-                    <p className="text-[11px] text-purple-700 uppercase truncate">{request.requestedRole.replace('_', ' ')}</p>
+                    <p className="text-[9px] text-primary-200 uppercase">Solicitada</p>
+                    <p className="text-[11px] text-primary-200 uppercase truncate">{request.requestedRole.replace('_', ' ')}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
-                  <Phone size={14} className="text-emerald-600" />
-                  <span className="text-xs font-black text-emerald-700">{request.phoneNumber}</span>
+                <div className="flex items-center gap-2 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                  <Phone size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">{request.phoneNumber}</span>
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-1">
                   <button
                     onClick={() => handleApproveRequest(request)}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black py-2.5 rounded-xl transition-all uppercase tracking-widest shadow-md shadow-emerald-100"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black py-2.5 rounded-xl transition-all uppercase tracking-wider shadow-xs cursor-pointer"
                   >
                     Aprovar
                   </button>
                   <button
                     onClick={() => handleRejectRequest(request.id)}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 text-[10px] font-black py-2.5 rounded-xl transition-all uppercase tracking-widest"
+                    className="flex-1 bg-surface-200 hover:bg-surface-300 text-typography-700 text-[10px] font-black py-2.5 rounded-xl transition-all uppercase tracking-wider border border-surface-300 cursor-pointer"
                   >
                     Recusar
                   </button>
@@ -730,28 +743,178 @@ export default function UsersView({ onBack }: UsersViewProps) {
         </div>
       )}
 
-      {/* Users Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 bg-amber-50 border-b border-amber-100 flex flex-col gap-3">
-          <div className="flex items-start gap-3">
-            <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 leading-relaxed">
-              <strong>Nota:</strong> Se você excluiu um usuário do Firebase Auth, ele ainda aparecerá aqui até que seus dados sejam removidos manualmente. Contas marcadas como <span className="text-red-700 font-bold">DUPLICADO</span> indicam que o mesmo Número Pessoal está em dois perfis diferentes. 
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 leading-relaxed">
-              As datas de criação e último login são sincronizadas a partir do Firebase Authentication quando o usuário realiza login.
-            </p>
-          </div>
+      {/* Alerta de sincronização / observações */}
+      <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
+        <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <div className="space-y-1 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+          <p>
+            <strong>Nota:</strong> Se você excluiu um usuário do Firebase Auth, ele ainda aparecerá aqui até que seus dados sejam removidos. Contas marcadas como <span className="text-red-600 font-bold">DUPLICADO</span> indicam que o mesmo ID Pessoal está em dois perfis diferentes.
+          </p>
         </div>
+      </div>
+
+      {/* Visualização Mobile: Cards (md:hidden) */}
+      <div className="block md:hidden space-y-3">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs animate-pulse space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-surface-200 rounded-xl" />
+                <div className="space-y-1.5 flex-1">
+                  <div className="h-3.5 bg-surface-200 rounded-md w-3/4" />
+                  <div className="h-2.5 bg-surface-200 rounded-md w-1/2" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : filteredUsers.length > 0 ? (
+          filteredUsers.map((user) => (
+            <div 
+              key={user.id} 
+              className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-3 transition-all"
+            >
+              {/* Top: Avatar, Nome, ID Pessoal */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-surface-200 flex items-center justify-center text-primary-200 overflow-hidden border border-surface-300 shrink-0">
+                    {user.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
+                      <Image 
+                        src={user.photoURL} 
+                        alt={user.nome || 'Usuário'} 
+                        width={40} 
+                        height={40} 
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <UserIcon size={20} />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-typography-900 truncate">{user.nome || 'Sem Nome'}</p>
+                    <p className="text-xs text-typography-500 truncate">{user.email}</p>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <span className={cn(
+                    "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg border block",
+                    users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1
+                      ? "bg-red-500/10 text-red-600 border-red-500/30"
+                      : "bg-surface-200 text-typography-700 border-surface-300"
+                  )}>
+                    {user.numeroPessoal || '---'}
+                  </span>
+                  {users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1 && (
+                    <span className="text-[8px] text-red-500 font-black uppercase tracking-tight block mt-0.5">Duplicado</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Badges de Categoria */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {user.role === 'admin' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[9px] font-bold uppercase border border-amber-500/20">
+                    <ShieldCheck size={10} />
+                    Administrador
+                  </span>
+                )}
+                {user.role === 'viajante' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[9px] font-bold uppercase border border-blue-500/20">
+                    <Globe size={10} />
+                    Viajante
+                  </span>
+                )}
+                {user.role === 'pioneiro_especial' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 text-[9px] font-bold uppercase border border-purple-500/20">
+                    <Sparkles size={10} />
+                    Pioneiro Especial
+                  </span>
+                )}
+                {user.role === 'pioneiro_regular' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold uppercase border border-emerald-500/20">
+                    <UserIcon size={10} />
+                    Pioneiro Regular
+                  </span>
+                )}
+                {user.role === 'secretaria' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-300 text-[9px] font-bold uppercase border border-rose-500/20">
+                    <ShieldCheck size={10} />
+                    Secretaria
+                  </span>
+                )}
+                {user.hasPasskey && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-[9px] font-bold uppercase border border-indigo-500/20">
+                    <Fingerprint size={10} />
+                    Passkey
+                  </span>
+                )}
+              </div>
+
+              {/* Datas de Criação e Login */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-surface-300/60 text-[10px] text-typography-500">
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={12} className="text-typography-400" />
+                  <span>{formatDate(user.createdAt)}</span>
+                </div>
+                <div className="flex items-center gap-1.5 justify-end">
+                  <Clock size={12} className="text-typography-400" />
+                  <span>{formatDate(user.lastLogin)}</span>
+                </div>
+              </div>
+
+              {/* Botões de Ação Mobile */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-surface-300/60">
+                <button
+                  onClick={() => handleToggleInactive(user)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-[10px] font-black transition-all border shadow-xs cursor-pointer",
+                    user.isInactive 
+                      ? "bg-surface-200 text-typography-500 border-surface-300" 
+                      : "bg-emerald-600 text-white border-emerald-500"
+                  )}
+                >
+                  {user.isInactive ? 'OFFLINE' : 'ATIVO'}
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setUserToEditRole(user)}
+                    className="p-2 text-typography-500 hover:text-primary-200 bg-surface-200 hover:bg-surface-300 rounded-xl transition-all border border-surface-300 cursor-pointer"
+                    title="Alterar Categoria"
+                  >
+                    <Fingerprint size={16} />
+                  </button>
+                  {auth.currentUser?.uid !== user.id && user.role !== 'admin' && user.email !== 'weldonrs@gmail.com' && (
+                    <button
+                      onClick={() => setUserToDelete(user)}
+                      className="p-2 text-typography-500 hover:text-red-500 bg-surface-200 hover:bg-surface-300 rounded-xl transition-all border border-surface-300 cursor-pointer"
+                      title="Excluir Usuário"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="bg-surface-100 p-8 rounded-3xl border border-surface-300 text-center text-typography-500 space-y-2">
+            <Users size={36} className="mx-auto opacity-40" />
+            <p className="text-sm font-bold text-typography-900">Nenhum usuário encontrado</p>
+            <p className="text-xs">Tente ajustar seus filtros de busca.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Visualização Desktop: Tabela (hidden md:block) */}
+      <div className="hidden md:block bg-surface-100 rounded-3xl shadow-xs border border-surface-300 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100">
+              <tr className="bg-surface-200/50 border-b border-surface-300">
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-typography-500 uppercase tracking-widest cursor-pointer hover:bg-surface-300/40 transition-colors"
                   onClick={() => handleSort('nome')}
                 >
                   <div className="flex items-center gap-1">
@@ -759,12 +922,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     {sortConfig?.key === 'nome' ? (
                       sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-typography-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-typography-500 uppercase tracking-widest text-center cursor-pointer hover:bg-surface-300/40 transition-colors"
                   onClick={() => handleSort('numeroPessoal')}
                 >
                   <div className="flex items-center justify-center gap-1">
@@ -772,12 +935,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     {sortConfig?.key === 'numeroPessoal' ? (
                       sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-typography-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-typography-500 uppercase tracking-widest cursor-pointer hover:bg-surface-300/40 transition-colors"
                   onClick={() => handleSort('createdAt')}
                 >
                   <div className="flex items-center gap-1">
@@ -785,12 +948,12 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     {sortConfig?.key === 'createdAt' ? (
                       sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-typography-400" />
                     )}
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer hover:bg-gray-100/50 transition-colors"
+                  className="px-4 py-3 text-[10px] font-black text-typography-500 uppercase tracking-widest cursor-pointer hover:bg-surface-300/40 transition-colors"
                   onClick={() => handleSort('lastLogin')}
                 >
                   <div className="flex items-center gap-1">
@@ -798,35 +961,35 @@ export default function UsersView({ onBack }: UsersViewProps) {
                     {sortConfig?.key === 'lastLogin' ? (
                       sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
                     ) : (
-                      <ArrowUpDown size={12} className="text-gray-300" />
+                      <ArrowUpDown size={12} className="text-typography-400" />
                     )}
                   </div>
                 </th>
-                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                <th className="px-4 py-3 text-[10px] font-black text-typography-500 uppercase tracking-widest text-center">Status</th>
+                <th className="px-4 py-3 text-[10px] font-black text-typography-500 uppercase tracking-widest text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-surface-300/60">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={6} className="px-6 py-8">
-                      <div className="h-4 bg-gray-100 rounded w-full"></div>
+                    <td colSpan={6} className="px-6 py-6">
+                      <div className="h-4 bg-surface-200 rounded-md w-full"></div>
                     </td>
                   </tr>
                 ))
               ) : filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-[#512da8]/10 flex items-center justify-center text-[#512da8] overflow-hidden border border-[#512da8]/5 flex-shrink-0">
+                  <tr key={user.id} className="hover:bg-surface-200/40 transition-colors group">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-surface-200 flex items-center justify-center text-primary-200 overflow-hidden border border-surface-300 shrink-0">
                           {user.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
                             <Image 
                               src={user.photoURL} 
                               alt={user.nome || 'Usuário'} 
-                              width={32}
-                              height={32}
+                              width={32} 
+                              height={32} 
                               className="w-full h-full object-cover"
                               referrerPolicy="no-referrer"
                             />
@@ -835,41 +998,41 @@ export default function UsersView({ onBack }: UsersViewProps) {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-gray-900 leading-tight truncate">{user.nome}</p>
-                          <p className="text-[10px] text-gray-500 font-medium truncate">{user.email}</p>
+                          <p className="text-xs font-bold text-typography-900 leading-tight truncate">{user.nome || 'Sem Nome'}</p>
+                          <p className="text-[10px] text-typography-500 font-medium truncate">{user.email}</p>
                           <div className="flex flex-wrap gap-1 mt-0.5">
                             {user.role === 'admin' && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[8px] font-black uppercase border border-amber-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[8px] font-bold uppercase border border-amber-500/20">
                                 <ShieldCheck size={8} />
                                 Administrador
                               </span>
                             )}
                             {user.role === 'viajante' && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[8px] font-black uppercase border border-blue-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[8px] font-bold uppercase border border-blue-500/20">
                                 <Globe size={8} />
                                 Viajante
                               </span>
                             )}
                             {user.role === 'pioneiro_especial' && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[8px] font-black uppercase border border-purple-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 text-[8px] font-bold uppercase border border-purple-500/20">
                                 <Sparkles size={8} />
                                 Pioneiro Especial
                               </span>
                             )}
                             {user.role === 'pioneiro_regular' && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase border border-emerald-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[8px] font-bold uppercase border border-emerald-500/20">
                                 <UserIcon size={8} />
                                 Pioneiro Regular
                               </span>
                             )}
                             {user.role === 'secretaria' && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[8px] font-black uppercase border border-rose-200">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-700 dark:text-rose-300 text-[8px] font-bold uppercase border border-rose-500/20">
                                 <ShieldCheck size={8} />
-                                Secretaria (TJSec)
+                                Secretaria
                               </span>
                             )}
                             {user.hasPasskey && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase border border-indigo-200" title="Possui chave de acesso (passkey) cadastrada">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-[8px] font-bold uppercase border border-indigo-500/20">
                                 <Fingerprint size={8} />
                                 Passkey
                               </span>
@@ -878,49 +1041,51 @@ export default function UsersView({ onBack }: UsersViewProps) {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="px-4 py-3 text-center">
                       <div className="flex flex-col items-center justify-center gap-0.5">
-                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
+                        <span className={cn(
+                          "text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border",
                           users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1
-                            ? 'bg-red-100 text-red-700 border border-red-200'
-                            : 'bg-[#512da8]/5 text-[#512da8]'
-                        }`}>
-                          {user.numeroPessoal}
+                            ? "bg-red-500/10 text-red-600 border-red-500/30"
+                            : "bg-surface-200 text-typography-700 border-surface-300"
+                        )}>
+                          {user.numeroPessoal || '---'}
                         </span>
                         {users.filter(u => u.numeroPessoal === user.numeroPessoal && u.numeroPessoal !== '---').length > 1 && (
                           <span className="text-[8px] text-red-500 font-black uppercase tracking-tighter">Duplicado</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
-                        <Calendar size={12} className="text-gray-400" />
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-xs text-typography-600">
+                        <Calendar size={12} className="text-typography-400" />
                         {formatDate(user.createdAt)}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
-                        <Clock size={12} className="text-gray-400" />
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-xs text-typography-600">
+                        <Clock size={12} className="text-typography-400" />
                         {formatDate(user.lastLogin)}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => handleToggleInactive(user)}
-                        className={`px-2 py-1 rounded-lg text-[9px] font-black transition-all border shadow-sm w-full max-w-[70px] mx-auto ${
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[9px] font-black transition-all border shadow-xs w-full max-w-[70px] mx-auto cursor-pointer",
                           user.isInactive 
-                            ? 'bg-gray-100 text-gray-400 border-gray-200' 
-                            : 'bg-emerald-500 text-white border-emerald-400'
-                        }`}
+                            ? "bg-surface-200 text-typography-500 border-surface-300" 
+                            : "bg-emerald-600 text-white border-emerald-500"
+                        )}
                       >
                         {user.isInactive ? 'OFFLINE' : 'ATIVO'}
                       </button>
                     </td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setUserToEditRole(user)}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          className="p-1.5 text-typography-400 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-all cursor-pointer"
                           title="Alterar Categoria"
                         >
                           <Fingerprint size={16} />
@@ -928,7 +1093,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
                         {auth.currentUser?.uid !== user.id && user.role !== 'admin' && user.email !== 'weldonrs@gmail.com' && (
                           <button
                             onClick={() => setUserToDelete(user)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            className="p-1.5 text-typography-400 hover:text-red-500 hover:bg-surface-200 rounded-lg transition-all cursor-pointer"
                             title="Excluir dados do usuário"
                           >
                             <Trash2 size={16} />
@@ -941,10 +1106,10 @@ export default function UsersView({ onBack }: UsersViewProps) {
               ) : (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <div className="flex flex-col items-center gap-2 text-typography-400">
                       <Users size={48} strokeWidth={1} />
-                      <p className="text-lg font-medium">Nenhum usuário encontrado</p>
-                      <p className="text-sm">Tente ajustar sua busca ou recarregar a página.</p>
+                      <p className="text-base font-bold text-typography-900">Nenhum usuário encontrado</p>
+                      <p className="text-xs">Tente ajustar sua busca ou recarregar a página.</p>
                     </div>
                   </td>
                 </tr>
@@ -954,7 +1119,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
         </div>
         
         {!loading && (
-          <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 text-[10px] text-gray-400 font-medium uppercase tracking-widest">
+          <div className="px-6 py-4 bg-surface-200/40 border-t border-surface-300 text-[10px] text-typography-500 font-bold uppercase tracking-widest">
             Total de usuários: {filteredUsers.length}
           </div>
         )}
@@ -973,28 +1138,28 @@ export default function UsersView({ onBack }: UsersViewProps) {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              className="bg-surface-100 border border-surface-300 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden text-typography-900"
             >
               <div className="p-6">
                 {deleteStatus === 'idle' && (
                   <div className="space-y-6">
-                    <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 mx-auto">
+                    <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-500 mx-auto">
                       <Trash2 size={32} />
                     </div>
                     <div className="text-center">
-                      <h3 className="text-xl font-bold text-gray-900">Excluir Dados do Usuário?</h3>
-                      <div className="mt-4 p-4 bg-gray-50 rounded-2xl text-left space-y-2">
-                        <p className="text-sm font-bold text-gray-700">Usuário: <span className="text-[#512da8]">{userToDelete.nome}</span></p>
-                        <p className="text-xs text-gray-500">Email: {userToDelete.email}</p>
+                      <h3 className="text-xl font-bold text-typography-900">Excluir Dados do Usuário?</h3>
+                      <div className="mt-4 p-4 bg-surface-200/60 border border-surface-300 rounded-2xl text-left space-y-2">
+                        <p className="text-sm font-bold text-typography-900">Usuário: <span className="text-primary-200">{userToDelete.nome}</span></p>
+                        <p className="text-xs text-typography-500">Email: {userToDelete.email}</p>
                       </div>
-                      <p className="text-sm text-gray-500 mt-4">
+                      <p className="text-sm text-typography-500 mt-4">
                         Esta ação removerá permanentemente todos os dados deste usuário do sistema.
                       </p>
                     </div>
                     <div className="flex gap-3">
                       <button
                         onClick={() => setUserToDelete(null)}
-                        className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all"
+                        className="flex-1 py-3 px-4 bg-surface-200 hover:bg-surface-300 text-typography-700 font-bold rounded-2xl border border-surface-300 transition-all cursor-pointer"
                       >
                         Cancelar
                       </button>
@@ -1007,7 +1172,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
                             handleDeleteUser();
                           }
                         }}
-                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20"
+                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-red-600/20 cursor-pointer"
                       >
                         Continuar
                       </button>
@@ -1018,24 +1183,24 @@ export default function UsersView({ onBack }: UsersViewProps) {
                 {deleteStatus === 'reauth' && (
                   <div className="space-y-6">
                     <div className="text-center">
-                      <h3 className="text-xl font-bold text-gray-900">Confirme sua Senha</h3>
-                      <p className="text-sm text-gray-500 mt-2">
+                      <h3 className="text-xl font-bold text-typography-900">Confirme sua Senha</h3>
+                      <p className="text-sm text-typography-500 mt-2">
                         Para autorizar a exclusão deste usuário, digite sua senha de administrador.
                       </p>
                     </div>
                     <div className="space-y-4">
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-400 uppercase ml-1">Sua Senha (Admin)</label>
+                        <label className="text-xs font-bold text-typography-500 uppercase ml-1">Sua Senha (Admin)</label>
                         <input
                           type="password"
                           value={adminPassword}
                           onChange={(e) => setAdminPassword(e.target.value)}
                           placeholder="Digite sua senha"
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 text-typography-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all placeholder:text-typography-400"
                         />
                       </div>
                       {adminError && (
-                        <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium">
+                        <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl text-xs font-medium">
                           <AlertCircle size={14} />
                           {adminError}
                         </div>
@@ -1045,14 +1210,14 @@ export default function UsersView({ onBack }: UsersViewProps) {
                       <button
                         onClick={() => setDeleteStatus('idle')}
                         disabled={isDeleting}
-                        className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all disabled:opacity-50"
+                        className="flex-1 py-3 px-4 bg-surface-200 hover:bg-surface-300 text-typography-700 font-bold rounded-2xl border border-surface-300 transition-all disabled:opacity-50 cursor-pointer"
                       >
                         Voltar
                       </button>
                       <button
                         onClick={handleDeleteUser}
                         disabled={isDeleting || !adminPassword}
-                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                       >
                         {isDeleting ? <Loader2 className="animate-spin" size={18} /> : 'Confirmar Exclusão'}
                       </button>
@@ -1063,31 +1228,31 @@ export default function UsersView({ onBack }: UsersViewProps) {
                 {deleteStatus === 'deleting' && (
                   <div className="py-12 flex flex-col items-center justify-center space-y-4">
                     <Loader2 className="animate-spin text-red-600" size={48} />
-                    <p className="text-lg font-bold text-gray-900">Excluindo dados...</p>
-                    <p className="text-sm text-gray-500">Limpando registros do banco de dados.</p>
+                    <p className="text-lg font-bold text-typography-900">Excluindo dados...</p>
+                    <p className="text-sm text-typography-500">Limpando registros do banco de dados.</p>
                   </div>
                 )}
 
                 {deleteStatus === 'success' && (
                   <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+                    <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center text-emerald-500 mb-2">
                       <ShieldCheck size={48} />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Dados Removidos</h3>
-                    <p className="text-gray-500">Todos os registros associados a este usuário foram excluídos com sucesso.</p>
+                    <h3 className="text-2xl font-bold text-typography-900">Dados Removidos</h3>
+                    <p className="text-typography-500">Todos os registros associados a este usuário foram excluídos com sucesso.</p>
                   </div>
                 )}
 
                 {deleteStatus === 'error' && (
                   <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
-                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-2">
+                    <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center text-red-500 mb-2">
                       <AlertCircle size={48} />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Erro na Exclusão</h3>
-                    <p className="text-gray-500">Não foi possível remover todos os dados. Verifique as permissões.</p>
+                    <h3 className="text-2xl font-bold text-typography-900">Erro na Exclusão</h3>
+                    <p className="text-typography-500">Não foi possível remover todos os dados. Verifique as permissões.</p>
                     <button
                       onClick={() => setUserToDelete(null)}
-                      className="mt-4 px-6 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl"
+                      className="mt-4 px-6 py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-900 font-bold rounded-2xl border border-surface-300 cursor-pointer"
                     >
                       Fechar
                     </button>
@@ -1112,57 +1277,58 @@ export default function UsersView({ onBack }: UsersViewProps) {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              className="bg-surface-100 border border-surface-300 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden text-typography-900"
             >
               <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-gray-900">Alterar Categoria</h3>
-                  <button onClick={() => setUserToEditRole(null)} className="text-gray-400 hover:text-gray-600 p-1">
-                    <X size={24} />
+                  <h3 className="text-xl font-bold text-typography-900">Alterar Categoria</h3>
+                  <button onClick={() => setUserToEditRole(null)} className="text-typography-400 hover:text-typography-900 p-1.5 rounded-xl hover:bg-surface-200 transition-colors cursor-pointer">
+                    <X size={20} />
                   </button>
                 </div>
 
-                <div className="p-4 bg-indigo-50 rounded-2xl flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
+                <div className="p-4 bg-surface-200/60 border border-surface-300 rounded-2xl flex items-center gap-4">
+                  <div className="w-12 h-12 bg-surface-100 border border-surface-300 rounded-xl flex items-center justify-center text-primary-200 shadow-sm shrink-0">
                     <UserIcon size={24} />
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-900">{userToEditRole.nome}</p>
-                    <p className="text-xs text-gray-500">ID: {userToEditRole.numeroPessoal}</p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-typography-900 truncate">{userToEditRole.nome}</p>
+                    <p className="text-xs text-typography-500">ID: {userToEditRole.numeroPessoal || 'Não informado'}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-gray-400 uppercase ml-1">Selecione a Categoria</label>
+                  <label className="text-[11px] font-black text-typography-500 uppercase tracking-wider ml-1">Selecione a Categoria</label>
                   <div className="grid grid-cols-1 gap-2">
                     {[
-                      { value: 'viajante', label: 'Viajante', icon: Globe, color: 'text-blue-600', bg: 'bg-blue-50' },
-                      { value: 'pioneiro_especial', label: 'Pioneiro Especial', icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-50' },
-                      { value: 'pioneiro_regular', label: 'Pioneiro Regular', icon: UserIcon, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                      { value: 'secretaria', label: 'Secretaria (TJSec)', icon: ShieldCheck, color: 'text-rose-600', bg: 'bg-rose-50' },
-                      { value: 'user', label: 'Usuário Comum', icon: UserIcon, color: 'text-gray-600', bg: 'bg-gray-50' }
+                      { value: 'viajante', label: 'Viajante', icon: Globe, color: 'text-blue-500 dark:text-blue-400', bg: 'bg-blue-500/10' },
+                      { value: 'pioneiro_especial', label: 'Pioneiro Especial', icon: Sparkles, color: 'text-purple-500 dark:text-purple-400', bg: 'bg-purple-500/10' },
+                      { value: 'pioneiro_regular', label: 'Pioneiro Regular', icon: UserIcon, color: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+                      { value: 'secretaria', label: 'Secretaria (TJSec)', icon: ShieldCheck, color: 'text-rose-500 dark:text-rose-400', bg: 'bg-rose-500/10' },
+                      { value: 'user', label: 'Usuário Comum', icon: UserIcon, color: 'text-typography-500', bg: 'bg-surface-200' }
                     ].map((role) => (
                       <button
                         key={role.value}
                         onClick={() => handleUpdateRole(userToEditRole.id, role.value)}
                         disabled={isUpdatingRole}
-                        className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all group ${
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-2xl border transition-all group cursor-pointer text-left",
                           userToEditRole.role === role.value 
-                            ? 'border-indigo-500 bg-indigo-50/50' 
-                            : 'border-gray-100 hover:border-indigo-200 bg-white'
-                        }`}
+                            ? 'border-primary-200 bg-primary-200/10' 
+                            : 'border-surface-300 hover:border-primary-200/50 bg-surface-200/40 hover:bg-surface-200'
+                        )}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${role.bg} ${role.color}`}>
+                          <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center border border-surface-300/40", role.bg, role.color)}>
                             <role.icon size={18} />
                           </div>
-                          <span className={`text-sm font-bold ${userToEditRole.role === role.value ? 'text-indigo-700' : 'text-gray-700'}`}>
+                          <span className={cn("text-sm font-bold", userToEditRole.role === role.value ? 'text-primary-200' : 'text-typography-700')}>
                             {role.label}
                           </span>
                         </div>
                         {userToEditRole.role === role.value && (
-                          <div className="w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center text-white">
-                            <Check size={12} strokeWidth={4} />
+                          <div className="w-5 h-5 bg-primary-200 rounded-full flex items-center justify-center text-white">
+                            <Check size={12} strokeWidth={3} />
                           </div>
                         )}
                       </button>
@@ -1172,7 +1338,7 @@ export default function UsersView({ onBack }: UsersViewProps) {
 
                 <button
                   onClick={() => setUserToEditRole(null)}
-                  className="w-full py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-all"
+                  className="w-full py-3 text-typography-500 font-bold hover:bg-surface-200 rounded-2xl transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>

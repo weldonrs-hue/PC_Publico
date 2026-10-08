@@ -30,6 +30,7 @@ import {
   Info
 } from 'lucide-react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import { cn } from '@/lib/utils';
 
 interface Credential {
   id: string;
@@ -597,25 +598,28 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-2 p-8 text-gray-500">
-        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+      <div className="flex items-center justify-center gap-2 p-8 text-typography-500">
+        <Loader2 className="w-5 h-5 animate-spin text-primary-200" />
         <span className="text-sm font-medium">Carregando chaves de acesso...</span>
       </div>
     );
   }
 
   return (
-    <div className={isInsideModal ? "space-y-4 max-w-full overflow-x-hidden" : "bg-white/50 backdrop-blur-sm border border-gray-100 rounded-2xl p-3 sm:p-5 shadow-sm space-y-4 max-w-full overflow-x-hidden"}>
+    <div className={cn(
+      "space-y-4 max-w-full overflow-x-hidden text-typography-900",
+      !isInsideModal && "bg-surface-100 border border-surface-300 rounded-3xl p-4 sm:p-6 shadow-xs"
+    )}>
       
       {/* Barra Informativa de Recursos */}
-      <div className="flex items-center justify-between gap-2 bg-indigo-50/70 border border-indigo-100/80 p-3 rounded-2xl">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0">
+      <div className="flex items-center justify-between gap-2 bg-primary-200/10 border border-primary-200/20 p-3.5 rounded-2xl">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="p-2 bg-primary-200 text-white rounded-xl shrink-0 shadow-xs">
             <Fingerprint className="w-4 h-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate">Chaves de Acesso (Passkeys)</h4>
-            <p className="text-[11px] text-gray-500 truncate">Acesse com a biometria ou PIN dos seus aparelhos</p>
+            <h4 className="text-xs sm:text-sm font-bold text-typography-900 truncate">Chaves de Acesso (Passkeys)</h4>
+            <p className="text-[11px] text-typography-500 font-medium truncate">Acesse com a biometria ou PIN dos seus aparelhos</p>
           </div>
         </div>
 
@@ -623,7 +627,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
           <button
             type="button"
             onClick={() => setShowInfoModal(true)}
-            className="p-2 text-indigo-600 hover:bg-indigo-100/60 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+            className="p-2 text-primary-200 hover:bg-primary-200/10 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
             title="Como funciona"
           >
             <Info className="w-4 h-4" />
@@ -632,7 +636,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
           <button
             type="button"
             onClick={() => setShowDiagnostics(!showDiagnostics)}
-            className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-white rounded-xl border border-transparent hover:border-indigo-100 transition-colors cursor-pointer"
+            className="p-2 text-typography-500 hover:text-primary-200 hover:bg-surface-200 rounded-xl border border-transparent hover:border-surface-300 transition-colors cursor-pointer"
             title="Diagnóstico do Aparelho"
           >
             <Cpu className="w-4 h-4" />
@@ -649,54 +653,54 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-3.5 bg-gray-50 border border-gray-200/80 rounded-2xl space-y-2.5">
+            <div className="p-4 bg-surface-200/60 border border-surface-300 rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="text-xs font-bold text-typography-900 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-primary-200" />
                   Diagnóstico deste Dispositivo
                 </span>
                 <button
                   onClick={() => setShowDiagnostics(false)}
-                  className="text-gray-400 hover:text-gray-700 p-1"
+                  className="text-typography-400 hover:text-typography-900 p-1 rounded-lg hover:bg-surface-200 transition-colors cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div className="flex items-center gap-2 p-2 bg-white rounded-xl border border-gray-100">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <div className="flex items-center gap-2.5 p-2.5 bg-surface-100 rounded-xl border border-surface-300 shadow-xs">
                   {deviceCapabilities.hasWebAuthn ? (
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                   ) : (
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <div className="font-semibold text-gray-800 text-[11px] truncate">WebAuthn FIDO2</div>
-                    <div className="text-[10px] text-gray-500">{deviceCapabilities.hasWebAuthn ? 'Disponível' : 'Indisponível'}</div>
+                    <div className="font-bold text-typography-900 text-[11px] truncate">WebAuthn FIDO2</div>
+                    <div className="text-[10px] text-typography-500 font-medium">{deviceCapabilities.hasWebAuthn ? 'Disponível' : 'Indisponível'}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-white rounded-xl border border-gray-100">
+                <div className="flex items-center gap-2.5 p-2.5 bg-surface-100 rounded-xl border border-surface-300 shadow-xs">
                   {deviceCapabilities.hasPlatformAuth ? (
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                   ) : (
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <div className="font-semibold text-gray-800 text-[11px] truncate">Biometria / PIN</div>
-                    <div className="text-[10px] text-gray-500">{deviceCapabilities.hasPlatformAuth ? 'Pronto para uso' : 'Sem sensor'}</div>
+                    <div className="font-bold text-typography-900 text-[11px] truncate">Biometria / PIN</div>
+                    <div className="text-[10px] text-typography-500 font-medium">{deviceCapabilities.hasPlatformAuth ? 'Pronto para uso' : 'Sem sensor'}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-white rounded-xl border border-gray-100">
+                <div className="flex items-center gap-2.5 p-2.5 bg-surface-100 rounded-xl border border-surface-300 shadow-xs">
                   {deviceCapabilities.hasAutofill ? (
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                   ) : (
-                    <AlertCircle className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-typography-400 shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <div className="font-semibold text-gray-800 text-[11px] truncate">Autofill Biométrico</div>
-                    <div className="text-[10px] text-gray-500">{deviceCapabilities.hasAutofill ? 'Compatível' : 'Modo padrão'}</div>
+                    <div className="font-bold text-typography-900 text-[11px] truncate">Autofill Biométrico</div>
+                    <div className="text-[10px] text-typography-500 font-medium">{deviceCapabilities.hasAutofill ? 'Compatível' : 'Modo padrão'}</div>
                   </div>
                 </div>
               </div>
@@ -705,29 +709,29 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
         )}
       </AnimatePresence>
 
-      {/* Barra de Ação dos Botões (100% Responsiva e sem overflow) */}
-      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+      {/* Barra de Ação dos Botões (100% Responsiva) */}
+      <div className="bg-surface-100 p-4 sm:p-5 rounded-2xl border border-surface-300 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate">Gerenciador de Dispositivos</h4>
-            <p className="text-[11px] text-gray-500">Cadastre a biometria/PIN deste aparelho para entrar sem senha</p>
+            <h4 className="text-xs sm:text-sm font-bold text-typography-900 truncate">Gerenciador de Dispositivos</h4>
+            <p className="text-[11px] text-typography-500 font-medium">Cadastre a biometria/PIN deste aparelho para entrar sem senha</p>
           </div>
         </div>
 
         {/* Botões empilhados ou lado a lado com largura flexível */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
           {/* Botão de Testar Chave */}
           <button
             type="button"
             onClick={handleTestPasskey}
             disabled={testingPasskey || registering}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all active:scale-[0.98] cursor-pointer min-h-[42px]"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-900 border border-surface-300 rounded-2xl text-xs font-bold transition-all active:scale-[0.98] cursor-pointer min-h-[42px] shadow-xs"
             title="Testar se sua biometria e chave de acesso estão respondendo"
           >
             {testingPasskey ? (
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+              <Loader2 className="w-4 h-4 animate-spin text-primary-200" />
             ) : (
-              <Zap className="w-4 h-4 text-emerald-600" />
+              <Zap className="w-4 h-4 text-amber-500" />
             )}
             <span className="truncate">Testar Biometria</span>
           </button>
@@ -737,7 +741,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
             type="button"
             onClick={handleAddPasskey}
             disabled={registering || testingPasskey}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all active:scale-[0.98] shadow-sm shadow-indigo-100 cursor-pointer min-h-[42px]"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-200 hover:opacity-90 disabled:opacity-50 text-white rounded-2xl text-xs font-bold transition-all active:scale-[0.98] shadow-lg shadow-primary-200/20 cursor-pointer min-h-[42px]"
           >
             {registering ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -756,16 +760,17 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className={`p-3 sm:p-3.5 rounded-2xl border flex items-start gap-2.5 text-xs ${
+            className={cn(
+              "p-3.5 sm:p-4 rounded-2xl border flex items-start gap-3 text-xs",
               testResult.success 
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-200' 
-                : 'bg-amber-50 text-amber-900 border-amber-200'
-            }`}
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+            )}
           >
             {testResult.success ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             )}
             <div className="flex-1 min-w-0">
               <div className="font-bold text-xs mb-0.5">
@@ -773,8 +778,8 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
               </div>
               <p className="leading-relaxed text-[11px] break-words">{testResult.message}</p>
               {testResult.latency !== undefined && (
-                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold">
-                  <span className="px-1.5 py-0.5 bg-emerald-100 rounded-md">
+                <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-semibold">
+                  <span className="px-2 py-0.5 bg-surface-100/80 border border-surface-300 rounded-md">
                     Resposta: {testResult.latency}ms
                   </span>
                   <span>Criptografia OK</span>
@@ -783,7 +788,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
             </div>
             <button
               onClick={() => setTestResult(null)}
-              className="text-gray-400 hover:text-gray-600 p-1 shrink-0"
+              className="text-typography-400 hover:text-typography-900 p-1 shrink-0 rounded-lg hover:bg-surface-200 transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -795,7 +800,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-2 p-3 bg-red-50 text-red-700 rounded-xl border border-red-100 text-xs"
+          className="flex items-start gap-2.5 p-3.5 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 text-xs font-medium"
         >
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span className="break-words flex-1">{error}</span>
@@ -803,15 +808,15 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
       )}
 
       {/* Lista de Chaves Cadastradas */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-typography-500 uppercase tracking-wider">
             Chaves Cadastradas ({credentials.length})
           </span>
           <button
             type="button"
             onClick={fetchCredentials}
-            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors cursor-pointer"
+            className="text-[11px] font-bold text-primary-200 hover:opacity-80 flex items-center gap-1 transition-opacity cursor-pointer"
           >
             <RefreshCw className="w-3 h-3" />
             Atualizar
@@ -831,13 +836,14 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className={`p-3 sm:p-3.5 bg-white border rounded-2xl transition-all ${
-                    isCurrentDevice ? 'border-emerald-200 ring-1 ring-emerald-100 shadow-xs' : 'border-gray-100 shadow-xs'
-                  }`}
+                  className={cn(
+                    "p-3.5 sm:p-4 bg-surface-100 border rounded-2xl transition-all shadow-xs",
+                    isCurrentDevice ? 'border-primary-200 ring-1 ring-primary-200/20' : 'border-surface-300'
+                  )}
                 >
-                  <div className="flex items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 bg-surface-200 border border-surface-300 rounded-xl flex items-center justify-center shrink-0">
                         {getDeviceIcon(cred.deviceType, cred.deviceName)}
                       </div>
                       
@@ -854,13 +860,13 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
                               }}
                               autoFocus
                               placeholder="Nome do aparelho"
-                              className="text-xs font-bold text-gray-900 px-2 py-1 border border-indigo-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 w-full min-w-0"
+                              className="text-xs font-bold text-typography-900 px-2.5 py-1.5 bg-surface-200 border border-surface-300 rounded-xl outline-none focus:border-primary-200 w-full min-w-0"
                             />
                             <button
                               type="button"
                               onClick={() => handleRenamePasskey(cred.id)}
                               disabled={savingRename}
-                              className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shrink-0 flex items-center justify-center"
+                              className="p-1.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shrink-0 flex items-center justify-center cursor-pointer shadow-xs"
                               title="Salvar"
                             >
                               {savingRename ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
@@ -868,7 +874,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
                             <button
                               type="button"
                               onClick={() => setEditingId(null)}
-                              className="p-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 shrink-0 flex items-center justify-center"
+                              className="p-1.5 bg-surface-200 hover:bg-surface-300 text-typography-700 rounded-xl border border-surface-300 shrink-0 flex items-center justify-center cursor-pointer"
                               title="Cancelar"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -876,12 +882,12 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs sm:text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-xs">
+                            <span className="text-xs sm:text-sm font-bold text-typography-900 truncate max-w-[160px] sm:max-w-xs">
                               {cred.deviceName || 'Chave de acesso'}
                             </span>
                             
                             {isCurrentDevice && (
-                              <span className="inline-flex items-center px-1.5 py-0.2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold rounded-full">
+                              <span className="inline-flex items-center px-2 py-0.5 bg-primary-200/10 text-primary-200 border border-primary-200/20 text-[9px] font-bold rounded-full">
                                 Este aparelho
                               </span>
                             )}
@@ -892,7 +898,7 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
                                 setEditingId(cred.id);
                                 setEditingName(cred.deviceName || '');
                               }}
-                              className="text-gray-400 hover:text-indigo-600 p-1 rounded-md hover:bg-gray-50 transition-colors"
+                              className="text-typography-400 hover:text-primary-200 p-1 rounded-md hover:bg-surface-200 transition-colors cursor-pointer"
                               title="Renomear"
                             >
                               <Pencil className="w-3 h-3" />
@@ -900,9 +906,9 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
                           </div>
                         )}
 
-                        <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
+                        <div className="flex items-center gap-2 text-[10px] text-typography-500 font-medium mt-0.5">
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-2.5 h-2.5" />
+                            <Calendar className="w-3 h-3 text-typography-400" />
                             {formatDate(cred.createdAt)}
                           </span>
                         </div>
@@ -914,11 +920,11 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
                         type="button"
                         onClick={() => handleDeletePasskey(cred)}
                         disabled={deletingId === cred.id}
-                        title={`Excluir chave`}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50 min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer"
+                        title="Excluir chave"
+                        className="p-2 text-typography-400 hover:text-red-500 hover:bg-surface-200 rounded-xl transition-all disabled:opacity-50 min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer"
                       >
                         {deletingId === cred.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-red-600" />
+                          <Loader2 className="w-4 h-4 animate-spin text-red-500" />
                         ) : (
                           <Trash2 className="w-4 h-4" />
                         )}
@@ -929,12 +935,12 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
               );
             })
           ) : !registering && (
-            <div className="text-center py-6 bg-white border border-dashed border-gray-200 rounded-2xl p-4">
-              <Key className="w-8 h-8 text-gray-300 mx-auto mb-1.5" />
-              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-0.5">
+            <div className="text-center py-8 bg-surface-100 border border-dashed border-surface-300 rounded-2xl p-4 shadow-xs">
+              <Key className="w-8 h-8 text-typography-400 mx-auto mb-2" />
+              <p className="text-xs text-typography-900 font-bold uppercase tracking-wider mb-0.5">
                 Nenhuma chave cadastrada
               </p>
-              <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+              <p className="text-[11px] text-typography-500 max-w-xs mx-auto">
                 Clique em &ldquo;Adicionar Chave&rdquo; para registrar a biometria/PIN deste aparelho.
               </p>
             </div>
@@ -942,9 +948,9 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
         </AnimatePresence>
       </div>
 
-      <div className="pt-2 border-t border-gray-100 flex items-start gap-2">
-        <Shield className="w-3 h-3 text-gray-400 mt-0.5 shrink-0" />
-        <p className="text-[10px] text-gray-400 leading-relaxed">
+      <div className="pt-2 border-t border-surface-300/60 flex items-start gap-2">
+        <Shield className="w-3.5 h-3.5 text-typography-400 mt-0.5 shrink-0" />
+        <p className="text-[10px] text-typography-500 leading-relaxed font-medium">
           <b>Segurança:</b> Seus dados biométricos permanecem no dispositivo físico. O servidor recebe apenas a assinatura pública criptográfica FIDO2.
         </p>
       </div>
@@ -963,51 +969,51 @@ export default function WebAuthnSettings({ isInsideModal = false }: WebAuthnSett
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]"
+              className="bg-surface-100 border border-surface-300 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] text-typography-900"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Cabeçalho */}
-              <div className="p-4 sm:p-5 bg-indigo-900 text-white flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-white/10 rounded-xl">
-                    <Fingerprint className="w-5 h-5 text-indigo-200" />
+              <div className="p-4 sm:p-5 bg-surface-200 border-b border-surface-300 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary-200/10 border border-primary-200/20 rounded-xl text-primary-200">
+                    <Fingerprint className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold">Chaves de Acesso (Passkeys)</h3>
-                    <p className="text-[11px] text-indigo-200">Como funciona o acesso biométrico</p>
+                    <h3 className="text-sm sm:text-base font-bold text-typography-900">Chaves de Acesso (Passkeys)</h3>
+                    <p className="text-[11px] text-typography-500 font-medium">Como funciona o acesso biométrico</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowInfoModal(false)}
-                  className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                  className="p-1.5 text-typography-400 hover:text-typography-900 hover:bg-surface-100 rounded-xl transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Conteúdo */}
-              <div className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1 text-xs text-gray-600 leading-relaxed">
-                <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100">
-                  <h4 className="font-bold text-gray-900 mb-0.5">Entrada sem senha</h4>
+              <div className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1 text-xs text-typography-600 leading-relaxed">
+                <div className="p-3.5 rounded-2xl bg-surface-200/50 border border-surface-300">
+                  <h4 className="font-bold text-typography-900 mb-0.5">Entrada sem senha</h4>
                   <p>Substitui a digitação de senhas pela sua impressão digital, Face ID ou PIN cadastrado no aparelho.</p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
-                  <h4 className="font-bold text-gray-900 mb-0.5">Vários dispositivos</h4>
+                <div className="p-3.5 rounded-2xl bg-surface-200/50 border border-surface-300">
+                  <h4 className="font-bold text-typography-900 mb-0.5">Vários dispositivos</h4>
                   <p>Você pode cadastrar seu celular Android, iPhone e computador. Cada aparelho terá sua própria chave segura.</p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-100">
-                  <h4 className="font-bold text-gray-900 mb-0.5">Proteção Antiphishing</h4>
+                <div className="p-3.5 rounded-2xl bg-surface-200/50 border border-surface-300">
+                  <h4 className="font-bold text-typography-900 mb-0.5">Proteção Antiphishing</h4>
                   <p>Padrão FIDO2 / WebAuthn. A chave privada nunca sai do chip do seu aparelho e é imune a vazamentos.</p>
                 </div>
               </div>
 
               {/* Rodapé */}
-              <div className="p-3.5 bg-gray-50 border-t border-gray-100 flex justify-end shrink-0">
+              <div className="p-4 bg-surface-200/60 border-t border-surface-300 flex justify-end shrink-0">
                 <button
                   onClick={() => setShowInfoModal(false)}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all"
+                  className="px-5 py-2.5 bg-primary-200 hover:opacity-90 text-white font-bold text-xs rounded-2xl shadow-lg shadow-primary-200/20 transition-all cursor-pointer"
                 >
                   Entendi
                 </button>

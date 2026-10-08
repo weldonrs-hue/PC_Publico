@@ -19,8 +19,10 @@ import {
   Landmark as LandmarkIcon,
   ClipboardPaste,
   Check,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { db, auth } from '@/lib/firebase';
 import { 
   collection, 
@@ -386,103 +388,130 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
       className="space-y-6"
     >
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-[#059669] bg-white shadow-md border border-gray-200"
-            title="Voltar"
-          >
-            <ChevronLeft size={22} strokeWidth={3} />
-          </button>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 leading-tight">
-              Contas do Circuito (TJSEC)
-            </h2>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-              Gerencie acessos de publicadores por congregação
-            </p>
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 sm:p-6 shadow-xs flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={onBack}
+              className="w-10 h-10 rounded-2xl bg-surface-100 border border-surface-300 flex items-center justify-center text-typography-600 hover:text-typography-900 hover:bg-surface-200 transition-all cursor-pointer shadow-xs shrink-0"
+              title="Voltar"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <div className="w-10 h-10 rounded-2xl bg-primary-200/10 border border-primary-200/20 text-primary-200 flex items-center justify-center shrink-0">
+              <Landmark size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-typography-900 tracking-tight leading-tight">
+                Contas do Circuito (TJSEC)
+              </h2>
+              <p className="text-xs text-typography-500 font-medium">
+                Gerencie acessos de publicadores por congregação
+              </p>
+            </div>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-900 border border-surface-300 rounded-2xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+              title="Importar lista de publicadores do TJSEC"
+            >
+              <ClipboardPaste size={16} className="text-primary-200" />
+              <span>Importar</span>
+            </button>
+            <button 
+              onClick={fetchData}
+              disabled={refreshing}
+              className="w-10 h-10 flex items-center justify-center bg-surface-200 hover:bg-surface-300 rounded-2xl border border-surface-300 text-typography-600 hover:text-typography-900 transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+              title="Atualizar dados"
+            >
+              <RefreshCw size={18} className={cn(refreshing && 'animate-spin')} />
+            </button>
           </div>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+
+        {/* Search and Mobile Actions */}
+        <div className="flex items-center gap-2 pt-1 border-t border-surface-300/60">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-typography-400" size={16} />
             <input
               type="text"
               placeholder="Buscar congregação ou publicador..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#059669]/10 focus:border-[#059669] transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface-200 border border-surface-300 rounded-2xl text-xs sm:text-sm text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 transition-all"
             />
           </div>
-          <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-[#059669] border border-emerald-200 rounded-xl text-sm font-bold hover:bg-emerald-50 transition-all shadow-sm active:scale-95"
-            title="Importar lista de publicadores do TJSEC"
-          >
-            <ClipboardPaste size={18} />
-            <span className="hidden md:inline">IMPORTAR</span>
-          </button>
-          <button 
-            onClick={fetchData}
-            disabled={refreshing}
-            className="p-2 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 text-gray-500 transition-all disabled:opacity-50"
-            title="Atualizar"
-          >
-            <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
-          </button>
+
+          <div className="flex sm:hidden items-center gap-2">
+            <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="p-2.5 bg-surface-200 hover:bg-surface-300 text-typography-900 border border-surface-300 rounded-2xl transition-all shadow-xs cursor-pointer active:scale-95"
+              title="Importar"
+            >
+              <ClipboardPaste size={18} className="text-primary-200" />
+            </button>
+            <button 
+              onClick={fetchData}
+              disabled={refreshing}
+              className="p-2.5 bg-surface-200 hover:bg-surface-300 text-typography-600 rounded-2xl border border-surface-300 transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+              title="Atualizar"
+            >
+              <RefreshCw size={18} className={cn(refreshing && 'animate-spin')} />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Summary Cards */}
       {!loading && congregationGroups.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 group hover:border-emerald-500 transition-all"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-surface-100 border border-surface-300 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:border-primary-200/60 transition-all"
           >
-            <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
               <ShieldCheck size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Contas Ativas</p>
-              <p className="text-2xl font-black text-gray-900 mt-1">
+              <p className="text-[11px] font-black text-typography-500 uppercase tracking-widest leading-none">Contas Ativas</p>
+              <p className="text-2xl sm:text-3xl font-black text-typography-900 mt-1.5">
                 {totalActiveWithAccess}
               </p>
             </div>
           </motion.div>
 
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-surface-100 border border-surface-300 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:border-primary-200/60 transition-all"
           >
-            <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
               <Landmark size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Congregações Ativas</p>
-              <p className="text-2xl font-black text-gray-900 mt-1">
+              <p className="text-[11px] font-black text-typography-500 uppercase tracking-widest leading-none">Congregações Ativas</p>
+              <p className="text-2xl sm:text-3xl font-black text-typography-900 mt-1.5">
                 {activeCongregations}
               </p>
             </div>
           </motion.div>
 
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-surface-100 border border-surface-300 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:border-primary-200/60 transition-all"
           >
-            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shrink-0">
               <Users size={24} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Total Publicadores</p>
-              <p className="text-2xl font-black text-gray-900 mt-1">
+              <p className="text-[11px] font-black text-typography-500 uppercase tracking-widest leading-none">Total Publicadores</p>
+              <p className="text-2xl sm:text-3xl font-black text-typography-900 mt-1.5">
                 {totalPublishers}
               </p>
             </div>
@@ -490,65 +519,69 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
         </div>
       )}
 
+      {/* Main Content */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
-          <Loader2 className="animate-spin text-[#059669]" size={48} />
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Carregando dados...</p>
+          <Loader2 className="animate-spin text-primary-200" size={40} />
+          <p className="text-typography-500 font-bold uppercase tracking-widest text-xs">Carregando congregações...</p>
         </div>
       ) : filteredGroups.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-4">
           {filteredGroups.map((group) => (
             <div 
               key={group.congregation.id}
-              className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+              className="bg-surface-100 border border-surface-300 rounded-3xl overflow-hidden shadow-xs hover:border-primary-200/60 transition-all"
             >
-              {/* Main Card Header */}
+              {/* Card Header (Accordion trigger) */}
               <div 
-                className="p-4 md:p-6 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
+                className="p-4 sm:p-6 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none hover:bg-surface-200/30 transition-colors"
                 onClick={() => toggleGroup(group.congregation.id)}
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-[#059669]/10 rounded-2xl flex items-center justify-center text-[#059669] flex-shrink-0 shadow-inner">
-                    <Landmark size={28} />
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-primary-200/10 border border-primary-200/20 flex items-center justify-center text-primary-200 shrink-0">
+                    <Landmark size={24} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-gray-900 uppercase tracking-tight">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-bold text-typography-900 uppercase tracking-tight truncate">
                         {group.congregation?.name || 'Congregação sem Nome'}
                       </h3>
                       {group.congregation.number && (
-                        <span className="bg-[#059669]/10 text-[#059669] text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                        <span className="bg-surface-200 border border-surface-300 text-typography-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
                           Nº {group.congregation.number}
                         </span>
                       )}
                       {group.activeWithAccessCount > 0 ? (
-                        <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase border border-emerald-200 flex items-center gap-1">
-                          <div className="w-1 h-1 rounded-full bg-emerald-600 animate-pulse"></div>
+                        <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                           Ativa
                         </span>
                       ) : (
-                        <span className="bg-gray-100 text-gray-400 text-[8px] font-black px-2 py-0.5 rounded-full uppercase border border-gray-200">
+                        <span className="bg-surface-200 border border-surface-300 text-typography-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
                           Sem Acesso
                         </span>
                       )}
                     </div>
                     {group.congregation.circuito && (
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                      <p className="text-[11px] text-typography-500 font-medium mt-1">
                         Circuito: {group.congregation.circuito}
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 pt-4 md:pt-0">
-                  <div className="text-right">
-                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Publicadores com Acesso</p>
-                    <p className="text-2xl font-black text-gray-900 leading-none mt-1">
+                <div className="flex items-center justify-between md:justify-end gap-6 border-t border-surface-300/40 md:border-t-0 pt-3 md:pt-0">
+                  <div className="text-left md:text-right">
+                    <p className="text-[10px] text-typography-500 font-black uppercase tracking-widest">Publicadores com Acesso</p>
+                    <p className="text-xl sm:text-2xl font-black text-typography-900 leading-none mt-1">
                       {group.activeWithAccessCount}
                     </p>
                   </div>
-                  <div className={`p-2 rounded-full bg-gray-50 text-gray-400 transition-transform duration-300 ${expandedGroups.includes(group.congregation.id) ? 'rotate-180' : ''}`}>
-                    <ChevronDown size={20} />
+                  <div className={cn(
+                    "w-9 h-9 rounded-2xl bg-surface-200 border border-surface-300 flex items-center justify-center text-typography-500 transition-transform duration-300 shrink-0",
+                    expandedGroups.includes(group.congregation.id) && "rotate-180 text-primary-200"
+                  )}>
+                    <ChevronDown size={18} />
                   </div>
                 </div>
               </div>
@@ -560,19 +593,19 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="border-t border-gray-50 bg-gray-50/50"
+                    className="border-t border-surface-300/60 bg-surface-200/40"
                   >
-                    <div className="p-4 md:p-6 space-y-4">
+                    <div className="p-4 sm:p-6 space-y-4">
                       {group.publishers.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                           {group.publishers
                             .filter(p => p.hasAppAccess)
                             .map((p) => (
                             <div 
                               key={p.id}
-                              className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 group/item hover:border-[#059669] transition-colors"
+                              className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs flex items-center gap-3 hover:border-primary-200 transition-colors"
                             >
-                              <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400 overflow-hidden border border-gray-100 group-hover/item:bg-[#059669]/5 group-hover/item:text-[#059669] transition-colors">
+                              <div className="w-10 h-10 rounded-xl bg-surface-200 border border-surface-300 flex items-center justify-center text-typography-500 overflow-hidden shrink-0">
                                 {p.photoURL ? (
                                   <Image 
                                     src={p.photoURL} 
@@ -586,16 +619,19 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
                                   <UserIcon size={20} />
                                 )}
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-bold text-gray-900 truncate">{p.name}</p>
-                                {p.email && <p className="text-[10px] text-gray-500 truncate">{p.email}</p>}
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
-                                    p.status === 'Ativo' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
-                                  }`}>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs sm:text-sm font-bold text-typography-900 truncate">{p.name}</p>
+                                {p.email && <p className="text-[10px] text-typography-500 truncate">{p.email}</p>}
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                  <span className={cn(
+                                    "text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full border",
+                                    p.status === 'Ativo' 
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                  )}>
                                     {p.status}
                                   </span>
-                                  <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">
+                                  <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                                     {p.situation}
                                   </span>
                                 </div>
@@ -603,13 +639,15 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
                             </div>
                           ))}
                           {group.publishers.filter(p => !p.hasAppAccess).length > 0 && (
-                            <div className="col-span-full pt-4 border-t border-gray-100">
-                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Registros sem acesso ao App ({group.publishers.filter(p => !p.hasAppAccess).length})</p>
+                            <div className="col-span-full pt-4 border-t border-surface-300/60">
+                              <p className="text-[10px] font-black text-typography-500 uppercase tracking-widest mb-2.5">
+                                Registros sem acesso ao App ({group.publishers.filter(p => !p.hasAppAccess).length})
+                              </p>
                               <div className="flex flex-wrap gap-2">
                                 {group.publishers
                                   .filter(p => !p.hasAppAccess)
                                   .map(p => (
-                                    <span key={p.id} className="text-[10px] font-medium text-gray-500 bg-white border border-gray-100 px-2 py-1 rounded-lg">
+                                    <span key={p.id} className="text-[11px] font-medium text-typography-600 bg-surface-100 border border-surface-300 px-2.5 py-1 rounded-xl shadow-xs">
                                       {p.name}
                                     </span>
                                   ))}
@@ -618,9 +656,9 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
                           )}
                         </div>
                       ) : (
-                        <div className="text-center py-8 bg-white/50 rounded-2xl border-2 border-dashed border-gray-200">
-                          <Users size={32} className="mx-auto text-gray-300 mb-2" />
-                          <p className="text-sm text-gray-500">Nenhum publicador encontrado.</p>
+                        <div className="text-center py-8 bg-surface-100/60 rounded-2xl border border-dashed border-surface-300">
+                          <Users size={32} className="mx-auto text-typography-400 mb-2" />
+                          <p className="text-xs font-bold text-typography-500">Nenhum publicador cadastrado nesta congregação.</p>
                         </div>
                       )}
                     </div>
@@ -631,64 +669,67 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl p-20 text-center shadow-sm border border-gray-100">
-          <Landmark size={64} className="mx-auto text-gray-200 mb-4" />
-          <h3 className="text-xl font-bold text-gray-800">Nenhuma congregação encontrada</h3>
-          <p className="text-gray-500 mt-2">Nenhum dado disponível no banco de dados.</p>
+        <div className="bg-surface-100 border border-surface-300 rounded-3xl p-16 text-center shadow-xs">
+          <Landmark size={48} className="mx-auto text-typography-400 mb-3" />
+          <h3 className="text-lg font-bold text-typography-900">Nenhuma congregação encontrada</h3>
+          <p className="text-xs text-typography-500 mt-1">Tente ajustar sua busca ou recarregar os dados.</p>
         </div>
       )}
 
       {/* Import Modal */}
       <AnimatePresence>
         {isImportModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-typography-900"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <ClipboardPaste className="text-[#059669]" size={24} />
-                  <h3 className="text-lg font-bold text-gray-800">
-                    Importar do TJSEC
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/40">
+                <div className="flex items-center gap-2.5">
+                  <ClipboardPaste className="text-primary-200" size={20} />
+                  <h3 className="text-base font-bold text-typography-900">
+                    Importar Publicadores do TJSEC
                   </h3>
                 </div>
-                <button onClick={() => setIsImportModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
+                <button 
+                  onClick={() => setIsImportModalOpen(false)} 
+                  className="p-1.5 text-typography-400 hover:text-typography-900 hover:bg-surface-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  <X size={20} />
                 </button>
               </div>
 
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex gap-3">
-                  <AlertCircle className="text-emerald-600 shrink-0" size={20} />
-                  <div className="text-xs text-emerald-800 space-y-1">
-                    <p className="font-bold">Instruções:</p>
-                    <p>1. Copie a lista de publicadores do TJSec ou Excel.</p>
-                    <p>2. Certifique-se de que a linha com o nome da congregação e número (ex: "Central (12345)") esteja presente antes da lista de nomes.</p>
-                    <p>3. Você pode colar listas de múltiplas congregações sequencialmente.</p>
+                <div className="bg-primary-200/10 border border-primary-200/20 p-4 rounded-2xl flex gap-3 text-typography-900">
+                  <AlertCircle className="text-primary-200 shrink-0 mt-0.5" size={18} />
+                  <div className="text-xs space-y-1">
+                    <p className="font-bold text-primary-200">Instruções:</p>
+                    <p className="text-typography-600">1. Copie a lista de publicadores do TJSec ou de uma planilha Excel.</p>
+                    <p className="text-typography-600">2. Certifique-se de que a linha com o nome da congregação e número (ex: &ldquo;Central (12345)&rdquo;) esteja presente antes da lista de nomes.</p>
+                    <p className="text-typography-600">3. Você pode colar listas de múltiplas congregações em sequência.</p>
                   </div>
                 </div>
 
                 {importError && (
-                  <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl font-medium">
+                  <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-2xl font-medium">
                     {importError}
                   </div>
                 )}
 
                 {importSuccess && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl font-medium space-y-2">
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-2xl font-medium space-y-2">
                     <div className="flex items-center gap-2">
-                      <Check size={18} />
+                      <Check size={16} />
                       <p className="font-bold">Importação concluída com sucesso!</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px] uppercase tracking-wider">
-                      <div className="bg-white/50 p-2 rounded-lg">Novos: {importSuccess.created}</div>
-                      <div className="bg-white/50 p-2 rounded-lg">Atualizados: {importSuccess.updated}</div>
+                    <div className="grid grid-cols-2 gap-2 text-[10px] uppercase tracking-wider">
+                      <div className="bg-surface-100/60 p-2 rounded-xl border border-surface-300">Novos: {importSuccess.created}</div>
+                      <div className="bg-surface-100/60 p-2 rounded-xl border border-surface-300">Atualizados: {importSuccess.updated}</div>
                     </div>
                     {importSuccess.skipped > 0 && (
-                      <p className="text-amber-600 font-bold text-[10px]">
+                      <p className="text-amber-500 font-bold text-[10px]">
                         Atenção: {importSuccess.skipped} registros foram ignorados por ambiguidade ou congregação não identificada.
                       </p>
                     )}
@@ -699,30 +740,30 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder="Cole aqui os dados copiados..."
-                  className="w-full h-64 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none"
+                  className="w-full h-64 p-4 bg-surface-200 border border-surface-300 rounded-2xl text-xs font-mono text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 transition-all resize-none"
                 />
               </div>
 
-              <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-3">
+              <div className="p-5 border-t border-surface-300 bg-surface-200/40 flex gap-3">
                 <button
                   onClick={() => setIsImportModalOpen(false)}
-                  className="flex-1 py-3 px-4 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-100 transition-all"
+                  className="flex-1 py-3 px-4 bg-surface-200 hover:bg-surface-300 text-typography-700 font-bold rounded-2xl border border-surface-300 transition-all cursor-pointer"
                 >
                   Fechar
                 </button>
                 <button
                   onClick={handleBulkImport}
                   disabled={isImporting || !importText.trim() || !!importSuccess}
-                  className="flex-[2] py-3 px-4 bg-[#059669] hover:bg-[#047857] text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-[2] py-3 px-4 bg-primary-200 hover:opacity-90 text-white font-bold rounded-2xl transition-all shadow-lg shadow-primary-200/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isImporting ? (
                     <>
-                      <Loader2 className="animate-spin" size={20} />
+                      <Loader2 className="animate-spin" size={18} />
                       Processando...
                     </>
                   ) : (
                     <>
-                      <Check size={20} />
+                      <Check size={18} />
                       Iniciar Importação
                     </>
                   )}
@@ -733,11 +774,5 @@ export default function TjSecAccountsView({ onBack }: TjSecAccountsViewProps) {
         )}
       </AnimatePresence>
     </motion.div>
-  );
-}
-
-function Loader2({ className, size }: { className?: string, size?: number }) {
-  return (
-    <div className={`animate-spin rounded-full border-4 border-gray-200 border-t-current ${className}`} style={{ width: size, height: size }} />
   );
 }

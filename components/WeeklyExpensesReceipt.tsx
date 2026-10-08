@@ -160,14 +160,14 @@ export default function WeeklyExpensesReceipt({ onBack }: WeeklyExpensesReceiptP
       try {
         const q = query(
           collection(db, 'congregations'),
-          where('userId', '==', auth.currentUser.uid),
-          orderBy('nome', 'asc')
+          where('userId', '==', auth.currentUser.uid)
         );
         const querySnapshot = await getDocs(q);
         const list: { id: string; nome: string }[] = [];
         querySnapshot.forEach((doc) => {
           list.push({ id: doc.id, nome: doc.data().nome });
         });
+        list.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
         setCongregations(list);
       } catch (error) {
         console.error('Error fetching congregations:', error);
