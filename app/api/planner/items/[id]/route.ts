@@ -161,12 +161,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     // 5. Prazo e data de atenção
     if (body.hasDeadline !== undefined) {
       updates.hasDeadline = Boolean(body.hasDeadline);
+      if (!updates.hasDeadline) {
+        updates.dueDate = null;
+        updates.attentionDate = null;
+      }
     }
-    if (body.dueDate !== undefined) {
-      updates.dueDate = body.dueDate || null;
-    }
-    if (body.attentionDate !== undefined) {
-      updates.attentionDate = body.attentionDate || null;
+    if (updates.hasDeadline !== false) {
+      if (body.dueDate !== undefined) {
+        updates.dueDate = body.dueDate || null;
+      }
+      if (body.attentionDate !== undefined) {
+        updates.attentionDate = body.attentionDate || null;
+      }
     }
 
     // 6. Campos de Evento
@@ -177,13 +183,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       updates.time = body.time || null;
     }
     if (body.location !== undefined) {
-      updates.location = body.location ? body.location.trim() : '';
+      updates.location = body.location ? body.location.trim() : null;
     }
     if (body.notes !== undefined) {
-      updates.notes = body.notes ? body.notes.trim() : '';
+      updates.notes = body.notes ? body.notes.trim() : null;
     }
 
-    await updateDoc(itemRef, updates);
+    const cleanedUpdates: Record<string, any> = {};
+    for (const [k, v] of Object.entries(updates)) {
+      if (v !== undefined) cleanedUpdates[k] = v;
+    }
+
+    await updateDoc(itemRef, cleanedUpdates);
 
     return NextResponse.json({
       success: true,

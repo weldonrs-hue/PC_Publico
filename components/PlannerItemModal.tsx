@@ -108,13 +108,14 @@ export default function PlannerItemModal({
     setLoading(true);
     try {
       if (type === 'task') {
+        const isWithDeadline = Boolean(hasDeadline && dueDate);
         await onSave({
           type: 'task',
           title: title.trim(),
           description: description.trim(),
-          hasDeadline: Boolean(hasDeadline && dueDate),
-          dueDate: hasDeadline && dueDate ? dueDate : undefined,
-          attentionDate: hasDeadline && attentionDate ? attentionDate : undefined,
+          hasDeadline: isWithDeadline,
+          dueDate: isWithDeadline ? dueDate : null,
+          attentionDate: isWithDeadline && attentionDate ? attentionDate : null,
           priority,
           status,
           completedAt: itemToEdit?.completedAt || (status === 'completed' ? new Date().toISOString() : null),
@@ -126,10 +127,10 @@ export default function PlannerItemModal({
           description: description.trim(),
           priority,
           status: 'pending',
-          date: eventDate,
-          time: eventTime.trim() || undefined,
-          location: location.trim() || undefined,
-          notes: notes.trim() || undefined,
+          date: eventDate || null,
+          time: eventTime.trim() || null,
+          location: location.trim() || null,
+          notes: notes.trim() || null,
         });
       }
       onClose();
@@ -505,3 +506,4 @@ export default function PlannerItemModal({
     </div>
   );
 }
+

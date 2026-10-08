@@ -206,3 +206,4 @@ assert(sorted[3].id === taskNoDeadlineHigh.id, '4º lugar: Alta prioridade sem p
 assert(sorted[sorted.length - 1].id === taskCompletedEarly.id, 'Último lugar: Concluída deve ir para o final');
 
 console.log(`\n🎉 TODOS OS ${passedTests}/${totalTests} TESTES PASSARAM COM SUCESSO!`);
+

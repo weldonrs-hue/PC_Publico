@@ -61,6 +61,19 @@ export async function getPlannerItems(userId: string): Promise<PlannerItem[]> {
 }
 
 /**
+ * Remove chaves com valor undefined para evitar erro de 'Unsupported field value: undefined' no Firestore.
+ */
+function sanitizeDocData<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
  * Cria um novo item (tarefa ou evento).
  */
 export async function createPlannerItem(
@@ -70,21 +83,27 @@ export async function createPlannerItem(
   const nowIso = new Date().toISOString();
   const itemRef = doc(collection(db, COLLECTION_NAME));
   const isCompleted = data.type === 'task' && data.status === 'completed';
+  const isWithDeadline = data.type === 'task' ? Boolean(data.hasDeadline && data.dueDate) : false;
 
   const newItem: PlannerItem = {
     ...data,
     id: itemRef.id,
     userId,
-    completedAt: isCompleted ? nowIso : null,
+    hasDeadline: isWithDeadline,
+    dueDate: isWithDeadline && data.dueDate ? data.dueDate : null,
+    attentionDate: isWithDeadline && data.attentionDate ? data.attentionDate : null,
+    completedAt: isCompleted ? (data.completedAt || nowIso) : null,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
 
-  await setDoc(itemRef, {
+  const firestoreData = sanitizeDocData({
     ...newItem,
     serverCreatedAt: serverTimestamp(),
     serverUpdatedAt: serverTimestamp(),
   });
+
+  await setDoc(itemRef, firestoreData);
 
   return newItem;
 }
@@ -99,11 +118,19 @@ export async function updatePlannerItem(
   const itemRef = doc(db, COLLECTION_NAME, itemId);
   const nowIso = new Date().toISOString();
 
-  await updateDoc(itemRef, {
+  const cleanedUpdates = sanitizeDocData({
     ...updates,
     updatedAt: nowIso,
     serverUpdatedAt: serverTimestamp(),
   });
+
+  // Se for tarefa e hasDeadline for explicitamente false, garante anulação dos prazos
+  if (cleanedUpdates.hasDeadline === false) {
+    cleanedUpdates.dueDate = null;
+    cleanedUpdates.attentionDate = null;
+  }
+
+  await updateDoc(itemRef, cleanedUpdates);
 }
 
 /**
@@ -146,3 +173,4 @@ export async function deletePlannerItem(itemId: string): Promise<void> {
   const itemRef = doc(db, COLLECTION_NAME, itemId);
   await deleteDoc(itemRef);
 }
+

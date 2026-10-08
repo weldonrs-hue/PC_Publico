@@ -25,17 +25,17 @@ export interface PlannerItem {
 
   // Propriedades de Tarefa
   hasDeadline?: boolean;
-  dueDate?: string;            // YYYY-MM-DD
-  attentionDate?: string;      // YYYY-MM-DD
+  dueDate?: string | null;            // YYYY-MM-DD
+  attentionDate?: string | null;      // YYYY-MM-DD
   priority: PriorityLevel;     // 'low' | 'medium' | 'high'
   status: TaskStatus;          // 'pending' | 'in_progress' | 'completed'
   completedAt?: string | null; // ISO string
 
   // Propriedades de Evento
-  date?: string;               // YYYY-MM-DD
-  time?: string;               // HH:mm
-  location?: string;
-  notes?: string;
+  date?: string | null;               // YYYY-MM-DD
+  time?: string | null;               // HH:mm
+  location?: string | null;
+  notes?: string | null;
 
   createdAt: string;           // ISO string
   updatedAt: string;           // ISO string
@@ -52,3 +52,4 @@ export interface UrgencyInfo {
   daysCompletedEarly?: number; // > 0 se concluída antes do prazo
   sortWeight: number;          // menor valor = maior prioridade no topo da lista
 }
+

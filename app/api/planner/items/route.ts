@@ -101,6 +101,8 @@ export async function POST(req: NextRequest) {
 
     const nowIso = new Date().toISOString();
     const isCompleted = type === 'task' && status === 'completed';
+    const isTask = type === 'task';
+    const isWithDeadline = isTask && Boolean(hasDeadline && dueDate);
 
     const itemRef = doc(collection(db, 'planner_items'));
     const newItem: PlannerItem = {
@@ -109,22 +111,27 @@ export async function POST(req: NextRequest) {
       type,
       title: title.trim(),
       description: description.trim(),
-      hasDeadline: type === 'task' ? Boolean(hasDeadline && dueDate) : false,
-      dueDate: type === 'task' && hasDeadline && dueDate ? dueDate : undefined,
-      attentionDate: type === 'task' && hasDeadline && attentionDate ? attentionDate : undefined,
+      hasDeadline: isWithDeadline,
+      dueDate: isWithDeadline ? dueDate : null,
+      attentionDate: isWithDeadline && attentionDate ? attentionDate : null,
       priority: ['low', 'medium', 'high'].includes(priority) ? priority : 'medium',
       status: ['pending', 'in_progress', 'completed'].includes(status) ? status : 'pending',
       completedAt: isCompleted ? nowIso : null,
-      date: type === 'event' && date ? date : undefined,
-      time: type === 'event' && time ? time : undefined,
-      location: type === 'event' ? location.trim() : undefined,
-      notes: type === 'event' ? notes.trim() : undefined,
+      date: type === 'event' && date ? date : null,
+      time: type === 'event' && time ? time : null,
+      location: type === 'event' && location ? location.trim() : null,
+      notes: type === 'event' && notes ? notes.trim() : null,
       createdAt: nowIso,
       updatedAt: nowIso,
     };
 
+    const cleanedData: Record<string, any> = {};
+    for (const [k, v] of Object.entries(newItem)) {
+      if (v !== undefined) cleanedData[k] = v;
+    }
+
     await setDoc(itemRef, {
-      ...newItem,
+      ...cleanedData,
       serverCreatedAt: serverTimestamp(),
       serverUpdatedAt: serverTimestamp(),
     });
@@ -141,3 +148,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
