@@ -25,7 +25,9 @@ import {
   X,
   Layers,
   ArrowUpDown,
-  Bell
+  Bell,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { PlannerItem, PlannerItemType, PriorityLevel, TaskStatus } from '@/types/planner';
 import { 
@@ -63,6 +65,23 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<PlannerItem | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('planner_layout_mode');
+      if (saved === 'grid' || saved === 'list') {
+        setLayoutMode(saved);
+      }
+    }
+  }, []);
+
+  const handleSetLayoutMode = (mode: 'grid' | 'list') => {
+    setLayoutMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('planner_layout_mode', mode);
+    }
+  };
 
   // Inscrição em tempo real aos itens do usuário no Firestore
   useEffect(() => {
@@ -429,19 +448,51 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
           ))}
         </div>
 
-        {/* Filtro secundário por prioridade */}
-        <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-surface-300/60 justify-end">
-          <span className="text-[10px] font-black uppercase tracking-wider text-typography-400">Prioridade:</span>
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-2.5 py-1 bg-surface-200 border border-surface-300 rounded-xl text-xs text-typography-900 font-bold outline-none cursor-pointer focus:border-primary-200"
-          >
-            <option value="all">Todas</option>
-            <option value="high">Alta (🔴)</option>
-            <option value="medium">Média (🟡)</option>
-            <option value="low">Baixa (🟢)</option>
-          </select>
+        {/* Filtro secundário por prioridade e Alternador de Layout */}
+        <div className="flex items-center gap-2.5 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-surface-300/60 justify-end">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase tracking-wider text-typography-400">Prioridade:</span>
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="px-2.5 py-1 bg-surface-200 border border-surface-300 rounded-xl text-xs text-typography-900 font-bold outline-none cursor-pointer focus:border-primary-200"
+            >
+              <option value="all">Todas</option>
+              <option value="high">Alta (🔴)</option>
+              <option value="medium">Média (🟡)</option>
+              <option value="low">Baixa (🟢)</option>
+            </select>
+          </div>
+
+          {/* Alternador de Layout: Grade (agrupada) vs Lista */}
+          <div className="flex items-center bg-surface-200 border border-surface-300 rounded-xl p-0.5">
+            <button
+              type="button"
+              onClick={() => handleSetLayoutMode('grid')}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                layoutMode === 'grid'
+                  ? "bg-surface-100 text-typography-900 shadow-xs"
+                  : "text-typography-400 hover:text-typography-800"
+              )}
+              title="Visualização em Grade (Cards agrupados e compactos)"
+            >
+              <LayoutGrid size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetLayoutMode('list')}
+              className={cn(
+                "p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                layoutMode === 'list'
+                  ? "bg-surface-100 text-typography-900 shadow-xs"
+                  : "text-typography-400 hover:text-typography-800"
+              )}
+              title="Visualização em Linhas (Lista contínua)"
+            >
+              <List size={15} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -452,12 +503,196 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
           <p className="text-xs font-bold text-typography-500 uppercase tracking-widest">Carregando planejamento...</p>
         </div>
       ) : filteredAndSortedItems.length > 0 ? (
-        <div className="space-y-3.5">
+        <div className={cn(
+          layoutMode === 'grid'
+            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4"
+            : "space-y-3"
+        )}>
           {filteredAndSortedItems.map((item, index) => {
             const urgency = getPlannerItemUrgency(item);
             const isCompleted = item.type === 'task' && item.status === 'completed';
             const isActionLoading = actionLoadingId === item.id;
 
+            if (layoutMode === 'grid') {
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(index * 0.02, 0.25) }}
+                  className={cn(
+                    "group relative p-3.5 sm:p-4 rounded-2xl bg-surface-100 border shadow-xs overflow-hidden transition-all duration-300 flex flex-col justify-between gap-3 min-h-[175px]",
+                    isCompleted 
+                      ? "border-surface-300/70 bg-surface-100/60 opacity-80" 
+                      : "border-surface-300 hover:border-primary-200/60 hover:shadow-md hover:-translate-y-0.5"
+                  )}
+                >
+                  {/* Brilho decorativo no canto */}
+                  <div 
+                    className="absolute -top-16 -right-16 w-32 h-32 rounded-full blur-3xl opacity-10 group-hover:opacity-25 transition-opacity pointer-events-none"
+                    style={{ backgroundColor: urgency.glowColor }}
+                  />
+
+                  {/* Barra superior em gradiente correspondente à situação */}
+                  <div 
+                    className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundImage: `linear-gradient(to right, ${urgency.borderColor}, transparent)` }}
+                  />
+
+                  {/* Topo do Card: Checkbox/Ícone + Badges + Ações Rápidas */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      {item.type === 'task' ? (
+                        <button
+                          type="button"
+                          onClick={() => !isActionLoading && handleToggleComplete(item)}
+                          disabled={isActionLoading}
+                          className={cn(
+                            "w-6 h-6 rounded-lg border flex items-center justify-center transition-all cursor-pointer shrink-0",
+                            isCompleted
+                              ? "bg-emerald-500 border-emerald-500 text-white shadow-xs"
+                              : "border-surface-300 bg-surface-200/60 hover:border-emerald-500 hover:bg-emerald-500/10 text-transparent hover:text-emerald-600"
+                          )}
+                          title={isCompleted ? "Reabrir tarefa" : "Marcar como concluída"}
+                        >
+                          <Check size={14} strokeWidth={3} className={cn(!isCompleted && "opacity-0 hover:opacity-100")} />
+                        </button>
+                      ) : (
+                        <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <Calendar size={13} />
+                        </div>
+                      )}
+
+                      {/* Badge da Situação de Urgência */}
+                      <span className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full border truncate max-w-[170px]",
+                        urgency.badgeClass
+                      )}>
+                        {urgency.badgeText}
+                      </span>
+
+                      {/* Badge de Prioridade para Tarefas */}
+                      {item.type === 'task' && !isCompleted && (
+                        <span className={cn(
+                          "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border",
+                          item.priority === 'high' && "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+                          item.priority === 'medium' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+                          item.priority === 'low' && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                        )}>
+                          {item.priority === 'high' ? 'Alta' : item.priority === 'medium' ? 'Média' : 'Baixa'}
+                        </span>
+                      )}
+
+                      {/* Status Em Andamento */}
+                      {item.type === 'task' && item.status === 'in_progress' && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                          Andamento
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Ações Rápidas: Editar e Excluir */}
+                    <div className="flex items-center gap-0.5 shrink-0 -mr-1">
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(item)}
+                        className="p-1.5 text-typography-400 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-all cursor-pointer"
+                        title="Editar item"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteItem(item)}
+                        className="p-1.5 text-typography-400 hover:text-red-500 hover:bg-surface-200 rounded-lg transition-all cursor-pointer"
+                        title="Excluir item"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Conteúdo Central: Título e Descrição */}
+                  <div className="space-y-1 my-auto">
+                    <h3 className={cn(
+                      "text-sm sm:text-base font-bold text-typography-900 transition-colors leading-snug line-clamp-2",
+                      isCompleted ? "line-through text-typography-500 font-medium" : "group-hover:text-primary-200"
+                    )}>
+                      {item.title}
+                    </h3>
+
+                    {item.description && (
+                      <p className="text-xs text-typography-600 line-clamp-2 leading-relaxed">
+                        {item.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Rodapé: Metadados e Botão Reabrir */}
+                  <div className="pt-2 border-t border-surface-300/60 flex items-center justify-between gap-2 text-[11px] text-typography-500 font-medium">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      {/* Para Evento: Data, Horário, Local */}
+                      {item.type === 'event' && (
+                        <>
+                          {item.date && (
+                            <span className="flex items-center gap-1 text-typography-700">
+                              <Calendar size={12} className="text-blue-500 shrink-0" />
+                              {formatDisplayDateTime(item.date, item.time)}
+                            </span>
+                          )}
+                          {item.location && (
+                            <span className="flex items-center gap-1 truncate max-w-[140px]">
+                              <MapPin size={12} className="text-typography-400 shrink-0" />
+                              {item.location}
+                            </span>
+                          )}
+                        </>
+                      )}
+
+                      {/* Para Tarefa com Prazo: Prazo final */}
+                      {item.type === 'task' && item.hasDeadline && item.dueDate && (
+                        <span className="flex items-center gap-1">
+                          <Clock size={12} className="text-typography-400 shrink-0" />
+                          Prazo: <span className="font-bold text-typography-700">{formatDisplayDate(item.dueDate)}</span>
+                        </span>
+                      )}
+
+                      {/* Data de início de atenção */}
+                      {item.type === 'task' && item.hasDeadline && item.attentionDate && !isCompleted && (
+                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                          <Bell size={12} className="shrink-0" />
+                          Atenção: {formatDisplayDate(item.attentionDate)}
+                        </span>
+                      )}
+
+                      {/* Informações de Histórico de Conclusão */}
+                      {isCompleted && item.completedAt && (
+                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <CheckCircle2 size={12} className="shrink-0" />
+                          {formatDisplayDate(item.completedAt.substring(0, 10))}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Botão de Reabrir para tarefas concluídas */}
+                    {isCompleted && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleComplete(item)}
+                        disabled={isActionLoading}
+                        className="px-2.5 py-1 bg-surface-200 hover:bg-surface-300 text-typography-700 text-xs font-bold rounded-xl border border-surface-300 flex items-center gap-1 transition-all cursor-pointer active:scale-95 shadow-xs shrink-0"
+                        title="Reabrir tarefa e voltar para pendências"
+                      >
+                        <RotateCcw size={12} />
+                        <span>Reabrir</span>
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            }
+
+            // Modo Lista (Linhas)
             return (
               <motion.div
                 key={item.id}
@@ -465,7 +700,7 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index * 0.03, 0.3) }}
                 className={cn(
-                  "group relative p-4 sm:p-5 rounded-3xl bg-surface-100 border shadow-xs overflow-hidden transition-all duration-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+                  "group relative p-3.5 sm:p-4 rounded-2xl bg-surface-100 border shadow-xs overflow-hidden transition-all duration-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3",
                   isCompleted 
                     ? "border-surface-300/70 bg-surface-100/60 opacity-80" 
                     : "border-surface-300 hover:border-primary-200/60 hover:shadow-md"
@@ -484,7 +719,7 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                 />
 
                 {/* Lado Esquerdo: Checkbox/Ícone + Dados Principais */}
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
                   {/* Botão de Checkbox para Tarefas OU Ícone de Calendário para Eventos */}
                   {item.type === 'task' ? (
                     <button
@@ -502,15 +737,14 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                       <Check size={16} strokeWidth={3} className={cn(!isCompleted && "opacity-0 hover:opacity-100")} />
                     </button>
                   ) : (
-                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-                      <Calendar size={18} />
+                    <div className="w-7 h-7 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <Calendar size={16} />
                     </div>
                   )}
 
-                  <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="min-w-0 flex-1 space-y-1">
                     {/* Linha superior: Tags / Badges */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {/* Tipo: Tarefa ou Evento */}
                       <span className={cn(
                         "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border",
                         item.type === 'task'
@@ -520,29 +754,26 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                         {item.type === 'task' ? 'Tarefa' : 'Evento'}
                       </span>
 
-                      {/* Badge da Situação de Urgência */}
                       <span className={cn(
-                        "text-[10px] font-bold px-2.5 py-0.5 rounded-full border",
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full border",
                         urgency.badgeClass
                       )}>
                         {urgency.badgeText}
                       </span>
 
-                      {/* Badge de Prioridade para Tarefas */}
                       {item.type === 'task' && !isCompleted && (
                         <span className={cn(
-                          "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border",
+                          "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border",
                           item.priority === 'high' && "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
                           item.priority === 'medium' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
                           item.priority === 'low' && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                         )}>
-                          Prioridade {item.priority === 'high' ? 'Alta' : item.priority === 'medium' ? 'Média' : 'Baixa'}
+                          {item.priority === 'high' ? 'Alta' : item.priority === 'medium' ? 'Média' : 'Baixa'}
                         </span>
                       )}
 
-                      {/* Status Em Andamento */}
                       {item.type === 'task' && item.status === 'in_progress' && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                           Em Andamento
                         </span>
                       )}
@@ -558,14 +789,13 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
 
                     {/* Descrição */}
                     {item.description && (
-                      <p className="text-xs text-typography-600 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-typography-600 line-clamp-1 leading-relaxed">
                         {item.description}
                       </p>
                     )}
 
-                    {/* Metadados adicionais: Data/Prazo, Local, Horário, Conclusão */}
+                    {/* Metadados adicionais */}
                     <div className="flex items-center gap-3 flex-wrap text-[11px] text-typography-500 font-medium pt-0.5">
-                      {/* Para Evento: Data, Horário, Local */}
                       {item.type === 'event' && (
                         <>
                           {item.date && (
@@ -583,7 +813,6 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                         </>
                       )}
 
-                      {/* Para Tarefa com Prazo: Prazo final */}
                       {item.type === 'task' && item.hasDeadline && item.dueDate && (
                         <span className="flex items-center gap-1">
                           <Clock size={13} className="text-typography-400" />
@@ -591,7 +820,6 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                         </span>
                       )}
 
-                      {/* Data de início de atenção */}
                       {item.type === 'task' && item.hasDeadline && item.attentionDate && !isCompleted && (
                         <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                           <Bell size={13} />
@@ -599,7 +827,6 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                         </span>
                       )}
 
-                      {/* Informações de Histórico de Conclusão */}
                       {isCompleted && item.completedAt && (
                         <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
                           <CheckCircle2 size={13} />
@@ -612,7 +839,6 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
 
                 {/* Lado Direito: Ações */}
                 <div className="flex items-center justify-end gap-1.5 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-surface-300/60">
-                  {/* Botão de Reabrir para tarefas concluídas */}
                   {isCompleted && (
                     <button
                       type="button"
@@ -626,7 +852,6 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                     </button>
                   )}
 
-                  {/* Editar */}
                   <button
                     type="button"
                     onClick={() => handleEditClick(item)}
@@ -636,7 +861,6 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                     <Pencil size={16} />
                   </button>
 
-                  {/* Excluir */}
                   <button
                     type="button"
                     onClick={() => handleDeleteItem(item)}
