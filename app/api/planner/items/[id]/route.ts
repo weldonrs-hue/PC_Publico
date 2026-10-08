@@ -175,7 +175,28 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // 6. Campos de Evento
+    // 6. Recorrência / Lembrete Periódico
+    if (body.isRecurring !== undefined) {
+      updates.isRecurring = Boolean(body.isRecurring);
+      if (!updates.isRecurring) {
+        updates.recurrence = null;
+        updates.recurrenceInterval = null;
+        updates.recurrenceUnit = null;
+      }
+    }
+    if (updates.isRecurring !== false) {
+      if (body.recurrence !== undefined) {
+        updates.recurrence = body.recurrence || null;
+      }
+      if (body.recurrenceInterval !== undefined) {
+        updates.recurrenceInterval = body.recurrenceInterval ? Number(body.recurrenceInterval) : null;
+      }
+      if (body.recurrenceUnit !== undefined) {
+        updates.recurrenceUnit = body.recurrenceUnit || null;
+      }
+    }
+
+    // 7. Campos de Evento
     if (body.date !== undefined) {
       updates.date = body.date || null;
     }

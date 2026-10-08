@@ -13,6 +13,12 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import { PlannerItem } from '@/types/planner';
+import { 
+  calculateNextRecurrenceDate, 
+  addDaysSafe, 
+  getDaysDifference, 
+  getTodayDateString 
+} from '@/utils/planner';
 
 const COLLECTION_NAME = 'planner_items';
 
@@ -84,6 +90,7 @@ export async function createPlannerItem(
   const itemRef = doc(collection(db, COLLECTION_NAME));
   const isCompleted = data.type === 'task' && data.status === 'completed';
   const isWithDeadline = data.type === 'task' ? Boolean(data.hasDeadline && data.dueDate) : false;
+  const isRecurring = Boolean(data.isRecurring && data.recurrence && data.recurrence !== 'none');
 
   const newItem: PlannerItem = {
     ...data,
@@ -92,6 +99,10 @@ export async function createPlannerItem(
     hasDeadline: isWithDeadline,
     dueDate: isWithDeadline && data.dueDate ? data.dueDate : null,
     attentionDate: isWithDeadline && data.attentionDate ? data.attentionDate : null,
+    isRecurring,
+    recurrence: isRecurring ? data.recurrence : null,
+    recurrenceInterval: isRecurring && data.recurrenceInterval ? data.recurrenceInterval : null,
+    recurrenceUnit: isRecurring && data.recurrenceUnit ? data.recurrenceUnit : null,
     completedAt: isCompleted ? (data.completedAt || nowIso) : null,
     createdAt: nowIso,
     updatedAt: nowIso,
@@ -130,17 +141,31 @@ export async function updatePlannerItem(
     cleanedUpdates.attentionDate = null;
   }
 
+  // Se isRecurring for explicitamente false, limpa configurações de recorrência
+  if (cleanedUpdates.isRecurring === false) {
+    cleanedUpdates.recurrence = null;
+    cleanedUpdates.recurrenceInterval = null;
+    cleanedUpdates.recurrenceUnit = null;
+  }
+
   await updateDoc(itemRef, cleanedUpdates);
+}
+
+export interface ToggleCompleteResult {
+  isCompleted: boolean;
+  nextDueDate?: string;
+  nextItem?: PlannerItem;
 }
 
 /**
  * Marca uma tarefa como concluída ou reabre uma tarefa concluída.
  * Regra de negócio:
  * - Ao concluir: registra completedAt com o timestamp atual e preserva o prazo original.
+ * - Se for recorrente: cria automaticamente a próxima ocorrência com o novo prazo calculado.
  * - Ao reabrir: remove completedAt e altera status para 'pending'.
  */
-export async function toggleCompleteTask(item: PlannerItem): Promise<boolean> {
-  if (item.type !== 'task') return false;
+export async function toggleCompleteTask(item: PlannerItem): Promise<ToggleCompleteResult> {
+  if (item.type !== 'task') return { isCompleted: false };
 
   const itemRef = doc(db, COLLECTION_NAME, item.id);
   const nowIso = new Date().toISOString();
@@ -153,7 +178,7 @@ export async function toggleCompleteTask(item: PlannerItem): Promise<boolean> {
       updatedAt: nowIso,
       serverUpdatedAt: serverTimestamp(),
     });
-    return false; // agora não concluída
+    return { isCompleted: false };
   } else {
     // Concluir tarefa (antecipada ou no prazo)
     await updateDoc(itemRef, {
@@ -162,7 +187,54 @@ export async function toggleCompleteTask(item: PlannerItem): Promise<boolean> {
       updatedAt: nowIso,
       serverUpdatedAt: serverTimestamp(),
     });
-    return true; // agora concluída
+
+    let nextDueDate: string | undefined;
+    let nextItem: PlannerItem | undefined;
+
+    // Se a tarefa for recorrente e possuir data limite, agenda a próxima ocorrência
+    if (item.isRecurring && item.recurrence && item.recurrence !== 'none' && item.hasDeadline && item.dueDate) {
+      const freq = item.recurrence;
+      const interval = item.recurrenceInterval || 1;
+      const unit = item.recurrenceUnit || 'months';
+      const today = getTodayDateString();
+
+      let nextDate = calculateNextRecurrenceDate(item.dueDate, freq, interval, unit);
+      // Se a data calculada ainda estiver no passado, avança até o próximo ciclo
+      let loops = 0;
+      while (nextDate < today && loops < 50) {
+        nextDate = calculateNextRecurrenceDate(nextDate, freq, interval, unit);
+        loops++;
+      }
+      nextDueDate = nextDate;
+
+      let nextAttentionDate: string | null = null;
+      if (item.attentionDate) {
+        const offset = getDaysDifference(item.dueDate, item.attentionDate);
+        nextAttentionDate = addDaysSafe(nextDueDate, -offset);
+      }
+
+      nextItem = await createPlannerItem(item.userId, {
+        type: 'task',
+        title: item.title,
+        description: item.description,
+        hasDeadline: true,
+        dueDate: nextDueDate,
+        attentionDate: nextAttentionDate,
+        priority: item.priority,
+        status: 'pending',
+        isRecurring: true,
+        recurrence: item.recurrence,
+        recurrenceInterval: item.recurrenceInterval,
+        recurrenceUnit: item.recurrenceUnit,
+        completedAt: null,
+      });
+    }
+
+    return {
+      isCompleted: true,
+      nextDueDate,
+      nextItem,
+    };
   }
 }
 

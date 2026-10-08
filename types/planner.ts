@@ -16,6 +16,19 @@ export type UrgencySituation =
   | 'event_upcoming'  // 📅 Evento futuro
   | 'event_past';     // 📅 Evento passado
 
+export type RecurrenceFrequency =
+  | 'none'
+  | 'weekly'
+  | 'biweekly'
+  | 'monthly'
+  | 'every_2_months'
+  | 'every_3_months'
+  | 'every_6_months'
+  | 'yearly'
+  | 'custom';
+
+export type RecurrenceUnit = 'days' | 'weeks' | 'months' | 'years';
+
 export interface PlannerItem {
   id: string;
   userId: string;
@@ -30,6 +43,12 @@ export interface PlannerItem {
   priority: PriorityLevel;     // 'low' | 'medium' | 'high'
   status: TaskStatus;          // 'pending' | 'in_progress' | 'completed'
   completedAt?: string | null; // ISO string
+
+  // Recorrência / Lembrete Periódico
+  isRecurring?: boolean;
+  recurrence?: RecurrenceFrequency | null;
+  recurrenceInterval?: number | null; // Usado para intervalo customizado (ex: 3)
+  recurrenceUnit?: RecurrenceUnit | null; // 'days' | 'weeks' | 'months' | 'years'
 
   // Propriedades de Evento
   date?: string | null;               // YYYY-MM-DD

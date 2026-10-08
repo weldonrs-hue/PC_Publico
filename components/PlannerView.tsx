@@ -27,7 +27,8 @@ import {
   ArrowUpDown,
   Bell,
   LayoutGrid,
-  List
+  List,
+  Repeat
 } from 'lucide-react';
 import { PlannerItem, PlannerItemType, PriorityLevel, TaskStatus } from '@/types/planner';
 import { 
@@ -42,7 +43,8 @@ import {
   sortPlannerItems, 
   formatDisplayDate, 
   formatDisplayDateTime,
-  getTodayDateString 
+  getTodayDateString,
+  getRecurrenceLabel
 } from '@/utils/planner';
 import { useDialog } from '@/hooks/useDialog';
 import { cn } from '@/lib/utils';
@@ -213,14 +215,19 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
     setActionLoadingId(item.id);
 
     try {
-      const isNowCompleted = await toggleCompleteTask(item);
-      // Se concluiu uma tarefa com prazo antes do tempo, podemos exibir feedback breve
-      if (isNowCompleted && item.hasDeadline && item.dueDate) {
-        const today = getTodayDateString();
-        const urgency = getPlannerItemUrgency({ ...item, status: 'completed', completedAt: new Date().toISOString() }, today);
-        if (urgency.daysCompletedEarly && urgency.daysCompletedEarly > 0) {
-          // Concluída antecipadamente
-          console.info(`Tarefa concluída ${urgency.daysCompletedEarly} dias antes do prazo!`);
+      const result = await toggleCompleteTask(item);
+      if (result.isCompleted) {
+        if (result.nextDueDate) {
+          await showAlert(
+            `Esta tarefa é recorrente. A próxima ocorrência foi agendada automaticamente para ${formatDisplayDate(result.nextDueDate)}.`,
+            'Tarefa Concluída e Reagendada'
+          );
+        } else if (item.hasDeadline && item.dueDate) {
+          const today = getTodayDateString();
+          const urgency = getPlannerItemUrgency({ ...item, status: 'completed', completedAt: new Date().toISOString() }, today);
+          if (urgency.daysCompletedEarly && urgency.daysCompletedEarly > 0) {
+            console.info(`Tarefa concluída ${urgency.daysCompletedEarly} dias antes do prazo!`);
+          }
         }
       }
     } catch (err: any) {
@@ -593,6 +600,14 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                           Andamento
                         </span>
                       )}
+
+                      {/* Badge de Recorrência */}
+                      {item.isRecurring && item.recurrence && item.recurrence !== 'none' && (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 flex items-center gap-1">
+                          <Repeat size={10} className="shrink-0" />
+                          <span>{getRecurrenceLabel(item.recurrence, item.recurrenceInterval, item.recurrenceUnit)}</span>
+                        </span>
+                      )}
                     </div>
 
                     {/* Ações Rápidas: Editar e Excluir */}
@@ -779,6 +794,14 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
                       {item.type === 'task' && item.status === 'in_progress' && (
                         <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                           Em Andamento
+                        </span>
+                      )}
+
+                      {/* Badge de Recorrência */}
+                      {item.isRecurring && item.recurrence && item.recurrence !== 'none' && (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 flex items-center gap-1">
+                          <Repeat size={10} className="shrink-0" />
+                          <span>{getRecurrenceLabel(item.recurrence, item.recurrenceInterval, item.recurrenceUnit)}</span>
                         </span>
                       )}
                     </div>

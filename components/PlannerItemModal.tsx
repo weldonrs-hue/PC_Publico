@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -12,13 +12,15 @@ import {
   AlertCircle, 
   Loader2, 
   Sparkles, 
-  Flag,
-  CalendarCheck,
-  Bell
+  Flag, 
+  CalendarCheck, 
+  Bell,
+  Repeat
 } from 'lucide-react';
-import { PlannerItem, PlannerItemType, PriorityLevel, TaskStatus } from '@/types/planner';
+import { PlannerItem, PlannerItemType, PriorityLevel, TaskStatus, RecurrenceFrequency, RecurrenceUnit } from '@/types/planner';
 import { cn } from '@/lib/utils';
-import { getTodayDateString } from '@/utils/planner';
+import { getTodayDateString, calculateNextRecurrenceDate, formatDisplayDate } from '@/utils/planner';
+import CustomSelect from '@/components/CustomSelect';
 
 interface PlannerItemModalProps {
   isOpen: boolean;
@@ -41,12 +43,23 @@ export default function PlannerItemModal({
   const [attentionDate, setAttentionDate] = useState('');
   const [priority, setPriority] = useState<PriorityLevel>('medium');
   const [status, setStatus] = useState<TaskStatus>('pending');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrence, setRecurrence] = useState<RecurrenceFrequency>('every_3_months');
+  const [recurrenceInterval, setRecurrenceInterval] = useState<number>(3);
+  const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>('months');
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Calcula preview da próxima data de recorrência
+  const baseDateForRecurrence = type === 'task' ? (hasDeadline ? dueDate : '') : eventDate;
+  const nextRecurrencePreviewDate = useMemo(() => {
+    if (!isRecurring || !baseDateForRecurrence) return null;
+    return calculateNextRecurrenceDate(baseDateForRecurrence, recurrence, recurrenceInterval, recurrenceUnit);
+  }, [isRecurring, baseDateForRecurrence, recurrence, recurrenceInterval, recurrenceUnit]);
 
   // Inicializa o formulário com dados do item em edição ou valores padrão
   useEffect(() => {
@@ -59,6 +72,10 @@ export default function PlannerItemModal({
       setAttentionDate(itemToEdit.attentionDate || '');
       setPriority(itemToEdit.priority || 'medium');
       setStatus(itemToEdit.status || 'pending');
+      setIsRecurring(Boolean(itemToEdit.isRecurring));
+      setRecurrence(itemToEdit.recurrence || 'every_3_months');
+      setRecurrenceInterval(itemToEdit.recurrenceInterval || 3);
+      setRecurrenceUnit(itemToEdit.recurrenceUnit || 'months');
       setEventDate(itemToEdit.date || '');
       setEventTime(itemToEdit.time || '');
       setLocation(itemToEdit.location || '');
@@ -73,6 +90,10 @@ export default function PlannerItemModal({
       setAttentionDate('');
       setPriority('medium');
       setStatus('pending');
+      setIsRecurring(false);
+      setRecurrence('every_3_months');
+      setRecurrenceInterval(3);
+      setRecurrenceUnit('months');
       setEventDate(getTodayDateString());
       setEventTime('');
       setLocation('');
@@ -118,6 +139,10 @@ export default function PlannerItemModal({
           attentionDate: isWithDeadline && attentionDate ? attentionDate : null,
           priority,
           status,
+          isRecurring,
+          recurrence: isRecurring ? recurrence : null,
+          recurrenceInterval: isRecurring && recurrence === 'custom' ? recurrenceInterval : null,
+          recurrenceUnit: isRecurring && recurrence === 'custom' ? recurrenceUnit : null,
           completedAt: itemToEdit?.completedAt || (status === 'completed' ? new Date().toISOString() : null),
         });
       } else {
@@ -131,6 +156,10 @@ export default function PlannerItemModal({
           time: eventTime.trim() || null,
           location: location.trim() || null,
           notes: notes.trim() || null,
+          isRecurring,
+          recurrence: isRecurring ? recurrence : null,
+          recurrenceInterval: isRecurring && recurrence === 'custom' ? recurrenceInterval : null,
+          recurrenceUnit: isRecurring && recurrence === 'custom' ? recurrenceUnit : null,
         });
       }
       onClose();
@@ -323,6 +352,112 @@ export default function PlannerItemModal({
                     <p className="col-span-full text-[10px] text-typography-500 italic">
                       Dica: Antes da data de atenção, a tarefa é considerada &ldquo;futura&rdquo;. A partir dela, ganha destaque para você planejar com antecedência.
                     </p>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Opção de Recorrência / Repetição Periódica */}
+              <div className="p-4 bg-surface-200/40 rounded-2xl border border-surface-300 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                      <Repeat size={15} />
+                    </div>
+                    <div>
+                      <span className="text-xs sm:text-sm font-bold text-typography-900 block">
+                        Lembrete ou Tarefa Recorrente?
+                      </span>
+                      <span className="text-[11px] text-typography-500">
+                        {isRecurring ? 'Repete periodicamente de forma automática' : 'Ocorrência única'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsRecurring(!isRecurring)}
+                    className={cn(
+                      "relative w-12 h-6 rounded-full transition-colors duration-300 shrink-0 cursor-pointer",
+                      isRecurring ? "bg-indigo-500" : "bg-surface-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-xs",
+                      isRecurring ? "translate-x-6" : "translate-x-0"
+                    )} />
+                  </button>
+                </div>
+
+                {isRecurring && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 pt-3 border-t border-surface-300/60"
+                  >
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-typography-500 uppercase tracking-wider">
+                        Frequência de Repetição
+                      </label>
+                      <CustomSelect
+                        value={recurrence}
+                        onChange={(val) => setRecurrence(val as RecurrenceFrequency)}
+                        size="sm"
+                        options={[
+                          { value: 'every_3_months', label: 'A cada 3 meses (Trimestral)' },
+                          { value: 'every_6_months', label: 'A cada 6 meses (Semestral)' },
+                          { value: 'yearly', label: 'A cada 1 ano (Anual)' },
+                          { value: 'monthly', label: 'A cada mês (Mensal)' },
+                          { value: 'every_2_months', label: 'A cada 2 meses (Bimestral)' },
+                          { value: 'weekly', label: 'Semanal (a cada 7 dias)' },
+                          { value: 'biweekly', label: 'Quinzenal (a cada 14 dias)' },
+                          { value: 'custom', label: 'Personalizado...' },
+                        ]}
+                      />
+                    </div>
+
+                    {recurrence === 'custom' && (
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-black text-typography-500 uppercase tracking-wider">
+                            A cada:
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={99}
+                            value={recurrenceInterval}
+                            onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            className="w-full px-3.5 py-2 bg-surface-100 border border-surface-300 text-typography-900 rounded-xl text-xs sm:text-sm font-bold focus:outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-black text-typography-500 uppercase tracking-wider">
+                            Unidade:
+                          </label>
+                          <CustomSelect
+                            value={recurrenceUnit}
+                            onChange={(val) => setRecurrenceUnit(val as RecurrenceUnit)}
+                            size="sm"
+                            options={[
+                              { value: 'months', label: 'Meses' },
+                              { value: 'days', label: 'Dias' },
+                              { value: 'weeks', label: 'Semanas' },
+                              { value: 'years', label: 'Anos' },
+                            ]}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {nextRecurrencePreviewDate && (
+                      <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs flex items-center gap-2">
+                        <Repeat size={14} className="shrink-0" />
+                        <span>
+                          Ao concluir esta tarefa, a próxima será agendada para <strong>{formatDisplayDate(nextRecurrencePreviewDate)}</strong>.
+                        </span>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </div>

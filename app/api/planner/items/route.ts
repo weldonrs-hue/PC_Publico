@@ -79,6 +79,10 @@ export async function POST(req: NextRequest) {
       attentionDate = null, 
       priority = 'medium', 
       status = 'pending',
+      isRecurring = false,
+      recurrence = null,
+      recurrenceInterval = null,
+      recurrenceUnit = null,
       date = null,
       time = null,
       location = '',
@@ -103,6 +107,7 @@ export async function POST(req: NextRequest) {
     const isCompleted = type === 'task' && status === 'completed';
     const isTask = type === 'task';
     const isWithDeadline = isTask && Boolean(hasDeadline && dueDate);
+    const hasRecurrence = Boolean(isRecurring && recurrence && recurrence !== 'none');
 
     const itemRef = doc(collection(db, 'planner_items'));
     const newItem: PlannerItem = {
@@ -117,6 +122,10 @@ export async function POST(req: NextRequest) {
       priority: ['low', 'medium', 'high'].includes(priority) ? priority : 'medium',
       status: ['pending', 'in_progress', 'completed'].includes(status) ? status : 'pending',
       completedAt: isCompleted ? nowIso : null,
+      isRecurring: hasRecurrence,
+      recurrence: hasRecurrence ? recurrence : null,
+      recurrenceInterval: hasRecurrence && recurrenceInterval ? Number(recurrenceInterval) : null,
+      recurrenceUnit: hasRecurrence && recurrenceUnit ? recurrenceUnit : null,
       date: type === 'event' && date ? date : null,
       time: type === 'event' && time ? time : null,
       location: type === 'event' && location ? location.trim() : null,

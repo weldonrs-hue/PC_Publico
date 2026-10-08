@@ -5,7 +5,11 @@ import {
   getTodayDateString, 
   formatDisplayDate, 
   formatDisplayDateTime,
-  PLANNER_THRESHOLDS 
+  PLANNER_THRESHOLDS,
+  addMonthsSafe,
+  addDaysSafe,
+  calculateNextRecurrenceDate,
+  getRecurrenceLabel
 } from '../utils/planner.js';
 
 console.log('--- INICIANDO TESTES DO SISTEMA DE PLANEJAMENTO ---');
@@ -204,6 +208,36 @@ assert(sorted[1].id === taskUrgent.id, '2º lugar: Tarefa urgente deve vir em se
 assert(sorted[2].id === eventToday.id, '3º lugar: Evento de hoje');
 assert(sorted[3].id === taskNoDeadlineHigh.id, '4º lugar: Alta prioridade sem prazo');
 assert(sorted[sorted.length - 1].id === taskCompletedEarly.id, 'Último lugar: Concluída deve ir para o final');
+
+// 7. TESTES DE RECORRÊNCIA E LEMBRETES PERIÓDICOS
+console.log('\n[7] Testes de Recorrência e Lembretes Periódicos:');
+// 7.1. Adição segura de meses (itinerário a cada 3 meses)
+assert(addMonthsSafe('2027-01-15', 3) === '2027-04-15', 'Itinerário: Jan 15 + 3 meses = Abr 15');
+assert(addMonthsSafe('2027-04-15', 3) === '2027-07-15', 'Itinerário: Abr 15 + 3 meses = Jul 15');
+assert(addMonthsSafe('2027-07-15', 3) === '2027-10-15', 'Itinerário: Jul 15 + 3 meses = Out 15');
+assert(addMonthsSafe('2027-10-15', 3) === '2028-01-15', 'Itinerário com virada de ano: Out 15 + 3 meses = Jan 15 do próximo ano');
+
+// 7.2. Ajuste de final de mês sem estouro de calendário
+assert(addMonthsSafe('2027-01-31', 1) === '2027-02-28', 'Fim de mês: 31/01 + 1 mês = 28/02');
+assert(addMonthsSafe('2027-03-31', 3) === '2027-06-30', 'Fim de mês: 31/03 + 3 meses = 30/06');
+
+// 7.3. Frequências Pré-configuradas
+assert(calculateNextRecurrenceDate('2027-04-15', 'every_3_months') === '2027-07-15', 'Frequência trimestral (a cada 3 meses)');
+assert(calculateNextRecurrenceDate('2027-04-15', 'every_6_months') === '2027-10-15', 'Frequência semestral (a cada 6 meses)');
+assert(calculateNextRecurrenceDate('2027-04-15', 'yearly') === '2028-04-15', 'Frequência anual (a cada 1 ano)');
+assert(calculateNextRecurrenceDate('2027-04-15', 'monthly') === '2027-05-15', 'Frequência mensal');
+assert(calculateNextRecurrenceDate('2027-04-15', 'weekly') === '2027-04-22', 'Frequência semanal (+7 dias)');
+assert(calculateNextRecurrenceDate('2027-04-15', 'biweekly') === '2027-04-29', 'Frequência quinzenal (+14 dias)');
+
+// 7.4. Intervalos customizados
+assert(calculateNextRecurrenceDate('2027-04-15', 'custom', 5, 'months') === '2027-09-15', 'Customizado: a cada 5 meses');
+assert(calculateNextRecurrenceDate('2027-04-15', 'custom', 10, 'days') === '2027-04-25', 'Customizado: a cada 10 dias');
+
+// 7.5. Rótulos em português
+assert(getRecurrenceLabel('every_3_months') === 'A cada 3 meses', 'Label: every_3_months -> A cada 3 meses');
+assert(getRecurrenceLabel('every_6_months') === 'A cada 6 meses', 'Label: every_6_months -> A cada 6 meses');
+assert(getRecurrenceLabel('yearly') === 'A cada 1 ano', 'Label: yearly -> A cada 1 ano');
+assert(getRecurrenceLabel('custom', 4, 'months') === 'A cada 4 meses', 'Label: custom 4 meses -> A cada 4 meses');
 
 console.log(`\n🎉 TODOS OS ${passedTests}/${totalTests} TESTES PASSARAM COM SUCESSO!`);
 
