@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 const cards = [
   {
     title: 'Dados Pessoais',
+    color: '#10B981', // Emerald
     lineColor: 'bg-emerald-500',
     iconBorder: 'border-emerald-500/40 dark:border-emerald-400/50',
     iconColor: 'text-emerald-600 dark:text-emerald-400',
@@ -13,6 +14,7 @@ const cards = [
   },
   {
     title: 'Congregações',
+    color: '#F59E0B', // Amber
     lineColor: 'bg-amber-500',
     iconBorder: 'border-amber-500/40 dark:border-amber-400/50',
     iconColor: 'text-amber-600 dark:text-amber-400',
@@ -20,6 +22,7 @@ const cards = [
   },
   {
     title: 'Substitutos',
+    color: '#F43F5E', // Rose
     lineColor: 'bg-rose-500',
     iconBorder: 'border-rose-500/40 dark:border-rose-400/50',
     iconColor: 'text-rose-600 dark:text-rose-400',
@@ -27,6 +30,7 @@ const cards = [
   },
   {
     title: 'Itinerários',
+    color: '#A855F7', // Purple
     lineColor: 'bg-purple-500',
     iconBorder: 'border-purple-500/40 dark:border-purple-400/50',
     iconColor: 'text-purple-600 dark:text-purple-400',
@@ -34,6 +38,7 @@ const cards = [
   },
   {
     title: 'Estatísticas',
+    color: '#0EA5E9', // Sky
     lineColor: 'bg-sky-500',
     iconBorder: 'border-sky-500/40 dark:border-sky-400/50',
     iconColor: 'text-sky-600 dark:text-sky-400',
@@ -41,6 +46,7 @@ const cards = [
   },
   {
     title: 'Estatísticas Cong.',
+    color: '#6366F1', // Indigo
     lineColor: 'bg-indigo-500',
     iconBorder: 'border-indigo-500/40 dark:border-indigo-400/50',
     iconColor: 'text-indigo-600 dark:text-indigo-400',
@@ -115,10 +121,19 @@ export default function DashboardCards({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04, duration: 0.25 }}
             onClick={() => onCardClick?.(card.title)}
-            className="group relative bg-surface-100 rounded-2xl p-3.5 sm:p-4 pl-4 sm:pl-4.5 border border-surface-300 hover:border-primary-200/50 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 overflow-hidden"
+            className="group relative bg-surface-100 rounded-2xl p-3.5 sm:p-4 border border-surface-300 hover:border-primary-200/50 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 overflow-hidden"
           >
-            {/* Fine clean colored accent line on the left */}
-            <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full ${card.lineColor}`} />
+            {/* Brilho decorativo suave */}
+            <div
+              className="absolute -top-12 -right-12 w-24 h-24 rounded-full blur-2xl opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none"
+              style={{ backgroundColor: card.color }}
+            />
+
+            {/* Barra superior de destaque em gradiente */}
+            <div 
+              className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity"
+              style={{ backgroundImage: `linear-gradient(to right, ${card.color}, transparent)` }}
+            />
 
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {/* Clean Outline Icon (transparent bg with colored outline & stroke) */}
