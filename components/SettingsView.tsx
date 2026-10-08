@@ -1,70 +1,63 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import { 
-  RefreshCw, 
-  Printer, 
-  CloudDownload, 
-  Trash2, 
-  Calendar, 
-  CalendarDays,
-  Lock, 
-  Users,
-  FolderPlus,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  UserX,
-  X,
-  ShieldCheck,
-  ExternalLink,
-  UserPlus,
-  Mail,
-  UserCheck,
-  Landmark,
-  Coffee,
-  MailCheck,
-  Eye,
-  Sparkles,
-  Check,
-  Key,
-  Fingerprint,
-  Settings
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { db } from '@/lib/firebase';
+import Logo from '@/components/Logo';
 import MicrosoftConnectionSettings from '@/components/MicrosoftConnectionSettings';
 import WebAuthnSettings from '@/components/WebAuthnSettings';
-import { cn } from '@/lib/utils';
-import { 
-  collection,
-  query,
-  where,
-  getDocs,
-  doc, 
-  getDoc,
-  setDoc,
-  deleteDoc,
-  writeBatch,
-  addDoc,
-  onSnapshot,
-  limit,
-  updateDoc
-} from 'firebase/firestore';
-import { 
-  EmailAuthProvider, 
-  reauthenticateWithCredential, 
-  updatePassword,
-  deleteUser
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
+import { auth, db } from '@/lib/firebase';
+import { cn } from '@/lib/utils';
 import { createCircuitFolderStructure } from '@/utils/fileSystem';
-import Logo from '@/components/Logo';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword
+} from 'firebase/auth';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch
+} from 'firebase/firestore';
+import {
+  AlertCircle,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Coffee,
+  ExternalLink,
+  Eye,
+  Fingerprint,
+  FolderPlus,
+  Key,
+  Landmark,
+  Loader2,
+  Lock,
+  Mail,
+  MailCheck,
+  RefreshCw,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  UserCheck,
+  UserPlus,
+  Users,
+  X
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
 const RoleChangeRequestModal = dynamic(() => import('@/components/RoleChangeRequestModal'), { ssr: false });
 
 interface SettingsViewProps {
