@@ -88,6 +88,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
+    match /planner_items/{id} {
+      allow read, write: if true;
+    }
+    
     match /timer_broadcasts/{id} {
       allow read, write: if true;
     }

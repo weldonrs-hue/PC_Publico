@@ -47,6 +47,7 @@ const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal
 const FloatingStopwatch = dynamic(() => import('@/components/FloatingStopwatch'), { ssr: false });
 const DonationView = dynamic(() => import('@/components/DonationView'), { ssr: false });
 const InboxView = dynamic(() => import('@/components/InboxView'), { ssr: false });
+const PlannerView = dynamic(() => import('@/components/PlannerView'), { ssr: false });
 const EMRView = dynamic(() => import('@/components/EMRView'), { ssr: false });
 const EMRServosView = dynamic(() => import('@/components/EMRServosView'), { ssr: false });
 import ImageCropper from '@/components/ImageCropper';
@@ -1393,6 +1394,13 @@ export default function Home() {
               isAdmin={isAdminUser}
               appConfig={appConfig}
               onViewChange={(view) => changeView(view as any)}
+            />
+          )}
+
+          {currentView === 'planner' && (
+            <PlannerView 
+              userId={user?.id}
+              onBack={() => changeView('misc')}
             />
           )}
 

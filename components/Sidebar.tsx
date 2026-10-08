@@ -114,6 +114,7 @@ export default function Sidebar({
     if (itemView === 'misc') {
       const miscViews = [
         'misc',
+        'planner',
         'field_service_report',
         'file_viewer',
         'weekly_expenses',

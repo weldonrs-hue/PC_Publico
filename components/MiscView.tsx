@@ -1,6 +1,6 @@
 'use client';
 // Force rebuild - 2026-10-05
-import { FileText, Shapes, Calendar, Receipt, Inbox, ChevronRight } from 'lucide-react';
+import { FileText, Shapes, Calendar, Receipt, Inbox, ChevronRight, CalendarCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface MiscViewProps {
@@ -12,6 +12,18 @@ interface MiscViewProps {
 }
 
 const miscItems = [
+  {
+    id: 'planner',
+    title: 'Eventos e Tarefas',
+    subtitle: 'Central pessoal de planejamento para compromissos, tarefas, prazos e urgências.',
+    badge: 'Planejamento',
+    color: '#6366F1', // Indigo
+    iconBorder: 'border-indigo-500/40 dark:border-indigo-400/50',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    icon: CalendarCheck,
+    active: true,
+    requiresAdmin: false,
+  },
   {
     id: 'file_viewer',
     title: 'Leitor de Arquivos',
@@ -53,9 +65,9 @@ const miscItems = [
     title: 'Caixa de Entrada',
     subtitle: 'Gerencie rascunhos, compose e envie e-mails diretamente pelo sistema.',
     badge: 'E-mail',
-    color: '#6366F1', // Indigo
-    iconBorder: 'border-indigo-500/40 dark:border-indigo-400/50',
-    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    color: '#8B5CF6', // Violet
+    iconBorder: 'border-violet-500/40 dark:border-violet-400/50',
+    iconColor: 'text-violet-600 dark:text-violet-400',
     icon: Inbox,
     active: true,
     requiresAdmin: false,
