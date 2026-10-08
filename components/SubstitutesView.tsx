@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   UserRound, 
   Plus, 
@@ -11,7 +11,6 @@ import {
   MapPin,
   Store,
   Save,
-  UserCheck,
   Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,9 +26,9 @@ import {
   deleteDoc,
   onSnapshot
 } from 'firebase/firestore';
-import { useMemo } from 'react';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
 import { useDialog } from '@/hooks/useDialog';
+import CustomSelect from '@/components/CustomSelect';
 
 interface Congregation {
   id: string;
@@ -59,12 +58,22 @@ interface SubstitutesViewProps {
   onBack: () => void;
 }
 
+const defaultFormData: Substitute = {
+  id: '',
+  nome: '',
+  congregacaoId: '',
+  congregacaoNome: '',
+  cidade: '',
+  estado: ''
+};
+
 export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps) {
-  const { showAlert, showConfirm, showDeleteConfirm } = useDialog();
+  const { showAlert, showDeleteConfirm } = useDialog();
   const [substitutes, setSubstitutes] = useState<Substitute[]>([]);
   const [congregations, setCongregations] = useState<Congregation[]>([]);
   const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     // Listen to substitutes
@@ -161,14 +170,10 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
       return a.nome.localeCompare(b.nome);
     });
   }, [congregations, itineraries]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Substitute | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const defaultFormData: Substitute = {
-    id: '', nome: '', congregacaoId: '', congregacaoNome: '', cidade: '', estado: ''
-  };
-  
   const [formData, setFormData] = useState<Substitute>(defaultFormData);
 
   const handleCongregationChange = (congId: string) => {
@@ -215,7 +220,16 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (!formData.nome.trim()) {
+      showAlert('Informe o nome do substituto.', 'Atenção');
+      return;
+    }
+    if (!formData.congregacaoId) {
+      showAlert('Selecione uma congregação para o substituto.', 'Atenção');
+      return;
+    }
+
+    setIsSaving(true);
     try {
       let docRef;
       if (selectedSub) {
@@ -227,66 +241,75 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
       const { id, ...dataToSave } = formData;
       await setDoc(docRef, { ...dataToSave, userId });
       setIsEditing(false);
+      showAlert('Substituto salvo com sucesso.', 'Sucesso');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'substitutes');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const filteredSubstitutes = substitutes.filter(s => 
     s.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.congregacaoNome.toLowerCase().includes(searchTerm.toLowerCase())
+    s.congregacaoNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.cidade.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
-      {/* Header with Back Button */}
+      {/* Header com botão Voltar estilizado */}
       <div className="flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-rose-600 bg-white shadow-md border border-gray-200"
+          className="p-2 hover:bg-surface-200 rounded-xl transition-all text-typography-700 bg-surface-100 shadow-xs border border-surface-300 cursor-pointer"
           title="Voltar ao Painel"
         >
-          <ChevronLeft size={22} strokeWidth={3} />
+          <ChevronLeft size={20} strokeWidth={2.5} />
         </button>
-        <h2 className="text-xl font-bold text-gray-800">
-          Superintendentes Substitutos
-        </h2>
+        <div>
+          <h2 className="text-xl font-bold text-typography-900 tracking-tight">
+            Superintendentes Substitutos
+          </h2>
+          <p className="text-xs text-typography-500">
+            Gerencie os irmãos designados como substitutos no circuito
+          </p>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
         {!isEditing ? (
           <motion.div 
             key="list"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            exit={{ opacity: 0, y: -16 }}
             className="space-y-4"
           >
-            {/* Search and Add Bar */}
-            <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-gray-100">
-              <div className="relative w-full md:w-80">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            {/* Barra de Pesquisa e Botão Novo */}
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-surface-100 p-3 sm:p-4 rounded-2xl shadow-xs border border-surface-300">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-typography-400" size={16} />
                 <input 
                   type="text"
-                  placeholder="Buscar..."
+                  placeholder="Buscar por nome, congregação ou cidade..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 transition-colors"
+                  className="w-full pl-9 pr-4 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs text-typography-900 placeholder:text-typography-400 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 transition-colors"
                 />
               </div>
               <button 
                 onClick={handleAddNew}
-                className="w-full md:w-auto bg-rose-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-rose-700 transition-colors shadow-lg shadow-rose-200 active:scale-95"
+                className="w-full sm:w-auto bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer whitespace-nowrap"
               >
                 <Plus size={16} />
-                NOVO
+                <span>Novo Substituto</span>
               </button>
             </div>
 
-            {/* List Grid */}
+            {/* Grid de Substitutos */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="animate-spin text-rose-500" size={48} />
+                <Loader2 className="animate-spin text-rose-500" size={40} />
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -294,64 +317,91 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
                   filteredSubstitutes.map((sub) => (
                     <div 
                       key={sub.id}
-                      className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group"
+                      className="group relative bg-surface-100 p-4 sm:p-5 rounded-2xl shadow-xs border border-surface-300 hover:border-rose-500/40 hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden"
                     >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-rose-600">
-                            <UserRound size={20} />
+                      {/* Brilho decorativo suave no canto */}
+                      <div 
+                        className="absolute -top-12 -right-12 w-24 h-24 rounded-full blur-2xl opacity-10 group-hover:opacity-25 transition-opacity pointer-events-none"
+                        style={{ backgroundColor: '#F43F5E' }}
+                      />
+
+                      {/* Faixa gradiente superior */}
+                      <div 
+                        className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-80 group-hover:opacity-100 transition-opacity"
+                        style={{ backgroundImage: 'linear-gradient(to right, #F43F5E, transparent)' }}
+                      />
+
+                      <div>
+                        <div className="flex justify-between items-start mb-3 gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10 group-hover:scale-105 transition-transform duration-200 shrink-0">
+                              <UserRound size={19} strokeWidth={2} />
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-sm sm:text-base text-typography-900 group-hover:text-rose-600 transition-colors truncate">
+                                {sub.nome}
+                              </h3>
+                              <p className="text-xs text-typography-500 truncate flex items-center gap-1.5 mt-0.5">
+                                <Store size={12} className="shrink-0 text-typography-400" />
+                                <span className="truncate">{sub.congregacaoNome || 'Congregação não informada'}</span>
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-bold text-gray-900">{sub.nome}</h3>
-                            <p className="text-xs text-gray-500 font-medium">{sub.congregacaoNome}</p>
+
+                          <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0">
+                            <button 
+                              onClick={() => handleEdit(sub)}
+                              className="p-1.5 text-typography-400 hover:text-rose-600 hover:bg-surface-200 rounded-lg transition-colors cursor-pointer"
+                              title="Editar"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                const confirmed = await showDeleteConfirm('Tem certeza que deseja excluir este substituto? Esta ação não pode ser desfeita.', 'Excluir Substituto');
+                                if (confirmed) {
+                                  handleDelete(sub.id);
+                                }
+                              }}
+                              className="p-1.5 text-typography-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => handleEdit(sub)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Editar"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              const confirmed = await showDeleteConfirm('Tem certeza que deseja excluir este substituto? Esta ação não pode ser desfeita.', 'Excluir Substituto');
-                              if (confirmed) {
-                                handleDelete(sub.id);
-                              }
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <MapPin size={14} className="text-gray-400" />
-                          <span className="truncate">{sub.cidade} - {sub.estado}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Store size={14} className="text-gray-400" />
-                          <span className="truncate">Congregação: {sub.congregacaoNome}</span>
+
+                        {/* Localização */}
+                        <div className="space-y-1.5 text-xs text-typography-600 border-t border-surface-300/80 pt-3 mt-3">
+                          <div className="flex items-center gap-2">
+                            <MapPin size={13} className="text-typography-400 shrink-0" />
+                            <span className="truncate font-medium">
+                              {sub.cidade ? `${sub.cidade} - ${sub.estado}` : 'Localização não informada'}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
                       <button 
                         onClick={() => handleEdit(sub)}
-                        className="w-full mt-4 py-2 text-xs font-bold text-rose-600 border border-rose-100 rounded-lg hover:bg-rose-600 hover:text-white transition-all"
+                        className="w-full mt-4 py-2 px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-600 hover:text-white rounded-xl border border-rose-500/20 transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        Ver Detalhes
+                        <Edit2 size={13} />
+                        <span>Editar Detalhes</span>
                       </button>
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-full py-12 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                    <UserRound className="mx-auto text-gray-300 mb-2" size={48} />
-                    <p className="text-gray-500 font-medium">Nenhum substituto encontrado.</p>
+                  <div className="col-span-full py-14 text-center bg-surface-100 rounded-2xl border-2 border-dashed border-surface-300 p-8">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3">
+                      <UserRound size={28} />
+                    </div>
+                    <p className="text-sm font-semibold text-typography-800">
+                      {searchTerm ? 'Nenhum substituto encontrado para a busca.' : 'Nenhum substituto cadastrado.'}
+                    </p>
+                    <p className="text-xs text-typography-500 mt-1">
+                      {searchTerm ? 'Tente buscar por outro termo.' : 'Clique em "Novo Substituto" para adicionar.'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -360,81 +410,116 @@ export default function SubstitutesView({ userId, onBack }: SubstitutesViewProps
         ) : (
           <motion.div 
             key="form"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            className="relative bg-surface-100 rounded-3xl shadow-md border border-surface-300 overflow-hidden max-w-2xl mx-auto"
           >
-            <div className="bg-rose-600 p-4 text-white">
-              <h3 className="font-bold">
-                {selectedSub ? 'Editar Substituto' : 'Novo Substituto'}
-              </h3>
+            {/* Faixa gradiente superior */}
+            <div 
+              className="h-1.5 w-full bg-gradient-to-r"
+              style={{ backgroundImage: 'linear-gradient(to right, #F43F5E, #FB7185, transparent)' }}
+            />
+
+            {/* Cabeçalho do Formulário */}
+            <div className="p-5 sm:p-6 border-b border-surface-300/80 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10 shrink-0">
+                  <UserRound size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base sm:text-lg text-typography-900">
+                    {selectedSub ? 'Editar Substituto' : 'Novo Substituto'}
+                  </h3>
+                  <p className="text-xs text-typography-500">
+                    {selectedSub ? 'Atualize as informações do substituto' : 'Preencha os dados para cadastrar um novo substituto'}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleSave} className="p-6 space-y-6">
+            <form onSubmit={handleSave} className="p-5 sm:p-6 space-y-5">
               <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Nome Completo</label>
+                {/* Nome Completo */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-typography-700 uppercase tracking-wider">
+                    Nome Completo <span className="text-rose-500">*</span>
+                  </label>
                   <input 
                     required
                     value={formData.nome}
                     onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500"
+                    className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-sm text-typography-900 placeholder:text-typography-400 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 transition-colors"
                     placeholder="Nome do Superintendente Substituto"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Congregação</label>
-                  <select 
-                    required
+                {/* Congregação com CustomSelect pesquisável */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-typography-700 uppercase tracking-wider">
+                    Congregação <span className="text-rose-500">*</span>
+                  </label>
+                  <CustomSelect
                     value={formData.congregacaoId}
-                    onChange={(e) => handleCongregationChange(e.target.value)}
-                    className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-rose-500"
-                  >
-                    <option value="">Selecione uma congregação...</option>
-                    {sortedCongregations.map(cong => (
-                      <option key={cong.id} value={cong.id}>{cong.nome}</option>
-                    ))}
-                  </select>
+                    onChange={handleCongregationChange}
+                    options={sortedCongregations.map(cong => ({
+                      value: cong.id,
+                      label: cong.nome,
+                      description: `${cong.cidade} - ${cong.estado}`
+                    }))}
+                    placeholder="Selecione ou busque uma congregação..."
+                    searchable={true}
+                    size="md"
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Cidade</label>
+                {/* Cidade e Estado (Preenchimento automático a partir da congregação) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-typography-700 uppercase tracking-wider">
+                      Cidade
+                    </label>
                     <input 
                       readOnly
                       value={formData.cidade}
-                      className="w-full p-2 bg-gray-100 border border-gray-200 rounded-lg outline-none text-gray-500 cursor-not-allowed"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm text-typography-700 cursor-not-allowed outline-none select-none"
                       placeholder="Preenchido automaticamente"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-500 uppercase">Estado</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-typography-700 uppercase tracking-wider">
+                      Estado (UF)
+                    </label>
                     <input 
                       readOnly
                       value={formData.estado}
-                      className="w-full p-2 bg-gray-100 border border-gray-200 rounded-lg outline-none text-gray-500 cursor-not-allowed"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm text-typography-700 cursor-not-allowed outline-none select-none uppercase"
                       placeholder="UF"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
+              {/* Botões do Rodapé */}
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-surface-300/80">
                 <button 
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-6 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-5 py-2.5 text-typography-600 hover:text-typography-900 font-semibold text-sm hover:bg-surface-200 rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="px-8 py-2 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors shadow-md flex items-center gap-2"
+                  disabled={isSaving}
+                  className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
                 >
-                  <Save size={20} />
-                  Salvar Substituto
+                  {isSaving ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Save size={18} />
+                  )}
+                  <span>{isSaving ? 'Salvando...' : 'Salvar Substituto'}</span>
                 </button>
               </div>
             </form>
