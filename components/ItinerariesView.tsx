@@ -2019,16 +2019,14 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     onClick={() => handleRowDoubleClick(item)}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-3 relative overflow-hidden ${
                       current 
-                        ? 'bg-amber-500/5 dark:bg-amber-500/10 border-primary-200/70 shadow-sm ring-1 ring-primary-200/20' 
+                        ? 'bg-surface-100 border-primary-200 shadow-md ring-2 ring-primary-200/20' 
                         : 'bg-surface-100 border-surface-300 hover:border-primary-200/40 shadow-2xs'
                     }`}
                   >
                     {/* Top gradient accent line (novo padrão) */}
                     <div 
-                      className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
-                        current
-                          ? 'from-amber-500 via-amber-400 to-transparent opacity-100'
-                          : 'from-primary-200 via-primary-150 to-transparent opacity-60 hover:opacity-100'
+                      className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent ${
+                        current ? 'opacity-100' : 'opacity-50 hover:opacity-100'
                       }`} 
                     />
 
@@ -2225,7 +2223,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                         onDoubleClick={() => handleRowDoubleClick(item)}
                         className={`border-b border-surface-300 transition-colors cursor-pointer select-none ${
                           current 
-                            ? 'bg-amber-500/10 dark:bg-amber-500/15 hover:bg-amber-500/20' 
+                            ? 'bg-primary-200/5 hover:bg-primary-200/10' 
                             : 'hover:bg-surface-200/40'
                         }`}
                       >
