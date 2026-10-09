@@ -168,15 +168,6 @@ export default function Sidebar({
     }
   };
 
-  const isAdminUser = 
-    user?.role === 'admin' || 
-    user?.usuario === '2283701' || 
-    user?.email === 'weldonrs@gmail.com' ||
-    user?.email === '2283701@progcir.app' ||
-    user?.email === '2283701@progcir.com' ||
-    user?.email === '2283701@gmail.com' ||
-    user?.id === '2283701';
-
   const menuItems = navItems.filter((item) => {
     const role = personalData?.role || 'viajante';
     if (role === 'pioneiro_especial' || role === 'pioneiro_regular') {
