@@ -71,10 +71,13 @@ interface Contact {
 }
 
 interface InboxViewProps {
+  userId?: string;
+  user?: any;
+  personalDataProp?: any;
   onBack?: () => void;
 }
 
-export default function InboxView({ onBack }: InboxViewProps) {
+export default function InboxView({ userId, user: propUser, personalDataProp, onBack }: InboxViewProps) {
   const { showAlert, showConfirm, showDeleteConfirm } = useDialog();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -94,7 +97,20 @@ export default function InboxView({ onBack }: InboxViewProps) {
   const [recipientSuggestions, setRecipientSuggestions] = useState<Contact[]>([]);
   const [ccSuggestions, setCcSuggestions] = useState<Contact[]>([]);
   const [activeSuggestionField, setActiveSuggestionField] = useState<'recipient' | 'cc' | null>(null);
-  const [personalData, setPersonalData] = useState<any>(null);
+  const [personalData, setPersonalData] = useState<any>(personalDataProp || null);
+
+  const effectiveUserId = userId || propUser?.id || propUser?.usuario || auth.currentUser?.uid || '';
+  const candidateUserIds = useMemo(() => {
+    const list = [effectiveUserId, userId, propUser?.id, propUser?.usuario, propUser?.email, auth.currentUser?.uid];
+    return Array.from(new Set(list.filter((x): x is string => typeof x === 'string' && x.trim().length > 0))).slice(0, 10);
+  }, [effectiveUserId, userId, propUser?.id, propUser?.usuario, propUser?.email]);
+
+  // Sincroniza personalDataProp se fornecido pelo pai
+  useEffect(() => {
+    if (personalDataProp) {
+      setPersonalData(personalDataProp);
+    }
+  }, [personalDataProp]);
   
   // Set initial sidebar state based on screen size
   useEffect(() => {
@@ -120,59 +136,86 @@ export default function InboxView({ onBack }: InboxViewProps) {
   const selectedDraft = drafts.find(d => d.id === selectedId);
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    // Check Microsoft connection — store unsubscribe so it's cleaned up on unmount
-    let unsubscribeMs: (() => void) | undefined;
-    try {
-      unsubscribeMs = onSnapshot(doc(db, 'microsoft_connections', user.uid), (snap) => {
-        setIsMicrosoftConnected(snap.exists());
-      });
-    } catch (err) {
-      console.error('Error checking MS connection:', err);
+    if (!effectiveUserId) {
+      setLoading(false);
+      return;
     }
 
-    const q = query(
-      collection(db, 'email_drafts'),
-      where('userId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
-    );
+    // Check Microsoft connection
+    const checkConnection = async () => {
+      try {
+        onSnapshot(doc(db, 'microsoft_connections', effectiveUserId), (snap) => {
+          setIsMicrosoftConnected(snap.exists());
+        });
+      } catch (err) {
+        console.error('Error checking MS connection:', err);
+      }
+    };
 
-    const unsubscribeDrafts = onSnapshot(q, (snap) => {
-      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Draft));
-      setDrafts(docs);
+    checkConnection();
+
+    let unsubscribe: () => void = () => {};
+
+    const sortDocs = (docsList: any[]) => {
+      return [...docsList].sort((a, b) => {
+        const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+    };
+
+    try {
+      const q = candidateUserIds.length > 1
+        ? query(collection(db, 'email_drafts'), where('userId', 'in', candidateUserIds))
+        : query(collection(db, 'email_drafts'), where('userId', '==', effectiveUserId));
+
+      unsubscribe = onSnapshot(q, (snap) => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Draft));
+        setDrafts(sortDocs(docs));
+        setLoading(false);
+      }, (err) => {
+        console.warn('Error listening to drafts, retrying single-user query:', err);
+        const fallbackQ = query(collection(db, 'email_drafts'), where('userId', '==', effectiveUserId));
+        unsubscribe = onSnapshot(fallbackQ, (snap) => {
+          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Draft));
+          setDrafts(sortDocs(docs));
+          setLoading(false);
+        }, (fallbackErr) => {
+          console.error('Final drafts error:', fallbackErr);
+          setLoading(false);
+        });
+      });
+    } catch (queryErr) {
+      console.error('Failed to construct drafts query:', queryErr);
       setLoading(false);
-    }, (err) => {
-      console.error('Error fetching drafts:', err);
-      setLoading(false);
-    });
+    }
 
     return () => {
-      unsubscribeMs?.();
-      unsubscribeDrafts();
+      if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [effectiveUserId, candidateUserIds]);
 
   // Fetch personal data for signature
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!effectiveUserId) return;
+    if (personalDataProp) {
+      setPersonalData(personalDataProp);
+      return;
+    }
 
-    const docRef = doc(db, 'personal_data', user.uid);
+    const docRef = doc(db, 'personal_data', effectiveUserId);
     getDoc(docRef).then(snap => {
       if (snap.exists()) {
         setPersonalData(snap.data());
       }
     }).catch(err => console.warn('InboxView: Error fetching personal data:', err));
-  }, []);
+  }, [effectiveUserId, personalDataProp]);
 
   // Fetch congregations to build contacts list
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!effectiveUserId) return;
 
-    const q = query(collection(db, 'congregations'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'congregations'), where('userId', '==', effectiveUserId));
     const unsubscribe = onSnapshot(q, (snap) => {
       const contactsList: Contact[] = [];
       snap.docs.forEach(doc => {
@@ -215,15 +258,14 @@ export default function InboxView({ onBack }: InboxViewProps) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [effectiveUserId]);
 
   // Seeding logic for default drafts
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user || loading || !personalData) return;
+    if (!effectiveUserId || loading || !personalData) return;
 
     const seedVersion = 'v4_progcir_defaults'; // Change this to trigger new seeds
-    const seeded = localStorage.getItem(`progcir_drafts_seeded_${user.uid}`);
+    const seeded = localStorage.getItem(`progcir_drafts_seeded_${effectiveUserId}`);
     
     if (seeded !== seedVersion) {
       const seedDefaults = async () => {
@@ -244,7 +286,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
           const existingDraftsSnap = await getDocs(
             query(
               collection(db, 'email_drafts'),
-              where('userId', '==', user.uid),
+              where('userId', '==', effectiveUserId),
               where('folder', '==', 'drafts')
             )
           );
@@ -269,7 +311,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
               content: `Prezados Irmãos:\n\nSegue em anexo o formulário S-62 referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
               recipient: '',
               folder: 'drafts',
-              userId: user.uid,
+              userId: effectiveUserId,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               attachments: []
@@ -279,7 +321,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
               content: `Prezados Irmãos:\n\nSegue em anexo o relatório da visita (S-303) referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
               recipient: '',
               folder: 'drafts',
-              userId: user.uid,
+              userId: effectiveUserId,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               attachments: []
@@ -289,7 +331,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
               content: `Prezados Irmãos:\n\nSegue em anexo o aviso de visita (S-302) referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
               recipient: '',
               folder: 'drafts',
-              userId: user.uid,
+              userId: effectiveUserId,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               attachments: []
@@ -299,7 +341,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
               content: `Prezados Irmãos:\n\nSegue em anexo a carta de designação e remoção referente à congregação Central, Campina Grande (14738).\n\n${signature}`,
               recipient: '',
               folder: 'drafts',
-              userId: user.uid,
+              userId: effectiveUserId,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               attachments: []
@@ -309,7 +351,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
               content: `Prezados Irmãos:\n\nSegue em anexo o aviso de assembleia (S-307) para conhecimento de todos os anciãos do circuito ${circuit}.\n\n${signature}`,
               recipient: '',
               folder: 'drafts',
-              userId: user.uid,
+              userId: effectiveUserId,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               attachments: []
@@ -319,7 +361,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
           for (const d of defaultDrafts) {
             await addDoc(collection(db, 'email_drafts'), d);
           }
-          localStorage.setItem(`progcir_drafts_seeded_${user.uid}`, seedVersion);
+          localStorage.setItem(`progcir_drafts_seeded_${effectiveUserId}`, seedVersion);
         } catch (err) {
           console.error('Error seeding drafts:', err);
         }
@@ -327,7 +369,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
 
       seedDefaults();
     }
-  }, [loading, personalData]);
+  }, [effectiveUserId, loading, personalData]);
 
   useEffect(() => {
     if (selectedDraft) {
@@ -367,13 +409,12 @@ export default function InboxView({ onBack }: InboxViewProps) {
   };
 
   const handleCreateNew = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     try {
       setSaving(true);
       const docRef = await addDoc(collection(db, 'email_drafts'), {
-        userId: user.uid,
+        userId: effectiveUserId,
         recipient: '',
         subject: '',
         content: '',
@@ -396,14 +437,12 @@ export default function InboxView({ onBack }: InboxViewProps) {
   const handleDuplicate = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!selectedDraft) return;
-
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     try {
       setSaving(true);
       const docRef = await addDoc(collection(db, 'email_drafts'), {
-        userId: user.uid,
+        userId: effectiveUserId,
         recipient: selectedDraft.recipient || '',
         subject: selectedDraft.subject ? `${selectedDraft.subject} (Cópia)` : '(Cópia)',
         content: selectedDraft.content || '',
@@ -546,8 +585,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
   };
 
   const handleSendEmail = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const allAttachments = [...form.attachments, ...volatileAttachments];
 
@@ -572,7 +610,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          uid: user.uid,
+          uid: effectiveUserId,
           recipient: form.recipient,
           subject: form.subject,
           content: form.content,
@@ -601,13 +639,12 @@ export default function InboxView({ onBack }: InboxViewProps) {
 
   // Helper to record sent history and update original draft
   const recordSentHistory = async () => {
-    const user = auth.currentUser;
-    if (!user || !selectedId) return;
+    if (!effectiveUserId || !selectedId) return;
 
     try {
       // Create a copy in 'sent' folder for history
       await addDoc(collection(db, 'email_drafts'), {
-        userId: user.uid,
+        userId: effectiveUserId,
         recipient: form.recipient,
         cc: form.cc || '',
         subject: form.subject,
