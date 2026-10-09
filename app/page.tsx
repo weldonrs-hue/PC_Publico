@@ -10,9 +10,9 @@ import RegionalConventionView from '@/components/RegionalConventionView';
 import CircuitAssemblyView from '@/components/CircuitAssemblyView';
 import SpecialPioneerMeetingView from '@/components/SpecialPioneerMeetingView';
 
-const DashboardCards = dynamic(() => import('@/components/DashboardCards'), { ssr: false });
-const SecondarySection = dynamic(() => import('@/components/SecondarySection'), { ssr: false });
-const AuthForm = dynamic(() => import('@/components/AuthForm'), { ssr: false });
+import DashboardCards from '@/components/DashboardCards';
+import SecondarySection from '@/components/SecondarySection';
+import AuthForm from '@/components/AuthForm';
 const PersonalDataView = dynamic(() => import('@/components/PersonalDataView'), { ssr: false });
 const CongregationsView = dynamic(() => import('@/components/CongregationsView'), { ssr: false });
 const SubstitutesView = dynamic(() => import('@/components/SubstitutesView'), { ssr: false });
@@ -277,6 +277,29 @@ export default function Home() {
   const [emrInitialMode, setEmrInitialMode] = useState<'geracao' | 'manager'>('geracao');
   const [assembleiasInitialMode, setAssembleiasInitialMode] = useState<'geracao' | 'manager'>('geracao');
   const [programacoesInitialMode, setProgramacoesInitialMode] = useState<'geracao' | 'manager'>('geracao');
+
+  // Sincroniza foto e dados do usuário de 'users' para login por chave de acesso ou senha
+  useEffect(() => {
+    if (!user?.id) return;
+    const userDocRef = doc(db, 'users', user.id);
+    const unsub = onSnapshot(userDocRef, (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.photoURL) {
+          setUser((prev: any) => ({ ...prev, photoURL: d.photoURL }));
+        }
+      }
+    }, () => {});
+    return () => unsub();
+  }, [user?.id]);
+
+  // Se personalData tiver foto cadastrada, sincroniza com o usuário
+  useEffect(() => {
+    const photoFromPD = personalData?.profilePhoto || personalData?.foto;
+    if (photoFromPD && (!user?.photoURL || user.photoURL !== photoFromPD)) {
+      setUser((prev: any) => prev ? { ...prev, photoURL: photoFromPD } : prev);
+    }
+  }, [personalData?.profilePhoto, personalData?.foto]);
 
   // Monitorar convites de instrutor convidado - Otimizado com cleanup e quota check
   useEffect(() => {
@@ -550,6 +573,123 @@ export default function Home() {
 
     return () => unsubConfig();
   }, [user?.id, user?.role, quotaExceeded]);
+
+  // Auto-gravação dos Dados Pessoais da conta de teste 2283719
+  useEffect(() => {
+    if (!user?.id) return;
+    const isTestAccount = user.usuario === '2283719' || user.id === '2283719' || user.email?.includes('2283719');
+    if (!isTestAccount) return;
+
+    const seedPersonalData = async () => {
+      try {
+        const alexPersonalData = {
+          userId: user.id,
+          numeroPessoal: '2283719',
+          nome: 'Alexsandro Rebello',
+          nomeEsposa: 'Karla',
+          endereco: 'Av. Brigadeiro Salema, 714, Apt. 201, Bl B3 - Pres. Costa e Silva',
+          cidade: 'MOSSORÓ',
+          cep: '59628-030',
+          uf: 'RN',
+          circuito: 'RN-002',
+          emailJwpub: 'AlexsandroR1@jwpub.org',
+          telefoneCircuito: '(82) 99991-0179',
+          emailPessoal: user.email || '2283719@progcir.app',
+          telefonePessoal: '',
+          role: 'viajante' as const
+        };
+
+        const targetId = user.id;
+        await setDoc(doc(db, 'personal_data', targetId), alexPersonalData, { merge: true });
+        await setDoc(doc(db, 'personal_data', '2283719'), alexPersonalData, { merge: true });
+
+        setPersonalData((prev: any) => ({ ...prev, ...alexPersonalData }));
+        sessionStorage.setItem(`pd_${targetId}`, JSON.stringify(alexPersonalData));
+        sessionStorage.setItem('pd_2283719', JSON.stringify(alexPersonalData));
+        console.log('[ProgCir] Dados Pessoais de Alexsandro Rebello sincronizados com sucesso para 2283719!');
+
+        // Sincroniza e atualiza os dados completos das 19 Congregações do Circuito RN-002
+        const rawCongs = [
+          { numero: '63578', nome: 'Abolição', endereco: 'Av. Abel Coelho, 76 - Abolição 3', coordenador: 'Carlos Clayton Lopes da Silva', telefone: '84 98848-2160', cidade: 'MOSSORÓ', cep: '59612-300', estado: 'RN' },
+          { numero: '101121', nome: 'Aeroporto', endereco: 'Rua Clementina Amália da Silva, 73 - Aeroporto', coordenador: 'Cesimar Camilo Pereira da Silva', telefone: '(84) 98152-8691', cidade: 'MOSSORÓ', cep: '59607-543', estado: 'RN' },
+          { numero: '95737', nome: 'Apodi', endereco: 'Rua José Pedro De Oliveira, 285.', coordenador: 'Cleidir Aniceto de Sena', telefone: '84999084234', cidade: 'APODI', cep: '59700-000', estado: 'RN' },
+          { numero: '19836', nome: 'Areia Branca', endereco: 'R. João Pedro Filho, 25 - Nossa Senhora dos Navegantes', coordenador: 'Luiz Antônio Filho', telefone: '84 99651-9166', cidade: 'AREIA BRANCA', cep: '59655-000', estado: 'RN' },
+          { numero: '66183', nome: 'Baraúna', endereco: 'Rua São Francisco, 541 - Centro', coordenador: 'David Oliveira de Araújo', telefone: '84920000121', cidade: 'BARAÚNA', cep: '59695-000', estado: 'RN' },
+          { numero: '67587', nome: 'Boa Vista', endereco: 'Rua José Almeida Da Silva, 134 - Bela Vista', coordenador: 'Joaquim Barbosa Freire', telefone: '84 988594123', cidade: 'MOSSORÓ', cep: '59609-420', estado: 'RN' },
+          { numero: '168732', nome: 'Campo Grande', endereco: 'Rua Epitácio Melo, 20 - Centro', coordenador: 'Jeovanizelio Firmino Gomes', telefone: '84981090747', cidade: 'CAMPO GRANDE', cep: '59680-000', estado: 'RN' },
+          { numero: '70060', nome: 'Caraúbas', endereco: 'Rua Maria Nazaré de Melo, 171', coordenador: 'Jaílson Jácome Praxedes', telefone: '(84) 99941-4070', cidade: 'CARAÚBAS', cep: '59780-970', estado: 'RN' },
+          { numero: '19943', nome: 'Central', endereco: 'Rua Vicente Januário De Carvalho, 110 - Boa Vista', coordenador: 'Antônio Elias Viana de Menezes', telefone: '84 99665-0800', cidade: 'MOSSORÓ', cep: '59605-075', estado: 'RN' },
+          { numero: '70078', nome: 'Governador Dix-Sept Rosado', endereco: 'Rua Antônio Rosendo, 322 - Centro', coordenador: 'Fábio Luiz Fonseca do Nascimento', telefone: '(84) 99667-1041', cidade: 'GOVERNADOR DIX-SEPT ROSADO', cep: '59790-000', estado: 'RN' },
+          { numero: '139410', nome: 'Grossos', endereco: 'Rua do amor, Jardim Paraíso', coordenador: 'Miqueas Alves da Silva Barros', telefone: '84 98177-1032', cidade: 'ICAPUÍ', cep: '59675-000', estado: 'CE' },
+          { numero: '139683', nome: 'Integração', endereco: 'R. Analino Salgado, 42 - Integração', coordenador: 'Fabrício Torquato Silva', telefone: '84998801606', cidade: 'MOSSORÓ', cep: '59616-320', estado: 'RN' },
+          { numero: '34371', nome: 'Leste', endereco: 'R. Genésio Xavier Rebouças, 498, Planalto Treze de Maio', coordenador: 'Leonardo Monte Florêncio', telefone: '84994261934', cidade: 'MOSSORÓ', cep: '59633-300', estado: 'RN' },
+          { numero: '132134', nome: 'Nordeste', endereco: 'Av. Rio Branco, 3321, Ap. 604 D - Santo Antônio', coordenador: 'Maikon Rafael Filgueira das Chagas', telefone: '84 98795-2612', cidade: 'MOSSORÓ', cep: '59619-400', estado: 'RN' },
+          { numero: '19935', nome: 'Norte', endereco: 'RUA LIRA TAVARES, 17 - Santo Antônio', coordenador: 'Aprigio Lisboa de Morais', telefone: '84 998476228', cidade: 'MOSSORÓ', cep: '59600-000', estado: 'RN' },
+          { numero: '95521', nome: 'Oeste', endereco: 'Rua Rosemiro Fontes Carneiro, 508 - Ricão', coordenador: 'Francisco Lenildo da Silva', telefone: '84998652294', cidade: 'MOSSORÓ', cep: '59626-250', estado: 'RN' },
+          { numero: '51110', nome: 'Rodolfo Fernandes', endereco: 'Rua Vicente do Rego, 54 - Centro', coordenador: 'Luiz Wilame Rabelo', telefone: '8 49926-7511', cidade: 'RODOLFO FERNANDES', cep: '59830-970', estado: 'RN' },
+          { numero: '138370', nome: 'Sumaré', endereco: 'Rua Rita Silva Vieira, 356 Dixsept Rosado', coordenador: 'José Sueldo Barros', telefone: '84991313485', cidade: 'MOSSORÓ', cep: '59609-016', estado: 'RN' },
+          { numero: '114777', nome: 'Tibau', endereco: 'Rua Luiz Benedito de Oliveira - Centro', coordenador: 'Marcelo Costa Agapito', telefone: '(84) 99857-7465', cidade: 'TIBAU', cep: '59678-000', estado: 'RN' }
+        ];
+
+        const congsQ = query(collection(db, 'congregations'), where('userId', '==', user.id));
+        const congsSnap = await getDocs(congsQ);
+        const batch = writeBatch(db);
+
+        if (congsSnap.empty) {
+          rawCongs.forEach((c) => {
+            const congDocRef = doc(collection(db, 'congregations'));
+            batch.set(congDocRef, {
+              userId: user.id,
+              nome: c.nome,
+              numero: c.numero,
+              parte: 'A',
+              circuito: 'RN-002',
+              cidade: c.cidade,
+              estado: c.estado,
+              endereco: c.endereco,
+              coordenador: c.coordenador,
+              coordenadorTelefone: c.telefone,
+              telefone: c.telefone,
+              cep: c.cep,
+              idioma: 'Português (Brasil)',
+              grupos: ['Grupo 1', 'Grupo 2', 'Grupo 3'],
+              reuniaoMeioSemana: 'Quinta-feira 19:30',
+              reuniaoFimSemana: 'Domingo 18:00',
+              createdAt: new Date().toISOString()
+            });
+          });
+          await batch.commit();
+          console.log('[ProgCir] 19 congregações criadas com dados completos para 2283719!');
+        } else {
+          let hasUpdates = false;
+          congsSnap.docs.forEach((d) => {
+            const data = d.data();
+            const matched = rawCongs.find(rc => rc.numero === data.numero || rc.nome.toLowerCase() === data.nome?.toLowerCase());
+            if (matched && (!data.coordenador || !data.endereco || data.endereco.includes('Salão do Reino das Testemunhas de Jeová,'))) {
+              batch.update(d.ref, {
+                endereco: matched.endereco,
+                coordenador: matched.coordenador,
+                coordenadorTelefone: matched.telefone,
+                telefone: matched.telefone,
+                cidade: matched.cidade,
+                cep: matched.cep,
+                estado: matched.estado
+              });
+              hasUpdates = true;
+            }
+          });
+          if (hasUpdates) {
+            await batch.commit();
+            console.log('[ProgCir] Congregações existentes atualizadas com dados cadastrais completos!');
+          }
+        }
+      } catch (err) {
+        console.warn('Notice seeding personal data:', err);
+      }
+    };
+
+    seedPersonalData();
+  }, [user?.id, user?.usuario, user?.email]);
 
   useEffect(() => {
     const activeUid = user?.id || auth.currentUser?.uid;
@@ -1070,17 +1210,20 @@ export default function Home() {
                     style={{ width: '64px', height: '64px', minWidth: '64px', position: 'relative' }}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    {user?.photoURL && user.photoURL.length > 5 && (user.photoURL.startsWith('http') || user.photoURL.startsWith('data:')) ? (
-                      <Image 
-                        src={user.photoURL} 
-                        alt="Profile" 
-                        fill 
-                        className="object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <User size={24} className="md:w-8 md:h-8" />
-                    )}
+                    {(() => {
+                      const displayPhoto = user?.photoURL || personalData?.profilePhoto || personalData?.foto;
+                      return displayPhoto && displayPhoto.length > 5 && (displayPhoto.startsWith('http') || displayPhoto.startsWith('data:')) ? (
+                        <Image 
+                          src={displayPhoto} 
+                          alt="Profile" 
+                          fill 
+                          className="object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <User size={24} className="md:w-8 md:h-8" />
+                      );
+                    })()}
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
                       <Camera size={16} className="text-white md:w-5 md:h-5" />
                     </div>
@@ -1398,6 +1541,9 @@ export default function Home() {
 
           {currentView === 'inbox' && (
             <InboxView 
+              userId={user?.id}
+              user={user}
+              personalDataProp={personalData}
               onBack={() => changeView('misc')}
             />
           )}
