@@ -665,6 +665,7 @@ export default function InboxView({ onBack }: InboxViewProps) {
         setSelectedId(null);
         setForm({
           recipient: '',
+          cc: '',
           subject: '',
           content: '',
           attachments: []

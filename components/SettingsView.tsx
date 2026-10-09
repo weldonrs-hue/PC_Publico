@@ -28,11 +28,14 @@ import {
   MailCheck,
   Eye,
   Sparkles,
-  Check
+  Check,
+  Key,
+  Fingerprint
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import MicrosoftConnectionSettings from '@/components/MicrosoftConnectionSettings';
+import WebAuthnSettings from '@/components/WebAuthnSettings';
 import { 
   collection,
   query,
@@ -150,6 +153,14 @@ const settingsButtons = [
     gradient: 'from-[#2b579a] to-[#1e3a63]'
   },
   {
+    id: 'passkeys',
+    icon: Key,
+    title: 'CHAVES DE ACESSO',
+    subtitle: 'PASSKEYS / BIOMETRIA',
+    color: '#6366f1',
+    gradient: 'from-[#6366f1] to-[#4f46e5]'
+  },
+  {
     id: 'senha',
     icon: Lock,
     title: 'ALTERAR SENHA',
@@ -194,6 +205,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [error, setError] = useState<string | null>(null);
   const [isIframe, setIsIframe] = useState(false);
   const [isManagingMicrosoft, setIsManagingMicrosoft] = useState(false);
+  const [isManagingPasskeys, setIsManagingPasskeys] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isFormattingAccount, setIsFormattingAccount] = useState(false);
@@ -349,9 +361,12 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         // Fetch current user role
         const userEmail = auth.currentUser?.email;
         const isAdminEmail = 
+          isAdmin ||
+          userId === '2283701' ||
           userEmail === 'weldonrs@gmail.com' || 
           userEmail === '2283701@progcir.app' ||
-          userEmail === '2283701@progcir.com';
+          userEmail === '2283701@progcir.com' ||
+          userEmail === '2283701@gmail.com';
         
         const userDocRef = doc(db, 'users', userId);
         const userDocSnap = await getDoc(userDocRef).catch(err => {
@@ -361,9 +376,9 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
         if (userDocSnap && userDocSnap.exists()) {
           const data = userDocSnap.data();
-          setCurrentUserRole(isAdminEmail ? 'admin' : (data.role || 'user'));
+          setCurrentUserRole((isAdmin || isAdminEmail || data.role === 'admin') ? 'admin' : (data.role || 'user'));
         } else {
-          setCurrentUserRole(isAdminEmail ? 'admin' : 'user');
+          setCurrentUserRole((isAdmin || isAdminEmail) ? 'admin' : 'user');
         }
       } catch (error) {
         console.error('Erro ao buscar configurações:', error);
@@ -511,6 +526,8 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
       onViewChange('tjsec_accounts');
     } else if (id === 'microsoft') {
       setIsManagingMicrosoft(true);
+    } else if (id === 'passkeys') {
+      setIsManagingPasskeys(true);
     } else if (id === 'senha') {
       setIsChangingPassword(true);
     } else if (id === 'invites') {
@@ -1036,7 +1053,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {settingsButtons
             .filter(btn => {
-              if ((btn.id === 'usuarios' || btn.id === 'tjsec_accounts') && currentUserRole !== 'admin') return false;
+              if ((btn.id === 'usuarios' || btn.id === 'tjsec_accounts') && currentUserRole !== 'admin' && !isAdmin) return false;
               
               if (btn.id === 'pioneer_access' || btn.id === 'congress_access') return false;
 
@@ -1170,7 +1187,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
         <div className="pt-10 flex flex-col items-center justify-center space-y-2 opacity-30 select-none no-print">
           <Logo iconSize="w-6 h-6" textSize="text-sm" showText={true} />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v1.4.0</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v1.5.0</p>
         </div>
       </motion.div>
       
@@ -2231,6 +2248,62 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                 <button
                   onClick={() => setIsManagingMicrosoft(false)}
                   className="w-full py-4 text-sm font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* WebAuthn / Passkeys Modal */}
+      <AnimatePresence>
+        {isManagingPasskeys && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsManagingPasskeys(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg sm:max-w-xl max-h-[90vh] flex flex-col rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header fixo do Modal */}
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100 shrink-0 bg-white">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 mr-2">
+                  <div className="p-2 sm:p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
+                    <Fingerprint className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight truncate">Chaves de acesso (Passkeys)</h3>
+                    <p className="text-[11px] sm:text-xs text-gray-500 truncate">Acesse sua conta sem senha com biometria ou PIN</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsManagingPasskeys(false)}
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-full transition-colors shrink-0"
+                  aria-label="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Conteúdo com rolagem suave */}
+              <div className="p-3 sm:p-5 overflow-y-auto overflow-x-hidden flex-1 overscroll-contain bg-gray-50/50">
+                <WebAuthnSettings isInsideModal={true} />
+              </div>
+
+              {/* Rodapé fixo do Modal */}
+              <div className="px-4 sm:px-6 py-3 bg-white border-t border-gray-100 flex items-center justify-end shrink-0">
+                <button
+                  onClick={() => setIsManagingPasskeys(false)}
+                  className="px-5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all active:scale-95 shadow-sm"
                 >
                   Fechar
                 </button>

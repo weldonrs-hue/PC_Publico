@@ -108,17 +108,22 @@ export default function PersonalDataView({ userId, onBack, onSave }: PersonalDat
             return;
           }
 
-          // Use auth.currentUser.uid directly to be absolutely sure we are using the authenticated UID
-          const currentUid = auth.currentUser?.uid;
-          if (!currentUid) {
+          // Use active ID (prop userId or auth.currentUser.uid)
+          const activeId = userId || auth.currentUser?.uid;
+          if (!activeId) {
             setLoading(false);
             return;
           }
 
-          const q = query(collection(db, 'personal_data'), where('userId', '==', currentUid), limit(1));
-          const querySnapshot = await getDocs(q);
+          let querySnapshot = await getDocs(query(collection(db, 'personal_data'), where('userId', '==', activeId), limit(1))).catch(() => null);
           
-          if (!querySnapshot.empty) {
+          if (!querySnapshot || querySnapshot.empty) {
+            if (accountNumeroPessoal) {
+              querySnapshot = await getDocs(query(collection(db, 'personal_data'), where('numeroPessoal', '==', accountNumeroPessoal), limit(1))).catch(() => null);
+            }
+          }
+
+          if (querySnapshot && !querySnapshot.empty) {
             sessionStorage.setItem(`pdMigrationAttempted_${userId}`, 'true');
             const docData = querySnapshot.docs[0].data() as any;
             const mergedData = { ...defaultData, ...docData };

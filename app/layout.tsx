@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display, Pacifico, Caveat, Satisfy, Marck_Script } from 'next/font/google';
+import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display, Pacifico, Caveat, Satisfy, Marck_Script, Noto_Sans, Noto_Serif } from 'next/font/google';
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LGPDConsent from '@/components/LGPDConsent';
@@ -9,6 +9,18 @@ import { ThemeProvider } from '@/context/ThemeContext';
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+});
+
+const notoSans = Noto_Sans({
+  subsets: ['latin'],
+  variable: '--font-noto-sans',
+  weight: ['400', '700', '900'],
+});
+
+const notoSerif = Noto_Serif({
+  subsets: ['latin'],
+  variable: '--font-noto-serif',
+  weight: ['400', '700'],
 });
 
 const manrope = Manrope({

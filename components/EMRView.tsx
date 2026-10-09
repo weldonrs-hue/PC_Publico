@@ -877,7 +877,7 @@ export default function EMRView({
   }
 
   return (
-    <div id="emr-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
+    <div id="emr-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0 font-noto-sans">
       <style jsx global>{`
         @media screen {
           .print-only {
@@ -987,7 +987,7 @@ export default function EMRView({
             color: #111827 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            font-family: var(--font-sans, "Inter"), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            font-family: var(--font-noto-sans), var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
           }
 
           .emr-a4-page input {
@@ -1212,7 +1212,7 @@ export default function EMRView({
                 {/* Physical A4 Sheet (210 x 297 mm) */}
                 <div 
                   id={`emr-a4-page-${pageNum}`}
-                  className="emr-a4-page bg-white text-slate-900 shadow-2xl rounded-xs border border-gray-300 print:shadow-none print:border-none print:m-0 flex flex-col justify-between box-border select-text"
+                  className="emr-a4-page jwac-container bg-white text-[#292929] shadow-2xl rounded-xs border border-gray-300 print:shadow-none print:border-none print:m-0 flex flex-col justify-between box-border select-text"
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -1249,11 +1249,11 @@ export default function EMRView({
                           </div>
 
                           {/* Theme Verse */}
-                          <div className="my-1.5 space-y-0.5">
+                          <div className="my-1.5 space-y-0.5 font-noto-serif">
                             <div className="text-[12pt] font-black uppercase tracking-tight text-white drop-shadow-md leading-tight">
                               {currentConfig.themeText}
                             </div>
-                            <div className="text-[8pt] font-bold text-emerald-200/90">
+                            <div className="text-[8pt] font-bold text-emerald-200/90 italic">
                               — {currentConfig.themeVerse}
                             </div>
                           </div>
@@ -1335,7 +1335,7 @@ export default function EMRView({
                     </div>
 
                     {/* Items List */}
-                    <div className="space-y-1.5 flex-1 flex flex-col justify-start">
+                    <div className="space-y-0.5 flex-1 flex flex-col justify-start textSizeIncrement">
                       {session.items.map((item) => {
                         const isSymposium = item.isSeries && item.subitems && item.subitems.length > 0;
                         const isIntermission = item.isInterval;
@@ -1350,15 +1350,12 @@ export default function EMRView({
                             >
                               {/* Main Series Header */}
                               <div className="flex items-start gap-2 mb-1">
-                                <span className={`text-[8pt] font-black w-10 shrink-0 mt-0.5 ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
+                                <span className={`text-[11pt] font-bold text-[#292929] w-12 shrink-0 mt-0.5`}>
                                   {item.time}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <span className={`text-[7pt] font-black uppercase tracking-wider block leading-tight ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
-                                    {item.label || 'SÉRIE DE DISCURSOS:'}
-                                  </span>
-                                  <span className="text-[9pt] font-black text-gray-900 leading-tight">
-                                    {item.title}
+                                  <span className={`text-[11pt] block leading-tight ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
+                                    <span className="font-bold">Série de discursos:</span> <span className="text-[#292929]">{item.title}</span>
                                   </span>
                                 </div>
                               </div>
@@ -1374,15 +1371,13 @@ export default function EMRView({
                                     <div key={sub.id} className="border-b border-gray-100/80 pb-1 last:border-b-0">
                                       <div className="flex items-start justify-between gap-1.5">
                                         <div className="flex items-start gap-1.5 flex-1 min-w-0">
-                                          <span className={`font-black text-[8pt] shrink-0 mt-0.5 ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>
-                                            {sub.num}.
-                                          </span>
+                                          <span className={`text-[11pt] leading-none mt-1 shrink-0 ${selectedSchoolType === 'ancians' ? 'text-[#37616b]' : 'text-indigo-700'}`}>•</span>
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className="text-[8.5pt] font-bold text-gray-900 leading-tight">
+                                              <span className="text-[10.5pt] font-medium text-[#292929] leading-tight">
                                                 {sub.title}
                                               </span>
-                                              <span className="text-[7pt] font-bold text-gray-500 bg-gray-100 px-1 rounded">
+                                              <span className="text-[9pt] font-bold text-[#8e8e8e] bg-gray-50 px-1 rounded">
                                                 {sub.time}
                                               </span>
                                               <span className="text-[7pt] font-semibold text-gray-400">
@@ -1393,23 +1388,23 @@ export default function EMRView({
                                               </span>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-2 mt-1">
-                                              <div className="relative flex items-center">
+                                            <div className="grid grid-cols-2 gap-x-8 mt-0">
+                                              <div className="relative">
                                                 <input
                                                   type="text"
                                                   placeholder="Nome do instrutor..."
                                                   value={subSpeaker}
                                                   onChange={e => updateSpeaker(sub.id, e.target.value)}
-                                                  className={`w-full text-[8pt] font-bold text-gray-900 bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5 ${isConfirmed ? 'text-emerald-800 font-extrabold' : ''}`}
+                                                  className={`w-full text-[10.5pt] font-bold text-[#292929] bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5 uppercase transition-all ${isConfirmed ? 'text-emerald-800' : ''}`}
                                                 />
                                               </div>
-                                              <div className="relative flex items-center">
+                                              <div className="relative">
                                                 <input
                                                   type="text"
                                                   placeholder="Congregação..."
                                                   value={subCong}
                                                   onChange={e => updateSpeakerCongregation(sub.id, e.target.value)}
-                                                  className="w-full text-[7.5pt] font-medium text-gray-600 bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5"
+                                                  className="w-full text-[10pt] font-medium text-[#8e8e8e] bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5 uppercase"
                                                 />
                                               </div>
                                             </div>
@@ -1451,16 +1446,15 @@ export default function EMRView({
                         // Case 2: Intermission
                         if (isIntermission) {
                           return (
-                            <div key={item.id} className="flex items-center justify-between bg-amber-50/70 border border-amber-200/60 rounded px-2.5 py-1 my-1">
-                              <div className="flex items-center gap-2">
-                                <Coffee size={12} className="text-amber-600" />
-                                <span className="text-[8pt] font-black uppercase tracking-wider text-amber-900">
+                            <div key={item.id} className="flex items-start gap-2 bg-amber-50/40 border border-amber-200/30 rounded px-2.5 py-0.5 my-1">
+                              <span className="text-[11pt] font-bold text-[#292929] w-12 shrink-0">
+                                {item.time}
+                              </span>
+                              <div className="flex items-center gap-2 flex-1">
+                                <Coffee size={11} className="text-amber-600/70" />
+                                <span className="text-[11pt] font-bold uppercase tracking-tight text-amber-900">
                                   {item.title}
                                 </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-[7.5pt] font-bold text-amber-700">
-                                <span>{item.time}</span>
-                                {item.duration && <span>• {item.duration}</span>}
                               </div>
                             </div>
                           );
@@ -1468,17 +1462,21 @@ export default function EMRView({
 
                         // Case 3: Song / Prayer
                         if (isSong) {
+                          const titleParts = item.title.split(/(Cântico \d+)/i);
                           return (
-                            <div key={item.id} className="flex items-center justify-between py-1 px-1 border-b border-gray-100">
-                              <div className="flex items-center gap-2">
-                                <Music size={12} className="text-gray-400" />
-                                <span className="text-[8pt] font-bold italic text-gray-600">
-                                  {item.title}
-                                </span>
-                              </div>
-                              <span className="text-[7.5pt] font-bold text-gray-400">
+                            <div key={item.id} className="flex items-start gap-2 py-0.5 px-1 border-b border-gray-50/30">
+                              <span className="text-[11pt] font-bold text-[#292929] w-12 shrink-0">
                                 {item.time}
                               </span>
+                              <div className="flex items-center gap-2 flex-1">
+                                <span className="text-[11pt] font-medium text-[#292929]">
+                                  {titleParts.map((part, i) => 
+                                    /Cântico \d+/i.test(part) ? 
+                                      <span key={i} className="jwac-song-link">{part}</span> : 
+                                      part
+                                  )}
+                                </span>
+                              </div>
                             </div>
                           );
                         }
@@ -1489,50 +1487,47 @@ export default function EMRView({
                         const isConfirmed = !!confirmations[item.id];
 
                         return (
-                          <div key={item.id} className="border-b border-gray-100 pb-1.5 pt-0.5">
+                          <div key={item.id} className="border-b border-gray-50/30 pb-0.5 pt-0">
                             <div className="flex items-start justify-between gap-1.5">
                               <div className="flex items-start gap-2 flex-1 min-w-0">
-                                <span className={`font-black text-[8.5pt] w-5 text-center shrink-0 mt-0.5 rounded px-0.5 ${selectedSchoolType === 'ancians' ? 'bg-[#37616b]/10 text-[#37616b]' : 'bg-indigo-100 text-indigo-700'}`}>
-                                  {item.num}
+                                <span className="text-[11pt] font-bold text-[#292929] w-12 shrink-0 mt-0.5">
+                                  {item.time}
                                 </span>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-[9pt] font-black text-gray-900 leading-tight">
+                                    <span className="text-[11.5pt] font-medium text-[#292929] leading-tight">
                                       {item.title}
                                     </span>
                                     {item.note && (
-                                      <span className="text-[7pt] font-black text-rose-600 bg-rose-50 border border-rose-100 px-1 rounded">
+                                      <span className="text-[8pt] font-black text-rose-600 bg-rose-50 border border-rose-100 px-1 rounded">
                                         {item.note}
                                       </span>
                                     )}
-                                    <span className="text-[7pt] font-bold text-gray-500 bg-gray-100 px-1 rounded">
-                                      {item.time}
-                                    </span>
-                                    <span className="text-[7pt] font-semibold text-gray-400">
+                                    <span className="text-[8.5pt] font-semibold text-[#8e8e8e] italic">
                                       ({item.duration})
                                     </span>
-                                    <span className={`text-[7pt] font-black px-1 rounded ${selectedSchoolType === 'ancians' ? 'bg-[#37616b]/10 text-[#37616b]' : 'bg-indigo-100 text-indigo-700'}`}>
+                                    <span className={`text-[8.5pt] font-black px-1 rounded ${selectedSchoolType === 'ancians' ? 'bg-[#37616b]/10 text-[#37616b]' : 'bg-indigo-100 text-indigo-700'}`}>
                                       {item.sigla}
                                     </span>
                                   </div>
 
-                                  <div className="grid grid-cols-2 gap-2 mt-1">
-                                    <div className="relative flex items-center">
+                                  <div className="grid grid-cols-2 gap-x-8 mt-0">
+                                    <div className="relative">
                                       <input
                                         type="text"
                                         placeholder="Nome do instrutor..."
                                         value={itemSpeaker}
                                         onChange={e => updateSpeaker(item.id, e.target.value)}
-                                        className={`w-full text-[8.5pt] font-bold text-gray-900 bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5 ${isConfirmed ? 'text-emerald-800 font-extrabold' : ''}`}
+                                        className={`w-full text-[10.5pt] font-bold text-[#292929] bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5 uppercase transition-all ${isConfirmed ? 'text-emerald-800' : ''}`}
                                       />
                                     </div>
-                                    <div className="relative flex items-center">
+                                    <div className="relative">
                                       <input
                                         type="text"
                                         placeholder="Congregação..."
                                         value={itemCong}
                                         onChange={e => updateSpeakerCongregation(item.id, e.target.value)}
-                                        className="w-full text-[7.5pt] font-medium text-gray-600 bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5"
+                                        className="w-full text-[10pt] font-medium text-[#8e8e8e] bg-transparent border-b border-gray-200 focus:border-[#37616b] outline-none placeholder:text-gray-300 py-0.5 uppercase"
                                       />
                                     </div>
                                   </div>

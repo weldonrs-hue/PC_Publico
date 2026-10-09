@@ -19,8 +19,10 @@ import {
   Settings2,
   FileUp,
   Save,
-  Printer
+  Printer,
+  X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
