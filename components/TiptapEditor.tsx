@@ -25,10 +25,10 @@ import {
   RotateCw,
   Eraser,
   Heading1,
-  Heading2,
   Quote
 } from 'lucide-react';
 import React, { useEffect } from 'react';
+import { useDialog } from '@/hooks/useDialog';
 
 interface TiptapEditorProps {
   content: string;
@@ -36,14 +36,16 @@ interface TiptapEditorProps {
 }
 
 const MenuBar = ({ editor }: { editor: any }) => {
+  const { showPrompt } = useDialog();
+
   if (!editor) {
     return null;
   }
 
-  const addLink = () => {
-    const url = window.prompt('URL do Link:');
-    if (url) {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  const addLink = async () => {
+    const url = await showPrompt('Informe o endereço da página (URL):', '', 'Inserir Link', 'https://exemplo.com');
+    if (url && url.trim()) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
     }
   };
 

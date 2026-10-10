@@ -578,8 +578,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
     <div className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
       {/* Top Header Row (no-print) */}
       <div className="space-y-3 no-print">
-        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 via-rose-500 to-transparent" />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 bg-surface-100 p-3.5 sm:p-5 rounded-3xl border border-surface-300 shadow-xs relative overflow-hidden">
+          <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${isPublic ? 'from-pink-500 to-transparent' : 'from-primary-200 via-primary-150 to-transparent'}`} />
           <div className="flex items-center gap-3 min-w-0">
             {!isPublic && onBack && (
               <button
@@ -591,8 +591,8 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
               </button>
             )}
             <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black text-typography-900 tracking-tight leading-none truncate">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base sm:text-lg font-black text-typography-900 tracking-tight leading-tight">
                   {isPublic ? `Relatório de ${wifeDisplayName}` : 'Relatório de Pregação'}
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 shrink-0">
@@ -605,115 +605,118 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
             </div>
           </div>
 
-          {/* Mês Seletor */}
-          <div className="flex items-center gap-1 bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
-            <button
-              onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
-              className="p-1.5 sm:p-2 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 transition-colors cursor-pointer"
-              title="Mês Anterior"
-            >
-              <ChevronLeft size={16} strokeWidth={2.5} />
-            </button>
-            <div className="px-2 sm:px-3 flex items-center gap-1.5 min-w-[120px] justify-center">
-              <span className="text-xs sm:text-sm font-black text-typography-900 capitalize">{monthNames[currentMonth]}</span>
-              <span className="text-[10px] font-bold text-typography-400">{currentYear}</span>
+          {/* Controls: Mês, Modo & Actions */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between lg:justify-end">
+            {/* Mês Seletor */}
+            <div className="flex items-center gap-1 bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+              <button
+                onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
+                className="p-1.5 sm:p-2 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 transition-colors cursor-pointer"
+                title="Mês Anterior"
+              >
+                <ChevronLeft size={16} strokeWidth={2.5} />
+              </button>
+              <div className="px-2 sm:px-3 flex items-center gap-1.5 min-w-[110px] sm:min-w-[120px] justify-center">
+                <span className="text-xs sm:text-sm font-black text-typography-900 capitalize">{monthNames[currentMonth]}</span>
+                <span className="text-[10px] font-bold text-typography-400">{currentYear}</span>
+              </div>
+              <button
+                onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
+                className="p-1.5 sm:p-2 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 transition-colors cursor-pointer"
+                title="Próximo Mês"
+              >
+                <ChevronRight size={16} strokeWidth={2.5} />
+              </button>
             </div>
-            <button
-              onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
-              className="p-1.5 sm:p-2 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 transition-colors cursor-pointer"
-              title="Próximo Mês"
-            >
-              <ChevronRight size={16} strokeWidth={2.5} />
-            </button>
-          </div>
 
-          {/* Alternador de Modo: Tabela vs Lista */}
-          <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
-            <button
-              onClick={() => setViewMode('tabela')}
-              className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'tabela'
-                  ? 'bg-primary-200 text-white shadow-xs'
-                  : 'text-typography-600 hover:text-typography-900'
-              }`}
-              title="Modo Calendário/Tabela"
-            >
-              <TableIcon size={14} />
-              <span>Tabela</span>
-            </button>
-            <button
-              onClick={() => setViewMode('lista')}
-              className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                viewMode === 'lista'
-                  ? 'bg-primary-200 text-white shadow-xs'
-                  : 'text-typography-600 hover:text-typography-900'
-              }`}
-              title="Modo Lista (Ideal para celular)"
-            >
-              <LayoutList size={14} />
-              <span>Lista</span>
-            </button>
-          </div>
+            {/* Alternador de Modo: Tabela vs Lista */}
+            <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+              <button
+                onClick={() => setViewMode('tabela')}
+                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'tabela'
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+                title="Modo Calendário/Tabela"
+              >
+                <TableIcon size={14} />
+                <span>Tabela</span>
+              </button>
+              <button
+                onClick={() => setViewMode('lista')}
+                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'lista'
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+                title="Modo Lista (Ideal para celular)"
+              >
+                <LayoutList size={14} />
+                <span>Lista</span>
+              </button>
+            </div>
 
-          {/* Action Bar */}
-          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
-            {isPublic && (
-              <>
-                {saveStatus === 'saving' && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-600 rounded-xl text-xs font-bold shadow-xs">
-                    <Loader2 size={13} className="animate-spin text-amber-600" />
-                    <span className="hidden sm:inline">Salvando...</span>
-                  </div>
-                )}
-                {saveStatus === 'saved' && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 rounded-xl text-xs font-bold shadow-xs" title="Todos os dados estão salvos">
-                    <Check size={13} strokeWidth={3} className="text-emerald-600" />
-                    <span className="hidden sm:inline">Salvo</span>
-                  </div>
-                )}
-                {saveStatus === 'error' && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 rounded-xl text-xs font-bold shadow-xs">
-                    <X size={13} strokeWidth={3} className="text-rose-600" />
-                    <span className="hidden sm:inline">Erro</span>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleManualSave}
-                  disabled={saveStatus === 'saving'}
-                  className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-                  title="Salvar imediatamente todas as atividades no banco de dados"
-                >
-                  {saveStatus === 'saving' ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Save size={14} />
+            {/* Action Bar */}
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-auto lg:ml-0">
+              {isPublic && (
+                <>
+                  {saveStatus === 'saving' && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-600 rounded-xl text-xs font-bold shadow-xs">
+                      <Loader2 size={13} className="animate-spin text-amber-600" />
+                      <span className="hidden sm:inline">Salvando...</span>
+                    </div>
                   )}
-                  <span>Salvar</span>
-                </button>
-              </>
-            )}
+                  {saveStatus === 'saved' && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 rounded-xl text-xs font-bold shadow-xs" title="Todos os dados estão salvos">
+                      <Check size={13} strokeWidth={3} className="text-emerald-600" />
+                      <span className="hidden sm:inline">Salvo</span>
+                    </div>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 rounded-xl text-xs font-bold shadow-xs">
+                      <X size={13} strokeWidth={3} className="text-rose-600" />
+                      <span className="hidden sm:inline">Erro</span>
+                    </div>
+                  )}
 
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
-              title="Imprimir relatório"
-            >
-              <Printer size={14} className="shrink-0 text-typography-500" />
-              <span className="hidden sm:inline">Imprimir</span>
-            </button>
+                  <button
+                    type="button"
+                    onClick={handleManualSave}
+                    disabled={saveStatus === 'saving'}
+                    className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                    title="Salvar imediatamente todas as atividades no banco de dados"
+                  >
+                    {saveStatus === 'saving' ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    <span>Salvar</span>
+                  </button>
+                </>
+              )}
 
-            <button
-              type="button"
-              onClick={() => setShowSettings(true)}
-              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
-              title={isPublic ? "Configurar Meta e Turnos" : "Configurações do Relatório"}
-            >
-              <Settings2 size={14} className="shrink-0 text-typography-500" />
-              <span className="hidden sm:inline">Configurar</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+                title="Imprimir relatório"
+              >
+                <Printer size={14} className="shrink-0 text-typography-500" />
+                <span className="hidden sm:inline">Imprimir</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-typography-700 bg-surface-200/80 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+                title={isPublic ? "Configurar Meta e Turnos" : "Configurações do Relatório"}
+              >
+                <Settings2 size={14} className="shrink-0 text-typography-500" />
+                <span className="hidden sm:inline">Configurar</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -738,20 +741,32 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                   const dayOfWeek = dObj.getDay();
                   const isPlanned = (report.shifts?.[dayOfWeek] ?? 0) > 0;
                   const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                  const hasHours = Boolean(dayData.hours && dayData.hours !== '0:00' && dayData.hours !== '0');
 
                   return (
                     <div
                       key={day}
-                      className={`p-3.5 rounded-2xl border transition-all bg-surface-100 flex flex-col justify-between gap-2.5 shadow-2xs ${
+                      className={`relative overflow-hidden p-3.5 rounded-2xl border transition-all flex flex-col justify-between gap-3 shadow-2xs hover:shadow-xs ${
                         isToday 
-                          ? 'border-primary-200 ring-2 ring-primary-200/20 bg-primary-200/5' 
-                          : 'border-surface-300 hover:border-surface-400'
+                          ? 'border-primary-200 ring-2 ring-primary-200/20 bg-surface-100' 
+                          : hasHours
+                          ? 'border-surface-300 bg-surface-100'
+                          : 'border-surface-300/80 hover:border-surface-300 bg-surface-100'
                       }`}
                     >
+                      {/* Top Accent Stripe if Today */}
+                      {isToday && (
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+                      )}
+
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
-                            isToday ? 'bg-primary-200 text-white' : 'bg-surface-200 text-typography-900'
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all ${
+                            isToday 
+                              ? 'bg-primary-200 text-white shadow-xs' 
+                              : hasHours
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-extrabold'
+                              : 'bg-surface-200 text-typography-900 border border-surface-300/40'
                           }`}>
                             {day.toString().padStart(2, '0')}
                           </span>
@@ -759,7 +774,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                             <span className="text-xs font-bold text-typography-900 truncate">
                               {dayNames[dayOfWeek]}
                             </span>
-                            <span className="text-[10px] text-typography-400 uppercase font-medium">
+                            <span className="text-[10px] text-typography-400 uppercase font-semibold tracking-wider">
                               {monthNames[currentMonth].slice(0, 3)} {currentYear}
                             </span>
                           </div>
@@ -767,7 +782,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
 
                         <div className="flex items-center gap-1.5 shrink-0">
                           {isPlanned && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                               Planejado
                             </span>
@@ -776,7 +791,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                             <button
                               type="button"
                               onClick={() => openDayModal(day)}
-                              className="p-1 rounded-lg hover:bg-surface-200 text-typography-400 hover:text-typography-900 transition-colors"
+                              className="p-1.5 rounded-lg hover:bg-surface-200 text-typography-400 hover:text-typography-900 transition-colors cursor-pointer"
                               title="Editar em janela"
                             >
                               <Edit3 size={13} />
@@ -785,9 +800,12 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                         </div>
                       </div>
 
-                      <div className="space-y-1.5 pt-2 border-t border-surface-300/60">
+                      <div className="space-y-2 pt-2.5 border-t border-surface-300/70">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-typography-400">Horas:</span>
+                          <div className="flex items-center gap-1.5 text-typography-500">
+                            <Clock size={12} className="text-typography-400" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Horas</span>
+                          </div>
                           <input
                             type="text"
                             value={dayData.hours}
@@ -806,7 +824,11 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                                 ? (isPlanned ? minutesToTime(Math.round((report.shifts?.[dayOfWeek] ?? 0) * minutesPerShift)) : "0:00")
                                 : minutesToTime(Math.round(minutesPerDay))
                             }
-                            className="w-24 text-right px-2.5 py-1 rounded-xl bg-surface-200/70 border border-surface-300 font-black text-sm text-typography-900 tracking-tight outline-none focus:border-primary-200 focus:bg-surface-100 transition-all placeholder:text-typography-400/50"
+                            className={`w-24 text-right px-2.5 py-1.5 rounded-xl border font-mono font-bold text-sm tracking-tight outline-none transition-all placeholder:text-typography-400/50 ${
+                              hasHours
+                                ? 'bg-surface-100 border-primary-200/50 text-typography-900 shadow-2xs focus:border-primary-200 focus:ring-2 focus:ring-primary-200/20'
+                                : 'bg-surface-200/70 border-surface-300 text-typography-900 focus:border-primary-200 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20'
+                            }`}
                           />
                         </div>
 
@@ -815,7 +837,7 @@ export default function FieldServiceReportView({ userId, profileId, isPublic, wi
                           value={dayData.notes}
                           onChange={(e) => updateDayData(dateKey, 'notes', e.target.value)}
                           placeholder="Nota ou atividade..."
-                          className="w-full px-2.5 py-1 rounded-xl bg-surface-200/40 border border-transparent hover:border-surface-300 focus:border-primary-200/60 focus:bg-surface-100 text-xs text-typography-700 outline-none transition-all placeholder:text-typography-400/60"
+                          className="w-full px-2.5 py-1.5 rounded-xl bg-surface-200/50 border border-surface-300/40 hover:border-surface-300 focus:border-primary-200/60 focus:bg-surface-100 text-xs text-typography-800 placeholder:text-typography-400/60 outline-none transition-all"
                         />
                       </div>
                     </div>
