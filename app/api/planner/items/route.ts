@@ -1,0 +1,160 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth } from '@/lib/server/auth';
+import { db } from '@/lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  doc, 
+  setDoc,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { PlannerItem } from '@/types/planner';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/planner/items
+ * Lista todas as tarefas e eventos pertencentes ao usuário autenticado.
+ */
+export async function GET(req: NextRequest) {
+  const user = await validateAuth(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Não autorizado. Faça login novamente.' },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const q = query(
+      collection(db, 'planner_items'),
+      where('userId', '==', user.uid)
+    );
+
+    const snapshot = await getDocs(q);
+    const items: PlannerItem[] = snapshot.docs.map(d => ({
+      id: d.id,
+      ...(d.data() as any)
+    }));
+
+    return NextResponse.json({
+      success: true,
+      items
+    });
+  } catch (error: any) {
+    console.error('[GET /api/planner/items] Erro ao buscar itens:', error);
+    return NextResponse.json(
+      { error: error.message || 'Erro ao carregar itens de planejamento.' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/planner/items
+ * Cria uma nova tarefa ou evento.
+ */
+export async function POST(req: NextRequest) {
+  const user = await validateAuth(req);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Não autorizado. Faça login novamente.' },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body = await req.json();
+    const { 
+      type, 
+      title, 
+      description = '', 
+      hasDeadline = false, 
+      dueDate = null, 
+      attentionDate = null, 
+      priority = 'medium', 
+      status = 'pending',
+      isRecurring = false,
+      recurrence = null,
+      recurrenceInterval = null,
+      recurrenceUnit = null,
+      date = null,
+      time = null,
+      location = '',
+      notes = ''
+    } = body;
+
+    if (!title || !title.trim()) {
+      return NextResponse.json(
+        { error: 'O título é obrigatório.' },
+        { status: 400 }
+      );
+    }
+
+    if (!type || !['task', 'event'].includes(type)) {
+      return NextResponse.json(
+        { error: 'Tipo inválido. Deve ser "task" ou "event".' },
+        { status: 400 }
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const isCompleted = type === 'task' && status === 'completed';
+    const isTask = type === 'task';
+    const isWithDeadline = isTask && Boolean(hasDeadline && dueDate);
+    const hasRecurrence = Boolean(isRecurring && recurrence && recurrence !== 'none');
+
+    const itemRef = doc(collection(db, 'planner_items'));
+    const newItem: PlannerItem = {
+      id: itemRef.id,
+      userId: user.uid,
+      type,
+      title: title.trim(),
+      description: description.trim(),
+      hasDeadline: isWithDeadline,
+      dueDate: isWithDeadline ? dueDate : null,
+      attentionDate: isWithDeadline && attentionDate ? attentionDate : null,
+      priority: ['low', 'medium', 'high'].includes(priority) ? priority : 'medium',
+      status: ['pending', 'in_progress', 'completed'].includes(status) ? status : 'pending',
+      completedAt: isCompleted ? nowIso : null,
+      isRecurring: hasRecurrence,
+      recurrence: hasRecurrence ? recurrence : null,
+      recurrenceInterval: hasRecurrence && recurrenceInterval ? Number(recurrenceInterval) : null,
+      recurrenceUnit: hasRecurrence && recurrenceUnit ? recurrenceUnit : null,
+      date: type === 'event' && date ? date : null,
+      time: type === 'event' && time ? time : null,
+      location: type === 'event' && location ? location.trim() : null,
+      notes: type === 'event' && notes ? notes.trim() : null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    const cleanedData: Record<string, any> = {};
+    for (const [k, v] of Object.entries(newItem)) {
+      if (v !== undefined) cleanedData[k] = v;
+    }
+
+    await setDoc(itemRef, {
+      ...cleanedData,
+      serverCreatedAt: serverTimestamp(),
+      serverUpdatedAt: serverTimestamp(),
+    });
+
+    return NextResponse.json({
+      success: true,
+      item: newItem
+    }, { status: 201 });
+  } catch (error: any) {
+    console.error('[POST /api/planner/items] Erro ao criar item:', error);
+    return NextResponse.json(
+      { error: error.message || 'Erro ao salvar novo item.' },
+      { status: 500 }
+    );
+  }
+}
+

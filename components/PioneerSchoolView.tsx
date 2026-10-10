@@ -1,0 +1,3025 @@
+'use client';
+
+import { useDialog } from '@/hooks/useDialog';
+import { db } from '@/lib/firebase';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import Docxtemplater from 'docxtemplater';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+  writeBatch
+} from 'firebase/firestore';
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Calendar,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ClipboardPaste,
+  Edit2,
+  FileDown,
+  FileText,
+  Filter,
+  Info,
+  LayoutGrid,
+  LayoutList,
+  Loader2,
+  Plus,
+  Save,
+  Search,
+  Table as TableIcon,
+  Trash2,
+  UserPlus,
+  Users,
+  X
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import PizZip from 'pizzip';
+import { Fragment, useEffect, useState } from 'react';
+import PSSAssignmentLetters from './PSSAssignmentLetters';
+import CustomSelect from '@/components/CustomSelect';
+
+interface Student {
+  id: string;
+  nome: string;
+  congregacao: string;
+  circuito: string;
+  turma?: string;
+  userId: string;
+  createdAt: any;
+}
+
+interface SchoolInfo {
+  dataTurma: string;
+  instrutorA: string;
+  instrutorB: string;
+  localEscola: string;
+  enderecoEscola: string;
+  entregaLivroEndereco: string;
+  entregaLivroDataHora: string;
+  confirmacaoDataLimite: string;
+  confirmacaoEmail: string;
+  confirmacaoWhatsapp: string;
+  confirmacaoEmailB: string;
+  confirmacaoWhatsappB: string;
+}
+
+const defaultSchoolInfo: SchoolInfo = {
+  dataTurma: '',
+  instrutorA: '',
+  instrutorB: '',
+  localEscola: '',
+  enderecoEscola: '',
+  entregaLivroEndereco: '',
+  entregaLivroDataHora: '',
+  confirmacaoDataLimite: '',
+  confirmacaoEmail: '',
+  confirmacaoWhatsapp: '',
+  confirmacaoEmailB: '',
+  confirmacaoWhatsappB: '',
+};
+
+interface WorkshopAssignment {
+  id: string;
+  scenarioId: number;
+  participants: string;
+  userId: string;
+}
+
+const WORKSHOP_DATA = [
+  {
+    id: 'workshop1',
+    label: 'WORKSHOP 1',
+    scenarios: [
+      { 
+        id: 1, 
+        text: 'Um casal se prepara para a pregação.',
+        instructions: 'Instruções para a parte\nComo parte de sua adoração em família, um casal conversa sobre seus planos para pregar. Eles analisam a formação religiosa e cultural das pessoas na região em que planejam pregar e consideram duas ou três “Verdades que amamos ensinar” do Apêndice A da brochura Ame as Pessoas — Faça Discípulos, que talvez chamem a atenção das pessoas que encontrarem. Eles relembram que não é necessário decorar uma apresentação, porque seu foco deve ser mostrar interesse pessoal. Eles conversam sobre como usar a sugestão do Apêndice A da brochura Ame as Pessoas — Faça Discípulos para falar de uma verdade bíblica simples quando apropriado. No final, eles analisam vídeos e publicações do Kit de Ferramentas de Ensino que poderiam usar caso a pessoa demonstre ter a “disposição correta”. Ambos expressam seu desejo de tocar o coração das pessoas a quem pregam. (At 13:44-48; w18.10 12 §§ 3 4)'
+      },
+      { 
+        id: 2, 
+        text: 'Primeira conversa na pregação de casa em casa',
+        instructions: 'Instruções para a parte: \nDepois de mostrar interesse pessoal, um pioneiro fala sobre uma verdade bíblica que interessa à pessoa, usando uma das perguntas nas páginas 5 a 36 da Tradução do Novo Mundo ou um texto bíblico do Apêndice A da brochura Ame as Pessoas'
+      },
+      { 
+        id: 3, 
+        text: 'Primeira conversa na pregação de casa em casa',
+        instructions: 'Instruções para a parte:\nDepois que o publicador se apresenta, o morador o interrompe e diz muito bravo: “Ah, não! Hoje não!” O morador volta para dentro de casa. O publicador vai para o outro lado do palco e começa o seguinte monólogo: “As pessoas aqui são mal educadas e ficam se achando. Nunca mais vou bater nessa casa.” O publicador sai do palco. A demonstração continua com o instrutor perguntando ao morador: “Por que você reagiu desse jeito?” O morador reconhece que no passado gostava de conversar com as Testemunhas de Jeová e de ler as publicações delas. O morador conta que recentemente perdeu o emprego e seu plano de saúde, e que sua esposa foi diagnosticada com uma doença grave. Ele pede desculpas por sua frustração tê-lo feito ser mal educado.'
+      },
+    ]
+  },
+  {
+    id: 'workshop2',
+    label: 'WORKSHOP 2',
+    scenarios: [
+      { 
+        id: 4, 
+        text: 'Dentro de um transporte público ou sentado num lugar público.',
+        instructions: 'Instruções para a parte:\nAo ler uma publicação bíblica, um publicador espontaneamente comenta um ponto interessante da publicação para a pessoa que está sentada ao seu lado ou que está próxima dele. Eles começam uma conversa agradável.'
+      },
+      { 
+        id: 5, 
+        text: 'Pregação num lugar público (na rua, num parque, no ponto de ônibus, numa loja ou em outro lugar)',
+        instructions: '5a: (2 min ou menos) Dois publicadores, trabalhando juntos, não escolhem bem as pessoas com quem vão tentar conversar. Eles tentam conversar com uma pessoa e depois com a outra (elas estão ocupadas atendendo algum cliente, falando no telefone, carregando sacolas pesadas ou em alguma outra atividade). Os publicadores tentam oferecer uma publicação, mas nenhuma pessoa aceita conversar.\n5b: (2 min ou menos) O primeiro publicador se aproxima de uma pessoa que não está ocupada e fala sobre o clima ou outro assunto. A pessoa responde e depois de falarem um pouco sobre esse assunto, o publicador direciona a conversa para um assunto bíblico, mas sem mencionar a Bíblia ou oferecer publicações.\n5c: (2 min ou menos) O segundo publicador se aproxima de uma pessoa e fala de forma amigável sobre o que a pessoa está fazendo. A pessoa responde de forma educada e, depois de uma conversa breve, o publicador introduz uma verdade bíblica dizendo: “Você sabia que . . . ?” ou “Já ouviu falar que . . . ?”. Daí, o publicador considera um texto bíblico relacionado do Apêndice A da brochura Ame as Pessoas. A pessoa mostra interesse, e eles combinam de se encontrar de novo.'
+      },
+      { 
+        id: 6, 
+        text: 'O aluno pode escolher uma cena comum na região.',
+        instructions: 'Instruções para a parte:\nUm publicador usa apenas a Bíblia ao reagir a uma das seguintes frases que um morador disse:\n● “Deus não existe!”\n● “Um parente meu acabou de falecer . . .”\n● “A Bíblia realmente vem de Deus?”\n● “As Testemunhas de Jeová são arrogantes por acreditarem que são a única religião verdadeira.”'
+      },
+    ]
+  },
+  {
+    id: 'workshop3',
+    label: 'WORKSHOP 3',
+    scenarios: [
+      { 
+        id: 7, 
+        text: 'Depois que tiveram a primeira conversa com um morador, um pioneiro experiente ajuda um novo publicador a planejar a revisita.',
+        instructions: 'Instruções para a parte:\nDepois de passar a manhã toda na pregação, dois publicadores fazem um intervalo e falam sobre um morador que fez uma pergunta bem difícil. O novo publicador não se sente confiante para fazer a revisita e pede para o pioneiro a faça por ele. O pioneiro diz que confia no publicador, e juntos eles pesquisam sobre a pergunta do morador usando as publicações mais adequadas do Kit de Ferramentas de Ensino, do jw.org ou da BIBLIOTECA ON LINE da Torre de Vigilância®. Depois de pesquisarem juntos sobre o assunto, o pioneiro sugere um jeito simples de começar a conversa: “Eu gostei muito da nossa conversa semana passada. Eu me lembro que você fez uma pergunta interessante. Fiz uma pesquisa sobre o assunto e gostaria de mostrar pra você a resposta.” Então eles ensaiam, com o pioneiro fazendo o papel do morador. No final do ensaio, o novo publicador já se sente preparado para fazer a revisita, agradece ao pioneiro pelas sugestões e pergunta se ele gostaria de acompanhá-lo quando ele for fazer a revisita. O pioneiro aceita.'
+      },
+      { 
+        id: 8, 
+        text: 'Pregação de casa em casa ou qualquer outra forma de testemunho público',
+        instructions: '8a: (2 min ou menos) Demonstre como fazer da forma errada. Um publicador usa uma apresentação decorada. Ele(a)não se apresenta, mostra pouco interesse na pessoa, não deixa um assunto para considerar na próxima conversa e não combina uma revisita. O publicador simplesmente lê um texto bíblico, faz um breve comentário e então oferece uma publicação, mas o assunto dela não tem nada a ver com o que ele disse. A pessoa aceita a publicação e parece interessada. Mas o publicador não menciona nenhuma pergunta ou assunto para considerar na próxima conversa nem combina dia e horário específicos para conversarem de novo. Em vez disso, depois de entregar a publicação, ele rapidamente termina a conversa, desejando um bom dia para a pessoa.\n8b: (3 min ou menos) Demonstre como fazer da forma certa. Um publicador começa uma conversa mostrando interesse na pessoa. Depois que o morador responde favoravelmente e começa a participar na conversa, o publicador introduz uma verdade bíblica do Apêndice A da brochura Ame as Pessoas. Depois de ler e aplicar o(s) texto(s) bíblico(s) relacionado(s), o publicador faz uma pergunta ou menciona um tópico debaixo do mesmo assunto no Apêndice A para considerar na próxima conversa e combina dia e horário específicos para conversarem de novo. No final da demonstração, o publicador faz um pequeno monólogo sobre o que o morador disse e sobre não ver a hora de voltar e continuar a conversa no horário marcado.'
+      },
+      { 
+        id: 9, 
+        text: 'Dois publicadores se preparam para fazer as revisitas do dia.',
+        instructions: 'Instruções para a parte:\nCada publicador fala para o outro alguns detalhes importantes sobre o que planeja para fazer as revisitas. Ao fazerem isso, eles conversam sobre o que pode dar certo, e cada um dá uma boa ideia para o outro usar na sua revisita. Eles também ajudam um ao outro a se preparar para possíveis desafios, como, por exemplo, se outra pessoa atender; se o morador que ele quer revisitar não estiver em casa; e se o morador disser: “Estou ocupado agora” ou “Não estou interessado.” Depois disso, os dois publicadores decidem para quem vão ligar ou mandar mensagem primeiro e em que ordem vão fazer as revisitas para usar seu tempo da melhor maneira possível.'
+      },
+      { 
+        id: 10, 
+        text: 'Revisitando pela primeira vez alguém que mostrou interesse.',
+        instructions: 'Instrução para a parte:\nUm publicador começa a conversa: “Oi, [nome do morador]. Que bom que encontrei você hoje. Talvez você se lembre, meu nome é . . . Tudo bem com você?” O morador responde: “É, tô bem . . .” O publicador diz: “Que bom! Na última vez que eu estive aqui, nós conversamos sobre se Deus se importa com o sofrimento. Você disse que tem dúvidas sobre isso, principalmente depois que sua mãe sofreu um acidente de carro. Falando nisso, como ela está?” O morador responde: “Ela tem altos e baixos. Hoje ela está bem.” O publicador fala de forma bondosa: “Que bom que ela está bem. Não deve ser nada fácil para você enfrentar essa situação.” O morador admite: “Nem me fale, mas estou aguentando. Obrigado por se preocupar.” O publicador continua: “Depois que conversamos, eu fiquei pensando em vocês. Você talvez se lembre que, antes de ir embora, eu prometi voltar para responder por que Deus permite o sofrimento, mesmo tendo poder para acabar com ele. Se você quiser, eu posso mostrar a resposta da Bíblia para você.” O morador responde: “Ah sim, eu quero saber.” (w14 1/1 8)'
+      },
+      { 
+        id: 11, 
+        text: 'No final da primeira conversa, o publicador combinou com o morador o dia e a hora para a revisita, mas depois não consegue encontrar o morador em casa.',
+        instructions: 'Instruções para a parte:\nUm publicador (no palco) liga para um morador (fora do palco) para fazer uma revisita, e ele atende. Depois de se cumprimentarem, o publicador menciona que foi algumas vezes até a casa do morador, mas não o encontrou. O morador agradece a ligação e diz que recentemente tem trabalhado muito. O publicador reconhece a dificuldade do morador e pergunta se ele tem alguns minutos para responder à pergunta que ele fez no final da última conversa. O morador aceita. O publicador faz um resumo rápido do que eles conversaram da última vez e então usa um texto bíblico para responder à pergunta que ele deixou. Então, o publicador faz outra pergunta para ser respondida e sugere um horário conveniente para continuarem conversando. O morador diz que estará disponível no horário de almoço (ou à noite) para conversarem mais sobre o assunto. Eles combinam um horário específico. Depois de terminar a conversa, o publicador faz um monólogo, dizendo que, apesar de esse horário ser inconveniente pare ele, está fica feliz de finalmente ter conseguido falar com o morador e combinado outra revisita.'
+      },
+      { 
+        id: 12, 
+        text: 'Um publicador faz uma revisita para mostrar ao morador uma publicação sobre um assunto pelo qual o morador se interessou.',
+        instructions: 'Instruções para a parte:\nDepois de se apresentar e lembrar o morador da última conversa que tiveram, o publicador fala sobre algo numa publicação, relacionado ao assunto. A conversa continua, e o morador menciona um problema que ele está passando. Dessa vez, o publicador usa um smartphone ou \ntablet (se apropriado para a região) para mostrar para o morador o jw.org. O publicador mostra como navegar no site e mostra um artigo que fala sobre um problema específico do morador. (Se for mais apropriado para a região, o publicador pode demonstrar como usar a Tradução do Novo Mundo.) O morador agradece. O publicador então faz uma pergunta ou menciona um assunto para considerar na próxima visita. Eles marcam dia e hora para essa visita, e a demonstração termina.'
+      },
+      { 
+        id: 13, 
+        text: 'Um publicador conversa regularmente sobre a Bíblia com uma pessoa interessada sem ter deixado com ela nenhuma publicação. Desta vez, o publicador demonstra como é um estudo bíblico.',
+        instructions: 'Instruções para a parte:\nDepois de uma breve conversa sobre o que conversaram da última vez, o publicador mostra a brochura Seja Feliz para Sempre! ou a Bíblia e considera um assunto apropriado para o morador. Depois disso, o publicador faz uma pergunta (para considerar na próxima conversa) e pergunta se a pessoa deseja combinar um dia e horário específicos para continuarem conversando. A pessoa concorda e diz qual dia e horário é melhor para ela. Ela diz que talvez sua família também goste de aprender essas coisas com o publicador.'
+      },
+      { 
+        id: 14, 
+        text: 'Ao fazer uma revisita, um publicador começa um estudo usando a brochura Seja Feliz para Sempre!',
+        instructions: 'Instruções para a parte:\nDepois de brevemente se cumprimentarem e conversarem, o publicador dá a brochura para o morador e pede para ele dar uma olhada nas lições dela. Eles então conversam sobre a pergunta de ponto de vista na parte de trás da brochura. O publicador então explica brevemente os recursos da brochura e combina de voltar e considerar a primeira lição.'
+      },
+    ]
+  },
+  {
+    id: 'workshop4',
+    label: 'WORKSHOP 4',
+    scenarios: [
+      { 
+        id: 15, 
+        text: 'Um publicador usa a brochura Seja Feliz para Sempre! para iniciar um estudo bíblico.',
+        instructions: 'Instruções para a parte:\nO publicador destaca a pergunta de ponto de vista da parte de trás da brochura e então conversa com o morador sobre esses pontos. Antes de terminar a conversa, ele faz uma breve revisão do que o morador aprendeu. Impressionado, o morador aceita continuar a conversa na lição 01.'
+      },
+      { 
+        id: 16, 
+        text: 'Forma correta de dirigir um estudo bíblico',
+        instructions: 'Instruções para a parte:\nO publicador considera com o estudante as perguntas da lição 01, ponto 3, da brochura Seja Feliz para Sempre!. O publicador fala pouco e permite que o morador fique à vontade para se expressar. (Pr 20:5)'
+      },
+      { 
+        id: 17, 
+        text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.',
+        instructions: 'Instruções para a parte:\nInstrutor e estudante conversam sobre a lição 13, ponto 4. O estudante diz que acha que têm algo de bom em todas as religiões. Sem falar muito, o instrutor usa com jeito textos bíblicos, perguntas e o vídeo (sem mostrar durante a demonstração) para ajudar o estudante a raciocinar sobre o assunto. O estudante começa a perceber que o que ele achava não está de acordo com a Bíblia.'
+      },
+      { 
+        id: 18, 
+        text: 'Um publicador dirigindo um estudo bíblico no livro Seja Feliz para Sempre!.',
+        instructions: 'Instruções para a parte:\nInstrutor e estudante começam a conversar sobre a lição 22, ponto 4. O estudante diz que está preocupado se alguém ficar chateado ou irritado quando ele tentar contar o que está aprendendo da Bíblia a outros. Usando a lição 22, ponto 4, o instrutor com habilidade o deixa mais tranquilo, e o estudante agradece. O instrutor o elogia pelo seu desejo de falar sobre as boas novas a outros e o anima dizendo que ele vai conseguir fazer isso bem.'
+      },
+    ]
+  }
+];
+
+const WORKSHOP_THEMES: Record<string, {
+  sidebarBg: string;
+  sidebarText: string;
+  sidebarBorder: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  cardBorder: string;
+  accentBar: string;
+}> = {
+  workshop1: {
+    sidebarBg: 'bg-teal-500/10 dark:bg-teal-500/15',
+    sidebarText: 'text-teal-800 dark:text-teal-200',
+    sidebarBorder: 'border-teal-500/25',
+    badgeBg: 'bg-teal-500/10 dark:bg-teal-500/20',
+    badgeText: 'text-teal-700 dark:text-teal-300',
+    badgeBorder: 'border-teal-500/25',
+    cardBorder: 'border-l-teal-500',
+    accentBar: 'bg-teal-500',
+  },
+  workshop2: {
+    sidebarBg: 'bg-sky-500/10 dark:bg-sky-500/15',
+    sidebarText: 'text-sky-800 dark:text-sky-200',
+    sidebarBorder: 'border-sky-500/25',
+    badgeBg: 'bg-sky-500/10 dark:bg-sky-500/20',
+    badgeText: 'text-sky-700 dark:text-sky-300',
+    badgeBorder: 'border-sky-500/25',
+    cardBorder: 'border-l-sky-500',
+    accentBar: 'bg-sky-500',
+  },
+  workshop3: {
+    sidebarBg: 'bg-indigo-500/10 dark:bg-indigo-500/15',
+    sidebarText: 'text-indigo-800 dark:text-indigo-200',
+    sidebarBorder: 'border-indigo-500/25',
+    badgeBg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
+    badgeText: 'text-indigo-700 dark:text-indigo-300',
+    badgeBorder: 'border-indigo-500/25',
+    cardBorder: 'border-l-indigo-500',
+    accentBar: 'bg-indigo-500',
+  },
+  workshop4: {
+    sidebarBg: 'bg-amber-500/10 dark:bg-amber-500/15',
+    sidebarText: 'text-amber-800 dark:text-amber-200',
+    sidebarBorder: 'border-amber-500/25',
+    badgeBg: 'bg-amber-500/10 dark:bg-amber-500/20',
+    badgeText: 'text-amber-700 dark:text-amber-400',
+    badgeBorder: 'border-amber-500/25',
+    cardBorder: 'border-l-amber-500',
+    accentBar: 'bg-amber-500',
+  },
+};
+
+interface PioneerSchoolViewProps {
+  userId: string;
+  onBack: () => void;
+  congregations: any[];
+  defaultCircuit: string;
+  isGuest?: boolean;
+  guestTurma?: string | null;
+  isAdmin?: boolean;
+}
+
+export default function PioneerSchoolView({ 
+  userId: initialUserId, 
+  onBack, 
+  congregations, 
+  defaultCircuit,
+  isGuest = false,
+  guestTurma = null,
+  isAdmin = false
+}: PioneerSchoolViewProps) {
+  const { showAlert, showConfirm } = useDialog();
+  const [userId, setUserId] = useState(initialUserId);
+  const [activeTab, setActiveTab] = useState<'students' | 'workshops' | 'info' | 'templates_pss'>(() => {
+    if (isGuest) return 'students';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('pioneer_school_active_tab');
+      if (saved === 'students' || saved === 'workshops' || saved === 'info' || saved === 'templates_pss') {
+        return saved;
+      }
+    }
+    return 'students';
+  });
+
+  useEffect(() => {
+    if (!isGuest) {
+      localStorage.setItem('pioneer_school_active_tab', activeTab);
+    }
+  }, [activeTab, isGuest]);
+
+  const [selectedTurma, setSelectedTurma] = useState<'1' | '2' | '3'>(() => {
+    if (isGuest && guestTurma && guestTurma !== 'all') {
+      return guestTurma as '1' | '2' | '3';
+    }
+    return '1';
+  });
+
+  useEffect(() => {
+    if (isGuest && guestTurma) {
+      if (guestTurma !== 'all') {
+        setSelectedTurma(guestTurma as '1' | '2' | '3');
+      }
+      setUserId(initialUserId);
+    }
+  }, [isGuest, guestTurma, initialUserId]);
+  const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [workshopAssignments, setWorkshopAssignments] = useState<Record<number, { id: string, participants: string }>>({});
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
+  const [originalSchoolInfo, setOriginalSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
+  const [isSavingInfo, setIsSavingInfo] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [turmaFilter, setTurmaFilter] = useState<string>('all');
+  const [showTurmaFilter, setShowTurmaFilter] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Student | 'index'; direction: 'asc' | 'desc' }>({
+    key: 'nome',
+    direction: 'asc',
+  });
+  const [downloadingDesignacao, setDownloadingDesignacao] = useState(false);
+  const [personalData, setPersonalData] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'list'>('table');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('progcir_pioneer_school_view_mode');
+    if (saved === 'table' || saved === 'list') {
+      setViewMode(saved);
+    }
+  }, []);
+
+  const handleViewModeChange = (mode: 'table' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('progcir_pioneer_school_view_mode', mode);
+  };
+
+  const [workshopViewMode, setWorkshopViewMode] = useState<'table' | 'list'>('table');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('progcir_pioneer_school_workshop_view_mode');
+    if (saved === 'table' || saved === 'list') {
+      setWorkshopViewMode(saved as 'table' | 'list');
+    }
+  }, []);
+
+  const handleWorkshopViewModeChange = (mode: 'table' | 'list') => {
+    setWorkshopViewMode(mode);
+    localStorage.setItem('progcir_pioneer_school_workshop_view_mode', mode);
+  };
+  
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<number | null>(null);
+  
+  const [formData, setFormData] = useState({
+    nome: '',
+    congregacao: '',
+    circuito: defaultCircuit || '',
+    turma: ''
+  });
+
+  const getCongregationLabel = (c: any) => {
+    const { numero, nome, cidade, estado } = c;
+    
+    // Clean up name if it already contains the state at the end (e.g. "Nome - PB")
+    let cleanNome = nome || '';
+    if (estado && cleanNome.endsWith(` - ${estado}`)) {
+      cleanNome = cleanNome.substring(0, cleanNome.length - (estado.length + 3));
+    } else if (estado && cleanNome.endsWith(` ${estado}`)) {
+      cleanNome = cleanNome.substring(0, cleanNome.length - (estado.length + 1));
+    }
+
+    let label = cleanNome;
+    
+    // Add city if different from name
+    if (cidade && cleanNome.toLowerCase() !== cidade.toLowerCase()) {
+      label += ` - ${cidade}`;
+    }
+    
+    return `(${numero}) ${label} ${estado}`;
+  };
+
+  useEffect(() => {
+    // Only listen to students if user is logged in or is guest
+    if (!userId) return;
+
+    const q = query(
+      collection(db, 'pioneer_school_students'), 
+      where('userId', '==', userId)
+    );
+
+    const unsubscribeStudents = onSnapshot(q, (snapshot) => {
+      const studentsData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as Student[];
+      // Client-side sort alphabetically by default (avoiding Firestore composite index requirement)
+      studentsData.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+      setStudents(studentsData);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'pioneer_school_students');
+      setLoading(false);
+    });
+
+    return () => unsubscribeStudents();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    // Only listen to workshop assignments if on the workshops tab or templates
+    if (activeTab !== 'workshops' && activeTab !== 'templates_pss') return;
+
+    const qWorkshops = query(
+      collection(db, 'pioneer_school_workshops'),
+      where('userId', '==', userId),
+      where('turma', '==', selectedTurma)
+    );
+
+    const unsubscribeWorkshops = onSnapshot(qWorkshops, (snapshot) => {
+      const assignments: Record<number, { id: string, participants: string }> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        assignments[data.scenarioId] = {
+          id: doc.id,
+          participants: data.participants || ''
+        };
+      });
+      setWorkshopAssignments(assignments);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'pioneer_school_workshops');
+    });
+
+    return () => unsubscribeWorkshops();
+  }, [userId, selectedTurma, activeTab]);
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    // Only listen to school info if on workshops, templates or info tab
+    if (activeTab === 'students') return;
+
+    const infoDocId = `${userId}_turma${selectedTurma}`;
+    const unsubscribeInfo = onSnapshot(doc(db, 'pioneer_school_info', infoDocId), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as SchoolInfo;
+        const mergedData = { ...defaultSchoolInfo, ...data };
+        setSchoolInfo(mergedData);
+        setOriginalSchoolInfo(mergedData);
+      } else {
+        setSchoolInfo(defaultSchoolInfo);
+        setOriginalSchoolInfo(defaultSchoolInfo);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'pioneer_school_info');
+    });
+
+    return () => unsubscribeInfo();
+  }, [userId, selectedTurma, activeTab]);
+
+  useEffect(() => {
+    const fetchPersonalData = async () => {
+      try {
+        const docRef = doc(db, 'personal_data', userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setPersonalData(docSnap.data());
+        } else {
+          const q = query(collection(db, 'personal_data'), where('userId', '==', userId), limit(1));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            setPersonalData(querySnapshot.docs[0].data());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching personal data:', error);
+      }
+    };
+    fetchPersonalData();
+  }, [userId]);
+
+  const isEqualInfo = (info1: SchoolInfo, info2: SchoolInfo) => {
+    const keys = Object.keys(defaultSchoolInfo) as (keyof SchoolInfo)[];
+    return keys.every(key => (info1[key] || '') === (info2[key] || ''));
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isEqualInfo(schoolInfo, originalSchoolInfo)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [schoolInfo, originalSchoolInfo]);
+
+  const hasInfoChanges = !isEqualInfo(schoolInfo, originalSchoolInfo);
+
+  const handleTabChange = (tab: 'students' | 'workshops' | 'info' | 'templates_pss') => {
+    if (tab === 'info') {
+      setIsInfoModalOpen(true);
+      return;
+    }
+    if (activeTab === 'info' && hasInfoChanges) {
+      setPendingAction(() => () => setActiveTab(tab));
+      setIsUnsavedModalOpen(true);
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    setIsUnsavedModalOpen(false);
+    await handleSaveInfo();
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    setIsUnsavedModalOpen(false);
+    setSchoolInfo(originalSchoolInfo);
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
+  };
+
+  const handleSaveInfo = async () => {
+    setIsSavingInfo(true);
+    const infoDocId = `${userId}_turma${selectedTurma}`;
+    try {
+      const { updatedAt, ...cleanData } = schoolInfo as any;
+      await updateDoc(doc(db, 'pioneer_school_info', infoDocId), {
+        ...cleanData,
+        updatedAt: new Date()
+      });
+      setOriginalSchoolInfo({ ...schoolInfo });
+    } catch (error: any) {
+      // If document doesn't exist, try setting it
+      if (error.code === 'not-found') {
+        try {
+          const { setDoc } = await import('firebase/firestore');
+          const { updatedAt, ...cleanData } = schoolInfo as any;
+          await setDoc(doc(db, 'pioneer_school_info', infoDocId), {
+            ...cleanData,
+            userId,
+            turma: selectedTurma,
+            updatedAt: new Date()
+          });
+          setOriginalSchoolInfo({ ...schoolInfo });
+        } catch (innerError) {
+          handleFirestoreError(innerError, OperationType.UPDATE, 'pioneer_school_info');
+        }
+      } else {
+        handleFirestoreError(error, OperationType.UPDATE, 'pioneer_school_info');
+      }
+    } finally {
+      setIsSavingInfo(false);
+    }
+  };
+
+  const handleTurmaChange = (turma: '1' | '2' | '3') => {
+    if (isGuest && guestTurma !== 'all') return;
+    if (activeTab === 'info' && hasInfoChanges) {
+      setPendingAction(() => () => setSelectedTurma(turma));
+      setIsUnsavedModalOpen(true);
+    } else {
+      setSelectedTurma(turma);
+    }
+  };
+
+  const [focusedSlot, setFocusedSlot] = useState<{scenarioId: number, slotIndex: number} | null>(null);
+
+  // Flattened list of all possible slots for navigation
+  const allWorkshopSlots = WORKSHOP_DATA.flatMap(w => 
+    w.scenarios.flatMap(s => {
+      const count = w.id === 'workshop2' && s.id === 5 ? 4 : 2;
+      return Array.from({ length: count }).map((_, idx) => ({
+        scenarioId: s.id,
+        slotIndex: idx
+      }));
+    })
+  );
+
+  const handleWorkshopKeyDown = (e: React.KeyboardEvent, scenarioId: number, slotIndex: number) => {
+    const currentIndex = allWorkshopSlots.findIndex(s => s.scenarioId === scenarioId && s.slotIndex === slotIndex);
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextSlot = allWorkshopSlots[currentIndex + 1];
+      if (nextSlot) {
+        setFocusedSlot(nextSlot);
+        const nextEl = document.querySelector(`[data-slot="${nextSlot.scenarioId}-${nextSlot.slotIndex}"]`) as HTMLElement;
+        nextEl?.focus();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevSlot = allWorkshopSlots[currentIndex - 1];
+      if (prevSlot) {
+        setFocusedSlot(prevSlot);
+        const prevEl = document.querySelector(`[data-slot="${prevSlot.scenarioId}-${prevSlot.slotIndex}"]`) as HTMLElement;
+        prevEl?.focus();
+      }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      handleParticipantChange(scenarioId, slotIndex, '');
+    }
+  };
+
+  const getParticipantLabel = (scenarioId: number, index: number) => {
+    if (scenarioId === 1) {
+      return index === 0 ? 'Marido' : 'Esposa';
+    }
+    if ([2, 3, 4, 6, 7, 8, 10, 11, 12, 13, 14, 15].includes(scenarioId)) {
+      return index === 0 ? 'Publicador' : 'Morador';
+    }
+    if (scenarioId === 5) {
+      if (index === 0) return 'Publicador 1';
+      if (index === 1) return 'Publicador 2';
+      if (index === 2) return 'Morador 1';
+      if (index === 3) return 'Morador 2';
+    }
+    if (scenarioId === 9) {
+      return index === 0 ? 'Publicador 1' : 'Publicador 2';
+    }
+    if (scenarioId === 16 || scenarioId === 17 || scenarioId === 18) {
+      return index === 0 ? 'Instrutor' : 'Estudante';
+    }
+    return '';
+  };
+
+  const handleParticipantChange = async (scenarioId: number, index: number, value: string) => {
+    try {
+      const existing = workshopAssignments[scenarioId];
+      let currentParticipants = existing?.participants ? existing.participants.split('|') : [];
+      
+      // Ensure the array has enough space
+      const requiredLength = scenarioId === 5 ? 4 : 2;
+      while (currentParticipants.length < requiredLength) {
+        currentParticipants.push('');
+      }
+      
+      currentParticipants[index] = value;
+      const joinedParticipants = currentParticipants.join('|');
+
+      if (existing) {
+        await updateDoc(doc(db, 'pioneer_school_workshops', existing.id), {
+          participants: joinedParticipants,
+          updatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'pioneer_school_workshops'), {
+          scenarioId,
+          participants: joinedParticipants,
+          userId,
+          turma: selectedTurma,
+          createdAt: new Date()
+        });
+      }
+    } catch (error) {
+      handleFirestoreError(error, workshopAssignments[scenarioId] ? OperationType.UPDATE : OperationType.CREATE, 'pioneer_school_workshops');
+    }
+  };
+
+  const handleOpenModal = (student: Student | null = null) => {
+    if (student) {
+      setEditingStudent(student);
+      setFormData({
+        nome: student.nome || '',
+        congregacao: student.congregacao || '',
+        circuito: student.circuito || '',
+        turma: student.turma || ''
+      });
+    } else {
+      setEditingStudent(null);
+      setFormData({
+        nome: '',
+        congregacao: '',
+        circuito: defaultCircuit || '',
+        turma: ''
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleUpdateTurma = async (studentId: string, newTurma: string) => {
+    try {
+      await updateDoc(doc(db, 'pioneer_school_students', studentId), {
+        turma: newTurma,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'pioneer_school_students');
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.nome || !formData.congregacao || !formData.circuito) return;
+
+    try {
+      if (editingStudent) {
+        await updateDoc(doc(db, 'pioneer_school_students', editingStudent.id), {
+          ...formData,
+          updatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'pioneer_school_students'), {
+          ...formData,
+          userId,
+          createdAt: new Date()
+        });
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, editingStudent ? OperationType.UPDATE : OperationType.CREATE, 'pioneer_school_students');
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importText.trim()) return;
+    setIsImporting(true);
+    setImportError(null);
+    setImportSuccess(null);
+
+    console.log('Iniciando importação...');
+
+    try {
+      let parsedStudents: any[] = [];
+
+      // TENTATIVA 1: Formato Excel/TSV (Linha por linha, separado por TAB ou múltiplos espaços)
+      const lines = importText.split(/[\r\n]+/);
+      console.log(`Tentando formato Excel/TSV com ${lines.length} linhas...`);
+      
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        
+        // Divide por TAB ou por 2 ou mais espaços
+        const parts = line.split(/\t|\s{2,}/).map(p => p.trim()).filter(p => p.length > 0);
+        
+        // O formato esperado é: [Nº] [Nome] [Congregação] [Circuito]
+        // Aceitamos se tiver pelo menos 3 partes (Nº, Nome, Congregação)
+        if (parts.length >= 3 && /^\d+$/.test(parts[0])) {
+          const nome = parts[1];
+          const congregacao = parts[2];
+          const circuito = parts[3] || defaultCircuit || '';
+          
+          if (nome && congregacao) {
+            parsedStudents.push({
+              nome,
+              congregacao,
+              circuito,
+              userId,
+              createdAt: new Date()
+            });
+          }
+        }
+      }
+
+      // TENTATIVA 2: Formato PDF (ID de 7-8 dígitos e Data no final)
+      // Se a primeira tentativa não encontrou nada, tentamos o modo robusto de PDF
+      if (parsedStudents.length === 0) {
+        console.log('Formato Excel não detectado, tentando formato PDF robusto...');
+        const normalizedText = importText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const recordStarts = [...normalizedText.matchAll(/(\d+)\s+(\d{7,8})\b/g)];
+        
+        for (let i = 0; i < recordStarts.length; i++) {
+          const currentMatch = recordStarts[i];
+          if (!currentMatch) continue;
+          
+          const nextMatch = recordStarts[i + 1];
+          const startIdx = currentMatch.index;
+          const endIdx = nextMatch?.index !== undefined ? nextMatch.index : normalizedText.length;
+          const recordText = normalizedText.substring(startIdx, endIdx).trim();
+          
+          const idMatch = recordText.match(/^(\d+)\s+(\d{7,8})\b/);
+          if (!idMatch) continue;
+          
+          const afterId = recordText.substring(idMatch[0].length).trim();
+          const dateMatch = afterId.match(/(\d{2}\/\d{2}\/\d{4})/);
+          if (!dateMatch || dateMatch.index === undefined) continue;
+          
+          const dateIdx = dateMatch.index;
+          const nameAndCong = afterId.substring(0, dateIdx).trim();
+          const lastParenIdx = nameAndCong.lastIndexOf('(');
+          if (lastParenIdx === -1) continue;
+          
+          const congregation = nameAndCong.substring(lastParenIdx).trim();
+          const nome = nameAndCong.substring(0, lastParenIdx).trim();
+          
+          if (nome && congregation) {
+            parsedStudents.push({
+              nome,
+              congregacao: congregation,
+              circuito: defaultCircuit || '',
+              userId,
+              createdAt: new Date()
+            });
+          }
+        }
+      }
+
+      console.log('Total de alunos extraídos:', parsedStudents.length);
+
+      if (parsedStudents.length === 0) {
+        setImportError('Não foi possível identificar o formato dos dados. Certifique-se de copiar a lista completa do PDF ou as colunas do Excel.');
+        setIsImporting(false);
+        return;
+      }
+
+      // Salvar no Firestore
+      for (const student of parsedStudents) {
+        await addDoc(collection(db, 'pioneer_school_students'), student);
+      }
+      
+      setImportSuccess(parsedStudents.length);
+      setImportText('');
+      setTimeout(() => {
+        setIsImportModalOpen(false);
+        setImportSuccess(null);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Erro ao importar:', error);
+      setImportError('Ocorreu um erro ao salvar no banco de dados. Tente novamente.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDeleteClick = async (id: string) => {
+    const confirmed = await showConfirm(
+      'Tem certeza que deseja excluir este aluno? Esta ação não pode ser desfeita.',
+      'Excluir Aluno'
+    );
+    
+    if (confirmed) {
+      try {
+        await deleteDoc(doc(db, 'pioneer_school_students', id));
+        setSelectedStudents(prev => prev.filter(sId => sId !== id));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, 'pioneer_school_students');
+      }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStudents.length === 0) return;
+    
+    const confirmed = await showConfirm(
+      `Tem certeza que deseja excluir os ${selectedStudents.length} alunos selecionados? Esta ação não pode ser desfeita.`,
+      'Excluir em Massa'
+    );
+
+    if (confirmed) {
+      try {
+        const batch = writeBatch(db);
+        selectedStudents.forEach(id => {
+          batch.delete(doc(db, 'pioneer_school_students', id));
+        });
+        await batch.commit();
+        setSelectedStudents([]);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, 'pioneer_school_students');
+      }
+    }
+  };
+
+  const toggleSelectStudent = (id: string) => {
+    setSelectedStudents(prev => 
+      prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedStudents.length === sortedStudents.length) {
+      setSelectedStudents([]);
+    } else {
+      setSelectedStudents(sortedStudents.map(s => s.id));
+    }
+  };
+
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.congregacao.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (turmaFilter === 'all') return matchesSearch;
+    if (turmaFilter === 'none') return matchesSearch && !s.turma;
+    return matchesSearch && s.turma === turmaFilter;
+  });
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    if (sortConfig.key === 'index') {
+      // Sort by original creation order if 'index' is selected
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return sortConfig.direction === 'asc' ? timeA - timeB : timeB - timeA;
+    }
+
+    const valA = (a[sortConfig.key] || '').toString().toLowerCase();
+    const valB = (b[sortConfig.key] || '').toString().toLowerCase();
+
+    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (key: keyof Student | 'index') => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('pioneer-school-report');
+    
+    if (!element) {
+      await showAlert('Erro: Não foi possível localizar o conteúdo do relatório para gerar o PDF.', 'Erro');
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const { toPng } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      // Add capture class
+      element.classList.add('pdf-capture');
+
+      // Convert to PNG
+      const dataUrl = await toPng(element, { 
+        quality: 0.9,
+        pixelRatio: 1.5, 
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+      
+      element.classList.remove('pdf-capture');
+
+      // Create PDF with dynamic height
+      const tempPdf = new jsPDF();
+      const imgProps = tempPdf.getImageProperties(dataUrl);
+      const pdfWidth = 210; // A4 width in mm
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [pdfWidth, pdfHeight],
+        compress: true
+      });
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      
+      const sessionTitle = activeTab === 'students' ? 'Lista de Alunos' : `Sessão de Treino - Turma ${selectedTurma}`;
+      const filename = `Escola de Pioneiro - ${sessionTitle}.pdf`;
+
+      // Download
+      const pdfBlob = pdf.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        await showAlert('PDF gerado com sucesso! Verifique sua pasta de Downloads.', 'Sucesso');
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar PDF:', error);
+      await showAlert(`Ocorreu um erro ao gerar o PDF: ${error?.message || 'Erro desconhecido'}.`, 'Erro');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDownloadDesignacao = async () => {
+    if (selectedStudents.length === 0) return;
+    
+    setDownloadingDesignacao(true);
+    try {
+      // 1. Fetch the template
+      const templateDoc = await getDoc(doc(db, 'document_templates', 'esp_pioneiros'));
+      if (!templateDoc.exists()) {
+        await showAlert('Template "esp_pioneiros" não encontrado. Carregue-o primeiro.', 'Aviso');
+        setDownloadingDesignacao(false);
+        return;
+      }
+      
+      // Fetch signature placement
+      const placementId = `${userId}_esp_pioneiros`;
+      const placementSnap = await getDoc(doc(db, 'signature_placements', placementId));
+      const placement = placementSnap.exists() ? placementSnap.data() : null;
+
+      const templateData = templateDoc.data();
+      const binaryString = window.atob(templateData.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const templateBuffer = bytes.buffer;
+
+      // Prepare HOJE replacement
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('pt-BR', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+      const hoje = formatter.format(now);
+
+      // Load Image Module
+      const ImageModule = (await import('docxtemplater-image-module-free')).default;
+      
+      const signatureImage = personalData?.signatureImage || '';
+      
+      // Calculate signature dimensions
+      const baseScale = personalData?.signatureSize || 60;
+      const placementScale = placement?.scale || 1;
+      const signatureScale = baseScale * placementScale;
+      
+      let sigHeight = signatureScale;
+      let sigWidth = sigHeight * 2.5; // Default aspect ratio if image fails
+      
+      if (signatureImage && signatureImage.startsWith('data:image')) {
+        try {
+          const img = new window.Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = signatureImage;
+          });
+          const aspectRatio = img.width / img.height;
+          sigHeight = signatureScale;
+          sigWidth = sigHeight * aspectRatio;
+          // Maximum width constraint to avoid overflowing the page
+          if (sigWidth > 350) { 
+            sigWidth = 350;
+            sigHeight = sigWidth / aspectRatio;
+          }
+        } catch (e) {
+          console.warn('Could not determine signature dimensions:', e);
+        }
+      }
+
+      const imgOpts: any = {
+        centered: false,
+        getImage: (tagValue: string) => {
+          if (!tagValue || !tagValue.startsWith('data:image')) return null;
+          const base64Data = tagValue.split(',')[1];
+          const binaryStringArray = window.atob(base64Data);
+          const len = binaryStringArray.length;
+          const bytesArray = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytesArray[i] = binaryStringArray.charCodeAt(i);
+          }
+          return bytesArray.buffer;
+        },
+        getSize: () => [sigWidth, sigHeight],
+      };
+
+      // 2. Process each selected student
+      for (const studentId of selectedStudents) {
+        const student = students.find(s => s.id === studentId);
+        if (!student) continue;
+
+        const zip = new PizZip(templateBuffer);
+        
+        // Pre-process all XML files in the zip (document, headers, footers) to handle Word-specific tag splitting and @TAG to [TAG] conversion
+        const xmlFiles = zip.file(/word\/(document|header\d+|footer\d+)\.xml/);
+        
+        xmlFiles.forEach(file => {
+          let xmlContent = file.asText();
+          
+          if (signatureImage && !xmlContent.includes('xmlns:wp=')) {
+            xmlContent = xmlContent.replace(/(<w:(?:document|hdr|ftr)[^>]*)/, (match: string) => {
+              if (match.includes('xmlns:wp=')) return match;
+              return `${match} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+            });
+          }
+
+          // 1. Clean up common Word junk that splits tags
+          xmlContent = xmlContent.replace(/<w:proofErr w:type="(?:spell|gram)(?:Start|End)"\/>/g, "");
+          xmlContent = xmlContent.replace(/<w:noProof\/>/g, "");
+          
+          // 2. Join split tag characters together into the first text node of the tag. 
+          for (let i = 0; i < 6; i++) {
+            xmlContent = xmlContent.replace(/(@|\[[#\/^>?]?)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]*)(<\/w:t>(?:<(?!w:p|w:tr|w:tbl|w:br|w:tc|w:tr)[^>]+>)*?<w:t[^>]*>)([A-Za-z0-9À-ÿ\u00C0-\u00FF\_]+|\])/g, "$1$2$4$3");
+          }
+          
+          // 3. Surgical replacement of @TAG to [TAG] ONLY inside text nodes
+          xmlContent = xmlContent.replace(/(<w:t[^>]*>)(.*?)(<\/w:t>)/g, (match: string, opening: string, text: string, closing: string) => {
+            let newText = text;
+            // Handle Signature specifically (case insensitive, supporting "Assinatura Global", "Assinatura_Global", etc.)
+            newText = newText.replace(/\[ASSINATURA([\s\_]GLOBAL)?\]/gi, '[%ASSINATURA]');
+            newText = newText.replace(/@Assinatura([\s\_]GLOBAL)?/gi, '[%ASSINATURA]');
+            // Handle other tags - convert to uppercase, and handle common variations like @NOME_ALUNO
+            // We avoid matching emails (e.g. test@email.com) by checking that @ is preceded by start of line or non-word char
+            newText = newText.replace(/(^|[^A-Za-z0-9À-ÿ\u00C0-\u00FF])@([A-Za-z0-9À-ÿ\_]+)/g, (m: string, p1: string, p2: string) => {
+              return `${p1}[${p2.toUpperCase()}]`;
+            });
+            return `${opening}${newText}${closing}`;
+          });
+          
+          zip.file(file.name, xmlContent);
+        });
+
+        const docObj = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+          delimiters: { start: '[', end: ']' },
+          modules: ImageModule ? [new ImageModule(imgOpts)] : []
+        });
+
+        // 3. Replacements
+        let instructorChoice = 'A';
+        const hasInstructorBData = !!(schoolInfo.confirmacaoEmailB?.trim() || schoolInfo.confirmacaoWhatsappB?.trim());
+        
+        if (hasInstructorBData) {
+          // Look for this student in workshop assignments
+          for (const [scenarioIdStr, assignment] of Object.entries(workshopAssignments)) {
+            const scenarioId = parseInt(scenarioIdStr);
+            const participants = assignment.participants?.split('|').map(p => p.trim()) || [];
+            if (participants.includes(student.nome.trim())) {
+              // Found the student's workshop
+              // Workshop 1 (1-3) and 4 (15-18) are for Instructor B
+              if ((scenarioId >= 1 && scenarioId <= 3) || (scenarioId >= 15 && scenarioId <= 18)) {
+                instructorChoice = 'B';
+              }
+              break;
+            }
+          }
+        }
+
+        const emailA = schoolInfo.confirmacaoEmail || '________________';
+        const contatoA = schoolInfo.confirmacaoWhatsapp || '________________';
+        const emailB = (schoolInfo.confirmacaoEmailB || schoolInfo.confirmacaoWhatsappB) ? (schoolInfo.confirmacaoEmailB || '________________') : emailA;
+        const contatoB = (schoolInfo.confirmacaoEmailB || schoolInfo.confirmacaoWhatsappB) ? (schoolInfo.confirmacaoWhatsappB || '________________') : contatoA;
+        
+        const finalEmail = instructorChoice === 'A' ? emailA : emailB;
+        const finalContato = instructorChoice === 'A' ? contatoA : contatoB;
+
+        const replacements: any = {
+          'ALUNO': student.nome,
+          'NOME': student.nome,
+          'NOME_ALUNO': student.nome,
+          'CONGREGAÇÃO': student.congregacao,
+          'CONGREGACAO': student.congregacao,
+          'TURMA': `Turma ${selectedTurma}`,
+          'DATA': schoolInfo.dataTurma || hoje,
+          'DATATURMA': schoolInfo.dataTurma || hoje,
+          'TURMA_DATA': schoolInfo.dataTurma || hoje,
+          'DATA_TURMA': schoolInfo.dataTurma || hoje,
+          'INSTRUTORES': `${schoolInfo.instrutorA || '________________'} e ${schoolInfo.instrutorB || '________________'}`,
+          'INSTRUTOR1': schoolInfo.instrutorA || '________________',
+          'INSTRUTOR2': schoolInfo.instrutorB || '________________',
+          'LOCAL': schoolInfo.localEscola || '________________',
+          'LOCALESCOLA': schoolInfo.localEscola || '________________',
+          'ENDEREÇO': schoolInfo.enderecoEscola || '________________',
+          'ENDERECO': schoolInfo.enderecoEscola || '________________',
+          'ENDEREÇOESCOLA': schoolInfo.enderecoEscola || '________________',
+          'ENDERECOENTREGA': schoolInfo.entregaLivroEndereco || '________________',
+          'ENDEREÇOENTREGA': schoolInfo.entregaLivroEndereco || '________________',
+          'DATAENTREGA': schoolInfo.entregaLivroDataHora || '________________',
+          'DATACONFIRMAÇÃO': schoolInfo.confirmacaoDataLimite || '________________',
+          'DATACONFIRMACAO': schoolInfo.confirmacaoDataLimite || '________________',
+          'EMAIL': finalEmail,
+          'CONTATO': finalContato,
+          'WHATSAPP': finalContato,
+          'EMAIL_A': emailA,
+          'EMAILA': emailA,
+          'CONTATO_A': contatoA,
+          'CONTATOA': contatoA,
+          'EMAIL_B': emailB,
+          'EMAILB': emailB,
+          'CONTATO_B': contatoB,
+          'CONTATOB': contatoB,
+          'ASSINATURA': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+          'ASSINATURA_GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+          'ASSINATURA GLOBAL': `${personalData?.nome || '________________'} (${personalData?.circuito || '________________'})`,
+          '%ASSINATURA': signatureImage,
+          'VIAJANTE': personalData?.nome || '________________',
+          'NOME_VIAJANTE': personalData?.nome || '________________',
+          'CIRCUITO': personalData?.circuito || '________________',
+          'NOME_CIRCUITO': personalData?.circuito || '________________',
+          'TELEFONE': personalData?.telefoneCircuito || '________________',
+          'FONE': personalData?.telefoneCircuito || '________________',
+          'TELEFONE_CIRCUITO': personalData?.telefoneCircuito || '________________',
+          'TELEFONECIRCUITO': personalData?.telefoneCircuito || '________________',
+          'HOJE': hoje,
+          'DATA_ATUAL': hoje,
+          'DATAHORA': schoolInfo.entregaLivroDataHora || '________________',
+          'DATATREINO': schoolInfo.entregaLivroDataHora || '________________',
+          'LOCALTREINO': schoolInfo.entregaLivroEndereco || '________________',
+          'LOCAL_TREINO': schoolInfo.entregaLivroEndereco || '________________',
+          'LOCAL_ESCOLA': schoolInfo.localEscola || '________________',
+          'ENDERECOESCOLA': schoolInfo.enderecoEscola || '________________',
+          'ENDEREÇO_ESCOLA': schoolInfo.enderecoEscola || '________________',
+          'INSTRUTORA': schoolInfo.instrutorA || '________________',
+          'INSTRUTORB': schoolInfo.instrutorB || '________________',
+        };
+
+        docObj.render(replacements);
+
+        const out = docObj.getZip().generate({
+          type: 'blob',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+
+        // 4. Download
+        const url = URL.createObjectURL(out);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Carta_Convite_${student.nome.replace(/\s+/g, '_')}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        // Small delay to avoid browser blocking multiple downloads
+        if (selectedStudents.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao baixar designações:', error);
+      await showAlert('Erro ao processar documentos.', 'Erro');
+    } finally {
+      setDownloadingDesignacao(false);
+    }
+  };
+
+  const SortIcon = ({ column }: { column: keyof Student | 'index' }) => {
+    if (sortConfig.key !== column) return <ArrowUpDown size={14} className="ml-1 opacity-50" />;
+    return sortConfig.direction === 'asc' ? 
+      <ArrowUp size={14} className="ml-1 text-white" /> : 
+      <ArrowDown size={14} className="ml-1 text-white" />;
+  };
+
+  // Get all assigned student names for workshop prioritization
+  const assignedStudentNames = new Set(
+    Object.values(workshopAssignments)
+      .flatMap(a => a.participants.split('|'))
+      .filter(name => name !== '')
+  );
+
+  // Sort students for workshop dropdown: filter by selected class, unassigned first, then assigned
+  const workshopDropdownStudents = [...students]
+    .filter(s => s.turma === selectedTurma)
+    .sort((a, b) => {
+      const aAssigned = assignedStudentNames.has(a.nome);
+      const bAssigned = assignedStudentNames.has(b.nome);
+      
+      if (aAssigned && !bAssigned) return 1;
+      if (!aAssigned && bAssigned) return -1;
+      return a.nome.localeCompare(b.nome);
+    });
+
+  return (
+    <div className="space-y-6 relative">
+      <AnimatePresence>
+        {selectedStudents.length > 0 && (
+          <motion.div 
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 50, opacity: 0 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1001] bg-surface-100/95 dark:bg-surface-200/95 backdrop-blur-md text-typography-900 shadow-2xl border border-surface-300 rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 sm:gap-4 w-[calc(100vw-1.5rem)] max-w-lg print:hidden"
+          >
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="bg-primary-200 text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
+                {selectedStudents.length}
+              </span>
+              <span className="text-[11px] sm:text-xs font-semibold text-typography-600 hidden xs:inline">selecionado(s)</span>
+            </div>
+            <div className="h-5 sm:h-6 w-px bg-surface-300 shrink-0" />
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                onClick={() => setSelectedStudents([])}
+                className="text-xs font-semibold text-typography-500 hover:text-typography-800 transition-colors px-2 py-1.5 rounded-lg cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDownloadDesignacao}
+                disabled={downloadingDesignacao}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-200 hover:bg-primary-150 text-white rounded-xl transition-all text-xs font-bold disabled:opacity-50 shrink-0 shadow-xs cursor-pointer"
+              >
+                {downloadingDesignacao ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                <span>
+                  <span className="hidden sm:inline">Baixar Convite</span>
+                  <span className="sm:hidden">Convite</span>
+                </span>
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl transition-all text-xs font-bold shrink-0 cursor-pointer"
+              >
+                <Trash2 size={14} />
+                <span>
+                  <span className="hidden sm:inline">Excluir</span>
+                  <span className="sm:hidden">Excluir</span>
+                </span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Barra Superior / Header Card */}
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 md:p-5 shadow-xs space-y-4 print:hidden relative overflow-hidden">
+        <div 
+          className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+          style={{ backgroundImage: 'linear-gradient(to right, #10B981, #059669, transparent)' }}
+        />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => {
+                if (activeTab === 'info' && hasInfoChanges) {
+                  setPendingAction(() => onBack);
+                  setIsUnsavedModalOpen(true);
+                } else {
+                  onBack();
+                }
+              }}
+              className="p-2 sm:p-2.5 hover:bg-surface-200 text-typography-700 bg-surface-200/60 rounded-xl shadow-2xs border border-surface-300 transition-all cursor-pointer shrink-0"
+              title="Voltar"
+            >
+              <ChevronLeft size={20} strokeWidth={2.5} />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight truncate flex items-center gap-2">
+                Escola do Serviço de Pioneiro
+                {isGuest && (
+                  <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                    Convidado
+                  </span>
+                )}
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {activeTab === 'students' ? (
+              <>
+                <div className={`relative flex items-center transition-all duration-300 ${showSearch ? 'flex-1 md:w-60' : 'w-9'}`}>
+                  <button 
+                    onClick={() => setShowSearch(!showSearch)}
+                    className={`p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer ${
+                      showSearch 
+                        ? 'absolute left-1 z-10 text-primary-200' 
+                        : 'bg-surface-100 hover:bg-surface-200 border border-surface-300 text-typography-600 shadow-2xs'
+                    }`}
+                    title="Buscar aluno"
+                  >
+                    <Search size={18} />
+                  </button>
+                  {showSearch && (
+                    <motion.input
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: '100%', opacity: 1 }}
+                      autoFocus
+                      type="text"
+                      placeholder="Buscar aluno..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onBlur={() => { if (!searchTerm) setShowSearch(false); }}
+                      className="w-full pl-9 pr-3.5 py-1.5 bg-surface-100 border border-surface-300 text-typography-900 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs transition-all shadow-2xs placeholder:text-typography-400"
+                    />
+                  )}
+                </div>
+
+                {/* Alternador de Modo: Tabela vs Lista (igual ao Itinerário) */}
+                <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+                  <button 
+                    type="button"
+                    onClick={() => handleViewModeChange('table')}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'table' 
+                        ? 'bg-primary-200 text-white shadow-xs' 
+                        : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                    }`}
+                    title="Modo Tabela"
+                  >
+                    <TableIcon size={14} />
+                    <span className="hidden sm:inline">Tabela</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => handleViewModeChange('list')}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'list' 
+                        ? 'bg-primary-200 text-white shadow-xs' 
+                        : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                    }`}
+                    title="Modo Lista"
+                  >
+                    <LayoutList size={14} />
+                    <span className="hidden sm:inline">Lista</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  title="Importar alunos da Área de Transferência"
+                >
+                  <Plus size={16} className="text-typography-400 shrink-0" />
+                  <span className="hidden sm:inline">Importar</span>
+                </button>
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-brand-primary text-brand-on-primary rounded-xl text-xs font-bold transition-all shadow-xs hover:opacity-90 cursor-pointer"
+                  title="Adicionar Aluno"
+                >
+                  <UserPlus size={16} className="shrink-0" />
+                  <span>Adicionar</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Alternador de Modo para Sessão de Treino */}
+                {activeTab === 'workshops' && (
+                  <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+                    <button 
+                      type="button"
+                      onClick={() => handleWorkshopViewModeChange('table')}
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        workshopViewMode === 'table' 
+                          ? 'bg-primary-200 text-white shadow-xs' 
+                          : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                      }`}
+                      title="Modo Tabela"
+                    >
+                      <TableIcon size={14} />
+                      <span className="hidden sm:inline">Tabela</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => handleWorkshopViewModeChange('list')}
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        workshopViewMode === 'list' 
+                          ? 'bg-primary-200 text-white shadow-xs' 
+                          : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                      }`}
+                      title="Modo Lista"
+                    >
+                      <LayoutList size={14} />
+                      <span className="hidden sm:inline">Lista</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 bg-surface-100 border border-surface-300 rounded-xl px-2.5 py-1 shadow-2xs">
+                  <span className="text-[10px] font-bold text-typography-400 uppercase tracking-widest">
+                    Turma:
+                  </span>
+                  <div className="flex gap-1">
+                    {(['1', '2', '3'] as const).map((t) => {
+                      if (isGuest && guestTurma !== 'all' && guestTurma !== t) return null;
+                      
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => handleTurmaChange(t)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            selectedTurma === t 
+                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shadow-xs' 
+                              : 'text-typography-500 hover:bg-surface-200'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Dados da Turma / Modal Trigger */}
+            <button
+              onClick={() => setIsInfoModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-[0.98] cursor-pointer"
+              title="Editar dados da turma (data, instrutores, local, entrega de livros)"
+            >
+              <CalendarDays size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="hidden sm:inline">Dados da Turma</span>
+              <span className="sm:hidden">Dados</span>
+            </button>
+
+            {/* Action Buttons: PDF Download */}
+            {activeTab !== 'info' && activeTab !== 'templates_pss' && (
+              <button
+                onClick={handleDownloadPDF}
+                disabled={generating}
+                className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-surface-100 hover:bg-surface-200 text-typography-800 border border-surface-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                title="Baixar PDF"
+              >
+                {generating ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} className="text-amber-500" />}
+                <span className="hidden sm:inline">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs Row */}
+        <div className="flex items-center gap-3 sm:gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-surface-300 pt-1">
+          <button 
+            onClick={() => handleTabChange('students')}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'students' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
+          >
+            <Users size={16} />
+            Lista de Alunos
+          </button>
+          <button 
+            onClick={() => handleTabChange('info')}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'info' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
+          >
+            <Info size={16} />
+            Informações
+          </button>
+          <button 
+            onClick={() => handleTabChange('workshops')}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'workshops' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
+          >
+            <LayoutList size={16} />
+            Sessão de Treino
+          </button>
+          <button 
+            onClick={() => handleTabChange('templates_pss')}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'templates_pss' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
+          >
+            <FileText size={16} />
+            Templates PSS
+          </button>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          body { 
+            visibility: hidden; 
+            background-color: white !important; 
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          #pioneer-school-report, #pioneer-school-report * { 
+            visibility: visible; 
+          }
+          #pioneer-school-report { 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            border: none !important; 
+            box-shadow: none !important; 
+            padding: 8mm !important; 
+            margin: 0 !important; 
+            background-color: white !important;
+          }
+          .print\:hidden, .pdf-hidden { display: none !important; }
+          tr { page-break-inside: avoid !important; }
+          
+          /* Table style improvements for print */
+          table { 
+            width: 100% !important; 
+            border-collapse: collapse !important; 
+            border: 1px solid #cbd5e1 !important; 
+            font-size: 10pt !important; 
+          }
+          th, td { 
+            border: 1px solid #e2e8f0 !important; 
+            padding: 5pt 7pt !important; 
+          }
+          th { 
+            background-color: #f8fafc !important; 
+            color: #0f172a !important; 
+            font-weight: 800 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important;
+          }
+          thead { display: table-header-group !important; }
+        }
+
+        /* Support for PDF capture styles */
+        .pdf-capture {
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+          padding: 12mm 14mm !important;
+          width: 1200px !important;
+          min-height: auto !important;
+        }
+
+        .pdf-capture * {
+          border-color: #e2e8f0 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .pdf-capture .overflow-x-auto {
+          overflow: visible !important;
+          width: 100% !important;
+        }
+
+        .pdf-capture .hidden.print\:block {
+          display: block !important;
+        }
+
+        .pdf-capture .pdf-hidden,
+        .pdf-capture .print\:hidden,
+        .pdf-capture .workshop-select-ui,
+        .pdf-capture .select-turma-ui {
+          display: none !important;
+        }
+
+        .pdf-capture .workshop-participant-text {
+          display: block !important;
+          font-weight: 700 !important;
+          color: #1e293b !important;
+          font-size: 13px !important;
+        }
+
+        .pdf-capture .turma-text {
+          display: block !important;
+          font-size: 11px !important;
+          text-align: center !important;
+          font-weight: bold !important;
+        }
+
+        .pdf-capture table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          border: 1.5px solid #cbd5e1 !important;
+        }
+
+        .pdf-capture th {
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          font-weight: 800 !important;
+          font-size: 11px !important;
+          letter-spacing: 0.05em !important;
+          padding: 10px 14px !important;
+          border-bottom: 2px solid #cbd5e1 !important;
+        }
+
+        .pdf-capture .students-table th {
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          border-bottom: 2px solid #cbd5e1 !important;
+        }
+
+        .pdf-capture .sessions-table th {
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          border-bottom: 2px solid #cbd5e1 !important;
+        }
+
+        .pdf-capture .students-table tbody tr:nth-child(even) {
+          background-color: #f8fafc !important;
+        }
+
+        .pdf-capture .students-table td {
+          padding: 9px 12px !important;
+          font-size: 12px !important;
+          border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        .pdf-capture .sessions-table td {
+          border-bottom: 1px solid #e2e8f0 !important;
+          border-right: 1px solid #e2e8f0 !important;
+        }
+
+          /* Lateral dos Workshops no PDF */
+        .pdf-capture .workshop-sidebar-workshop1 {
+          background-color: #e6f4f6 !important;
+          color: #164e57 !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop2 {
+          background-color: #eaf3fb !important;
+          color: #154e75 !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop3 {
+          background-color: #eff1fc !important;
+          color: #2e2a7b !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop4 {
+          background-color: #fef6e7 !important;
+          color: #7c4a0e !important;
+        }
+
+        .scenario-badge,
+        .pdf-capture .scenario-badge {
+          white-space: nowrap !important;
+          word-break: keep-all !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          flex-shrink: 0 !important;
+        }
+      `}</style>
+
+      <div id="pioneer-school-report" className="space-y-6 print:space-y-4 bg-transparent print:bg-white">
+        {/* Document Header - Visible only in Print/PDF */}
+        <div className="hidden print:block text-center pt-3 pb-5 border-b border-slate-200 mb-5">
+          <div className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-slate-100 text-slate-600 mb-2 border border-slate-200">
+            Programa de Ensino Teocrático
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Escola do Serviço de Pioneiro</h1>
+          <div className="flex items-center justify-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-500 mt-2">
+            <span>{activeTab === 'students' ? 'Lista Oficial de Alunos' : `Sessão de Treino — Turma ${selectedTurma}`}</span>
+            {defaultCircuit && (
+              <>
+                <span>•</span>
+                <span>Circuito {defaultCircuit}</span>
+              </>
+            )}
+            {activeTab === 'students' && sortedStudents.length > 0 && (
+              <>
+                <span>•</span>
+                <span>{sortedStudents.length} Alunos</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div id="pdf-content">
+          {activeTab === 'students' ? (
+            <div className="bg-surface-100 rounded-3xl shadow-xs border border-surface-300 overflow-hidden">
+              {/* Modo Lista / Cards (Exibido quando viewMode === 'list') */}
+              {viewMode === 'list' && (
+                <div className="print:hidden p-3.5 sm:p-5 space-y-2.5">
+                  {loading ? (
+                    <div className="py-12 text-center">
+                      <Loader2 className="animate-spin mx-auto text-primary-200" size={32} />
+                      <p className="mt-2 text-xs text-typography-500">Carregando alunos...</p>
+                    </div>
+                  ) : sortedStudents.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-typography-500">
+                      Nenhum aluno encontrado.
+                    </div>
+                  ) : (
+                    sortedStudents.map((student, index) => {
+                      const isSelected = selectedStudents.includes(student.id);
+                      const initials = student.nome?.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase() || '?';
+                      const accentColors = [
+                        'border-l-primary-200',
+                        'border-l-amber-400',
+                        'border-l-teal-400',
+                        'border-l-indigo-400',
+                        'border-l-rose-400',
+                      ];
+                      const accentBg = [
+                        'bg-primary-200/10 text-primary-200',
+                        'bg-amber-400/10 text-amber-600',
+                        'bg-teal-400/10 text-teal-600',
+                        'bg-indigo-400/10 text-indigo-600',
+                        'bg-rose-400/10 text-rose-600',
+                      ];
+                      const accentIdx = index % accentColors.length;
+                      return (
+                        <div 
+                          key={student.id}
+                          className={`pl-3.5 pr-3.5 py-3 rounded-2xl border-l-[3px] border border-surface-300/80 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isSelected 
+                              ? 'bg-primary-200/5 border-l-primary-200 border-primary-200/30 shadow-xs' 
+                              : `bg-surface-100 hover:bg-surface-200/40 ${accentColors[accentIdx]}`
+                          }`}
+                        >
+                          <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 mt-1 sm:mt-0 rounded border-surface-300 text-primary-200 focus:ring-primary-200 cursor-pointer shrink-0"
+                              checked={isSelected}
+                              onChange={() => toggleSelectStudent(student.id)}
+                            />
+                            <span className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 ${isSelected ? 'bg-primary-200/10 text-primary-200' : accentBg[accentIdx]}`}>
+                              {initials}
+                            </span>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-typography-900 truncate">
+                                {student.nome}
+                              </h4>
+                              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-typography-500">
+                                <span className="truncate">{student.congregacao || 'Sem congregação'}</span>
+                                {student.circuito && (
+                                  <>
+                                    <span className="text-surface-300">•</span>
+                                    <span className="text-typography-400">{student.circuito}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-300/50">
+                            <CustomSelect
+                              value={student.turma || ''}
+                              onChange={(val) => handleUpdateTurma(student.id, val)}
+                              options={[
+                                { value: '', label: 'Sem Turma' },
+                                { value: '1', label: 'Turma 1' },
+                                { value: '2', label: 'Turma 2' },
+                                { value: '3', label: 'Turma 3' },
+                              ]}
+                              className="w-28"
+                              size="sm"
+                            />
+
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => handleOpenModal(student)}
+                                className="p-1.5 text-typography-500 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-colors cursor-pointer"
+                                title="Editar"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteClick(student.id)}
+                                className="p-1.5 text-typography-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                title="Excluir"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* Modo Tabela (Visível quando viewMode === 'table' e SEMPRE ativo no print/pdf) */}
+              <div className={`${viewMode === 'table' ? 'block' : 'hidden print:block'} overflow-x-auto custom-scrollbar`}>
+                <table className="w-full text-left border-collapse min-w-[700px] students-table">
+                  <thead>
+                    <tr className="bg-primary-200/10 dark:bg-primary-200/15 border-b border-primary-200/20 text-typography-800 dark:text-typography-100">
+                      <th className="px-4 py-3.5 w-10 print:hidden pdf-hidden">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-surface-300 text-primary-200 focus:ring-primary-200 cursor-pointer"
+                          checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
+                          onChange={toggleSelectAll}
+                        />
+                      </th>
+                      <th className="px-3 py-3.5 font-black text-xs uppercase tracking-wider w-12 text-center text-primary-200">
+                        Nº
+                      </th>
+                      <th 
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
+                        onClick={() => handleSort('nome')}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Nome do Aluno
+                          <span className="print:hidden pdf-hidden"><SortIcon column="nome" /></span>
+                        </div>
+                      </th>
+                      <th 
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
+                        onClick={() => handleSort('congregacao')}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Congregação
+                          <span className="print:hidden pdf-hidden"><SortIcon column="congregacao" /></span>
+                        </div>
+                      </th>
+                      <th 
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
+                        onClick={() => handleSort('circuito')}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Circuito
+                          <span className="print:hidden pdf-hidden"><SortIcon column="circuito" /></span>
+                        </div>
+                      </th>
+                      <th 
+                        className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider relative group/header text-center"
+                      >
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button 
+                            className="hover:bg-primary-200/15 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            onClick={() => handleSort('turma')}
+                          >
+                            Turma
+                            <span className="print:hidden pdf-hidden"><SortIcon column="turma" /></span>
+                          </button>
+                          
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowTurmaFilter(!showTurmaFilter);
+                            }}
+                            className={`p-1 rounded-md transition-all print:hidden pdf-hidden cursor-pointer ${
+                              turmaFilter !== 'all' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 shadow-xs' : 'hover:bg-surface-300/40 text-typography-400 hover:text-typography-800'
+                            }`}
+                          >
+                            <Filter size={13} fill={turmaFilter !== 'all' ? 'currentColor' : 'none'} />
+                          </button>
+                        </div>
+
+                        {/* Dropdown Menu */}
+                        <AnimatePresence>
+                          {showTurmaFilter && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setShowTurmaFilter(false)}
+                              />
+                              <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-surface-100 rounded-2xl shadow-xl border border-surface-300 py-1 z-50 overflow-hidden normal-case tracking-normal font-normal text-left"
+                              >
+                                {[
+                                  { id: 'all', label: 'Todos os Alunos' },
+                                  { id: 'none', label: 'Alunos sem Turma' },
+                                  { id: '1', label: 'Turma 1' },
+                                  { id: '2', label: 'Turma 2' },
+                                  { id: '3', label: 'Turma 3' }
+                                ].map((option) => (
+                                  <button
+                                    key={option.id}
+                                    onClick={() => {
+                                      setTurmaFilter(option.id);
+                                      setShowTurmaFilter(false);
+                                    }}
+                                    className={`w-full px-4 py-2 text-left text-xs sm:text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                      turmaFilter === option.id 
+                                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold' 
+                                        : 'text-typography-600 hover:bg-surface-200'
+                                    }`}
+                                  >
+                                    {option.label}
+                                    {turmaFilter === option.id && <Check size={14} className="text-amber-600" />}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </th>
+                      <th className="px-5 py-3 font-bold text-xs uppercase tracking-wider w-24 text-center print:hidden pdf-hidden text-typography-500">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-300/60">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center">
+                          <Loader2 className="animate-spin mx-auto text-primary-200" size={32} />
+                          <p className="mt-2 text-xs text-typography-500">Carregando alunos...</p>
+                        </td>
+                      </tr>
+                    ) : sortedStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-xs text-typography-500">
+                          Nenhum aluno encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedStudents.map((student, index) => (
+                        <tr 
+                          key={student.id} 
+                          className={`hover:bg-surface-200/40 transition-colors border-b border-surface-300/40 last:border-0 ${
+                            selectedStudents.includes(student.id) ? 'bg-primary-200/5' : ''
+                          }`}
+                        >
+                          <td className="px-4 py-3 print:hidden pdf-hidden">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded border-surface-300 text-primary-200 focus:ring-primary-200 cursor-pointer"
+                              checked={selectedStudents.includes(student.id)}
+                              onChange={() => toggleSelectStudent(student.id)}
+                            />
+                          </td>
+                          <td className="px-3 py-3 text-xs font-semibold text-typography-500 text-center">{index + 1}</td>
+                          <td className="px-5 py-3 text-sm font-bold text-typography-900">{student.nome}</td>
+                          <td className="px-5 py-3 text-xs sm:text-sm text-typography-600">{student.congregacao}</td>
+                          <td className="px-5 py-3 text-xs sm:text-sm text-typography-500">{student.circuito}</td>
+                          <td className="px-4 py-3 text-xs sm:text-sm text-center">
+                            <div className="hidden turma-text">
+                              {student.turma ? (
+                                <span className="bg-amber-500/10 text-amber-700 border border-amber-500/20 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap">
+                                  TURMA {student.turma}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </div>
+                            <div className="select-turma-ui inline-block">
+                              <CustomSelect
+                                value={student.turma || ''}
+                                onChange={(val) => handleUpdateTurma(student.id, val)}
+                                options={[
+                                  { value: '', label: '-' },
+                                  { value: '1', label: 'Turma 1' },
+                                  { value: '2', label: 'Turma 2' },
+                                  { value: '3', label: 'Turma 3' },
+                                ]}
+                                placeholder="-"
+                                className="w-24 text-center"
+                                size="sm"
+                                direction={index >= sortedStudents.length - 4 ? 'up' : 'down'}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-sm print:hidden pdf-hidden">
+                            <div className="flex items-center justify-center gap-1">
+                              <button 
+                                onClick={() => handleOpenModal(student)}
+                                className="p-1.5 text-typography-500 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-colors cursor-pointer"
+                                title="Editar"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteClick(student.id)}
+                                className="p-1.5 text-typography-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                title="Excluir"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+        ) : activeTab === 'workshops' ? (
+          <>
+            {/* Modo Lista (Mobile-friendly, oculto no PDF/impressão) */}
+            {workshopViewMode === 'list' && (
+              <div className="space-y-4 print:hidden pdf-hidden">
+                {WORKSHOP_DATA.map((workshop) => {
+                  const theme = WORKSHOP_THEMES[workshop.id] || WORKSHOP_THEMES.workshop1;
+                  return (
+                    <div key={workshop.id} className="space-y-2.5">
+                      {/* Workshop header */}
+                      <div className="flex items-center gap-2.5 px-1 pt-1">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder}`}>
+                          {workshop.label}
+                        </span>
+                        <div className="flex-1 h-px bg-surface-300/60" />
+                      </div>
+
+                      {workshop.scenarios.map((scenario) => {
+                        const participantCount = workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2;
+                        const isExpanded = expandedScenario === scenario.id;
+
+                        return (
+                          <div
+                            key={scenario.id}
+                            className={`bg-surface-100 border border-surface-300/80 border-l-[3.5px] ${theme.cardBorder} rounded-2xl shadow-2xs overflow-hidden transition-all`}
+                          >
+                            {/* Card header */}
+                            <div
+                              className="flex items-start gap-3 p-3.5 cursor-pointer select-none"
+                              onClick={() => setExpandedScenario(isExpanded ? null : scenario.id)}
+                            >
+                              <span className={`shrink-0 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-lg text-xs font-black scenario-badge ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder} mt-0.5`}>
+                                Cena&nbsp;{scenario.id}
+                              </span>
+                              <p className="flex-1 text-xs font-bold text-typography-800 leading-snug">
+                                {scenario.text}
+                              </p>
+                              <button
+                                type="button"
+                                className={`shrink-0 p-1 rounded-lg border transition-all ${
+                                  isExpanded
+                                    ? 'bg-primary-200 text-white border-primary-200'
+                                    : 'bg-surface-200 text-typography-400 border-surface-300'
+                                }`}
+                              >
+                                <ChevronDown
+                                  size={14}
+                                  className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                />
+                              </button>
+                            </div>
+
+                            {/* Instructions (collapsible) */}
+                            <AnimatePresence>
+                              {isExpanded && scenario.instructions && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="mx-3.5 mb-3 p-3 bg-surface-200/60 border border-surface-300 rounded-xl text-xs text-typography-700 leading-relaxed font-normal">
+                                    {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Participants */}
+                            <div className="px-3.5 pb-3.5 space-y-2 border-t border-surface-300/50 pt-3">
+                              {Array.from({ length: participantCount }).map((_, idx) => {
+                                const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                                const roleLabel = getParticipantLabel(scenario.id, idx);
+                                return (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    {roleLabel && (
+                                      <span className="text-[10px] font-bold text-typography-400 uppercase tracking-wider w-20 shrink-0">
+                                        {roleLabel}
+                                      </span>
+                                    )}
+                                    <CustomSelect
+                                      value={participant}
+                                      onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
+                                      placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
+                                      options={[
+                                        { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
+                                        ...workshopDropdownStudents.map((student) => ({
+                                          value: student.nome,
+                                          label: student.nome,
+                                          badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
+                                        }))
+                                      ]}
+                                      className="flex-1"
+                                      size="sm"
+                                      direction="up"
+                                      searchable={true}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Modo Tabela (Desktop na tela, e SEMPRE renderizado para o PDF/impressão) */}
+            <div className={`${workshopViewMode === 'table' ? 'block' : 'hidden print:block'} w-full bg-surface-100 border border-surface-300 rounded-3xl overflow-hidden shadow-2xs`}>
+              <div className="overflow-x-auto pb-6 custom-scrollbar" id="itinerary-table-container">
+                <table className="w-full border-collapse min-w-[800px] sessions-table text-left">
+                  <thead>
+                    <tr className="bg-primary-200/10 dark:bg-primary-200/15 border-b border-primary-200/25">
+                      <th className="p-4 text-left font-black text-sm tracking-wider text-typography-900" colSpan={2}>
+                        <div className="flex items-center gap-3">
+                          <span className="uppercase tracking-widest text-xs font-black text-typography-800 dark:text-typography-100">Sessão de Treino</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-primary-200 text-white shadow-2xs">
+                            Turma {selectedTurma}
+                          </span>
+                        </div>
+                      </th>
+                      <th className="p-4 text-right align-middle font-black text-[11px] tracking-widest text-typography-600 dark:text-typography-400 uppercase w-[440px]">
+                        Participantes
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-300/60">
+                    {WORKSHOP_DATA.map((workshop) => {
+                      const theme = WORKSHOP_THEMES[workshop.id] || WORKSHOP_THEMES.workshop1;
+                      return (
+                        <Fragment key={workshop.id}>
+                          {workshop.scenarios.map((scenario, sIndex) => (
+                            <tr key={scenario.id} className="group transition-colors">
+                              {sIndex === 0 && (
+                                <td 
+                                  className={`w-[42px] ${theme.sidebarBg} ${theme.sidebarText} border-r ${theme.sidebarBorder} border-b border-surface-300/70 p-0 align-middle text-center workshop-sidebar-${workshop.id}`} 
+                                  rowSpan={workshop.scenarios.length}
+                                >
+                                  <div className={`[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-black text-[11px] uppercase tracking-[0.25em] whitespace-nowrap w-[42px] mx-auto py-6 ${theme.sidebarText}`}>
+                                    {workshop.label}
+                                  </div>
+                                </td>
+                              )}
+                              <td className="border-r border-b border-surface-300/70 p-3.5 relative align-top transition-colors group-hover:bg-surface-200/40 bg-surface-100">
+                                <div className="flex flex-col gap-1">
+                                  <div 
+                                    className="cursor-pointer group/scenario flex items-start gap-2.5"
+                                    onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
+                                  >
+                                    <span className={`shrink-0 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-lg text-xs font-black scenario-badge ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder}`}>
+                                      Cena&nbsp;{scenario.id}
+                                    </span>
+                                    <span className="flex-1 text-xs font-bold text-typography-800 leading-snug pt-0.5">
+                                      {scenario.text}
+                                    </span>
+                                    <button
+                                      type="button" 
+                                      className={`shrink-0 p-1 rounded-lg border transition-all print:hidden pdf-hidden ${
+                                        expandedScenario === scenario.id 
+                                          ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                                          : 'bg-surface-200 text-typography-400 border-surface-300 hover:text-typography-800 hover:bg-surface-300'
+                                      }`}
+                                    >
+                                      <ChevronDown 
+                                        size={14} 
+                                        className={`transform transition-transform duration-200 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      />
+                                    </button>
+                                  </div>
+
+                                  <AnimatePresence>
+                                    {(expandedScenario === scenario.id) && scenario.instructions && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="mt-2.5 p-3.5 bg-surface-200/60 border border-surface-300 rounded-xl shadow-2xs text-xs text-typography-800 leading-relaxed font-normal">
+                                          {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              </td>
+                              <td className="border-b border-surface-300/70 p-2.5 w-[440px] align-top bg-surface-100">
+                                <div className="flex flex-col gap-1.5">
+                                  {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
+                                    const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                                    const roleLabel = getParticipantLabel(scenario.id, idx);
+                                    
+                                    return (
+                                      <div 
+                                        key={idx} 
+                                        className="relative flex items-center min-h-[34px]"
+                                      >
+                                        <div className="hidden workshop-participant-text py-0.5 w-full">
+                                          {participant ? (
+                                            <div className="text-xs">
+                                              {roleLabel && <span className="text-slate-500 font-semibold mr-1.5">{roleLabel}:</span>}
+                                              <span className="font-bold text-slate-900">{participant}</span>
+                                              <span className="text-teal-600 font-bold ml-1.5">✓</span>
+                                            </div>
+                                          ) : (
+                                            idx < 2 ? (
+                                              <div className="text-xs text-slate-400 py-0.5 font-light">
+                                                {roleLabel && <span className="text-slate-400 font-medium mr-1.5">{roleLabel}:</span>}
+                                                <span className="tracking-widest">____________________________________</span>
+                                              </div>
+                                            ) : null
+                                          )}
+                                        </div>
+                                        <div className="workshop-select-ui w-full">
+                                          <CustomSelect
+                                            value={participant}
+                                            onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
+                                            placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
+                                            options={[
+                                              { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
+                                              ...workshopDropdownStudents.map((student) => ({
+                                                value: student.nome,
+                                                label: student.nome,
+                                                badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
+                                              }))
+                                            ]}
+                                            className="w-full"
+                                            dropdownClassName="w-full min-w-[280px]"
+                                            size="sm"
+                                            direction={scenario.id >= 8 ? 'up' : 'down'}
+                                            searchable={true}
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+
+        ) : activeTab === 'templates_pss' ? (
+          <PSSAssignmentLetters 
+            userId={userId}
+            isAdmin={isAdmin}
+            canManage={isAdmin}
+            selectedTurma={selectedTurma}
+            schoolInfo={schoolInfo}
+            workshopAssignments={workshopAssignments}
+          />
+        ) : (
+          <div className="bg-surface-100 rounded-3xl shadow-xs border border-surface-300 overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-transparent" />
+            <div className="bg-surface-200/50 p-4 border-b border-surface-300 text-typography-900 flex items-center justify-between">
+              <h3 className="text-base font-black flex items-center gap-2">
+                <Info size={18} className="text-emerald-500" />
+                Informações da Escola (Turma {selectedTurma})
+              </h3>
+            </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveInfo(); }} className="p-6 md:p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data da Turma</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.dataTurma}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, dataTurma: e.target.value })}
+                    placeholder="Ex: 06/07/2026 - 11/07/2026"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor A</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.instrutorA}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
+                    placeholder="Nome do Instrutor A"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Instrutor B</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.instrutorB}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
+                    placeholder="Nome do Instrutor B"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Local da Escola</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.localEscola}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, localEscola: e.target.value })}
+                    placeholder="Congregação - Cidade UF"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Endereço da Escola</label>
+                  <input
+                    type="text"
+                    value={schoolInfo.enderecoEscola}
+                    onChange={(e) => setSchoolInfo({ ...schoolInfo, enderecoEscola: e.target.value })}
+                    placeholder="Endereço completo da escola"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-50">
+                <h4 className="text-sm font-bold text-[#37616b] mb-4 flex items-center gap-2">
+                  <LayoutList size={16} />
+                  Entrega do Livro
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Endereço de Entrega</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.entregaLivroEndereco}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroEndereco: e.target.value })}
+                      placeholder="Local de entrega dos livros"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data e Hora de Entrega</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.entregaLivroDataHora}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroDataHora: e.target.value })}
+                      placeholder="Ex: sábado, 06/06/2026 às 09:00"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-50">
+                <h4 className="text-sm font-bold text-[#37616b] mb-4 flex items-center gap-2">
+                  <Users size={16} />
+                  Confirmação de Frequência
+                </h4>
+
+                <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+                  <div className="flex items-center gap-2 text-[#37616b] shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                      <Info size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-widest leading-none">Atribuição Automática</p>
+                      <p className="text-[10px] text-gray-500 font-medium">Baseada nos workshops</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-4 md:gap-8">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Workshops <span className="font-bold text-amber-700">1 e 4</span> confirmam com <span className="font-bold">Instrutor B</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-600" />
+                      <p className="text-xs font-medium text-gray-600">
+                        Workshops <span className="font-bold text-blue-700">2 e 3</span> confirmam com <span className="font-bold">Instrutor A</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-1">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Data Limite</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.confirmacaoDataLimite}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoDataLimite: e.target.value })}
+                      placeholder="Data limite para confirmar"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                    />
+                  </div>
+                  
+                  {/* Instrutor A */}
+                  <div className="space-y-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                    <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                       <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">A</span>
+                       Instrutor A
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">E-mail</label>
+                        <input
+                          type="email"
+                          value={schoolInfo.confirmacaoEmail}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
+                          placeholder="e-mail@exemplo.com"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
+                        <input
+                          type="text"
+                          value={schoolInfo.confirmacaoWhatsapp}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
+                          placeholder="(00) 00000-0000"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Instrutor B */}
+                  <div className="space-y-4 p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+                    <h5 className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                       <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-bold">B</span>
+                       Instrutor B (Opcional)
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">E-mail</label>
+                        <input
+                          type="email"
+                          value={schoolInfo.confirmacaoEmailB}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmailB: e.target.value })}
+                          placeholder="e-mail.b@exemplo.com"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">WhatsApp</label>
+                        <input
+                          type="text"
+                          value={schoolInfo.confirmacaoWhatsappB}
+                          onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsappB: e.target.value })}
+                          placeholder="(00) 00000-0000"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none transition-all font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-6 border-t border-gray-100">
+              <p className="text-[10px] text-gray-400 font-medium">As alterações serão salvas na barra flutuante quando você terminar de preencher.</p>
+            </div>
+          </form>
+        </div>
+        )}
+      </div>
+    </div>
+
+    {/* Modal Adicionar/Editar */}
+      <AnimatePresence>
+        {hasInfoChanges && activeTab === 'info' && (
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
+          >
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 sm:h-2.5 w-2 sm:w-2.5 bg-amber-500"></span>
+              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs sm:text-sm font-semibold truncate">
+                  Alterações não salvas
+                </span>
+                <span className="text-[10px] text-typography-500 font-mono hidden sm:inline truncate">
+                  Escola de Pioneiros • Dados Gerais
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                onClick={() => setSchoolInfo({ ...originalSchoolInfo })}
+                disabled={isSavingInfo}
+                className="px-2.5 py-1.5 text-xs font-medium text-typography-600 hover:text-typography-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Descartar
+              </button>
+              <button
+                onClick={handleSaveInfo}
+                disabled={isSavingInfo}
+                className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                {isSavingInfo ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin shrink-0" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={14} className="shrink-0" />
+                    <span>Salvar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {isInfoModalOpen && (
+          <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md no-print">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-2xl overflow-hidden relative text-typography-900 flex flex-col max-h-[90vh]"
+            >
+              <div 
+                className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90 z-10"
+                style={{ backgroundImage: 'linear-gradient(to right, #10B981, #059669, transparent)' }}
+              />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <CalendarDays size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-typography-900 uppercase tracking-tight">
+                      Dados da Escola (Turma {selectedTurma})
+                    </h3>
+                    <p className="text-xs text-typography-500">
+                      Datas, locais, instrutores e confirmações da ESP
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsInfoModalOpen(false)} 
+                  className="p-1.5 rounded-xl text-typography-400 hover:text-typography-800 hover:bg-surface-200 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Data da Turma</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.dataTurma}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, dataTurma: e.target.value })}
+                      placeholder="Ex: 06/07/2026 - 11/07/2026"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Local da Escola</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.localEscola}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, localEscola: e.target.value })}
+                      placeholder="Congregação - Cidade UF"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Instrutor A</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.instrutorA}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
+                      placeholder="Nome do Instrutor A"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Instrutor B</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.instrutorB}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
+                      placeholder="Nome do Instrutor B"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Endereço da Escola</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.enderecoEscola}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, enderecoEscola: e.target.value })}
+                      placeholder="Endereço completo da escola"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-surface-300 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-typography-700 flex items-center gap-1.5">
+                    <LayoutList size={14} className="text-emerald-500" />
+                    Entrega do Livro
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Endereço de Entrega</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.entregaLivroEndereco}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroEndereco: e.target.value })}
+                        placeholder="Local de entrega dos livros"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Data e Hora de Entrega</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.entregaLivroDataHora}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroDataHora: e.target.value })}
+                        placeholder="Ex: sábado, 06/06/2026 às 09:00"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-surface-300 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-typography-700 flex items-center gap-1.5">
+                    <Users size={14} className="text-emerald-500" />
+                    Confirmação de Frequência
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Data Limite</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoDataLimite}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoDataLimite: e.target.value })}
+                        placeholder="Data limite"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                    <div className="p-3 bg-blue-500/5 rounded-2xl border border-blue-500/20 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block">Instrutor A</span>
+                      <input
+                        type="email"
+                        value={schoolInfo.confirmacaoEmail}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
+                        placeholder="E-mail"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoWhatsapp}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
+                        placeholder="WhatsApp"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div className="p-3 bg-amber-500/5 rounded-2xl border border-amber-500/20 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block">Instrutor B</span>
+                      <input
+                        type="email"
+                        value={schoolInfo.confirmacaoEmailB}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmailB: e.target.value })}
+                        placeholder="E-mail B"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoWhatsappB}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsappB: e.target.value })}
+                        placeholder="WhatsApp B"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-surface-300 bg-surface-200/50 flex items-center justify-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsInfoModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-typography-600 hover:text-typography-900 rounded-xl transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleSaveInfo();
+                    setIsInfoModalOpen(false);
+                  }}
+                  disabled={isSavingInfo}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingInfo ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>{isSavingInfo ? 'Salvando...' : 'Salvar Alterações'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-md overflow-hidden relative text-typography-900"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-transparent z-10" />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50">
+                <h3 className="text-base font-black text-typography-900 uppercase tracking-wider">
+                  {editingStudent ? 'Editar Aluno' : 'Novo Aluno'}
+                </h3>
+                <button 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="p-1 rounded-xl text-typography-400 hover:text-typography-800 hover:bg-surface-200 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Nome do Aluno</label>
+                  <input
+                    required
+                    type="text"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/30 focus:border-primary-200 outline-none transition-all"
+                    placeholder="Nome completo"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Congregação</label>
+                  <CustomSelect
+                    value={formData.congregacao}
+                    onChange={(val) => setFormData({ ...formData, congregacao: val })}
+                    options={congregations.map(c => getCongregationLabel(c))}
+                    placeholder="Selecione a congregação"
+                    className="w-full"
+                    dropdownClassName="w-full max-w-full"
+                    size="md"
+                    searchable={true}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Circuito</label>
+                  <input
+                    required
+                    type="text"
+                    value={formData.circuito}
+                    onChange={(e) => setFormData({ ...formData, circuito: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/30 focus:border-primary-200 outline-none transition-all"
+                    placeholder="Ex: PB-003"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Turma</label>
+                  <CustomSelect
+                    value={formData.turma}
+                    onChange={(val) => setFormData({ ...formData, turma: val })}
+                    options={[
+                      { value: '', label: 'Nenhuma turma' },
+                      { value: '1', label: 'Turma 1' },
+                      { value: '2', label: 'Turma 2' },
+                      { value: '3', label: 'Turma 3' },
+                    ]}
+                    placeholder="Selecione a turma"
+                    className="w-full"
+                    dropdownClassName="w-full max-w-full"
+                    size="md"
+                  />
+                </div>
+
+                <div className="pt-3 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="flex-1 px-4 py-2.5 border border-surface-300 text-typography-700 rounded-xl hover:bg-surface-200 font-bold text-xs transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2.5 bg-primary-200 text-white rounded-xl hover:bg-primary-300 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Save size={16} />
+                    Salvar
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Confirmar Exclusão em Massa (Removed since using showConfirm) */}
+      
+      {/* Modal Confirmar Exclusão (Removed since using showConfirm) */}
+
+      {/* Modal Alterações Não Salvas */}
+      <AnimatePresence>
+        {isUnsavedModalOpen && (
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-5 sm:p-6 text-center relative"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
+              <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
+                <AlertTriangle size={24} />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-typography-900 mb-1.5">
+                Alterações não salvas
+              </h3>
+              <p className="text-xs sm:text-sm text-typography-600 mb-5 leading-relaxed">
+                Você fez alterações nas informações da escola. Deseja salvar antes de sair?
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleConfirmSave}
+                  className="w-full py-2.5 px-4 bg-brand-primary text-brand-on-primary rounded-xl font-bold text-xs sm:text-sm hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Save size={16} />
+                  Salvar e continuar
+                </button>
+                <button
+                  onClick={handleConfirmDiscard}
+                  className="w-full py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                >
+                  Descartar e sair
+                </button>
+                <button
+                  onClick={() => {
+                    setIsUnsavedModalOpen(false);
+                    setPendingAction(null);
+                  }}
+                  className="w-full py-2 px-4 border border-surface-300 text-typography-600 hover:text-typography-900 hover:bg-surface-200/50 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer mt-1"
+                >
+                  Continuar editando
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Importar */}
+      <AnimatePresence>
+        {isImportModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface-100 rounded-3xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 relative text-typography-900"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-transparent z-10" />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50">
+                <div className="flex items-center gap-2">
+                  <ClipboardPaste className="text-teal-600 dark:text-teal-400" size={24} />
+                  <h3 className="text-lg font-bold text-typography-900">
+                    Importar da Área de Transferência
+                  </h3>
+                </div>
+                <button onClick={() => setIsImportModalOpen(false)} className="text-typography-400 hover:text-typography-900 p-1 rounded-xl hover:bg-surface-200 transition-colors cursor-pointer">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                <p className="text-sm text-gray-600">
+                  Cole abaixo o texto copiado da sua lista (PDF ou Excel). O sistema irá identificar automaticamente o nome do aluno, a congregação e o circuito.
+                </p>
+
+                {importError && (
+                  <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl font-medium">
+                    {importError}
+                  </div>
+                )}
+
+                {importSuccess && (
+                  <div className="p-3 bg-[#37616b]/10 border border-[#37616b]/20 text-[#37616b] text-sm rounded-xl font-medium flex items-center gap-2">
+                    <div className="w-2 h-2 bg-[#37616b] rounded-full animate-pulse" />
+                    Sucesso! {importSuccess} alunos foram importados.
+                  </div>
+                )}
+                
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="Exemplo: 1 2435076 Cláudia Barbosa Andrade (51508) Boqueirão - PB 30/01/1999..."
+                  className="w-full h-64 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none font-mono text-sm resize-none"
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsImportModalOpen(false)}
+                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    disabled={isImporting || !importText.trim()}
+                    className="flex-[2] px-4 py-2 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] disabled:opacity-50 disabled:cursor-not-allowed font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    {isImporting ? (
+                      <Loader2 className="animate-spin" size={20} />
+                    ) : (
+                      <Plus size={20} />
+                    )}
+                    {isImporting ? 'Importando...' : 'Processar e Importar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}

@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Funções auxiliares
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return (
+        (request.auth != null && request.auth.token.email.lower() in [
+          'weldonrs@gmail.com',
+          '2283701@progcir.app',
+          '2283701@progcir.com',
+          '2283701@gmail.com'
+        ]) ||
+        (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // Regras com suporte a login por senha e chave de acesso (Passkey)
+    match /users/{id} {
+      allow read, write: if true;
+    }
+
+    match /personal_data/{id} {
+      allow read, write: if true;
+    }
+
+    match /regional_convention_invitations/{id} {
+      allow read, write: if true;
+    }
+
+    match /circuit_assembly_supt_invitations/{id} {
+      allow read, write: if true;
+    }
+
+    match /circuit_assembly_branch_invitations/{id} {
+      allow read, write: if true;
+    }
+
+    match /circuit_assembly_supt_speakers/{id} {
+      allow read, write: if true;
+    }
+
+    match /circuit_assembly_branch_speakers/{id} {
+      allow read, write: if true;
+    }
+
+    match /congregations/{id} {
+      allow read, write: if true;
+    }
+
+    match /substitutes/{id} {
+      allow read, write: if true;
+    }
+
+    match /itineraries/{id} {
+      allow read, write: if true;
+    }
+
+    match /pioneer_school_info/{id} {
+      allow read, write: if true;
+    }
+
+    match /document_templates/{id} {
+      allow read, write: if true;
+    }
+
+    match /role_change_requests/{id} {
+      allow read, write: if true;
+    }
+
+    match /pioneer_school_invitations/{id} {
+      allow read, write: if true;
+    }
+
+    match /config/app_settings {
+      allow read, write: if true;
+    }
+
+    match /weekly_expenses/{id} {
+      allow read, write: if true;
+    }
+    
+    match /planner_items/{id} {
+      allow read, write: if true;
+    }
+    
+    match /timer_broadcasts/{id} {
+      allow read, write: if true;
+    }
+
+    match /shared_report_profiles/{id} {
+      allow read, write: if true;
+    }
+
+    match /service_reports/{reportId} {
+      allow read, write: if true;
+    }
+
+    match /assembly_programs/{id} {
+      allow read, write: if true;
+    }
+
+    match /visit_schedules/{id} {
+      allow read, write: if isSignedIn();
+      // Leitura e atualização com base no link compartilhado
+      allow read: if true;
+      allow update: if request.resource.data.shareToken == resource.data.shareToken;
+    }
+
+    // Microsoft OAuth - Permissions for the connection process
+    match /microsoft_connections/{id} {
+      allow read, write: if true;
+    }
+
+    match /email_drafts/{id} {
+      allow read, write: if true;
+    }
+
+    match /email_attachments/{id} {
+      allow read, write: if true;
+    }
+
+    match /oauth_attempts/{id} {
+      allow read, write: if true;
+    }
+
+    match /webauthn_challenges/{id} {
+      allow read, write: if true;
+    }
+
+    match /webauthn_credentials/{id} {
+      allow read, write: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

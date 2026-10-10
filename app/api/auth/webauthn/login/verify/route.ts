@@ -1,0 +1,97 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuthenticationResponse } from '@simplewebauthn/server';
+import { getAdminAuth } from '@/lib/server/firebase-admin';
+import { getWebAuthnConfig, consumeChallenge, getCredentialById, updateCredentialCounter, parsePublicKey } from '@/lib/server/webauthn-utils';
+
+export const runtime = 'nodejs';
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { authenticationResponse, sessionId } = body;
+
+    if (!authenticationResponse || !sessionId) {
+      return NextResponse.json({ error: 'Dados ausentes' }, { status: 400 });
+    }
+
+    // 1. Retrieve challenge
+    const expectedChallenge = await consumeChallenge(sessionId, 'authentication');
+    if (!expectedChallenge) {
+      return NextResponse.json({ error: 'Sessão de login expirada ou não encontrada' }, { status: 400 });
+    }
+
+    // 2. Find the credential
+    const credentialID = authenticationResponse.id;
+    const credential = await getCredentialById(credentialID);
+
+    if (!credential) {
+      return NextResponse.json({ error: 'Chave não registrada para nenhum usuário' }, { status: 400 });
+    }
+
+    const { rpID, origin } = getWebAuthnConfig(req);
+
+    // 3. Verify authentication
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response: authenticationResponse,
+        expectedChallenge,
+        expectedOrigin: origin,
+        expectedRPID: rpID,
+        credential: {
+          id: credential.id,
+          publicKey: Uint8Array.from(parsePublicKey(credential.publicKey)),
+          counter: credential.counter,
+          transports: credential.transports,
+        },
+        requireUserVerification: true,
+      });
+    } catch (error: any) {
+      console.error('[WebAuthn Login Verify] Verification failed:', error);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    const { verified, authenticationInfo } = verification;
+
+    if (verified && authenticationInfo) {
+      // 4. Update counter
+      await updateCredentialCounter(credential.id, authenticationInfo.newCounter);
+
+      // 5. Generate Firebase Custom Token if service account credentials exist
+      let customToken: string | null = null;
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        try {
+          const adminAuth = getAdminAuth();
+          if (adminAuth) {
+            customToken = await adminAuth.createCustomToken(credential.userId);
+          }
+        } catch {
+          // Não-fatal caso a assinatura de token não esteja configurada
+        }
+      }
+
+      const isAdminAccount = 
+        credential.email === 'weldonrs@gmail.com' ||
+        credential.email === '2283701@progcir.app' ||
+        credential.email === '2283701@progcir.com' ||
+        credential.email === '2283701@gmail.com' ||
+        credential.userName === '2283701' ||
+        credential.userId === '2283701';
+
+      return NextResponse.json({ 
+        verified: true, 
+        userId: credential.userId,
+        email: credential.email || null,
+        usuario: credential.userName || credential.email?.split('@')[0] || 'Usuário',
+        role: isAdminAccount ? 'admin' : 'user',
+        customToken: customToken || undefined,
+        message: 'Autenticação verificada com sucesso.'
+      });
+    }
+
+    return NextResponse.json({ verified: false, error: 'Falha na verificação' }, { status: 400 });
+  } catch (error: any) {
+    console.error('[WebAuthn Login Verify] Error:', error);
+    return NextResponse.json({ error: 'Erro ao verificar login' }, { status: 500 });
+  }
+}

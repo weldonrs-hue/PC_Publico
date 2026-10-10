@@ -1,0 +1,514 @@
+{
+  "entities": {
+    "personal_data": {
+      "title": "Personal Data",
+      "description": "Personal information of the circuit overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user" },
+        "numeroPessoal": { "type": "string", "description": "The personal identification number" },
+        "nome": { "type": "string" },
+        "nomeEsposa": { "type": "string" },
+        "endereco": { "type": "string" },
+        "cidade": { "type": "string" },
+        "cep": { "type": "string" },
+        "uf": { "type": "string" },
+        "circuito": { "type": "string" },
+        "emailJwpub": { "type": "string" },
+        "emailPessoal": { "type": "string" },
+        "telefoneCircuito": { "type": "string" },
+        "telefonePessoal": { "type": "string" },
+        "signatureImage": { "type": "string", "description": "Base64 encoded signature image" },
+        "role": { 
+          "type": "string", 
+          "enum": ["viajante", "pioneiro_especial", "pioneiro_regular", "secretaria"],
+          "description": "User role determining access level"
+        }
+      },
+      "required": ["userId", "nome", "role"]
+    },
+    "congregation": {
+      "title": "Congregation",
+      "description": "Details of a congregation in the circuit",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "numero": { "type": "string" },
+        "parte": { "type": "string" },
+        "endereco": { "type": "string" },
+        "coordenador": { "type": "string" },
+        "telefone": { "type": "string" },
+        "cidade": { "type": "string" },
+        "cep": { "type": "string" },
+        "estado": { "type": "string" },
+        "grupos": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "nome", "numero"]
+    },
+    "substitute": {
+      "title": "Substitute",
+      "description": "Details of a substitute overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "congregacaoId": { "type": "string" },
+        "congregacaoNome": { "type": "string" },
+        "cidade": { "type": "string" },
+        "estado": { "type": "string" }
+      },
+      "required": ["userId", "nome", "congregacaoId"]
+    },
+    "itinerary": {
+      "title": "Itinerary",
+      "description": "Itinerary of the circuit overseer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "semana": { "type": "string" },
+        "dataEvento": { "type": "string" },
+        "evento": { "type": "string" },
+        "tipoEvento": { "type": "string" },
+        "observacoes": { "type": "string" },
+        "escritorioNotificado": { "type": "boolean" },
+        "congregacaoNotificada": { "type": "boolean" },
+        "ordem": { "type": "integer" },
+        "dataInicialDia": { "type": "string" },
+        "dataTerminoDia": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "substituto": { "type": "string" },
+        "grupo": { "type": "string" },
+        "outroEvento": { "type": "string" }
+      },
+      "required": ["userId", "semana", "ordem"]
+    },
+    "role_change_request": {
+      "title": "Role Change Request",
+      "description": "Request to change the user category",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "currentRole": { "type": "string" },
+        "requestedRole": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "requestedRole", "phoneNumber", "status"]
+    },
+    "activity_analysis": {
+      "title": "Activity Analysis",
+      "description": "Congregation activity analysis data",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "dataVisita": { "type": "string" },
+        "pubAtivos": { "type": "string" },
+        "ministério": { "type": "object" },
+        "estatisticas": { "type": "object" },
+        "donativos": { "type": "object" },
+        "reunioes": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "congregacao", "dataVisita"]
+    },
+    "s303_report": {
+      "title": "S-303 Report",
+      "description": "Circuit Overseer's report on the congregation visit",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "dataVisita": { "type": "string" },
+        "relatorio": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "textStyles": {
+          "type": "object",
+          "properties": {
+            "fontFamily": { "type": "string" },
+            "fontSize": { "type": "number" },
+            "fontWeight": { "type": "string" },
+            "fontStyle": { "type": "string" },
+            "color": { "type": "string" }
+          }
+        }
+      },
+      "required": ["userId", "congregacao", "dataVisita"]
+    },
+    "user": {
+      "title": "User",
+      "description": "User profile and roles",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "photoURL": { "type": "string", "description": "Base64 encoded profile picture" }
+      },
+      "required": ["email", "role"]
+    },
+    "pioneer_school_student": {
+      "title": "Pioneer School Student",
+      "description": "Details of a student invited to the pioneer school",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nome": { "type": "string" },
+        "congregacao": { "type": "string" },
+        "circuito": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "nome", "congregacao", "circuito"]
+    },
+    "pioneer_school_workshop": {
+      "title": "Pioneer School Workshop",
+      "description": "Assignments of participants to workshop scenarios",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "scenarioId": { "type": "integer" },
+        "participants": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "scenarioId", "participants"]
+    },
+    "regional_convention_speakers": {
+      "title": "Regional Convention Speakers",
+      "description": "List of speakers and their confirmation status for the regional convention program",
+      "type": "object",
+      "properties": {
+        "speakers": { 
+          "type": "object", 
+          "description": "Map of program item IDs to speaker names" 
+        },
+        "confirmations": {
+          "type": "object",
+          "description": "Map of program item IDs to boolean confirmation status"
+        },
+        "details": {
+          "type": "object",
+          "description": "General details about the convention"
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["speakers"]
+    },
+    "shared_report_profile": {
+      "title": "Shared Report Profile",
+      "description": "Magic link profile for sharing a specific report without login",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "The UID of the main user" },
+        "profileName": { "type": "string" },
+        "secretKey": { "type": "string", "description": "Unique random string for the magic link" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "profileName", "secretKey"]
+    },
+    "service_report": {
+      "title": "Field Service Report",
+      "description": "Monthly report of field service hours and goals",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the owner or the shared profile ID" },
+        "days": {
+          "type": "object",
+          "description": "Map of date strings to day data (hours and notes)"
+        },
+        "goal": { "type": "integer", "description": "Monthly hour goal" },
+        "shifts": { "type": "object" },
+        "defaultGoal": { "type": "number" }
+      },
+      "required": ["days", "goal"]
+    },
+    "app_config": {
+      "title": "App Configuration",
+      "description": "Global application feature toggles and settings",
+      "type": "object",
+      "properties": {
+        "reportEnabledForAll": { "type": "boolean", "description": "Whether the field service report is enabled for all users" },
+        "whatsNew": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "content": { "type": "string" },
+            "version": { "type": "string", "description": "A unique identifier for this news item" },
+            "active": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["reportEnabledForAll"]
+    },
+    "document_template": {
+      "title": "Document Template",
+      "description": "Templates for document generation",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the template" },
+        "content": { "type": "string", "description": "The base64 encoded docx content" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "isGlobal": { "type": "boolean", "description": "Whether the template is available to all users" },
+        "ownerId": { "type": "string", "description": "The ID of the user who owns this template, or 'admin' for global" },
+        "category": { "type": "string" }
+      },
+      "required": ["name", "content"]
+    },
+    "pioneer_school_invitation": {
+      "title": "Pioneer School Invitation",
+      "description": "Invitations for other users to collaborate as instructors",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "collaboratorId": { "type": "string" },
+        "collaboratorNumber": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "collaboratorId", "status", "turma"]
+    },
+    "pioneer_school_info": {
+      "title": "Pioneer School Information",
+      "description": "General information about the pioneer school session",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "turma": { "type": "string", "enum": ["1", "2", "3"] },
+        "dataTurma": { "type": "string" },
+        "instrutorA": { "type": "string" },
+        "instrutorB": { "type": "string" },
+        "localEscola": { "type": "string" },
+        "enderecoEscola": { "type": "string" },
+        "entregaLivroEndereco": { "type": "string" },
+        "entregaLivroDataHora": { "type": "string" },
+        "confirmacaoDataLimite": { "type": "string" },
+        "confirmacaoEmail": { "type": "string" },
+        "confirmacaoWhatsapp": { "type": "string" },
+        "dataTreinamento": { "type": "string" },
+        "localTreinamento": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "turma"]
+    },
+    "signature_placement": {
+      "title": "Signature Placement",
+      "description": "Custom position and scale for signature image per template",
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "scale": { "type": "number" }
+      },
+      "required": ["x", "y", "scale"]
+    },
+    "assembly_program": {
+      "title": "Assembly Program",
+      "description": "Program and theme for circuit assemblies scraped from jw.org",
+      "type": "object",
+      "properties": {
+        "year": { "type": "string" },
+        "type": { "type": "string", "enum": ["supt", "branch"] },
+        "title": { "type": "string" },
+        "theme": { "type": "string" },
+        "sessions": { "type": "array" },
+        "lastChecked": { "type": "string" },
+        "lastUpdated": { "type": "string" },
+        "hash": { "type": "string" },
+        "sourceUrl": { "type": "string" }
+      },
+      "required": ["year", "type", "title", "theme", "sessions"]
+    },
+    "weekly_expense_receipt": {
+      "title": "Weekly Expense Receipt",
+      "description": "A financial receipt for weekly expenses",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "value": { "type": "string" }
+            }
+          }
+        },
+        "types": {
+          "type": "object",
+          "properties": {
+            "donativo": { "type": "boolean" },
+            "pagamento": { "type": "boolean" }
+          }
+        },
+        "total": { "type": "string" },
+        "checkedBy": { "type": "string", "description": "Name of the person who checked the expenses" },
+        "congregation": { "type": "string", "description": "Name of the congregation associated with the receipt" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "items", "total", "createdAt"]
+    },
+    "timer_broadcast": {
+      "title": "Timer Broadcast",
+      "description": "Real-time state of a shared timer or stopwatch",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "mode": { "type": "string", "enum": ["stopwatch", "timer"] },
+        "isRunning": { "type": "boolean" },
+        "time": { "type": "integer", "description": "Seconds elapsed or remaining at the moment of sync" },
+        "timerValue": { "type": "integer", "description": "Base timer value in minutes" },
+        "syncTime": { "type": "string", "format": "date-time", "description": "Server timestamp when the state was last synced" }
+      },
+      "required": ["userId", "mode", "isRunning", "time", "syncTime"]
+    },
+    "webauthn_authenticator": {
+      "title": "WebAuthn Authenticator",
+      "description": "Registered WebAuthn credential for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Base64url encoded credential ID" },
+        "publicKey": { "type": "object", "description": "Firestore Blob (Public Key)" },
+        "counter": { "type": "integer", "description": "Signature counter" },
+        "transports": { "type": "array", "items": { "type": "string" } },
+        "userId": { "type": "string", "description": "UID of the owner" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastUsedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "publicKey", "counter", "userId"]
+    },
+    "webauthn_challenge": {
+      "title": "WebAuthn Challenge",
+      "description": "Temporary challenge for registration or authentication",
+      "type": "object",
+      "properties": {
+        "challenge": { "type": "string" },
+        "userId": { "type": "string", "description": "Optional: userId for registration" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["registration", "authentication"] }
+      },
+      "required": ["challenge", "expiresAt", "type"]
+    }
+  },
+  "firestore": {
+    "/timer_broadcasts/{broadcastId}": {
+      "schema": "timer_broadcast",
+      "description": "Collection of shared timer states"
+    },
+    "/weekly_expenses/{receiptId}": {
+      "schema": "weekly_expense_receipt",
+      "description": "Collection of weekly expense receipts"
+    },
+    "/personal_data/{dataId}": {
+      "schema": "personal_data",
+      "description": "Collection of personal data for overseers"
+    },
+    "/congregations/{congId}": {
+      "schema": "congregation",
+      "description": "Collection of congregations"
+    },
+    "/substitutes/{subId}": {
+      "schema": "substitute",
+      "description": "Collection of substitute overseers"
+    },
+    "/itineraries/{itId}": {
+      "schema": "itinerary",
+      "description": "Collection of itineraries"
+    },
+    "/role_change_requests/{requestId}": {
+      "schema": "role_change_request",
+      "description": "Role change requests for admin approval"
+    },
+    "/activity_analysis/{analysisId}": {
+      "schema": "activity_analysis",
+      "description": "Collection of congregation activity analysis"
+    },
+    "/s303_reports/{reportId}": {
+      "schema": "s303_report",
+      "description": "Collection of S-303 reports"
+    },
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Collection of user profiles"
+    },
+    "/pioneer_school_students/{studentId}": {
+      "schema": "pioneer_school_student",
+      "description": "Collection of students invited to the pioneer school"
+    },
+    "/pioneer_school_workshops/{workshopId}": {
+      "schema": "pioneer_school_workshop",
+      "description": "Collection of workshop assignments"
+    },
+    "/pioneer_school_info/{infoId}": {
+      "schema": "pioneer_school_info",
+      "description": "General information for pioneer school sessions"
+    },
+    "/pioneer_school_invitations/{invitationId}": {
+      "schema": "pioneer_school_invitation",
+      "description": "Invitations for pioneer school instructors"
+    },
+    "/regional_convention_speakers/{userId}": {
+      "schema": "regional_convention_speakers",
+      "description": "Collection of speaker assignments for regional conventions"
+    },
+    "/shared_report_profiles/{profileId}": {
+      "schema": "shared_report_profile",
+      "description": "Public profiles for shared reports"
+    },
+    "/service_reports/{reportId}": {
+      "schema": "service_report",
+      "description": "Collection of monthly service reports"
+    },
+    "/config/app_settings": {
+      "schema": "app_config",
+      "description": "Global app settings"
+    },
+    "/document_templates/{templateId}": {
+      "schema": "document_template",
+      "description": "Collection of document templates managed by admin"
+    },
+    "/signature_placements/{placementId}": {
+      "schema": "signature_placement",
+      "description": "Collection of custom signature positions and scales"
+    },
+    "/assembly_programs/{programId}": {
+      "schema": "assembly_program",
+      "description": "Collection of scraped assembly programs"
+    },
+    "/circuit_assembly_supt_speakers/{docId}": {
+      "schema": "circuit_assembly_speakers",
+      "description": "Speaker and details assignments for CAco assemblies"
+    },
+    "/circuit_assembly_branch_speakers/{docId}": {
+      "schema": "circuit_assembly_speakers",
+      "description": "Speaker and details assignments for CAbr assemblies"
+    },
+    "/circuit_assembly_supt_invitations/{invitationId}": {
+      "schema": "circuit_assembly_invitation",
+      "description": "Invitations for CAco assembly assistants"
+    },
+    "/circuit_assembly_branch_invitations/{invitationId}": {
+      "schema": "circuit_assembly_invitation",
+      "description": "Invitations for CAbr assembly assistants"
+    },
+    "/webauthn_credentials/{credentialId}": {
+      "schema": "webauthn_authenticator",
+      "description": "Flat collection of registered WebAuthn credentials"
+    },
+    "/webauthn_challenges/{challengeId}": {
+      "schema": "webauthn_challenge",
+      "description": "Temporary collection of WebAuthn challenges"
+    }
+  }
+}

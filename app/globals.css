@@ -1,0 +1,380 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import "leaflet/dist/leaflet.css";
+
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
+
+/* Force CSS Rebuild - 2026-10-05 */
+
+@theme {
+  --font-sans: var(--font-inter);
+  --font-noto-sans: var(--font-noto-sans);
+  --font-noto-serif: var(--font-noto-serif);
+  --font-headline: var(--font-manrope);
+  --font-signature: var(--font-signature);
+
+  --color-primary-50: var(--color-primary-50);
+  --color-primary-100: var(--color-primary-100);
+  --color-primary-150: var(--color-primary-150);
+  --color-primary-200: var(--color-primary-200);
+
+  --color-secondary-100: var(--color-secondary-100);
+  --color-secondary-200: var(--color-secondary-200);
+
+  --color-typography-100: var(--color-typography-100);
+  --color-typography-200: var(--color-typography-200);
+  --color-typography-300: var(--color-typography-300);
+  --color-typography-400: var(--color-typography-400);
+  --color-typography-500: var(--color-typography-500);
+  --color-typography-600: var(--color-typography-600);
+  --color-typography-700: var(--color-typography-700);
+  --color-typography-800: var(--color-typography-800);
+  --color-typography-900: var(--color-typography-900);
+
+  --color-surface-100: var(--color-surface-100);
+  --color-surface-200: var(--color-surface-200);
+  --color-surface-300: var(--color-surface-300);
+
+  --color-success-100: var(--color-success-100);
+}
+
+:root {
+  /* Primárias - Roxo Vibrante & Moderno (menos embranquiçado) */
+  --color-primary-50: #f3eefc;
+  --color-primary-100: #cbb8ed;
+  --color-primary-150: #855fc8;
+  --color-primary-200: #6d42be;
+
+  /* Secundárias */
+  --color-secondary-100: #f8f6fc;
+  --color-secondary-200: #ede8f5;
+
+  /* Texto */
+  --color-typography-100: #f5f5f5;
+  --color-typography-200: #eeeeee;
+  --color-typography-300: #e0e0e0;
+  --color-typography-400: #bdbdbd;
+  --color-typography-500: #8c8c9e;
+  --color-typography-600: #6b6b7d;
+  --color-typography-700: #4a455a;
+  --color-typography-800: #332d42;
+  --color-typography-900: #1a1626;
+
+  /* Fundos */
+  --color-surface-100: #ffffff;
+  --color-surface-200: #f6f4fa;
+  --color-surface-300: #e5e0f0;
+
+  /* Success */
+  --color-success-100: #10b981;
+
+  /* Sidebar */
+  --sidebar-from: #6d42be;
+  --sidebar-via: #6d42be;
+  --sidebar-to: #855fc8;
+  --sidebar-border: rgba(255, 255, 255, 0.15);
+  --sidebar-active-bg: rgba(255, 255, 255, 0.22);
+  --sidebar-active-border: rgba(255, 255, 255, 0.28);
+  --sidebar-active-text: #ffffff;
+  --sidebar-text: rgba(255, 255, 255, 0.85);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.12);
+  --sidebar-indicator: #ffffff;
+  --sidebar-header-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-footer-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* Tema Verde / Teal (Information Board) */
+.theme-teal {
+  --color-primary-50: #edf9f9;
+  --color-primary-100: #83c5be;
+  --color-primary-150: #50a5a0;
+  --color-primary-200: #178582;
+
+  --color-secondary-100: #edf6f9;
+  --color-secondary-200: #e9e9e9;
+
+  --color-typography-100: #f5f5f5;
+  --color-typography-200: #eeeeee;
+  --color-typography-300: #e0e0e0;
+  --color-typography-400: #bdbdbd;
+  --color-typography-500: #9e9e9e;
+  --color-typography-600: #757575;
+  --color-typography-700: #616161;
+  --color-typography-800: #424242;
+  --color-typography-900: #212121;
+
+  --color-surface-100: #ffffff;
+  --color-surface-200: #edf6f9;
+  --color-surface-300: #dce7eb;
+
+  /* Sidebar */
+  --sidebar-from: #178582;
+  --sidebar-via: #178582;
+  --sidebar-to: #50a5a0;
+  --sidebar-border: rgba(255, 255, 255, 0.15);
+  --sidebar-active-bg: rgba(255, 255, 255, 0.22);
+  --sidebar-active-border: rgba(255, 255, 255, 0.28);
+  --sidebar-active-text: #ffffff;
+  --sidebar-text: rgba(255, 255, 255, 0.85);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.12);
+  --sidebar-indicator: #ffffff;
+  --sidebar-header-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-footer-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* Tema Azul (Information Board) */
+.theme-blue {
+  --color-primary-50: #f0f4fa;
+  --color-primary-100: #9fb9e3;
+  --color-primary-150: #416496;
+  --color-primary-200: #3e6ba3;
+
+  --color-secondary-100: #f2f5fa;
+  --color-secondary-200: #e4e9f2;
+
+  --color-typography-100: #f5f5f5;
+  --color-typography-200: #eeeeee;
+  --color-typography-300: #e0e0e0;
+  --color-typography-400: #bdbdbd;
+  --color-typography-500: #8893a7;
+  --color-typography-600: #657085;
+  --color-typography-700: #475369;
+  --color-typography-800: #2d3748;
+  --color-typography-900: #1a202c;
+
+  --color-surface-100: #ffffff;
+  --color-surface-200: #f1f4f9;
+  --color-surface-300: #dce3ed;
+
+  /* Sidebar */
+  --sidebar-from: #3e6ba3;
+  --sidebar-via: #3e6ba3;
+  --sidebar-to: #416496;
+  --sidebar-border: rgba(255, 255, 255, 0.15);
+  --sidebar-active-bg: rgba(255, 255, 255, 0.22);
+  --sidebar-active-border: rgba(255, 255, 255, 0.28);
+  --sidebar-active-text: #ffffff;
+  --sidebar-text: rgba(255, 255, 255, 0.85);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.12);
+  --sidebar-indicator: #ffffff;
+  --sidebar-header-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-footer-bg: rgba(0, 0, 0, 0.1);
+}
+
+.theme-dark {
+  /* Primárias Dark - Roxo Noturno Profundo */
+  --color-primary-50: #1c142b;
+  --color-primary-100: #bfa4e8;
+  --color-primary-150: #7b4ec2;
+  --color-primary-200: #5d349e;
+
+  /* Secundárias */
+  --color-secondary-100: #110d1a;
+  --color-secondary-200: #1a1426;
+
+  /* Texto */
+  --color-typography-100: #ffffff;
+  --color-typography-200: #f2eefa;
+  --color-typography-300: #d6cee6;
+  --color-typography-400: #aea2c7;
+  --color-typography-500: #8c80a8;
+  --color-typography-600: #6e638a;
+  --color-typography-700: #d6cee6;
+  --color-typography-800: #f2eefa;
+  --color-typography-900: #ffffff;
+
+  /* Fundos Escuros mais profundos */
+  --color-surface-100: #130f1c;
+  --color-surface-200: #0d0a14;
+  --color-surface-300: #241d33;
+
+  /* Sidebar Dark - Fundo Noturno Integrado com Realces Arroxeados */
+  --sidebar-from: #151022;
+  --sidebar-via: #120d1c;
+  --sidebar-to: #0e0a16;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-active-bg: rgba(109, 66, 190, 0.35);
+  --sidebar-active-border: rgba(191, 164, 232, 0.35);
+  --sidebar-active-text: #ffffff;
+  --sidebar-text: #a89ec0;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-indicator: #bfa4e8;
+  --sidebar-header-bg: rgba(255, 255, 255, 0.02);
+  --sidebar-footer-bg: rgba(0, 0, 0, 0.25);
+}
+
+@layer base {
+  .font-serif-document {
+    font-family: var(--font-serif), "Times New Roman", Times, serif;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-surface-200);
+    color: var(--color-typography-800);
+  }
+}
+
+.sidebar-theme {
+  background: linear-gradient(180deg, var(--sidebar-from) 0%, var(--sidebar-via) 50%, var(--sidebar-to) 100%);
+  border-color: var(--sidebar-border);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(76, 175, 80, 0.3) rgba(255, 255, 255, 0.05);
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(76, 175, 80, 0.3);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(76, 175, 80, 0.5);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media print {
+  /* UI elements that should always be hidden in print */
+  nav, 
+  aside, 
+  header, 
+  footer, 
+  button, 
+  .no-print,
+  .print\:hidden,
+  .udoc-viewer-toolbar,
+  [class*="toolbar"],
+  [class*="sidebar"] {
+    display: none !important;
+  }
+
+  /* Show only desired content */
+  body, html {
+    background-color: white !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Specific handling for udoc viewer */
+  .udoc-viewer-container {
+    visibility: visible !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  .udoc-page {
+    page-break-after: always;
+  }
+}
+
+.custom-scrollbar-wide::-webkit-scrollbar {
+  height: 6px;
+}
+
+.custom-scrollbar-wide::-webkit-scrollbar-track {
+  background: rgba(136, 14, 79, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar-wide::-webkit-scrollbar-thumb {
+  background: rgba(136, 14, 79, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar-wide::-webkit-scrollbar-thumb:hover {
+  background: rgba(136, 14, 79, 0.4);
+}
+
+/* Custom Map Tooltip Styling */
+.leaflet-tooltip {
+  background: white !important;
+  border: 1px solid #fde68a !important;
+  border-radius: 9999px !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  color: #92400e !important;
+  font-weight: 900 !important;
+  font-size: 10px !important;
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: #fde68a !important;
+}
+
+/* Fonte e formatação base consolidada */
+.jwac-container, .ms-ROMAN, .jwac.ms-ROMAN {
+  font-family: var(--font-noto-sans), Arial, "Arial Unicode MS", sans-serif;
+  line-height: 1.5;
+  word-break: normal;
+  color: #292929; /* cinza escuro */
+}
+
+/* Ajuste de tamanho e espaçamento */
+.textSizeIncrement {
+  font-size: 1.35em;    /* Aumento significativo */
+  line-height: 1.1;     /* Altura de linha super compacta */
+}
+
+/* Estilo do parágrafo destacado */
+.jwac .jwac-textHighlight {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #8e8e8e; /* cinza médio */
+  text-decoration-thickness: 1px;
+  text-underline-offset: .4ex;
+}
+
+/* Estilo para Cânticos */
+.jwac-song-link {
+  color: #4a6da7; /* Azul jw.org */
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.jwac-song-link:hover {
+  text-decoration: underline;
+}
+
+/* Listas sem marcador e sem indentação */
+.jwac ul.noMarker {
+  list-style-type: none;
+}
+.jwac.dir-ltr ul.noIndent {
+  padding-left: 0;
+}
+
+/* Campos flexíveis */
+.jwac .gen-field {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 1em 0;
+}
