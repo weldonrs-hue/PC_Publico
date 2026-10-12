@@ -15,6 +15,7 @@ interface PrintPageDefinition {
   pageId: string;
   pageNumber: number;
   label: string;
+  copyOwnerBadge: string;
   headerSubtitle: string;
   isSubtitleEditable: boolean;
   onSubtitleChange?: (val: string) => void;
@@ -87,6 +88,7 @@ export default function SemanaVisitaPrint({
     pageId: 'viajante',
     pageNumber: currentPageNum++,
     label: `Página 1: Viajante (${data.studiesAndVisits.husbandName || 'Marido'})`,
+    copyOwnerBadge: `CÓPIA: ${data.studiesAndVisits.husbandName || 'VIAJANTE'}`,
     headerSubtitle: data.coupleNames || '',
     isSubtitleEditable: true,
     onSubtitleChange: (val) => update((prev) => ({ ...prev, coupleNames: val })),
@@ -132,6 +134,7 @@ export default function SemanaVisitaPrint({
     pageId: 'esposa',
     pageNumber: currentPageNum++,
     label: `Página 2: Esposa (${data.studiesAndVisits.wifeName || 'Esposa'})`,
+    copyOwnerBadge: `CÓPIA: ${data.studiesAndVisits.wifeName || 'ESPOSA'}`,
     headerSubtitle: data.coupleNames || '',
     isSubtitleEditable: true,
     onSubtitleChange: (val) => update((prev) => ({ ...prev, coupleNames: val })),
@@ -175,6 +178,7 @@ export default function SemanaVisitaPrint({
       pageId: `companion-${comp.id || compIdx}`,
       pageNumber: compPageNum,
       label: `Página ${compPageNum}: Acompanhante (${comp.name || 'Irmão'})`,
+      copyOwnerBadge: `CÓPIA: ${comp.name || 'ACOMPANHANTE'}`,
       headerSubtitle: comp.name 
         ? (data.coupleNames ? `${data.coupleNames} — Acompanhante: ${comp.name}` : `Acompanhante: ${comp.name}`)
         : (data.coupleNames || 'Acompanhante'),
@@ -230,6 +234,7 @@ export default function SemanaVisitaPrint({
         pageId: `companion-wife-${comp.id || compIdx}`,
         pageNumber: wifePageNum,
         label: `Página ${wifePageNum}: Esposa do Acompanhante (${comp.wifeName || 'Esposa'})`,
+        copyOwnerBadge: `CÓPIA: ${comp.wifeName || 'ESPOSA (ACOMP.)'}`,
         headerSubtitle: comp.wifeName
           ? (data.coupleNames ? `${data.coupleNames} — Esposa do Acompanhante: ${comp.wifeName}` : `Esposa do Acompanhante: ${comp.wifeName}`)
           : (data.coupleNames || 'Esposa do Acompanhante'),
@@ -310,7 +315,10 @@ export default function SemanaVisitaPrint({
                   </svg>
                 </div>
                 <div className="header-title">
-                  <h1>SEMANA DA VISITA</h1>
+                  <div className="header-title-top">
+                    <h1>SEMANA DA VISITA</h1>
+                    <span className="copy-owner-badge">{page.copyOwnerBadge}</span>
+                  </div>
                   <p>
                     <input
                       type="text"
@@ -1305,11 +1313,31 @@ export default function SemanaVisitaPrint({
           fill: white;
         }
 
+        .header-title-top {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
         .header-title h1 {
           font-size: 20px;
           font-weight: 900;
           letter-spacing: 1px;
           margin: 0;
+        }
+
+        .copy-owner-badge {
+          background: rgba(255, 255, 255, 0.22);
+          border: 1px solid rgba(255, 255, 255, 0.5);
+          color: white;
+          font-size: 9.5px;
+          font-weight: 800;
+          padding: 2px 9px;
+          border-radius: 999px;
+          letter-spacing: 0.6px;
+          text-transform: uppercase;
+          white-space: nowrap;
         }
 
         .header-title p {
