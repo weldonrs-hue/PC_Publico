@@ -84,6 +84,11 @@ export default function EldersMeetingAgendaView({
     text: string;
   } | null>(null);
 
+  const printBodyRef = useRef<HTMLDivElement>(null);
+  const printFooterRef = useRef<HTMLDivElement>(null);
+  const pageRulerRef = useRef<HTMLDivElement>(null);
+  const [pageCount, setPageCount] = useState<number>(1);
+
   // Estados para replicação de pauta de outra semana
   const [isReplicateModalOpen, setIsReplicateModalOpen] = useState(false);
   const [previousAgendas, setPreviousAgendas] = useState<EldersMeetingAgenda[]>([]);
@@ -127,6 +132,36 @@ export default function EldersMeetingAgendaView({
       ),
     [isDirty, agenda, savedSnapshot]
   );
+
+  useEffect(() => {
+    if (!agenda) return;
+    const recalculatePages = () => {
+      const bodyEl = printBodyRef.current;
+      const footerEl = printFooterRef.current;
+      const rulerEl = pageRulerRef.current;
+      if (!bodyEl || !rulerEl) return;
+
+      const onePagePx = rulerEl.offsetHeight || 1012;
+      const bodyHeightPx = bodyEl.offsetHeight || 0;
+      const footerHeightPx = footerEl ? footerEl.offsetHeight + 20 : 0;
+      const totalNaturalPx = bodyHeightPx + footerHeightPx;
+
+      if (totalNaturalPx > 0 && onePagePx > 0) {
+        const pages = Math.max(1, Math.ceil(totalNaturalPx / onePagePx));
+        setPageCount(pages);
+      }
+    };
+
+    recalculatePages();
+    const timer = setTimeout(recalculatePages, 60);
+    window.addEventListener('resize', recalculatePages);
+    window.addEventListener('beforeprint', recalculatePages);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', recalculatePages);
+      window.removeEventListener('beforeprint', recalculatePages);
+    };
+  }, [agenda]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -446,12 +481,19 @@ export default function EldersMeetingAgendaView({
 
     return (
       <div className={isPrintOnly ? 'agenda-a4-print-root' : 'agenda-a4-preview-wrapper'}>
-        <div className="agenda-a4-page">
-          {/* Topo sutil e cabeçalho clean */}
-          <div className="agenda-header">
-            <div className="agenda-header-eyebrow">REUNIÃO TRIMESTRAL / VISITA DO SUPERINTENDENTE DE CIRCUITO</div>
-            <h1 className="agenda-header-title">PAUTA DA REUNIÃO DO CORPO DE ANCIÃOS</h1>
-          </div>
+        <div
+          className="agenda-a4-page"
+          style={{ ['--agenda-pages' as any]: pageCount }}
+        >
+          <div
+            ref={isPrintOnly ? printBodyRef : undefined}
+            className="agenda-body-content"
+          >
+            {/* Topo sutil e cabeçalho clean */}
+            <div className="agenda-header">
+              <div className="agenda-header-eyebrow">REUNIÃO TRIMESTRAL / VISITA DO SUPERINTENDENTE DE CIRCUITO</div>
+              <h1 className="agenda-header-title">PAUTA DA REUNIÃO DO CORPO DE ANCIÃOS</h1>
+            </div>
 
           {/* Grade 2x2 de Informações da Reunião */}
           <div className="agenda-meta-grid">
@@ -880,10 +922,14 @@ export default function EldersMeetingAgendaView({
               </div>
             </div>
           )}
+          </div>
 
-          {/* RODAPÉ COM LEMBRETE BÍBLICO */}
+          {/* RODAPÉ COM LEMBRETE BÍBLICO (SEMPRE NO PÉ DA ÚLTIMA PÁGINA) */}
           {agenda.footerNote && (
-            <div className="agenda-footer-note">
+            <div
+              ref={isPrintOnly ? printFooterRef : undefined}
+              className="agenda-footer-note"
+            >
               {isPrintOnly ? (
                 <p>{agenda.footerNote}</p>
               ) : (
@@ -918,7 +964,7 @@ export default function EldersMeetingAgendaView({
         .agenda-a4-page {
           width: 210mm;
           min-width: 210mm;
-          min-height: 297mm;
+          min-height: calc(var(--agenda-pages, 1) * 268mm + 30mm);
           background: #ffffff;
           color: #0f172a;
           padding: 16mm 16mm 14mm;
@@ -930,6 +976,13 @@ export default function EldersMeetingAgendaView({
           flex-direction: column;
           gap: 18px;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .agenda-body-content {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          flex-shrink: 0;
         }
 
         .agenda-header {
@@ -1319,10 +1372,15 @@ export default function EldersMeetingAgendaView({
           font-weight: 600;
           color: #334155;
           line-height: 1.45;
+          text-align: center;
+          white-space: pre-wrap;
+          page-break-inside: avoid;
+          break-inside: avoid;
         }
 
         .agenda-footer-note p {
           margin: 0;
+          white-space: pre-wrap;
         }
 
         .agenda-footer-textarea {
@@ -1333,10 +1391,31 @@ export default function EldersMeetingAgendaView({
           font-style: italic;
           font-weight: 600;
           color: #334155;
+          text-align: center;
           resize: none;
           outline: none;
           font-family: inherit;
           line-height: 1.45;
+        }
+
+        .agenda-page-ruler {
+          position: fixed;
+          left: -10000px;
+          top: 0;
+          width: 1px;
+          height: 268mm;
+          visibility: hidden;
+          pointer-events: none;
+        }
+
+        .agenda-offscreen-print-container {
+          position: fixed;
+          left: -10000px;
+          top: 0;
+          width: 182mm;
+          visibility: hidden;
+          pointer-events: none;
+          z-index: -1;
         }
 
         @media print {
@@ -1351,15 +1430,27 @@ export default function EldersMeetingAgendaView({
             print-color-adjust: exact !important;
           }
 
+          .agenda-offscreen-print-container {
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+            z-index: auto !important;
+          }
+
           .agenda-a4-print-root .agenda-a4-page {
             width: 100% !important;
             min-width: 0 !important;
-            min-height: 0 !important;
+            min-height: calc(var(--agenda-pages, 1) * 268mm) !important;
             padding: 0 !important;
             margin: 0 !important;
             border: none !important;
             box-shadow: none !important;
             border-radius: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
           }
         }
       `}</style>
@@ -2059,8 +2150,9 @@ export default function EldersMeetingAgendaView({
         )}
       </div>
 
-      {/* COMPONENTE EXCLUSIVO PARA IMPRESSÃO / PDF */}
-      <div className="hidden print:block">{renderA4Sheet(true)}</div>
+      {/* RÉGUA DE ALTURA DE PÁGINA A4 E COMPONENTE EXCLUSIVO PARA IMPRESSÃO / PDF */}
+      <div ref={pageRulerRef} className="agenda-page-ruler" aria-hidden="true" />
+      <div className="agenda-offscreen-print-container">{renderA4Sheet(true)}</div>
 
       {/* BARRA FLUTUANTE DE ALTERAÇÕES NÃO SALVAS */}
       {typeof document !== 'undefined' &&

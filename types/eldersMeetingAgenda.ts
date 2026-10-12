@@ -31,6 +31,9 @@ export interface EldersMeetingAgenda {
 }
 
 export const DEFAULT_AGENDA_FOOTER_NOTE =
+  'Querido ancião, por favor, considere todos os assuntos com oração e com base em todas as referências bíblicas e teocráticas.\n(Pro. 11:14; Sal. 127:1)';
+
+const LEGACY_SINGLE_LINE_FOOTER_NOTE =
   'Querido ancião, por favor, considere todos os assuntos com oração e com base em todas as referências bíblicas e teocráticas. (Pro. 11:14; Sal. 127:1)';
 
 export function normalizeEldersMeetingAgenda(
@@ -97,7 +100,9 @@ export function normalizeEldersMeetingAgenda(
         }))
       : [],
     footerNote:
-      raw.footerNote !== undefined ? raw.footerNote : DEFAULT_AGENDA_FOOTER_NOTE,
+      raw.footerNote === undefined || raw.footerNote === LEGACY_SINGLE_LINE_FOOTER_NOTE
+        ? DEFAULT_AGENDA_FOOTER_NOTE
+        : raw.footerNote,
   };
 }
 
