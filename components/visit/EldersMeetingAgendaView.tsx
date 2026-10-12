@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   ClipboardList,
   ClipboardPaste,
+  Clock,
   Copy,
   Eye,
   FileText,
@@ -279,9 +280,10 @@ export default function EldersMeetingAgendaView({
         ...agenda,
         topics: (source.topics || []).map((t, idx) => ({
           id: `topic_${Date.now()}_${idx}`,
-          subject: t.subject || '',
+          subject: (t.subject || '').toUpperCase(),
           reference: t.reference || '',
           referenceText: t.referenceText || '',
+          duration: t.duration || '',
         })),
         footerNote: source.footerNote || agenda.footerNote,
       };
@@ -307,21 +309,37 @@ export default function EldersMeetingAgendaView({
     );
   }, [previousAgendas, selectedSourceId]);
 
+  const formatTopicDuration = (raw?: string) => {
+    if (!raw || !raw.trim()) return '';
+    const trimmed = raw.trim();
+    if (/^\d+$/.test(trimmed)) {
+      return `${trimmed} MIN`;
+    }
+    return trimmed.toUpperCase();
+  };
+
   // Helpers para manipular Assuntos
   const addTopic = () => {
     updateAgenda((prev) => ({
       ...prev,
       topics: [
         ...prev.topics,
-        { id: `topic_${Date.now()}`, subject: '', reference: '', referenceText: '' },
+        {
+          id: `topic_${Date.now()}`,
+          subject: '',
+          reference: '',
+          referenceText: '',
+          duration: '',
+        },
       ],
     }));
   };
 
   const updateTopic = (idx: number, field: keyof AgendaTopicItem, value: string) => {
+    const finalValue = field === 'subject' ? value.toUpperCase() : value;
     updateAgenda((prev) => {
       const next = [...prev.topics];
-      next[idx] = { ...next[idx], [field]: value };
+      next[idx] = { ...next[idx], [field]: finalValue };
       return { ...prev, topics: next };
     });
   };
@@ -551,15 +569,36 @@ export default function EldersMeetingAgendaView({
                           <td className="agenda-num-cell">{idx + 1}</td>
                           <td>
                             {isPrintOnly ? (
-                              <div className="agenda-cell-text font-medium">{topic.subject}</div>
+                              <div className="agenda-subject-print-row">
+                                <span className="agenda-cell-text font-bold uppercase">
+                                  {(topic.subject || '').toUpperCase()}
+                                </span>
+                                {topic.duration?.trim() && (
+                                  <span className="agenda-duration-badge">
+                                    {formatTopicDuration(topic.duration)}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
-                              <textarea
-                                rows={1}
-                                value={topic.subject}
-                                onChange={(e) => updateTopic(idx, 'subject', e.target.value)}
-                                placeholder="Descreva o assunto ou necessidade..."
-                                className="agenda-table-textarea font-medium"
-                              />
+                              <div className="agenda-subject-edit-row">
+                                <textarea
+                                  rows={1}
+                                  value={(topic.subject || '').toUpperCase()}
+                                  onChange={(e) =>
+                                    updateTopic(idx, 'subject', e.target.value.toUpperCase())
+                                  }
+                                  placeholder="DESCREVA O ASSUNTO..."
+                                  className="agenda-table-textarea font-bold uppercase flex-1"
+                                />
+                                <input
+                                  type="text"
+                                  value={topic.duration || ''}
+                                  onChange={(e) => updateTopic(idx, 'duration', e.target.value)}
+                                  placeholder="Tempo"
+                                  title="Tempo designado para este assunto (ex: 10 min)"
+                                  className="agenda-duration-input"
+                                />
+                              </div>
                             )}
                           </td>
                           <td>
@@ -1072,6 +1111,56 @@ export default function EldersMeetingAgendaView({
           min-height: 18px;
         }
 
+        .agenda-subject-print-row {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .agenda-subject-edit-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .agenda-duration-badge {
+          font-size: 10px;
+          font-weight: 800;
+          color: #1e3a5f;
+          background: #e2e8f0;
+          border: 1px solid #cbd5e1;
+          border-radius: 4px;
+          padding: 1px 6px;
+          white-space: nowrap;
+          flex-shrink: 0;
+          letter-spacing: 0.03em;
+        }
+
+        .agenda-duration-input {
+          width: 68px;
+          flex-shrink: 0;
+          font-size: 10.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          text-align: center;
+          color: #1e3a5f;
+          background: #f1f5f9;
+          border: 1px dashed #cbd5e1;
+          border-radius: 5px;
+          padding: 2px 5px;
+          outline: none;
+          font-family: inherit;
+          transition: all 0.15s;
+        }
+
+        .agenda-duration-input:focus {
+          border-style: solid;
+          border-color: #1e3a5f;
+          background: #ffffff;
+        }
+
         .agenda-table-textarea {
           width: 100%;
           border: none;
@@ -1481,9 +1570,17 @@ export default function EldersMeetingAgendaView({
                       className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3"
                     >
                       <div className="flex items-center justify-between border-b border-surface-300 pb-2">
-                        <span className="text-xs font-black text-primary-200 bg-primary-200/10 px-2.5 py-0.5 rounded-lg border border-primary-200/20">
-                          Assunto #{idx + 1}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-primary-200 bg-primary-200/10 px-2.5 py-0.5 rounded-lg border border-primary-200/20">
+                            Assunto #{idx + 1}
+                          </span>
+                          {topic.duration?.trim() && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg bg-surface-200 text-typography-700 border border-surface-300">
+                              <Clock size={11} className="text-primary-200" />
+                              {formatTopicDuration(topic.duration)}
+                            </span>
+                          )}
+                        </div>
 
                         <div className="flex items-center gap-1">
                           <button
@@ -1518,17 +1615,62 @@ export default function EldersMeetingAgendaView({
                       </div>
 
                       <div className="space-y-2.5">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
-                            Assunto / Necessidade
-                          </label>
-                          <textarea
-                            rows={2}
-                            placeholder="Ex: Pastoreio e encorajamento aos publicadores irregulares..."
-                            value={topic.subject}
-                            onChange={(e) => updateTopic(idx, 'subject', e.target.value)}
-                            className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_170px] gap-2.5">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                              Assunto / Necessidade (Caixa Alta)
+                            </label>
+                            <textarea
+                              rows={2}
+                              placeholder="EX: PASTOREIO E ENCORAJAMENTO AOS PUBLICADORES IRREGULARES..."
+                              value={(topic.subject || '').toUpperCase()}
+                              onChange={(e) =>
+                                updateTopic(idx, 'subject', e.target.value.toUpperCase())
+                              }
+                              className="w-full text-xs font-bold uppercase p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500 flex items-center gap-1">
+                              <Clock size={12} className="text-primary-200" />
+                              Tempo (Opcional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: 10 min"
+                              value={topic.duration || ''}
+                              onChange={(e) => updateTopic(idx, 'duration', e.target.value)}
+                              className="w-full text-xs font-bold uppercase p-2 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all"
+                            />
+                            <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                              {['5 min', '10 min', '15 min', '20 min'].map((preset) => {
+                                const isSelected =
+                                  (topic.duration || '').trim().toUpperCase() ===
+                                  preset.toUpperCase();
+                                return (
+                                  <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() =>
+                                      updateTopic(
+                                        idx,
+                                        'duration',
+                                        isSelected ? '' : preset
+                                      )
+                                    }
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-primary-200 text-white border-primary-200'
+                                        : 'bg-surface-200/70 text-typography-600 border-surface-300 hover:bg-surface-300'
+                                    }`}
+                                  >
+                                    {preset}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
 
                         <div className="space-y-1.5">
