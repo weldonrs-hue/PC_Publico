@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import { Check, Image as ImageIcon, Loader2, PenTool, RefreshCcw, Sparkles, Trash2, Type, Upload } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import React, { useRef, useState } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
-import { Type, PenTool, Image as ImageIcon, Trash2, Check, X, RefreshCcw, Sparkles, Loader2, Upload } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface SignaturePadProps {
   onSave: (signatureDataUrl: string) => void;
@@ -302,39 +302,43 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
+        className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-surface-300 relative text-typography-900"
       >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
         {/* Header/Tabs */}
-        <div className="flex border-b border-gray-100">
+        <div className="flex border-b border-surface-300 bg-surface-200/40">
           <button 
+            type="button"
             onClick={() => setMode('type')}
-            className={`flex-1 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-              mode === 'type' ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-400 hover:text-gray-600'
+            className={`flex-1 py-3.5 sm:py-4 flex items-center justify-center gap-2 text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+              mode === 'type' ? 'text-primary-200 bg-primary-200/10 border-b-2 border-primary-200' : 'text-typography-500 hover:text-typography-800 hover:bg-surface-200/50'
             }`}
           >
             <Type size={18} />
             DIGITAR
           </button>
           <button 
+            type="button"
             onClick={() => setMode('draw')}
-            className={`flex-1 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-              mode === 'draw' ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-400 hover:text-gray-600'
+            className={`flex-1 py-3.5 sm:py-4 flex items-center justify-center gap-2 text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+              mode === 'draw' ? 'text-primary-200 bg-primary-200/10 border-b-2 border-primary-200' : 'text-typography-500 hover:text-typography-800 hover:bg-surface-200/50'
             }`}
           >
             <PenTool size={18} />
             DESENHAR
           </button>
           <button 
+            type="button"
             onClick={() => {
               setMode('image');
               fileInputRef.current?.click();
             }}
-            className={`flex-1 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-              mode === 'image' ? 'text-emerald-600 bg-emerald-50/50' : 'text-gray-400 hover:text-gray-600'
+            className={`flex-1 py-3.5 sm:py-4 flex items-center justify-center gap-2 text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+              mode === 'image' ? 'text-primary-200 bg-primary-200/10 border-b-2 border-primary-200' : 'text-typography-500 hover:text-typography-800 hover:bg-surface-200/50'
             }`}
           >
             <ImageIcon size={18} />
@@ -343,7 +347,7 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
         </div>
 
         {/* Content Area */}
-        <div className="p-8 min-h-[300px] flex flex-col justify-center">
+        <div className="p-6 sm:p-8 min-h-[300px] flex flex-col justify-center">
           <AnimatePresence mode="wait">
             {mode === 'type' && (
               <motion.div 
@@ -358,19 +362,20 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                   value={typedName}
                   onChange={(e) => setTypedName(e.target.value)}
                   placeholder="Seu nome aqui..."
-                  className="w-full text-center text-4xl p-4 bg-transparent border-b-2 border-gray-100 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full text-center text-3xl sm:text-4xl p-4 bg-transparent border-b-2 border-surface-300 focus:border-primary-200 outline-none transition-colors text-blue-900"
                   style={{ fontFamily: selectedFont.variable, color: '#0f35a9' }}
                 />
                 
-                <div className="flex flex-wrap justify-center gap-3">
+                <div className="flex flex-wrap justify-center gap-2.5">
                   {HANDWRITING_FONTS.map((font) => (
                     <button
+                      type="button"
                       key={font.name}
                       onClick={() => setSelectedFont(font)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border whitespace-nowrap shrink-0 cursor-pointer ${
                         selectedFont.name === font.name 
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200' 
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'
+                          ? 'bg-primary-200 text-white border-primary-200 shadow-sm' 
+                          : 'bg-surface-200 text-typography-700 border-surface-300 hover:border-primary-200/50'
                       }`}
                       style={{ fontFamily: font.variable }}
                     >
@@ -389,7 +394,7 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                 exit={{ opacity: 0, x: 10 }}
                 className="relative group"
               >
-                <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 overflow-hidden">
+                <div className="border-2 border-dashed border-surface-300 rounded-2xl bg-white overflow-hidden shadow-inner">
                   <SignatureCanvas 
                     ref={sigCanvas}
                     penColor="#0f35a9"
@@ -400,23 +405,27 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                 </div>
                 <div className="absolute top-4 right-4 flex gap-2">
                   <button 
+                    type="button"
                     onClick={handleRefineIA}
                     disabled={isProcessing}
-                    className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-all shadow-sm disabled:opacity-50"
+                    className="p-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                     title="Refinar com IA"
                   >
                     {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
                   </button>
                   <button 
+                    type="button"
                     onClick={handleClear}
-                    className="p-2 bg-white shadow-md border border-gray-100 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                    className="p-2 bg-surface-100 shadow-xs border border-surface-300 rounded-xl text-typography-500 hover:text-red-500 transition-colors cursor-pointer"
                     title="Limpar"
                   >
                     <RefreshCcw size={18} />
                   </button>
                 </div>
                 <div className="mt-4 text-center">
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Use seu mouse ou touch-pad para assinar</p>
+                  <p className="text-xs text-typography-400 font-medium uppercase tracking-widest">
+                    Use seu mouse ou touch-pad para assinar
+                  </p>
                 </div>
               </motion.div>
             )}
@@ -431,7 +440,7 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
               >
                 {loadedImage ? (
                   <div className="space-y-6 w-full max-w-md mx-auto">
-                    <div className="relative p-6 bg-white border border-gray-200 rounded-2xl shadow-inner min-h-[200px] flex items-center justify-center overflow-hidden">
+                    <div className="relative p-6 bg-white border border-surface-300 rounded-2xl shadow-inner min-h-[200px] flex items-center justify-center overflow-hidden">
                       <img 
                         src={loadedImage} 
                         alt="Preview" 
@@ -440,26 +449,31 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                       
                       <div className="absolute top-4 right-4 flex gap-2">
                         <button 
+                          type="button"
                           onClick={handleRefineIA}
                           disabled={isProcessing}
-                          className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2 pr-4 pl-3"
+                          className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1.5 pr-3 pl-2.5 cursor-pointer whitespace-nowrap shrink-0"
                         >
-                          {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                          {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                           <span className="text-xs font-bold">REFINAR COM IA</span>
                         </button>
                         <button 
+                          type="button"
                           onClick={() => setLoadedImage(null)}
-                          className="p-2 bg-white border border-gray-200 text-red-500 rounded-full hover:bg-red-50 shadow-md"
+                          className="p-2 bg-white border border-surface-300 text-red-500 rounded-xl hover:bg-red-50 shadow-xs cursor-pointer"
                         >
                           <Trash2 size={18} />
                         </button>
                       </div>
                     </div>
                     <div className="flex justify-center flex-col items-center gap-2">
-                      <p className="text-xs text-gray-400 font-bold uppercase tracking-tight">Dica: Use o botão Refinar para suavizar os traços e aplicar cor azul realista</p>
+                      <p className="text-xs text-typography-400 font-semibold uppercase tracking-tight text-center">
+                        Dica: Use o botão Refinar para suavizar os traços e aplicar cor azul realista
+                      </p>
                       <button 
+                        type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="text-emerald-600 font-bold text-xs hover:underline flex items-center gap-1"
+                        className="text-primary-200 font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                       >
                         <RefreshCcw size={12} />
                         Trocar Imagem
@@ -467,17 +481,18 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl w-full bg-gray-50/50">
+                  <div className="text-center py-10 border-2 border-dashed border-surface-300 rounded-2xl w-full bg-surface-200/40">
                     <button 
+                      type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex flex-col items-center gap-4 mx-auto group"
+                      className="flex flex-col items-center gap-3.5 mx-auto group cursor-pointer"
                     >
-                      <div className="w-16 h-16 bg-white rounded-full shadow-md flex items-center justify-center transition-all group-hover:scale-110 group-hover:shadow-lg">
-                        <Upload className="text-emerald-600" size={24} />
+                      <div className="w-14 h-14 bg-surface-100 border border-surface-300 rounded-2xl shadow-xs flex items-center justify-center transition-all group-hover:scale-105 group-hover:border-primary-200/50 text-primary-200">
+                        <Upload size={22} />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-bold text-gray-700">Carregar Imagem de Assinatura</p>
-                        <p className="text-xs text-gray-400 font-medium">PNG, JPG ou WEBP (melhor com fundo claro)</p>
+                        <p className="text-sm font-bold text-typography-800">Carregar Imagem de Assinatura</p>
+                        <p className="text-xs text-typography-400 font-medium">PNG, JPG ou WEBP (melhor com fundo claro)</p>
                       </div>
                     </button>
                   </div>
@@ -496,26 +511,28 @@ export default function SignaturePad({ onSave, onCancel, initialName = '' }: Sig
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-gray-50 flex items-center justify-between">
+        <div className="p-4 sm:p-5 bg-surface-200/60 border-t border-surface-300 flex items-center justify-between">
           <button 
+            type="button"
             onClick={onCancel}
-            className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+            className="px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold text-typography-500 hover:text-typography-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             CANCELAR
           </button>
           
           <div className="flex gap-3">
             <button 
+              type="button"
               onClick={handleSave}
               disabled={
                 mode === 'type' ? !typedName.trim() : 
                 mode === 'draw' ? (sigCanvas.current?.isEmpty() ?? true) :
                 mode === 'image' ? !loadedImage : false
               }
-              className="px-8 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-full shadow-lg shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50 disabled:shadow-none transition-all flex items-center gap-2"
+              className="px-6 sm:px-7 py-2.5 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs disabled:opacity-50 transition-all flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
             >
-              Confirmar Assinatura
-              <Check size={18} />
+              <span>Confirmar Assinatura</span>
+              <Check size={16} />
             </button>
           </div>
         </div>

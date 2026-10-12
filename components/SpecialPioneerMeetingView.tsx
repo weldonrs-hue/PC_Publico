@@ -5,9 +5,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Users, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, 
   Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, 
-  ChevronUp, CheckCircle2, Circle, Coffee, FileText, RefreshCw, Plus, 
-  ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X, Check, FileDown, Layers
+  ChevronUp, CheckCircle2, Circle, Coffee, FileText, RefreshCw, Plus, Minus,
+  ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X, Check, FileDown, Layers, LayoutGrid, LayoutList, Table as TableIcon
 } from 'lucide-react';
+import CustomSelect from '@/components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
@@ -283,11 +284,68 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   const [availableYears, setAvailableYears] = useState<string[]>(['2026-2027']);
   const [selectedPart, setSelectedPart] = useState<number>(0);
   const [dynamicProgram, setDynamicProgram] = useState<PioneerProgram | null>(null);
+  const [viewMode, setViewMode] = useState<'responsive' | 'a4'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_pioneer_meeting_view_mode') as 'responsive' | 'a4' | null;
+      if (saved === 'responsive' || saved === 'a4') return saved;
+      return window.innerWidth < 1024 ? 'responsive' : 'a4';
+    }
+    return 'a4';
+  });
 
-  // Zoom & Viewport controller state
+  // Zoom & Viewport controller state (Padrão S-303)
+  const [autoFit, setAutoFit] = useState<boolean>(true);
+  const [showZoomMenu, setShowZoomMenu] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(80);
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  const ZOOM_STEPS = [35, 50, 65, 75, 85, 100, 115, 125, 150, 175, 200];
+
+  const calculateAutoFitZoom = () => {
+    if (!containerRef.current) return 100;
+    const containerWidth = containerRef.current.clientWidth;
+    const availableWidth = Math.max(240, containerWidth - 32);
+    const a4WidthPx = 793.7;
+    const calculated = Math.round((availableWidth / a4WidthPx) * 100);
+    return Math.max(35, calculated);
+  };
+
+  const handleZoomIn = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const next = ZOOM_STEPS.find(s => s > prev + 4);
+      return next ? next : Math.min(200, prev + 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleZoomOut = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const prevStep = [...ZOOM_STEPS].reverse().find(s => s < prev - 4);
+      return prevStep ? prevStep : Math.max(35, prev - 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleSetZoom = (newZoom: number) => {
+    setAutoFit(false);
+    setZoom(newZoom);
+    setShowZoomMenu(false);
+  };
+
+  const handleToggleAutoFit = () => {
+    if (autoFit) {
+      setAutoFit(false);
+      setZoom(100);
+    } else {
+      setAutoFit(true);
+      const fitZoom = calculateAutoFitZoom();
+      setZoom(fitZoom);
+    }
+    setShowZoomMenu(false);
+  };
 
   const staticProgram = STATIC_PROGRAMS[selectedYear] || STATIC_PROGRAMS['2026-2027'];
   
@@ -353,6 +411,46 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
     assemblyTheme: pioneerProgram.theme,
     startTime: '09:00'
   };
+
+  const stats = useMemo(() => {
+    let totalWithSpeaker = 0;
+    let assignedCount = 0;
+    let confirmedCount = 0;
+
+    pioneerProgram.sessions.forEach(session => {
+      session.items.forEach(item => {
+        const isSymposium = item.subitems && item.subitems.length > 0;
+        if (isSymposium) {
+          item.subitems?.forEach(sub => {
+            totalWithSpeaker++;
+            if (speakers[sub.id]?.trim()) {
+              assignedCount++;
+              if (confirmedSpeakers[sub.id]) confirmedCount++;
+            }
+          });
+        } else if (!item.noSpeaker) {
+          totalWithSpeaker++;
+          if (speakers[item.id]?.trim()) {
+            assignedCount++;
+            if (confirmedSpeakers[item.id]) confirmedCount++;
+          }
+        }
+      });
+    });
+
+    const pendingConfirmation = assignedCount - confirmedCount;
+    const percentageAssigned = totalWithSpeaker > 0 ? Math.round((assignedCount / totalWithSpeaker) * 100) : 0;
+    const percentageConfirmed = totalWithSpeaker > 0 ? Math.round((confirmedCount / totalWithSpeaker) * 100) : 0;
+
+    return {
+      totalWithSpeaker,
+      assignedCount,
+      confirmedCount,
+      pendingConfirmation,
+      percentageAssigned,
+      percentageConfirmed
+    };
+  }, [pioneerProgram, speakers, confirmedSpeakers]);
 
   const collectionName = 'special_pioneer_meeting_speakers';
   const hasChanges = initialPartsData !== JSON.stringify(partsData);
@@ -429,14 +527,28 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
     };
   }, [zoom]);
 
-  const handleFitToScreen = () => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.clientWidth - 48;
-      const a4WidthPx = 793.7;
-      const targetZoom = Math.round((containerWidth / a4WidthPx) * 100);
-      setZoom(Math.min(125, Math.max(40, targetZoom)));
-    }
-  };
+  // Observer de auto-ajuste ao redimensionar a tela
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      if (autoFit && viewMode === 'a4') {
+        const fitZoom = calculateAutoFitZoom();
+        setZoom(fitZoom);
+      }
+    };
+
+    const observer = new ResizeObserver(handleResize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    const timer = setTimeout(handleResize, 100);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, [autoFit, viewMode]);
 
   // Load Firestore data
   useEffect(() => {
@@ -1264,7 +1376,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   }
 
   return (
-    <div id="pioneer-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
+    <div id="pioneer-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0 w-full max-w-full min-w-0 overflow-x-hidden">
       <style jsx global>{`
         @media screen {
           .print-only {
@@ -1406,25 +1518,57 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       `}</style>
 
       {/* Screen Header & Top Controls (no-print) */}
-      <div className="space-y-3 no-print">
-        {/* Top bar: Back, Title & Action Bar */}
-        <div className="flex items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-3xl border border-gray-100 shadow-sm flex-wrap">
+      <div className="space-y-3 no-print w-full max-w-full min-w-0">
+        {/* Top bar: Back, Title, Mode Switch & Action Bar */}
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden w-full max-w-full min-w-0">
+          <div 
+            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+            style={{ backgroundImage: 'linear-gradient(to right, #8B5CF6, #7C3AED, transparent)' }}
+          />
           <div className="flex items-center gap-3">
             <button 
               onClick={handleBackClick} 
-              className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full transition-all text-violet-700 bg-violet-50/50 shadow-xs border border-violet-100 cursor-pointer active:scale-95 shrink-0"
+              className="p-2 sm:p-2.5 hover:bg-surface-200 rounded-full transition-all text-primary-200 bg-surface-200/50 shadow-xs border border-surface-300 cursor-pointer active:scale-95 shrink-0"
               title="Voltar ao Painel"
             >
               <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
             <div className="flex flex-col min-w-0">
-              <h2 className="text-base sm:text-lg font-black text-gray-900 leading-tight truncate">
+              <h2 className="text-base sm:text-lg font-black text-typography-900 leading-tight truncate">
                 Reunião Especial (S-312)
               </h2>
-              <p className="text-[11px] sm:text-xs font-medium text-gray-500 truncate hidden sm:block">
+              <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate hidden sm:block">
                 Pioneiros Regulares, Especiais e Missionários em Campo
               </p>
             </div>
+          </div>
+
+          {/* Alternador de Modo de Exibição: Tabela vs Lista */}
+          <div className="flex items-center bg-surface-200 p-1 rounded-2xl border border-surface-300/80 shadow-2xs">
+            <button
+              onClick={() => setViewMode('a4')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'a4'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-500 hover:text-typography-900'
+              }`}
+              title="Modo Tabela"
+            >
+              <TableIcon size={14} />
+              <span>Tabela</span>
+            </button>
+            <button
+              onClick={() => setViewMode('responsive')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'responsive'
+                  ? 'bg-primary-200 text-white shadow-xs'
+                  : 'text-typography-500 hover:text-typography-900'
+              }`}
+              title="Modo Lista"
+            >
+              <LayoutList size={14} />
+              <span>Lista</span>
+            </button>
           </div>
 
           {/* Action Bar */}
@@ -1432,30 +1576,30 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             {/* Dados do Evento */}
             <button 
               onClick={() => setShowEditDetailsModal(true)}
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Editar dados da reunião (data, local, ensaio, material)"
             >
-              <CalendarDays size={15} className="shrink-0 text-amber-600" />
+              <CalendarDays size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
               <span className="hidden md:inline">Dados do Evento</span>
             </button>
 
             {/* Atualizar (Colar Programação) */}
             <button 
               onClick={handleOpenUpdateModal} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Atualizar colando a programação oficial"
             >
-              <RefreshCw size={15} className="shrink-0 text-violet-600" />
+              <RefreshCw size={15} className="shrink-0 text-primary-200" />
               <span className="hidden md:inline">Atualizar</span>
             </button>
             
             {/* Adicionar próxima (Colar Nova Temporada) */}
             <button 
               onClick={handleOpenAddNextModal} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Adicionar uma nova temporada colando o programa"
             >
-              <Plus size={15} className="shrink-0 text-blue-600" />
+              <Plus size={15} className="shrink-0 text-blue-600 dark:text-blue-400" />
               <span className="hidden lg:inline">Adicionar próxima</span>
               <span className="hidden md:inline lg:hidden">+ Nova</span>
             </button>
@@ -1463,51 +1607,43 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             {/* Convite S-312 aos Pioneiros */}
             <button 
               onClick={generateS302} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-violet-700 dark:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Gerar Carta Convite aos Pioneiros (S-312)"
             >
-              <FileText size={15} className="shrink-0 text-violet-600" />
+              <FileText size={15} className="shrink-0 text-violet-600 dark:text-violet-400" />
               <span className="hidden sm:inline">Convite S-312</span>
             </button>
 
             {/* Imprimir A4 */}
             <button 
               onClick={() => window.print()} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-typography-700 bg-surface-100 hover:bg-surface-200 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Imprimir folha A4 em modo Retrato"
             >
-              <Printer size={15} className="shrink-0 text-gray-500" />
+              <Printer size={15} className="shrink-0 text-typography-500" />
               <span className="hidden md:inline">Imprimir A4</span>
             </button>
           </div>
         </div>
 
         {/* Compact Navigation Bar: Season Dropdown & Parts Selector */}
-        <div className="flex items-center justify-between gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/80 flex-wrap">
-          {/* Seletor de Temporada */}
+        <div className="flex items-center justify-between gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 flex-wrap">
+          {/* Seletor de Temporada Personalizado */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <label htmlFor="season-select" className="text-[11px] font-bold text-gray-500 uppercase tracking-wider pl-1 hidden xs:inline">
+            <span className="text-[11px] font-bold text-typography-500 uppercase tracking-wider pl-1 hidden xs:inline">
               Temporada:
-            </label>
-            <div className="relative inline-flex items-center">
-              <select
-                id="season-select"
-                value={selectedYear}
-                onChange={(e) => handleYearChange(e.target.value)}
-                className="h-8 sm:h-9 pl-3 pr-8 rounded-lg sm:rounded-xl text-xs font-bold text-gray-800 bg-white border border-gray-200 shadow-2xs focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-600 appearance-none cursor-pointer"
-              >
-                {availableYears.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 pointer-events-none text-gray-400" />
-            </div>
+            </span>
+            <CustomSelect
+              value={selectedYear}
+              onChange={handleYearChange}
+              options={availableYears}
+              size="sm"
+              className="w-36"
+            />
           </div>
 
           {/* Seletor de Partes (A, B, C, D) */}
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-gray-200/60 shadow-2xs shrink-0 ml-auto">
+          <div className="flex items-center gap-1 bg-surface-200 p-0.5 rounded-xl border border-surface-300 shadow-2xs shrink-0 ml-auto">
             {[0, 1, 2, 3].map((part) => {
               const isActive = selectedPart === part;
               const letter = ['A', 'B', 'C', 'D'][part];
@@ -1517,8 +1653,8 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
                   onClick={() => setSelectedPart(part)}
                   className={`h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center justify-center cursor-pointer ${
                     isActive 
-                      ? 'bg-violet-600 text-white shadow-xs font-bold' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                      ? 'bg-primary-200 text-white shadow-xs font-bold' 
+                      : 'text-typography-600 hover:text-typography-900 hover:bg-surface-100 font-medium'
                   }`}
                   title={`Parte ${letter}`}
                 >
@@ -1530,71 +1666,444 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           </div>
         </div>
 
-        {/* Zoom & Document Viewport Toolbar */}
-        <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
-            {/* Zoom Out */}
-            <button
-              onClick={() => setZoom(prev => Math.max(35, prev - 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Reduzir zoom (-10%)"
-              aria-label="Reduzir zoom"
-            >
-              <ZoomOut size={16} />
-            </button>
+      </div>
 
-            {/* Direct Zoom Presets */}
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
-              {[60, 80, 100, 125].map(preset => (
+      {/* MODO DE VISUALIZAÇÃO RESPONSIVO (CARDS MODERNOS SEM SCROLL LATERAL) */}
+      {viewMode === 'responsive' && (
+        <div className="no-print space-y-6">
+          {/* Hero Card com Tema e Metadados do Evento */}
+          <div className="relative rounded-3xl overflow-hidden bg-surface-100 border border-surface-300 shadow-xs p-5 sm:p-7 space-y-5">
+            {/* Background Artwork */}
+            {(details.customHeaderImage || pioneerProgram.headerImage) && (
+              <div className="absolute inset-0 z-0 pointer-events-none opacity-20 dark:opacity-25 overflow-hidden">
+                <Image
+                  src={details.customHeaderImage || pioneerProgram.headerImage}
+                  alt={details.assemblyTheme || pioneerProgram.theme}
+                  fill
+                  className="object-cover"
+                  style={{ objectPosition: 'center 25%' }}
+                  unoptimized
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-surface-100 via-surface-100/80 to-transparent" />
+              </div>
+            )}
+
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-[11px] font-black uppercase tracking-widest text-primary-200 px-3 py-1 rounded-full bg-primary-200/10 border border-primary-200/20">
+                  PARTE {['A', 'B', 'C', 'D'][selectedPart] || 'A'} • REUNIÃO ESPECIAL
+                </span>
                 <button
-                  key={preset}
-                  onClick={() => setZoom(preset)}
-                  className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                    zoom === preset ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
-                  }`}
+                  onClick={() => setShowEditDetailsModal(true)}
+                  className="text-xs font-bold text-primary-200 hover:text-primary-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-200 hover:bg-surface-300 transition-colors cursor-pointer"
                 >
-                  {preset}%
+                  <Edit3 size={13} />
+                  <span>Editar Dados</span>
                 </button>
-              ))}
+              </div>
+
+              {/* Tema Principal */}
+              <div className="space-y-1">
+                <h2 className="text-lg sm:text-2xl font-black text-typography-900 tracking-tight leading-tight">
+                  {details.assemblyTheme || pioneerProgram.theme}
+                </h2>
+                <p className="text-xs sm:text-sm text-typography-500 font-medium">
+                  {pioneerProgram.title}
+                </p>
+              </div>
+
+              {/* Metadados: Data, Local, Início, Ensaio, Material */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-2 border-t border-surface-300/70">
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                  <Calendar size={15} className="text-primary-200 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase font-bold text-typography-400">Data</span>
+                    <span className="font-bold text-typography-900 truncate block">
+                      {details.eventDate || 'A definir'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                  <MapPin size={15} className="text-primary-200 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase font-bold text-typography-400">Local</span>
+                    <span className="font-bold text-typography-900 truncate block">
+                      {details.eventLocation || 'A definir'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                  <Clock size={15} className="text-primary-200 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase font-bold text-typography-400">Início</span>
+                    <span className="font-bold text-typography-900 truncate block">
+                      {details.startTime || '09:00'}
+                    </span>
+                  </div>
+                </div>
+
+                {details.rehearsalDate && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                    <Clock size={15} className="text-primary-200 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="block text-[10px] uppercase font-bold text-typography-400">Ensaio</span>
+                      <span className="font-bold text-typography-900 truncate block">
+                        {details.rehearsalDate}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* KPIs de Progresso */}
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                <div className="p-3 rounded-2xl bg-surface-200/70 border border-surface-300/70 text-center">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                    Designadas
+                  </span>
+                  <div className="text-base sm:text-xl font-black text-typography-900">
+                    {stats.assignedCount}<span className="text-typography-400 text-xs font-bold">/{stats.totalWithSpeaker}</span>
+                  </div>
+                  <div className="w-full bg-surface-300 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className="bg-primary-200 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${stats.percentageAssigned}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                    Confirmados
+                  </span>
+                  <div className="text-base sm:text-xl font-black text-emerald-700 dark:text-emerald-400">
+                    {stats.confirmedCount}
+                  </div>
+                  <div className="w-full bg-emerald-500/20 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${stats.percentageConfirmed}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-amber-600 dark:text-amber-400 block mb-0.5">
+                    Pendentes
+                  </span>
+                  <div className="text-base sm:text-xl font-black text-amber-700 dark:text-amber-400">
+                    {stats.pendingConfirmation}
+                  </div>
+                  <div className="w-full bg-amber-500/20 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${stats.totalWithSpeaker > 0 ? (stats.pendingConfirmation / stats.totalWithSpeaker) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
 
-            {/* Zoom In */}
-            <button
-              onClick={() => setZoom(prev => Math.min(200, prev + 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Aumentar zoom (+10%)"
-              aria-label="Aumentar zoom"
-            >
-              <ZoomIn size={16} />
-            </button>
+          {/* Lista de Partes em Cards */}
+          <div className="space-y-4">
+            {(() => {
+              let runningOffset = 0;
 
-            {/* Fit to screen */}
-            <button
-              onClick={handleFitToScreen}
-              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-              title="Ajustar documento à largura da tela"
-            >
-              <Maximize2 size={13} />
-              <span className="hidden sm:inline">Ajustar</span>
-            </button>
+              return pioneerProgram.sessions[0]?.items.map((item: PioneerItem, itemIdx: number) => {
+                const isSymposium = item.subitems && item.subitems.length > 0;
+                const isIntermission = item.isInterval;
+                const isMusicOrPrayer = item.noSpeaker && !isSymposium && !isIntermission;
+                const itemStartTime = calculateTime(details.startTime, runningOffset);
+                const itemDuration = item.duration || (isMusicOrPrayer ? 5 : isIntermission ? 20 : isSymposium ? 60 : 15);
 
-            {/* Current Zoom Level */}
-            <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
-              {zoom}%
-            </span>
+                if (isIntermission) {
+                  runningOffset += itemDuration;
+                  return (
+                    <div
+                      key={`resp-item-${item.id || itemIdx}`}
+                      className="p-3.5 rounded-2xl bg-surface-200/50 border border-surface-300 flex items-center justify-between gap-3 text-xs text-typography-600 font-bold"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Coffee size={16} className="text-amber-500 shrink-0" />
+                        <span>{item.title}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-surface-300 text-typography-700 text-[11px]">
+                        {itemStartTime} • {itemDuration} min
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (isSymposium) {
+                  let subOffset = runningOffset;
+                  runningOffset += itemDuration;
+
+                  return (
+                    <div
+                      key={`resp-item-${item.id || itemIdx}`}
+                      className="p-4 sm:p-5 rounded-3xl bg-surface-100 border-2 border-violet-500/20 shadow-2xs space-y-4"
+                    >
+                      {/* Cabeçalho do Simpósio */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
+                              {item.label || 'SÉRIE DE DISCURSOS'}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-typography-500">
+                              {itemStartTime}
+                            </span>
+                          </div>
+                          <h4 className="text-sm sm:text-base font-black text-typography-900 leading-snug">
+                            {item.title}
+                          </h4>
+                        </div>
+                      </div>
+
+                      {/* Subpartes do Simpósio */}
+                      <div className="space-y-3 pt-2">
+                        {item.subitems?.map((sub, sIdx) => {
+                          const subStartTime = calculateTime(details.startTime, subOffset);
+                          subOffset += sub.duration || 15;
+                          const subSpeaker = speakers[sub.id] || '';
+                          const subCong = congregations[sub.id] || '';
+                          const subNote = notes[sub.id] || '';
+                          const isConfirmed = !!confirmedSpeakers[sub.id];
+
+                          return (
+                            <div
+                              key={`resp-sub-${sub.id || sIdx}`}
+                              className="p-3.5 rounded-2xl bg-surface-200/50 border border-surface-300 space-y-3 transition-colors hover:border-surface-400"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-violet-600/10 text-violet-700 dark:text-violet-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                      {sIdx + 1}
+                                    </span>
+                                    <span className="text-xs font-bold text-typography-900">
+                                      {sub.title}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[11px] font-mono font-semibold text-typography-500">
+                                    {subStartTime}
+                                  </span>
+                                  {sub.duration && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-300 text-typography-600">
+                                      {sub.duration}m
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Formulário de Designação */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                                    Orador
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subSpeaker}
+                                    onChange={(e) => handleSpeakerChange(sub.id, e.target.value)}
+                                    placeholder="Nome do orador..."
+                                    className="w-full h-9 px-3 rounded-xl bg-surface-100 border border-surface-300 text-xs font-bold text-typography-900 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                                    Congregação
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subCong}
+                                    onChange={(e) => handleCongregationChange(sub.id, e.target.value)}
+                                    placeholder="Congregação..."
+                                    className="w-full h-9 px-3 rounded-xl bg-surface-100 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                                  />
+                                </div>
+
+                                <div className="sm:col-span-2 lg:col-span-1">
+                                  <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                                    Observações
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={subNote}
+                                    onChange={(e) => handleNotesChange(sub.id, e.target.value)}
+                                    placeholder="Notas adicionais..."
+                                    className="w-full h-9 px-3 rounded-xl bg-surface-100 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Barra de Ações: Confirmação e Carta */}
+                              <div className="flex items-center justify-between pt-1 border-t border-surface-300/50">
+                                <button
+                                  onClick={() => handleConfirmationToggle(sub.id)}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    isConfirmed
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-surface-200 text-typography-500 hover:text-typography-700 border border-surface-300'
+                                  }`}
+                                >
+                                  {isConfirmed ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                                  <span>{isConfirmed ? 'Confirmado' : 'Marcar Confirmado'}</span>
+                                </button>
+
+                                <button
+                                  onClick={() => generateDocument(sub)}
+                                  disabled={!subSpeaker.trim()}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                  title="Gerar carta convite em .docx"
+                                >
+                                  <FileDown size={13} />
+                                  <span>Gerar Carta</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Discurso Regular ou Oração/Cântico
+                runningOffset += itemDuration;
+                const speakerName = speakers[item.id] || '';
+                const speakerCong = congregations[item.id] || '';
+                const speakerNote = notes[item.id] || '';
+                const isConfirmed = !!confirmedSpeakers[item.id];
+                const hasSpeaker = !item.noSpeaker;
+
+                return (
+                  <div
+                    key={`resp-item-${item.id || itemIdx}`}
+                    className={`p-4 rounded-3xl bg-surface-100 border border-surface-300 shadow-2xs space-y-3.5 transition-all ${
+                      hasSpeaker && isConfirmed ? 'ring-1 ring-emerald-500/30' : ''
+                    }`}
+                  >
+                    {/* Linha de Cabeçalho da Parte */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold text-typography-500">
+                            {itemStartTime}
+                          </span>
+                          {item.duration && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-200 text-typography-600">
+                              {item.duration} min
+                            </span>
+                          )}
+                          {isMusicOrPrayer && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-200 text-typography-500">
+                              Cântico/Oração
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-sm font-black text-typography-900 leading-snug">
+                          {item.title}
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* Campos de Entrada caso tenha orador */}
+                    {hasSpeaker && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                              Orador
+                            </label>
+                            <input
+                              type="text"
+                              value={speakerName}
+                              onChange={(e) => handleSpeakerChange(item.id, e.target.value)}
+                              placeholder="Nome do orador..."
+                              className="w-full h-9 px-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs font-bold text-typography-900 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                              Congregação
+                            </label>
+                            <input
+                              type="text"
+                              value={speakerCong}
+                              onChange={(e) => handleCongregationChange(item.id, e.target.value)}
+                              placeholder="Congregação..."
+                              className="w-full h-9 px-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2 lg:col-span-1">
+                            <label className="block text-[10px] uppercase font-bold text-typography-500 mb-1">
+                              Observações
+                            </label>
+                            <input
+                              type="text"
+                              value={speakerNote}
+                              onChange={(e) => handleNotesChange(item.id, e.target.value)}
+                              placeholder="Notas..."
+                              className="w-full h-9 px-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs text-typography-700 focus:outline-none focus:ring-2 focus:ring-primary-200/40"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Botões de Confirmação e Carta */}
+                        <div className="flex items-center justify-between pt-1 border-t border-surface-300/50">
+                          <button
+                            onClick={() => handleConfirmationToggle(item.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              isConfirmed
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-surface-200 text-typography-500 hover:text-typography-700 border border-surface-300'
+                            }`}
+                          >
+                            {isConfirmed ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                            <span>{isConfirmed ? 'Confirmado' : 'Marcar Confirmado'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => generateDocument(item)}
+                            disabled={!speakerName.trim()}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Gerar carta convite em .docx"
+                          >
+                            <FileDown size={13} />
+                            <span>Gerar Carta</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
-      </div>
+      )}
 
       {/* A4 Document Viewport Container */}
       <div 
         ref={containerRef}
-        className="pioneer-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80"
+        className={`pioneer-viewport w-full max-w-full min-w-0 overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex-col gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80 ${
+          viewMode === 'a4' ? 'flex' : 'hidden print:flex'
+        }`}
         style={{
           minHeight: '400px',
           touchAction: 'pan-x pan-y',
         }}
       >
+        <div className="min-w-full w-max flex flex-col items-center gap-8 mx-auto">
         {/* Render A4 Page */}
         {pioneerProgram.sessions.map((session, pageIdx) => {
           const pageNum = pageIdx + 1;
@@ -2030,7 +2539,136 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             </div>
           );
         })}
+        </div>
       </div>
+
+      {/* Barra Flutuante Suspensa - Estilo Leitor de PDF integrada ao Tema (Padrão S-303) */}
+      {viewMode === 'a4' && (
+        <div className="fixed bottom-4 sm:bottom-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none print:hidden">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pointer-events-auto bg-surface-100/95 dark:bg-surface-800/95 backdrop-blur-xl text-typography-800 dark:text-typography-100 border border-surface-300 dark:border-surface-600 shadow-2xl rounded-full px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1 sm:gap-2 transition-all hover:shadow-primary-200/10"
+          >
+            {/* Indicador de Documento / Página */}
+            <div className="flex items-center gap-1.5 px-2 py-1 text-typography-600 dark:text-typography-300 text-xs font-medium select-none">
+              <FileText size={14} className="text-primary-200" />
+              <span className="hidden sm:inline font-semibold">Folha A4</span>
+              <span className="text-[11px] text-typography-500 font-mono">1/{pioneerProgram.sessions?.length || 1}</span>
+            </div>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Zoom Out (-) */}
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= 35}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Diminuir Zoom (-)"
+            >
+              <Minus size={15} />
+            </button>
+
+            {/* Seletor / Indicador de Porcentagem de Zoom */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowZoomMenu(!showZoomMenu)}
+                className="px-2 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 rounded-lg text-xs font-bold font-mono text-typography-800 dark:text-typography-100 transition-all flex items-center gap-1 cursor-pointer"
+                title="Opções de visualização de Zoom"
+              >
+                <span className="min-w-[40px] text-center">{Math.round(zoom)}%</span>
+                <ChevronDown size={12} className="text-typography-500" />
+              </button>
+
+              {showZoomMenu && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface-100 dark:bg-surface-800 backdrop-blur-xl border border-surface-300 dark:border-surface-600 rounded-2xl shadow-2xl py-1.5 min-w-[200px] z-40 divide-y divide-surface-200 dark:divide-surface-700 text-xs text-typography-800 dark:text-typography-100">
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-typography-500">
+                    Nível de Zoom
+                  </div>
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={handleToggleAutoFit}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        autoFit ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Maximize2 size={13} className={autoFit ? 'text-primary-200' : 'text-typography-500'} />
+                        Ajustar à Tela (Automático)
+                      </span>
+                      {autoFit && <Check size={13} className="text-primary-200" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetZoom(100)}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        !autoFit && Math.round(zoom) === 100 ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span>100% (Tamanho Real)</span>
+                      {!autoFit && Math.round(zoom) === 100 && <Check size={13} className="text-primary-200" />}
+                    </button>
+                  </div>
+                  <div className="py-1">
+                    {[50, 65, 75, 85, 125, 150].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => handleSetZoom(s)}
+                        className={`w-full text-left px-3 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                          !autoFit && Math.round(zoom) === s ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-300'
+                        }`}
+                      >
+                        <span>{s}%</span>
+                        {!autoFit && Math.round(zoom) === s && <Check size={13} className="text-primary-200" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botão Zoom In (+) */}
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= 200}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Aumentar Zoom (+)"
+            >
+              <Plus size={15} />
+            </button>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Ajustar à Tela (Alterna entre Automático ou Não) */}
+            <button
+              type="button"
+              onClick={handleToggleAutoFit}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                autoFit 
+                  ? 'bg-primary-200 hover:bg-primary-150 text-white shadow-primary-200/30' 
+                  : 'bg-surface-200 hover:bg-surface-300 dark:bg-surface-700 dark:hover:bg-surface-600 text-typography-700 dark:text-typography-200'
+              }`}
+              title={autoFit ? 'Ajuste à tela está ATIVO (automático). Clique para tamanho real (100%)' : 'Clique para ajustar automaticamente à tela'}
+            >
+              {autoFit ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              <span className="hidden sm:inline">
+                {autoFit ? 'Ajustado' : 'Ajustar à tela'}
+              </span>
+              <span className="sm:hidden">
+                {autoFit ? 'Auto' : 'Ajustar'}
+              </span>
+              {autoFit && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              )}
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       {/* MODAL: EDITAR DADOS DO EVENTO */}
       <AnimatePresence>
@@ -2326,47 +2964,47 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       <AnimatePresence>
         {hasChanges && !isGuest && !showEditDetailsModal && (
           <motion.div 
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
           >
-            <div className="flex items-center gap-2.5 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-typography-900 truncate">
                   Alterações não salvas
                 </span>
-                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                <span className="text-[10px] text-typography-400 font-mono hidden sm:inline truncate">
                   {pioneerProgram.year} • Reunião Especial
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setPartsData(JSON.parse(initialPartsData))}
                 disabled={isSaving}
-                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Descartar
               </button>
               <button
                 onClick={() => handleSave(true)}
                 disabled={isSaving}
-                className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
                 {isSaving ? (
                   <>
-                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <Loader2 size={13} className="animate-spin shrink-0" />
                     <span>Salvando...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={15} className="shrink-0" />
-                    <span>Salvar Agora</span>
+                    <Save size={13} className="shrink-0" />
+                    <span>Salvar</span>
                   </>
                 )}
               </button>
@@ -2375,28 +3013,54 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
         )}
 
         {showConfirmModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100">
-              <div className="flex items-center gap-3 text-amber-600 mb-4">
-                <AlertTriangle size={24} />
-                <h3 className="text-lg font-black uppercase tracking-tight">Alterações não salvas</h3>
+          <div className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 10 }} 
+              className="bg-surface-100 border border-surface-300 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                  <AlertTriangle size={20} strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-black text-typography-900 leading-tight">
+                    Alterações não salvas
+                  </h3>
+                  <span className="text-xs text-typography-400 font-medium truncate block">
+                    {pioneerProgram.year} • Reunião Especial
+                  </span>
+                </div>
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-6">
+
+              <p className="text-xs sm:text-sm text-typography-500 leading-relaxed mb-5">
                 Você fez alterações nas designações que ainda não foram salvas. Deseja salvar antes de continuar?
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => { setShowConfirmModal(false); if (pendingAction) pendingAction(); }} className="px-4 py-2 bg-gray-100 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-colors cursor-pointer">
-                  Sair sem salvar
+
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={async () => { const success = await handleSave(false); if (success) { setShowConfirmModal(false); if (pendingAction) pendingAction(); } }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-primary-200 hover:bg-primary-150 text-white rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Save size={15} />
+                  <span>Salvar e Continuar</span>
                 </button>
-                <button onClick={async () => { const success = await handleSave(false); if (success) { setShowConfirmModal(false); if (pendingAction) pendingAction(); } }} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-200 transition-colors cursor-pointer">
-                  Salvar e sair
+                <button 
+                  onClick={() => { setShowConfirmModal(false); if (pendingAction) pendingAction(); }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-surface-200/60 hover:bg-rose-500/10 text-typography-600 hover:text-rose-600 dark:hover:text-rose-400 border border-surface-300/80 rounded-xl font-semibold text-xs sm:text-sm transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  Descartar Alterações
+                </button>
+                <button 
+                  onClick={() => setShowConfirmModal(false)} 
+                  className="w-full py-2 text-typography-400 hover:text-typography-700 font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Continuar Editando
                 </button>
               </div>
-              <button onClick={() => setShowConfirmModal(false)} className="w-full mt-3 py-2 text-gray-400 text-[10px] font-black uppercase tracking-widest hover:text-gray-600 transition-colors cursor-pointer">
-                Cancelar
-              </button>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

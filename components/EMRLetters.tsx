@@ -1,43 +1,40 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
-import { 
-  Mail, 
-  Download, 
-  RefreshCw, 
-  CheckCircle2, 
-  FileDown, 
-  Loader2, 
-  Trash2, 
-  Settings2, 
-  X, 
-  FileUp, 
-  Printer, 
-  GraduationCap,
-  Sparkles,
-  HelpCircle,
-  Copy,
-  Check,
-  ChevronDown,
-  User
-} from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  onSnapshot 
-} from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import CustomSelect from '@/components/CustomSelect';
 import { useDialog } from '@/hooks/useDialog';
-import { AnimatePresence, motion } from 'motion/react';
 import { cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
+import { db } from '@/lib/firebase';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import Docxtemplater from 'docxtemplater';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  setDoc,
+  where
+} from 'firebase/firestore';
+import {
+  Check,
+  CheckCircle2,
+  Copy,
+  FileDown,
+  FileUp,
+  HelpCircle,
+  Loader2,
+  Mail,
+  Printer,
+  RefreshCw,
+  Settings2,
+  Trash2,
+  User,
+  X
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import PizZip from 'pizzip';
+import React, { useEffect, useRef, useState } from 'react';
 
 export const EMR_TEMPLATES = [
   { id: 'emr_anfitria', name: 'Carta às congregações Anfitriãs' },
@@ -221,7 +218,7 @@ export default function EMRLetters({
             if (!destroyed && viewerRef.current) {
               setIsViewerReady(true);
             }
-          }, 1000);
+          }, 600);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error EMR:', err);
@@ -232,9 +229,25 @@ export default function EMRLetters({
       initViewer();
     }
 
+    // Observe container size changes so UDoc re-layouts on mobile / orientation changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (previewRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        if (viewerRef.current) {
+          try {
+            (viewerRef.current as any).setZoomMode('fit-page-width');
+          } catch (e) {}
+        }
+      });
+      resizeObserver.observe(previewRef.current);
+    }
+
     return () => {
       destroyed = true;
       setIsViewerReady(false);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       if (viewerRef.current) {
         try {
           const v = viewerRef.current;
@@ -267,6 +280,9 @@ export default function EMRLetters({
           }
           const loadData = new Uint8Array(buffer);
           await viewerRef.current.load(loadData);
+          try {
+            await (viewerRef.current as any).setZoomMode('fit-page-width');
+          } catch (e) {}
         } catch (err: any) {
           if (!active) return;
           console.error('UDoc Viewer Load Error (EMR):', err);
@@ -495,15 +511,15 @@ export default function EMRLetters({
             partTheme = item.title;
             partNum = item.num || '';
             partTime = item.time;
-            partDuration = item.duration;
+            partDuration = item.duration || '';
           }
-          if (item.subitems) {
-            item.subitems.forEach(sub => {
+          if ((item as any).subitems) {
+            (item as any).subitems.forEach((sub: any) => {
               if (sub.id === selectedPartId) {
-                partTheme = `${item.label || 'Série de discursos:'} ${item.title} — ${sub.title}`;
+                partTheme = `${(item as any).label || 'Série de discursos:'} ${item.title} — ${sub.title}`;
                 partNum = sub.num || '';
                 partTime = sub.time;
-                partDuration = sub.duration;
+                partDuration = sub.duration || '';
               }
             });
           }
@@ -900,8 +916,8 @@ export default function EMRLetters({
     program.sessions.forEach(s => {
       s.items.forEach(item => {
         allParts.push(item);
-        if (item.subitems) {
-          item.subitems.forEach(sub => allParts.push(sub));
+        if ((item as any).subitems) {
+          (item as any).subitems.forEach((sub: any) => allParts.push(sub));
         }
       });
     });
@@ -933,23 +949,162 @@ export default function EMRLetters({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px] font-noto-sans">
-      {/* Sidebar: Selection & Settings */}
-      <div className="w-full lg:w-80 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
+    <div className="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-140px)] min-h-[500px]">
+      {/* Mobile Top Controls: Compact School, Turma, Template & Actions Bar */}
+      <div className="lg:hidden flex flex-col gap-2.5 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-transparent border border-blue-500/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <Mail size={12} strokeWidth={1.8} />
+            </div>
+            <span className="font-black text-typography-900 text-[10px] uppercase tracking-wider">Cartas EMR</span>
+          </div>
+
+          {canManage && (
+            <button
+              onClick={() => setIsManaging(!isManaging)}
+              className={`p-1.5 rounded-xl border transition-all ${
+                isManaging 
+                  ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                  : 'text-typography-400 hover:text-typography-900 hover:bg-surface-200 border-surface-300'
+              }`}
+              title="Configurar Templates"
+            >
+              <Settings2 size={15} />
+            </button>
+          )}
+        </div>
+
+        {!isManaging && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex p-0.5 bg-surface-200 rounded-xl border border-surface-300">
+              <button
+                onClick={() => setSelectedSchoolType('ancians')}
+                className={`flex-1 py-1 px-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                  selectedSchoolType === 'ancians'
+                    ? 'bg-primary-200 text-white shadow-2xs'
+                    : 'text-typography-500 hover:text-typography-900'
+                }`}
+              >
+                Anciãos
+              </button>
+              <button
+                onClick={() => setSelectedSchoolType('servants')}
+                className={`flex-1 py-1 px-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                  selectedSchoolType === 'servants'
+                    ? 'bg-primary-200 text-white shadow-2xs'
+                    : 'text-typography-500 hover:text-typography-900'
+                }`}
+              >
+                Servos
+              </button>
+            </div>
+
+            <div className="flex p-0.5 bg-surface-200 rounded-xl border border-surface-300">
+              {(['1', '2', '3'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setSelectedTurma(t)}
+                  className={`flex-1 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    selectedTurma === t
+                      ? 'bg-primary-200 text-white shadow-2xs'
+                      : 'text-typography-500 hover:text-typography-900'
+                  }`}
+                >
+                  T{t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <CustomSelect
+          label="Modelo"
+          value={selectedTemplate}
+          onChange={(val) => setSelectedTemplate(val)}
+          options={EMR_TEMPLATES.map(t => ({
+            value: t.id,
+            label: t.name
+          }))}
+          className="w-full"
+          dropdownClassName="w-full max-w-full"
+          size="sm"
+        />
+
+        {selectedTemplate === 'emr_instrutor' && (
+          <CustomSelect
+            label="Instrutor"
+            value={selectedPartId}
+            onChange={(val) => setSelectedPartId(val)}
+            options={partsWithSpeakers.length > 0 ? partsWithSpeakers.map(p => ({
+              value: p.id,
+              label: `${p.num ? `${p.num}. ` : ''}${p.speaker}`,
+              description: p.title
+            })) : [
+              { value: '', label: 'Nenhum orador preenchido' }
+            ]}
+            placeholder="Selecione o orador"
+            className="w-full"
+            dropdownClassName="w-full max-w-full"
+            size="sm"
+          />
+        )}
+
+        <div className="flex items-center gap-2 pt-1">
+          {status === 'success' && !isProcessing ? (
+            <div className="flex items-center gap-1.5 flex-1">
+              <button
+                onClick={downloadAsDocx}
+                className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-surface-200 text-typography-800 rounded-xl border border-surface-300 hover:bg-surface-300 font-black text-[9px] uppercase tracking-wider"
+              >
+                <FileDown size={13} />
+                <span>DOCX</span>
+              </button>
+              <button
+                onClick={downloadAsPdf}
+                disabled={generating}
+                className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-surface-200 text-typography-800 rounded-xl border border-surface-300 hover:bg-surface-300 font-black text-[9px] uppercase tracking-wider disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+                <span>PDF</span>
+              </button>
+              <button
+                onClick={() => viewerRef.current?.print()}
+                className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-primary-200 text-white rounded-xl shadow-xs hover:bg-primary-300 font-black text-[9px] uppercase tracking-wider"
+              >
+                <Printer size={13} />
+                <span>Imprimir</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => processAndPreview()}
+              disabled={isProcessing}
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-primary-200 text-white rounded-xl shadow-xs hover:bg-primary-300 disabled:opacity-50 font-black text-[9px] uppercase tracking-wider"
+            >
+              <RefreshCw size={12} className={isProcessing ? 'animate-spin' : ''} />
+              <span>{isProcessing ? 'Gerando...' : 'Atualizar'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Sidebar: Selection & Settings (Desktop Only) */}
+      <div className="hidden lg:flex w-80 flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
         {/* School & Turma Selectors Card - Only show when NOT managing */}
         {!isManaging && (
-          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+          <div className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-3">
             <div>
-              <span className="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 px-1">
+              <span className="block text-[9px] font-black uppercase tracking-widest text-typography-400 mb-1.5 px-1">
                 Modalidade da Escola
               </span>
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-surface-200 rounded-2xl border border-surface-300">
                 <button
                   onClick={() => setSelectedSchoolType('ancians')}
                   className={`py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                     selectedSchoolType === 'ancians'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-primary-200 text-white shadow-2xs'
+                      : 'text-typography-500 hover:text-typography-900'
                   }`}
                 >
                   Anciãos
@@ -958,8 +1113,8 @@ export default function EMRLetters({
                   onClick={() => setSelectedSchoolType('servants')}
                   className={`py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                     selectedSchoolType === 'servants'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-primary-200 text-white shadow-2xs'
+                      : 'text-typography-500 hover:text-typography-900'
                   }`}
                 >
                   Servos
@@ -968,18 +1123,18 @@ export default function EMRLetters({
             </div>
 
             <div>
-              <span className="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 px-1">
+              <span className="block text-[9px] font-black uppercase tracking-widest text-typography-400 mb-1.5 px-1">
                 Turma Selecionada
               </span>
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-200 rounded-2xl border border-surface-300">
                 {(['1', '2', '3'] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => setSelectedTurma(t)}
                     className={`py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                       selectedTurma === t
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'text-gray-400 hover:text-gray-900'
+                        ? 'bg-primary-200 text-white shadow-2xs'
+                        : 'text-typography-500 hover:text-typography-900'
                     }`}
                   >
                     Turma {t}
@@ -991,20 +1146,22 @@ export default function EMRLetters({
         )}
 
         {/* Templates Selection Card */}
-        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+        <div className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h3 className="font-black text-gray-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
-              <Mail size={14} className="text-blue-600" />
+            <h3 className="font-black text-typography-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-transparent border border-blue-500/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Mail size={12} strokeWidth={1.8} />
+              </div>
               Modelos EMR
             </h3>
 
             {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`p-1.5 rounded-xl transition-all ${
+                className={`p-1.5 rounded-xl border transition-all ${
                   isManaging 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                    ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                    : 'text-typography-400 hover:text-typography-900 hover:bg-surface-200 border-surface-300'
                 }`}
                 title="Configurar Templates"
               >
@@ -1020,19 +1177,23 @@ export default function EMRLetters({
                 onClick={() => setSelectedTemplate(t.id)}
                 className={`flex items-center gap-3 px-3 py-2.5 transition-all border rounded-2xl text-left group relative overflow-hidden ${
                   selectedTemplate === t.id
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-[1.02]'
-                    : 'bg-gray-50/50 text-gray-600 border-gray-100 hover:border-blue-200 hover:bg-white'
+                    ? 'bg-surface-200 text-typography-900 border-primary-200/60 shadow-2xs ring-1 ring-primary-200/30'
+                    : 'bg-surface-200/40 text-typography-600 border-surface-300/80 hover:border-surface-300 hover:bg-surface-200 hover:text-typography-900'
                 }`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${selectedTemplate === t.id ? 'bg-white/20' : 'bg-blue-100/50'}`}>
-                  <Mail size={16} className={selectedTemplate === t.id ? 'text-white' : 'text-blue-600'} />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 border ${
+                  selectedTemplate === t.id 
+                    ? 'border-primary-200/60 text-primary-200 bg-transparent' 
+                    : 'border-surface-300 text-typography-400 bg-transparent'
+                }`}>
+                  <Mail size={16} strokeWidth={1.8} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="block font-black uppercase tracking-tight text-[10px] leading-tight truncate">{t.name}</span>
                   {templates[t.id] && (
                     <div className="flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 size={8} className={selectedTemplate === t.id ? 'text-white' : 'text-emerald-500'} />
-                      <span className={`text-[6px] font-black uppercase tracking-widest ${selectedTemplate === t.id ? 'text-white/80' : 'text-gray-400'}`}>
+                      <CheckCircle2 size={8} className="text-emerald-500" />
+                      <span className="text-[6px] font-black uppercase tracking-widest text-typography-400">
                         {templates[t.id].isPrivate ? 'PRIVADO' : 'GLOBAL'}
                       </span>
                     </div>
@@ -1044,35 +1205,30 @@ export default function EMRLetters({
 
           {/* Speaker Selection (Conditional) */}
           {selectedTemplate === 'emr_instrutor' && (
-            <div className="pt-2 border-t border-gray-50 space-y-2.5">
-              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+            <div className="pt-2 border-t border-surface-300/60 space-y-2.5">
+              <label className="text-[9px] font-black text-typography-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
                 <User size={10} />
                 Selecionar Instrutor
               </label>
               
-              <div className="relative group">
-                <select
-                  value={selectedPartId}
-                  onChange={(e) => setSelectedPartId(e.target.value)}
-                  className="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2.5 text-[10px] font-black text-blue-900 outline-none focus:border-blue-500 transition-all appearance-none cursor-pointer pr-8"
-                >
-                  {partsWithSpeakers.length > 0 ? (
-                    partsWithSpeakers.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.num ? `${p.num}. ` : ''}{p.speaker} ({p.title})
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">Nenhum orador preenchido</option>
-                  )}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400 group-hover:text-blue-600 transition-colors">
-                  <ChevronDown size={14} />
-                </div>
-              </div>
+              <CustomSelect
+                value={selectedPartId}
+                onChange={(val) => setSelectedPartId(val)}
+                options={partsWithSpeakers.length > 0 ? partsWithSpeakers.map(p => ({
+                  value: p.id,
+                  label: `${p.num ? `${p.num}. ` : ''}${p.speaker}`,
+                  description: p.title
+                })) : [
+                  { value: '', label: 'Nenhum orador preenchido' }
+                ]}
+                placeholder="Selecione o orador"
+                className="w-full"
+                dropdownClassName="w-full max-w-full"
+                size="sm"
+              />
               
               {partsWithSpeakers.length === 0 && (
-                <p className="text-[8px] text-red-500 font-bold px-1 italic">
+                <p className="text-[8px] text-rose-500 font-bold px-1 italic">
                   * Preencha os nomes dos instrutores na programação para gerar esta carta.
                 </p>
               )}
@@ -1082,29 +1238,29 @@ export default function EMRLetters({
 
         {/* Quick Actions Panel */}
         {status === 'success' && !isProcessing && (
-          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Ações do Documento</h4>
+          <div className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-4">
+            <h4 className="text-[9px] font-black text-typography-400 uppercase tracking-widest px-1">Ações do Documento</h4>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={downloadAsDocx}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-blue-700 rounded-2xl border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all group"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-surface-200 text-typography-800 rounded-2xl border border-surface-300 hover:bg-surface-300 hover:border-primary-200/40 transition-all group"
               >
-                <FileDown size={18} className="group-hover:scale-110 transition-transform" />
+                <FileDown size={18} className="group-hover:scale-110 transition-transform text-typography-600" />
                 <span className="text-[8px] font-black uppercase tracking-tighter">DOCX</span>
               </button>
 
               <button
                 onClick={downloadAsPdf}
                 disabled={generating}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-blue-700 rounded-2xl border border-gray-100 hover:bg-blue-50 hover:border-blue-200 transition-all group disabled:opacity-50"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-surface-200 text-typography-800 rounded-2xl border border-surface-300 hover:bg-surface-300 hover:border-primary-200/40 transition-all group disabled:opacity-50"
               >
-                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform" />}
+                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform text-typography-600" />}
                 <span className="text-[8px] font-black uppercase tracking-tighter">PDF</span>
               </button>
 
               <button
                 onClick={() => viewerRef.current?.print()}
-                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all font-black text-[10px] uppercase tracking-widest"
+                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-primary-200 text-white rounded-2xl shadow-xs hover:bg-primary-300 transition-all font-black text-[10px] uppercase tracking-widest"
               >
                 <Printer size={16} />
                 Imprimir Agora
@@ -1115,7 +1271,7 @@ export default function EMRLetters({
       </div>
 
       {/* Main Content: Management & Viewer */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col gap-4 min-w-0 h-auto lg:h-full min-h-[550px] lg:min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
           {isManaging ? (
             <motion.div
@@ -1123,18 +1279,18 @@ export default function EMRLetters({
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-blue-50/40 p-5 rounded-3xl border border-blue-100 shadow-sm shrink-0"
+              className="bg-surface-200/50 p-5 rounded-3xl border border-surface-300 shadow-xs shrink-0"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-                    <FileUp size={20} />
+                  <div className="w-10 h-10 rounded-xl bg-transparent border border-blue-500/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <FileUp size={20} strokeWidth={1.8} />
                   </div>
                   <div>
-                    <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">
+                    <h4 className="text-[11px] font-black text-typography-900 uppercase tracking-widest">
                       Configurar Template EMR
                     </h4>
-                    <p className="text-[8px] font-bold text-blue-600 uppercase tracking-widest">
+                    <p className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
                       {EMR_TEMPLATES.find(t => t.id === selectedTemplate)?.name}
                     </p>
                   </div>
@@ -1143,14 +1299,14 @@ export default function EMRLetters({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowTagsHelp(!showTagsHelp)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-xl text-[9px] font-bold hover:bg-blue-50 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-100 border border-surface-300 text-typography-700 rounded-xl text-[9px] font-bold hover:bg-surface-200 transition-all"
                   >
                     <HelpCircle size={14} />
                     Tags Disponíveis
                   </button>
                   <button 
                     onClick={() => setIsManaging(false)} 
-                    className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-red-500 shadow-sm transition-colors"
+                    className="w-8 h-8 flex items-center justify-center bg-surface-100 rounded-full text-typography-400 hover:text-rose-500 border border-surface-300 transition-colors"
                   >
                     <X size={16} />
                   </button>
@@ -1159,26 +1315,26 @@ export default function EMRLetters({
 
               {/* Tags Help Drawer */}
               {showTagsHelp && (
-                <div className="mb-4 p-4 bg-white rounded-2xl border border-blue-100 shadow-inner">
+                <div className="mb-4 p-4 bg-surface-100 rounded-2xl border border-surface-300 shadow-2xs">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-700">Tags para usar no Word (.docx)</span>
-                    <span className="text-[8px] text-gray-400 font-bold">Clique em uma tag para copiar</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-typography-800">Tags para usar no Word (.docx)</span>
+                    <span className="text-[8px] text-typography-400 font-bold">Clique em uma tag para copiar</span>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                     {AVAILABLE_TAGS.map((item) => (
                       <button
                         key={item.tag}
                         onClick={() => copyToClipboard(item.tag)}
-                        className="flex items-center justify-between p-2 bg-gray-50 hover:bg-blue-50 rounded-xl border border-gray-100 text-left transition-all group"
+                        className="flex items-center justify-between p-2 bg-surface-200 hover:bg-surface-300 rounded-xl border border-surface-300 text-left transition-all group"
                       >
                         <div className="overflow-hidden">
-                          <code className="text-[10px] font-black text-blue-700 block">{item.tag}</code>
-                          <span className="text-[8px] text-gray-400 block truncate">{item.desc}</span>
+                          <code className="text-[10px] font-black text-primary-200 block">{item.tag}</code>
+                          <span className="text-[8px] text-typography-400 block truncate">{item.desc}</span>
                         </div>
                         {copiedTag === item.tag ? (
                           <Check size={12} className="text-emerald-500 shrink-0 ml-1" />
                         ) : (
-                          <Copy size={12} className="text-gray-300 group-hover:text-blue-500 shrink-0 ml-1" />
+                          <Copy size={12} className="text-typography-300 group-hover:text-typography-600 shrink-0 ml-1" />
                         )}
                       </button>
                     ))}
@@ -1192,7 +1348,7 @@ export default function EMRLetters({
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className={`w-full h-24 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl transition-all ${
-                      file ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-white border-gray-200 text-gray-400 hover:border-blue-300'
+                      file ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600' : 'bg-surface-100 border-surface-300 text-typography-400 hover:border-primary-200/40'
                     }`}
                   >
                     <FileUp size={24} className={file ? 'text-emerald-500' : ''} />
@@ -1202,21 +1358,21 @@ export default function EMRLetters({
 
                 <div className="flex flex-col justify-between gap-2">
                   {isAdmin && (
-                    <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors">
+                    <label className="flex items-center gap-3 p-3 bg-surface-100 rounded-2xl border border-surface-300 cursor-pointer hover:bg-surface-200 transition-colors">
                       <input 
                         type="checkbox" 
                         checked={saveAsGlobal} 
                         onChange={e => setSaveAsGlobal(e.target.checked)}
-                        className="w-4 h-4 accent-blue-600"
+                        className="w-4 h-4 accent-primary-200"
                       />
-                      <span className="text-[9px] font-black text-gray-600 uppercase tracking-tight">Definir como GLOBAL</span>
+                      <span className="text-[9px] font-black text-typography-700 uppercase tracking-tight">Definir como GLOBAL</span>
                     </label>
                   )}
 
                   {templates[selectedTemplate]?.isPrivate && (
                     <button
                       onClick={deletePrivateTemplate}
-                      className="w-full py-2 bg-red-50 text-red-600 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-rose-500/20 transition-colors flex items-center justify-center gap-1.5 border border-rose-500/20"
                     >
                       <Trash2 size={13} />
                       Voltar ao Modelo Padrão
@@ -1226,7 +1382,7 @@ export default function EMRLetters({
                   <button
                     onClick={saveTemplate}
                     disabled={!file || isSaving}
-                    className="w-full h-12 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
+                    className="w-full h-12 bg-primary-200 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-primary-300 shadow-xs transition-all flex items-center justify-center gap-2"
                   >
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     {isSaving ? 'SALVANDO...' : 'SALVAR MODELO'}
@@ -1238,10 +1394,10 @@ export default function EMRLetters({
         </AnimatePresence>
 
         {/* Viewer Section */}
-        <div className="flex-1 bg-white border border-gray-100 rounded-3xl shadow-inner relative overflow-hidden flex flex-col">
-          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+        <div className="flex-1 bg-surface-100 border border-surface-300 rounded-3xl shadow-xs relative overflow-hidden flex flex-col min-h-[550px] sm:min-h-[620px] lg:min-h-0">
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-surface-100/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-surface-300 shadow-2xs">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
+            <span className="text-[8px] font-black text-typography-500 uppercase tracking-widest">
               {isManaging 
                 ? `Visualizando Modelo: ${EMR_TEMPLATES.find(t => t.id === selectedTemplate)?.name}`
                 : `Prévia em Tempo Real — ${selectedSchoolType === 'ancians' ? 'Anciãos' : 'Servos'}`
@@ -1251,14 +1407,29 @@ export default function EMRLetters({
 
           <div 
             ref={previewRef} 
-            className="flex-1 w-full overflow-hidden"
+            className="w-full h-[550px] sm:h-[620px] lg:h-full lg:flex-1 overflow-hidden"
           />
         </div>
       </div>
 
       <style jsx global>{`
         .udoc-viewer-container {
+          border-radius: 0 !important;
+          height: 100% !important;
+          width: 100% !important;
+          min-height: 100% !important;
           background-color: #f8fafc !important;
+        }
+        .udoc-pages {
+          background-color: #f8fafc !important;
+          padding: 1.5rem !important;
+          height: 100% !important;
+          overflow-y: auto !important;
+        }
+        .udoc-page {
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+          margin: 0 auto 1.5rem auto !important;
+          max-width: 100% !important;
         }
       `}</style>
     </div>

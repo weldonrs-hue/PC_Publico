@@ -6,7 +6,8 @@ import {
   getCredentialById, 
   saveCredential,
   updateCredentialCounter, 
-  extractChallengeFromClientData 
+  extractChallengeFromClientData,
+  parsePublicKey 
 } from '@/lib/server/webauthn-utils';
 
 export const dynamic = 'force-dynamic';
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
       expectedRPID: rpID,
       credential: {
         id: credential.id,
-        publicKey: credential.publicKey,
+        publicKey: Uint8Array.from(parsePublicKey(credential.publicKey)),
         counter: credential.counter,
         transports: credential.transports,
       },

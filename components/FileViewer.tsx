@@ -257,7 +257,7 @@ export default function FileViewer({ onBack }: FileViewerProps) {
 
   return (
     <div 
-      className="h-full flex flex-col bg-[#1A1B1E] text-white relative"
+      className="space-y-4 pb-8"
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -270,63 +270,70 @@ export default function FileViewer({ onBack }: FileViewerProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-blue-600/20 backdrop-blur-sm border-4 border-dashed border-blue-500 m-4 rounded-3xl flex flex-col items-center justify-center pointer-events-none"
+            className="fixed inset-0 z-50 bg-primary-200/20 backdrop-blur-sm border-4 border-dashed border-primary-200 m-4 rounded-3xl flex flex-col items-center justify-center pointer-events-none"
           >
-            <div className="bg-blue-600 p-6 rounded-full shadow-2xl text-white mb-4">
+            <div className="bg-primary-200 p-6 rounded-full shadow-2xl text-white mb-4">
               <Upload size={48} className="animate-bounce" />
             </div>
-            <h3 className="text-2xl font-black uppercase tracking-tighter">Solte para abrir</h3>
+            <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Solte para abrir</h3>
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Minimal Header */}
-      <div className="bg-[#2C2E33] border-b border-[#373A40] px-4 py-2 flex items-center justify-between z-10 shrink-0">
-        <div className="flex items-center gap-3">
+
+      {/* Screen Header & Top Controls */}
+      <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-sky-500 to-transparent" />
+        <div className="flex items-center gap-3 min-w-0">
           <button 
             onClick={onBack}
-            className="p-1.5 hover:bg-[#373A40] rounded-lg transition-colors text-gray-400 hover:text-white"
+            className="h-9 w-9 sm:h-10 sm:w-10 p-1.5 sm:p-2 hover:bg-surface-200 active:scale-95 rounded-xl transition-all text-typography-900 bg-surface-200/80 shadow-xs border border-surface-300 flex items-center justify-center shrink-0 cursor-pointer"
+            title="Voltar para Diversos"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={18} strokeWidth={2.5} />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600/20 p-1.5 rounded-lg text-blue-400">
-              <FileText size={16} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#909296]">Documento de Alta Fidelidade</span>
-              <span className="text-xs font-bold truncate max-w-[200px]">
-                {file instanceof File ? file.name : (typeof file === 'string' ? file.split('/').pop() : 'Visualizador')}
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-black text-typography-900 tracking-tight leading-none truncate">
+                Leitor de Arquivos
+              </h1>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
+                DOCX / PDF
               </span>
             </div>
+            <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate mt-0.5">
+              {file instanceof File ? file.name : (typeof file === 'string' ? file.split('/').pop() : 'Visualizador de Documentos em Alta Fidelidade')}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
           {file && (
             <button 
               onClick={handleDownload}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-1.5 bg-[#2C2E33] hover:bg-[#373A40] rounded-xl transition-all text-white border border-[#373A40] hover:border-blue-500/50 font-black text-[9px] uppercase tracking-widest shadow-lg"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               title="Baixar Original"
             >
-              <Download size={13} className="text-blue-400" />
-              <span>Baixar Original</span>
+              <Download size={14} className="shrink-0 text-blue-600 dark:text-blue-400" />
+              <span className="hidden sm:inline">Baixar Original</span>
             </button>
           )}
           <button 
             onClick={handlePrint}
             disabled={!file || isLoading}
-            className="flex items-center gap-2 px-3 py-1.5 bg-[#40C057] hover:bg-[#37B24D] text-white text-[10px] font-black rounded-lg transition-all shadow-lg shadow-green-900/10 disabled:opacity-50"
+            className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+            title="Imprimir Documento"
           >
-            <Printer size={14} />
-            IMPRIMIR
+            <Printer size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>Imprimir</span>
           </button>
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black rounded-lg transition-all shadow-lg shadow-blue-900/20"
+            className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/20 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+            title="Carregar Novo Arquivo"
           >
-            <Upload size={14} />
-            CARREGAR NOVO
+            <Upload size={14} className="shrink-0 text-primary-200" />
+            <span>Carregar Novo</span>
           </button>
           <input 
             type="file" 
@@ -338,8 +345,8 @@ export default function FileViewer({ onBack }: FileViewerProps) {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden relative bg-[#1A1B1E]">
+      {/* Main Content Viewer Card */}
+      <div className="bg-surface-100 rounded-3xl border border-surface-300 shadow-xs overflow-hidden h-[calc(100vh-210px)] min-h-[550px] relative flex flex-col">
         <AnimatePresence mode="wait">
           {!file ? (
             <motion.div 
@@ -349,16 +356,16 @@ export default function FileViewer({ onBack }: FileViewerProps) {
               exit={{ opacity: 0, scale: 1.05 }}
               className="h-full flex flex-col items-center justify-center p-8 text-center"
             >
-              <div className="w-32 h-32 bg-white rounded-[3rem] shadow-2xl flex items-center justify-center text-blue-600 mb-8 border border-gray-100 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
-                <FileText size={64} />
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-surface-200/70 border border-surface-300 shadow-sm flex items-center justify-center text-blue-500 mb-6 transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                <FileText size={48} />
               </div>
-              <h2 className="text-2xl font-black text-gray-900 mb-3 tracking-tight uppercase">Pronto para ler seus documentos</h2>
-              <p className="text-gray-500 max-w-sm font-medium leading-relaxed mb-8">
+              <h2 className="text-xl sm:text-2xl font-black text-typography-900 mb-2 tracking-tight uppercase">Pronto para ler seus documentos</h2>
+              <p className="text-typography-500 max-w-sm font-medium text-xs sm:text-sm leading-relaxed mb-6">
                 Arraste um arquivo ou clique no botão acima para visualizar documentos Word, PDF ou PowerPoint com alta fidelidade.
               </p>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
                 {['.DOCX', '.PDF', '.PPTX', '.JPG'].map((ext) => (
-                  <span key={ext} className="px-3 py-1 bg-white border border-gray-200 text-gray-400 text-[10px] font-black rounded-full shadow-sm">
+                  <span key={ext} className="px-3 py-1 bg-surface-200 border border-surface-300 text-typography-400 text-[10px] font-black rounded-full shadow-2xs">
                     {ext}
                   </span>
                 ))}
@@ -369,42 +376,42 @@ export default function FileViewer({ onBack }: FileViewerProps) {
               key="viewer"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="w-full h-full relative"
+              className="w-full flex-1 relative"
             >
               {error ? (
-                <div className="h-full flex flex-col items-center justify-center p-10 bg-gray-50 text-center">
-                  <AlertCircle size={48} className="text-red-500 mb-4" />
-                  <p className="text-gray-800 font-bold mb-2">{error}</p>
-                  <p className="text-gray-500 text-sm">O visualizador de alta fidelidade encontrou um problema.</p>
+                <div className="h-full flex flex-col items-center justify-center p-10 bg-surface-100 text-center">
+                  <AlertCircle size={48} className="text-rose-500 mb-4" />
+                  <p className="text-typography-900 font-bold mb-2">{error}</p>
+                  <p className="text-typography-500 text-sm">O visualizador de alta fidelidade encontrou um problema.</p>
                 </div>
               ) : (
                 <div ref={containerRef} className="w-full h-full" />
               )}
               
               {isLoading && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-md">
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-surface-100/80 backdrop-blur-md">
                   <div className="relative">
-                    <Loader2 size={40} className="animate-spin text-blue-600" />
+                    <Loader2 size={40} className="animate-spin text-primary-200" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-ping" />
+                      <div className="w-2 h-2 bg-primary-200 rounded-full animate-ping" />
                     </div>
                   </div>
-                  <p className="mt-6 text-xs font-black text-gray-800 uppercase tracking-[0.2em] animate-pulse">Carregando Documento...</p>
+                  <p className="mt-6 text-xs font-black text-typography-900 uppercase tracking-[0.2em] animate-pulse">Carregando Documento...</p>
                 </div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
 
-      {/* Footer Info */}
-      <div className="bg-[#1A1B1E] border-t border-[#373A40] px-4 py-1.5 flex items-center justify-between text-[10px] font-bold text-[#5C5F66]">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
-          <span className="uppercase tracking-widest">NÚCLEO DOCMENTIS v0.642</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="uppercase tracking-wider">ACELERAÇÃO WASM/SIMD ATIVA</span>
+        {/* Footer Info */}
+        <div className="bg-surface-100 border-t border-surface-300 px-4 py-2 flex items-center justify-between text-[10px] font-bold text-typography-400 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+            <span className="uppercase tracking-widest">NÚCLEO DOCMENTIS v0.642</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="uppercase tracking-wider hidden sm:inline">ACELERAÇÃO WASM/SIMD ATIVA</span>
+          </div>
         </div>
       </div>
     </div>

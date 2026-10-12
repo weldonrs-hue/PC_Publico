@@ -22,11 +22,22 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Minimize2,
+  Minus,
+  Plus,
+  ChevronDown,
   Coffee,
   Music,
   Edit3,
   CheckCircle2,
-  Users
+  Users,
+  LayoutGrid,
+  LayoutList,
+  FileText,
+  Search,
+  Circle,
+  Table as TableIcon,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
@@ -63,7 +74,7 @@ interface EMRPartData {
 export interface EMRProgramItem {
   id: string;
   num?: string;
-  time: string;
+  time?: string;
   title: string;
   duration?: string;
   sigla?: string;
@@ -244,12 +255,83 @@ export default function EMRView({
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [personalData, setPersonalData] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
-  // Zoom state
+  // View mode: 'responsive' | 'a4'
+  const [viewMode, setViewMode] = useState<'responsive' | 'a4'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_emr_view_mode') as 'responsive' | 'a4';
+      if (saved === 'responsive' || saved === 'a4') return saved;
+      return window.innerWidth < 1024 ? 'responsive' : 'a4';
+    }
+    return 'a4';
+  });
+
+  const handleViewModeChange = (mode: 'responsive' | 'a4') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('progcir_emr_view_mode', mode);
+    } catch {}
+  };
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSessionTab, setActiveSessionTab] = useState<number>(-1);
+
+  // Zoom state (Padrão S-303)
+  const [autoFit, setAutoFit] = useState<boolean>(true);
+  const [showZoomMenu, setShowZoomMenu] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(100);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const ZOOM_STEPS = [35, 50, 65, 75, 85, 100, 115, 125, 150, 175, 200];
+
+  const calculateAutoFitZoom = () => {
+    if (!containerRef.current) return 100;
+    const containerWidth = containerRef.current.clientWidth;
+    const availableWidth = Math.max(240, containerWidth - 32);
+    const a4WidthPx = (210 * 96) / 25.4; // 793.7px
+    const calculated = Math.round((availableWidth / a4WidthPx) * 100);
+    return Math.max(35, calculated);
+  };
+
+  const handleZoomIn = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const next = ZOOM_STEPS.find(s => s > prev + 4);
+      return next ? next : Math.min(200, prev + 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleZoomOut = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const prevStep = [...ZOOM_STEPS].reverse().find(s => s < prev - 4);
+      return prevStep ? prevStep : Math.max(35, prev - 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleSetZoom = (newZoom: number) => {
+    setAutoFit(false);
+    setZoom(newZoom);
+    setShowZoomMenu(false);
+  };
+
+  const handleToggleAutoFit = () => {
+    if (autoFit) {
+      setAutoFit(false);
+      setZoom(100);
+    } else {
+      setAutoFit(true);
+      const fitZoom = calculateAutoFitZoom();
+      setZoom(fitZoom);
+    }
+    setShowZoomMenu(false);
+  };
 
   // Data sets for both schools
   const [anciansParts, setAnciansParts] = useState<Record<number, EMRPartData>>(createEmptyTurmas());
@@ -264,20 +346,87 @@ export default function EMRView({
 
   const hasChanges = initialCurrentParts !== JSON.stringify(currentParts);
 
+  const handleBackClick = () => {
+    if (hasChanges) {
+      setPendingAction(() => onBack);
+      setShowConfirmModal(true);
+    } else {
+      onBack();
+    }
+  };
+
+  const handleSchoolTypeChange = (type: 'ancians' | 'servants') => {
+    if (hasChanges) {
+      setPendingAction(() => () => setSelectedSchoolType(type));
+      setShowConfirmModal(true);
+    } else {
+      setSelectedSchoolType(type);
+    }
+  };
+
+  const handleTurmaChange = (turma: number) => {
+    if (hasChanges) {
+      setPendingAction(() => () => setSelectedTurma(turma));
+      setShowConfirmModal(true);
+    } else {
+      setSelectedTurma(turma);
+    }
+  };
+
   const currentTurmaData = currentParts[selectedTurma] || createEmptyTurmas()[0];
   const speakers = currentTurmaData.speakers || {};
   const speakerCongs = currentTurmaData.congregations || {};
   const confirmations = currentTurmaData.confirmations || {};
   const details = currentTurmaData.details || { data: '', local: '', endereco: '', anfitria: '', horarioInicio: '08:00', horarioFim: '16:00', horarioEsposas: '14:45 às 16:00' };
 
-  // Fit to screen helper
-  const handleFitToScreen = () => {
-    if (!containerRef.current) return;
-    const containerWidth = containerRef.current.clientWidth - 48;
-    const a4WidthPx = (210 * 96) / 25.4;
-    const newZoom = Math.min(150, Math.max(40, Math.round((containerWidth / a4WidthPx) * 100)));
-    setZoom(newZoom);
-  };
+  // Estatísticas de preenchimento para o painel responsivo
+  const stats = useMemo(() => {
+    let totalWithSpeaker = 0;
+    let assignedCount = 0;
+    let confirmedCount = 0;
+
+    currentConfig.sessions.forEach(session => {
+      session.items.forEach(item => {
+        if (item.subitems && item.subitems.length > 0) {
+          item.subitems.forEach(sub => {
+            totalWithSpeaker++;
+            if (speakers[sub.id]?.trim()) assignedCount++;
+            if (confirmations[sub.id]) confirmedCount++;
+          });
+        } else if (!item.noSpeaker && !item.isInterval) {
+          totalWithSpeaker++;
+          if (speakers[item.id]?.trim()) assignedCount++;
+          if (confirmations[item.id]) confirmedCount++;
+        }
+      });
+    });
+
+    const percentageAssigned = totalWithSpeaker > 0 ? Math.round((assignedCount / totalWithSpeaker) * 100) : 0;
+    return { totalWithSpeaker, assignedCount, confirmedCount, percentageAssigned };
+  }, [currentConfig, speakers, confirmations]);
+
+  // Observer de auto-ajuste ao redimensionar a tela
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      if (autoFit && viewMode === 'a4') {
+        const fitZoom = calculateAutoFitZoom();
+        setZoom(fitZoom);
+      }
+    };
+
+    const observer = new ResizeObserver(handleResize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    const timer = setTimeout(handleResize, 100);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, [autoFit, viewMode]);
 
   // Load data for both Anciãos and Servos
   useEffect(() => {
@@ -877,7 +1026,7 @@ export default function EMRView({
   }
 
   return (
-    <div id="emr-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0 font-noto-sans">
+    <div id="emr-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0 font-noto-sans w-full max-w-full min-w-0 overflow-x-hidden">
       <style jsx global>{`
         @media screen {
           .print-only {
@@ -1007,23 +1156,28 @@ export default function EMRView({
       `}</style>
 
       {/* Screen Header & Top Controls (no-print) */}
-      <div className="space-y-3 no-print">
+      <div className="space-y-3 no-print w-full max-w-full min-w-0">
         {/* Top bar: Back, Title & Action Bar */}
-        <div className="flex items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-3xl border border-gray-100 shadow-sm flex-wrap">
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden w-full max-w-full min-w-0">
+          <div 
+            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+            style={{ 
+              backgroundImage: `linear-gradient(to right, ${selectedSchoolType === 'ancians' ? '#37616b' : '#6366f1'}, transparent)` 
+            }} 
+          />
           <div className="flex items-center gap-3">
             <button 
-              onClick={onBack} 
-              className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-[#37616b]/10 shadow-xs border border-[#37616b]/20 cursor-pointer active:scale-95 shrink-0"
+              onClick={handleBackClick} 
+              className="p-2 sm:p-2.5 hover:bg-surface-200 rounded-full transition-all text-primary-200 bg-primary-200/10 shadow-xs border border-primary-200/20 cursor-pointer active:scale-95 shrink-0"
               title="Voltar às Escolas"
             >
               <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
             <div className="flex flex-col min-w-0">
-              <h2 className="text-base sm:text-lg font-black text-gray-900 leading-tight truncate flex items-center gap-2">
-                <GraduationCap className="text-[#37616b] shrink-0" size={20} />
-                <span>Escola do Ministério do Reino</span>
+              <h2 className="text-base sm:text-lg font-black text-typography-900 leading-tight truncate">
+                Escola do Ministério do Reino
               </h2>
-              <p className="text-[11px] sm:text-xs font-medium text-gray-500 truncate hidden sm:block">
+              <p className="text-[11px] sm:text-xs font-medium text-typography-500 truncate hidden sm:block">
                 Temporada {currentConfig.year} • {currentConfig.modalidade}
               </p>
             </div>
@@ -1031,24 +1185,67 @@ export default function EMRView({
 
           {/* Action Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto flex-wrap">
+            {/* Toggle de Modo: Tabela vs Lista */}
+            <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+              <button
+                onClick={() => handleViewModeChange('a4')}
+                className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'a4'
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+                title="Modo Tabela"
+              >
+                <TableIcon size={14} />
+                <span>Tabela</span>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('responsive')}
+                className={`h-8 sm:h-9 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'responsive'
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+                title="Modo Lista"
+              >
+                <LayoutList size={14} />
+                <span>Lista</span>
+              </button>
+            </div>
+
+            {/* Salvar */}
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`h-8 sm:h-9 px-3 sm:px-4 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
+                hasChanges 
+                  ? 'bg-primary-200 hover:bg-primary-150 text-white animate-pulse' 
+                  : 'bg-surface-200 hover:bg-surface-300 text-typography-700 border border-surface-300'
+              }`}
+              title="Salvar alterações no banco de dados"
+            >
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+            </button>
+
             {/* Dados da Escola */}
             <button 
               onClick={() => setShowDetailsModal(true)}
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Editar dados da escola (data, local, anfitriã, horários)"
             >
-              <CalendarDays size={15} className="shrink-0 text-amber-600" />
-              <span className="hidden md:inline">Dados da Escola</span>
+              <CalendarDays size={14} className="shrink-0 text-amber-600 dark:text-amber-400" />
+              <span className="hidden md:inline">Dados da Turma</span>
             </button>
 
             {/* Carta Anfitriã */}
             <button 
               onClick={() => generateGeneralLetter('emr_anfitria')}
               disabled={isGenerating === 'emr_anfitria'}
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-sky-800 dark:text-sky-300 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
               title="Gerar Carta às Congregações Anfitriãs"
             >
-              {isGenerating === 'emr_anfitria' ? <Loader2 size={15} className="animate-spin text-blue-600" /> : <Mail size={15} className="shrink-0 text-blue-600" />}
+              {isGenerating === 'emr_anfitria' ? <Loader2 size={14} className="animate-spin text-sky-600" /> : <Mail size={14} className="shrink-0 text-sky-600 dark:text-sky-400" />}
               <span className="hidden sm:inline">Carta Anfitriã</span>
             </button>
 
@@ -1056,46 +1253,46 @@ export default function EMRView({
             <button 
               onClick={() => generateGeneralLetter('emr_convite')}
               disabled={isGenerating === 'emr_convite'}
-              className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              className="h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-xl text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
               title="Gerar Carta Convite para os Alunos"
             >
-              {isGenerating === 'emr_convite' ? <Loader2 size={15} className="animate-spin text-emerald-600" /> : <Mail size={15} className="shrink-0 text-emerald-600" />}
+              {isGenerating === 'emr_convite' ? <Loader2 size={14} className="animate-spin text-emerald-600" /> : <Mail size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />}
               <span className="hidden sm:inline">Carta Convite</span>
             </button>
 
             {/* Imprimir A4 */}
             <button 
               onClick={() => window.print()} 
-              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 border border-gray-200 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+              className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold text-typography-700 bg-surface-200 hover:bg-surface-300 border border-surface-300 shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
               title="Imprimir folha A4 em modo Retrato"
             >
-              <Printer size={15} className="shrink-0 text-gray-500" />
+              <Printer size={14} className="shrink-0 text-typography-500" />
               <span className="hidden md:inline">Imprimir A4</span>
             </button>
           </div>
         </div>
 
         {/* Compact Navigation Bar: Modalidade & Turmas Selector */}
-        <div className="flex items-center justify-between gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/80 flex-wrap">
+        <div className="flex items-center justify-between gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 shadow-2xs flex-wrap">
           {/* Seletor de Modalidade (Anciãos vs Servos) */}
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-gray-200/60 shadow-2xs shrink-0">
+          <div className="flex items-center gap-1 bg-surface-200/60 p-0.5 rounded-xl border border-surface-300 shadow-2xs shrink-0">
             <button
-              onClick={() => setSelectedSchoolType('ancians')}
+              onClick={() => handleSchoolTypeChange('ancians')}
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center gap-1.5 cursor-pointer ${
                 selectedSchoolType === 'ancians'
                   ? 'bg-[#37616b] text-white shadow-xs font-bold'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                  : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200 font-medium'
               }`}
             >
               <User size={13} />
               <span>Anciãos</span>
             </button>
             <button
-              onClick={() => setSelectedSchoolType('servants')}
+              onClick={() => handleSchoolTypeChange('servants')}
               className={`h-8 sm:h-9 px-3 sm:px-4 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center gap-1.5 cursor-pointer ${
                 selectedSchoolType === 'servants'
                   ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                  : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200 font-medium'
               }`}
             >
               <Users size={13} />
@@ -1104,17 +1301,17 @@ export default function EMRView({
           </div>
 
           {/* Seletor de Turmas (1, 2, 3) */}
-          <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-gray-200/60 shadow-2xs shrink-0 ml-auto">
+          <div className="flex items-center gap-1 bg-surface-200/60 p-0.5 rounded-xl border border-surface-300 shadow-2xs shrink-0 ml-auto">
             {[0, 1, 2].map((turma) => {
               const isActive = selectedTurma === turma;
               return (
                 <button
                   key={turma}
-                  onClick={() => setSelectedTurma(turma)}
+                  onClick={() => handleTurmaChange(turma)}
                   className={`h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-lg text-xs transition-all whitespace-nowrap active:scale-[0.98] flex items-center justify-center cursor-pointer ${
                     isActive 
                       ? `${selectedSchoolType === 'ancians' ? 'bg-[#37616b]' : 'bg-indigo-600'} text-white shadow-xs font-bold` 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium'
+                      : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200 font-medium'
                   }`}
                   title={`Turma ${turma + 1}`}
                 >
@@ -1126,71 +1323,493 @@ export default function EMRView({
           </div>
         </div>
 
-        {/* Zoom & Document Viewport Toolbar */}
-        <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
-          <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
-            {/* Zoom Out */}
-            <button
-              onClick={() => setZoom(prev => Math.max(35, prev - 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Reduzir zoom (-10%)"
-              aria-label="Reduzir zoom"
-            >
-              <ZoomOut size={16} />
-            </button>
+      </div>
 
-            {/* Direct Zoom Presets */}
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
-              {[60, 80, 100, 125].map(preset => (
+      {/* MODO DE VISUALIZAÇÃO RESPONSIVO (PAINEL MOBILE-FIRST) */}
+      {viewMode === 'responsive' && (
+        <div className="no-print space-y-6">
+          {/* Hero Card com Tema e Metadados da Turma */}
+          <div className="relative rounded-3xl overflow-hidden bg-surface-100 border border-surface-300 shadow-xs p-5 sm:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white shadow-2xs ${
+                  selectedSchoolType === 'ancians' ? 'bg-[#37616b]' : 'bg-indigo-600'
+                }`}>
+                  E.M.R. • {currentConfig.year}
+                </span>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-surface-200 text-typography-700 border border-surface-300">
+                  TURMA {selectedTurma + 1} • {currentConfig.modalidade.toUpperCase()}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setShowDetailsModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-surface-200 hover:bg-surface-300 text-typography-800 transition-colors border border-surface-300 cursor-pointer"
+              >
+                <Edit3 size={13} />
+                <span>Editar Dados da Turma</span>
+              </button>
+            </div>
+
+            {/* Tema e Escritura */}
+            <div className="space-y-1">
+              <h2 className="text-lg sm:text-2xl font-black text-typography-900 tracking-tight leading-tight">
+                {currentConfig.themeText}
+              </h2>
+              <p className="text-xs sm:text-sm font-bold text-primary-200">
+                — {currentConfig.themeVerse}
+              </p>
+              <p className="text-xs text-typography-500 font-medium pt-0.5">
+                {currentConfig.title}
+              </p>
+            </div>
+
+            {/* Metadados: Data, Local, Anfitriã / Horário */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-surface-300/70">
+              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                <Calendar size={16} className="text-primary-200 shrink-0" />
+                <div className="min-w-0">
+                  <span className="block text-[10px] uppercase font-bold text-typography-400">Data</span>
+                  <span className="font-bold text-typography-900 truncate block">
+                    {details.data || 'A definir'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                <MapPin size={16} className="text-primary-200 shrink-0" />
+                <div className="min-w-0">
+                  <span className="block text-[10px] uppercase font-bold text-typography-400">Local da Turma</span>
+                  <span className="font-bold text-typography-900 truncate block">
+                    {details.local || 'A definir'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-surface-200/50 border border-surface-300/60 text-xs">
+                <Clock size={16} className="text-primary-200 shrink-0" />
+                <div className="min-w-0">
+                  <span className="block text-[10px] uppercase font-bold text-typography-400">Horários</span>
+                  <span className="font-bold text-typography-900 truncate block">
+                    {details.horarioInicio || '08:00'} às {details.horarioFim || '16:00'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* KPIs de Progresso */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+              <div className="p-3 rounded-2xl bg-surface-200/60 border border-surface-300 text-center">
+                <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                  Designadas
+                </span>
+                <div className="text-base sm:text-xl font-black text-typography-900">
+                  {stats.assignedCount}<span className="text-typography-400 text-xs font-bold">/{stats.totalWithSpeaker}</span>
+                </div>
+                <div className="w-full bg-surface-300 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className="bg-primary-200 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${stats.percentageAssigned}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-surface-200/60 border border-surface-300 text-center">
+                <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                  Confirmadas
+                </span>
+                <div className="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400">
+                  {stats.confirmedCount}<span className="text-typography-400 text-xs font-bold">/{stats.totalWithSpeaker}</span>
+                </div>
+                <div className="w-full bg-surface-300 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${stats.totalWithSpeaker > 0 ? Math.round((stats.confirmedCount / stats.totalWithSpeaker) * 100) : 0}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-surface-200/60 border border-surface-300 text-center flex flex-col justify-center">
+                <span className="text-[10px] uppercase font-black tracking-wider text-typography-400 block mb-0.5">
+                  Anfitriã
+                </span>
+                <div className="text-xs sm:text-sm font-bold text-typography-800 truncate">
+                  {details.anfitria || 'A definir'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Barra de Filtro e Busca Rápida */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Tabs de Sessões */}
+            <div className="flex items-center gap-1 bg-surface-100 p-1 rounded-2xl border border-surface-300 shadow-2xs overflow-x-auto">
+              <button
+                onClick={() => setActiveSessionTab(-1)}
+                className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  activeSessionTab === -1
+                    ? 'bg-primary-200 text-white shadow-xs'
+                    : 'text-typography-600 hover:text-typography-900'
+                }`}
+              >
+                Todas as Partes
+              </button>
+              {currentConfig.sessions.map((session, sIdx) => (
                 <button
-                  key={preset}
-                  onClick={() => setZoom(preset)}
-                  className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                    zoom === preset ? (selectedSchoolType === 'ancians' ? 'bg-[#37616b] text-white shadow-xs' : 'bg-indigo-600 text-white shadow-xs') : 'text-slate-400 hover:text-white'
+                  key={sIdx}
+                  onClick={() => setActiveSessionTab(sIdx)}
+                  className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    activeSessionTab === sIdx
+                      ? 'bg-primary-200 text-white shadow-xs'
+                      : 'text-typography-600 hover:text-typography-900'
                   }`}
                 >
-                  {preset}%
+                  {session.period}
                 </button>
               ))}
             </div>
 
-            {/* Zoom In */}
-            <button
-              onClick={() => setZoom(prev => Math.min(200, prev + 10))}
-              className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Aumentar zoom (+10%)"
-              aria-label="Aumentar zoom"
-            >
-              <ZoomIn size={16} />
-            </button>
+            {/* Input de Busca */}
+            <div className="relative w-full sm:w-72">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-typography-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Buscar parte ou orador..."
+                className="w-full h-10 pl-9 pr-8 rounded-2xl bg-surface-100 border border-surface-300 text-xs font-medium text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-2 focus:ring-primary-200/20 transition-all shadow-2xs"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-typography-400 hover:text-typography-700"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
 
-            {/* Fit to screen */}
-            <button
-              onClick={handleFitToScreen}
-              className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-              title="Ajustar documento à largura da tela"
-            >
-              <Maximize2 size={13} />
-              <span className="hidden sm:inline">Ajustar</span>
-            </button>
+          {/* Lista de Partes por Sessão */}
+          <div className="space-y-6">
+            {currentConfig.sessions
+              .filter((_, idx) => activeSessionTab === -1 || activeSessionTab === idx)
+              .map((session, sIdx) => {
+                const sessionItems = session.items.filter(item => {
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  if (item.title?.toLowerCase().includes(q)) return true;
+                  if (item.num?.toLowerCase().includes(q)) return true;
+                  if (speakers[item.id]?.toLowerCase().includes(q)) return true;
+                  if (speakerCongs[item.id]?.toLowerCase().includes(q)) return true;
+                  if (item.subitems?.some(s => 
+                    s.title?.toLowerCase().includes(q) || 
+                    s.num?.toLowerCase().includes(q) || 
+                    speakers[s.id]?.toLowerCase().includes(q) ||
+                    speakerCongs[s.id]?.toLowerCase().includes(q)
+                  )) return true;
+                  return false;
+                });
 
-            {/* Current Zoom Level */}
-            <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
-              {zoom}%
-            </span>
+                if (sessionItems.length === 0) return null;
+
+                return (
+                  <div key={session.period || sIdx} className="space-y-3">
+                    <div className="flex items-center gap-2.5 px-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-primary-200" />
+                      <div>
+                        <h3 className="text-sm font-black text-typography-900 uppercase tracking-wider">
+                          {session.period}
+                        </h3>
+                        {session.subtitle && (
+                          <p className="text-xs text-typography-500 font-medium">
+                            {session.subtitle}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {sessionItems.map((item, itemIdx) => {
+                        const isSymposium = item.isSeries && item.subitems && item.subitems.length > 0;
+                        const hasSpeaker = !item.noSpeaker && !item.isInterval;
+
+                        // Simpósio / Série de Discursos
+                        if (isSymposium) {
+                          return (
+                            <div
+                              key={item.id || itemIdx}
+                              className="p-4 sm:p-5 rounded-3xl bg-surface-100 border-2 border-primary-200/25 shadow-xs space-y-4"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary-200/10 text-primary-200 border border-primary-200/20">
+                                      {item.label || 'SÉRIE DE DISCURSOS'}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-sm sm:text-base font-black text-typography-900 leading-tight">
+                                    {item.title}
+                                  </h4>
+                                </div>
+                              </div>
+
+                              {/* Subpartes do Simpósio */}
+                              <div className="space-y-3 pt-1">
+                                {item.subitems!.map((sub, subIdx) => {
+                                  const subSpeaker = speakers[sub.id] || '';
+                                  const subCong = speakerCongs[sub.id] || '';
+                                  const isConfirmed = Boolean(confirmations[sub.id]);
+
+                                  return (
+                                    <div
+                                      key={sub.id || subIdx}
+                                      className="p-3.5 sm:p-4 rounded-2xl bg-surface-200/50 border border-surface-300 space-y-3 transition-all hover:border-surface-300/90"
+                                    >
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="w-6 h-6 rounded-lg bg-primary-200/15 text-primary-200 text-xs font-black flex items-center justify-center shrink-0">
+                                            {sub.num || subIdx + 1}
+                                          </span>
+                                          <h5 className="text-xs sm:text-sm font-bold text-typography-900 leading-tight">
+                                            {sub.title}
+                                          </h5>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-100 border border-surface-300 text-typography-600">
+                                            {sub.time} • {sub.duration}
+                                          </span>
+                                          {sub.sigla && (
+                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                              {sub.sigla}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Inputs de Orador, Congregação e Ações */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+                                        {/* Orador */}
+                                        <div className="sm:col-span-6 relative">
+                                          <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" />
+                                          <input
+                                            type="text"
+                                            value={subSpeaker}
+                                            onChange={e => updateSpeaker(sub.id, e.target.value)}
+                                            placeholder="Nome do orador..."
+                                            className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-100 border border-surface-300 text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                          />
+                                        </div>
+
+                                        {/* Congregação */}
+                                        <div className="sm:col-span-3 relative">
+                                          <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400 z-10" />
+                                          <input
+                                            type="text"
+                                            list={`cong-list-${sub.id}`}
+                                            value={subCong}
+                                            onChange={e => updateSpeakerCongregation(sub.id, e.target.value)}
+                                            placeholder="Congregação..."
+                                            className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-100 border border-surface-300 text-xs font-medium text-typography-800 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                          />
+                                          <datalist id={`cong-list-${sub.id}`}>
+                                            {congregations.map(c => (
+                                              <option key={c.id} value={c.nome} />
+                                            ))}
+                                          </datalist>
+                                        </div>
+
+                                        {/* Confirmação e Carta */}
+                                        <div className="sm:col-span-3 flex items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleConfirmation(sub.id)}
+                                            className={`flex-1 h-9 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs ${
+                                              isConfirmed
+                                                ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:border-emerald-600 dark:text-emerald-200'
+                                                : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-600 dark:bg-surface-200 dark:text-typography-400'
+                                            }`}
+                                            title={isConfirmed ? "Orador Confirmado" : "Clique para confirmar"}
+                                          >
+                                            {isConfirmed ? (
+                                              <CheckCircle2 size={14} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                                            ) : (
+                                              <Circle size={14} className="text-typography-400 stroke-[2]" />
+                                            )}
+                                            <span>{isConfirmed ? 'Confirmado' : 'Pendente'}</span>
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => generateLetter(sub.id)}
+                                            disabled={isGenerating === sub.id}
+                                            className="h-9 px-2.5 rounded-xl text-xs font-bold bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                                            title="Gerar Carta ao Instrutor"
+                                          >
+                                            {isGenerating === sub.id ? <Loader2 size={14} className="animate-spin text-primary-200" /> : <Mail size={14} />}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Discurso normal com orador
+                        if (hasSpeaker) {
+                          const itemSpeaker = speakers[item.id] || '';
+                          const itemCong = speakerCongs[item.id] || '';
+                          const isConfirmed = Boolean(confirmations[item.id]);
+
+                          return (
+                            <div
+                              key={item.id || itemIdx}
+                              className="p-4 sm:p-5 rounded-3xl bg-surface-100 border border-surface-300 shadow-xs space-y-3.5 hover:border-surface-300/90 transition-all"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5">
+                                  {item.num && (
+                                    <span className="w-6 h-6 rounded-lg bg-primary-200/15 text-primary-200 text-xs font-black flex items-center justify-center shrink-0">
+                                      {item.num}
+                                    </span>
+                                  )}
+                                  <div>
+                                    <h4 className="text-xs sm:text-base font-bold text-typography-900 leading-tight">
+                                      {item.title}
+                                    </h4>
+                                    {item.note && (
+                                      <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
+                                        • {item.note}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-surface-200 border border-surface-300 text-typography-600">
+                                    {item.time} {item.duration ? `• ${item.duration}` : ''}
+                                  </span>
+                                  {item.sigla && (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                      {item.sigla}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Inputs de Orador, Congregação e Ações */}
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+                                <div className="sm:col-span-6 relative">
+                                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" />
+                                  <input
+                                    type="text"
+                                    value={itemSpeaker}
+                                    onChange={e => updateSpeaker(item.id, e.target.value)}
+                                    placeholder="Nome do orador..."
+                                    className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                  />
+                                </div>
+
+                                <div className="sm:col-span-3 relative">
+                                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400 z-10" />
+                                  <input
+                                    type="text"
+                                    list={`cong-list-${item.id}`}
+                                    value={itemCong}
+                                    onChange={e => updateSpeakerCongregation(item.id, e.target.value)}
+                                    placeholder="Congregação..."
+                                    className="w-full h-9 pl-8 pr-3 rounded-xl bg-surface-200/50 border border-surface-300 text-xs font-medium text-typography-800 placeholder:text-typography-400 focus:outline-none focus:border-primary-200 focus:ring-1 focus:ring-primary-200"
+                                  />
+                                  <datalist id={`cong-list-${item.id}`}>
+                                    {congregations.map(c => (
+                                      <option key={c.id} value={c.nome} />
+                                    ))}
+                                  </datalist>
+                                </div>
+
+                                <div className="sm:col-span-3 flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleConfirmation(item.id)}
+                                    className={`flex-1 h-9 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs ${
+                                      isConfirmed
+                                        ? 'bg-emerald-100 hover:bg-emerald-200/80 border-emerald-400 text-emerald-950 dark:bg-emerald-950/80 dark:border-emerald-600 dark:text-emerald-200'
+                                        : 'bg-surface-100 hover:bg-surface-200 border-surface-300 text-typography-600 dark:bg-surface-200 dark:text-typography-400'
+                                    }`}
+                                    title={isConfirmed ? "Orador Confirmado" : "Clique para confirmar"}
+                                  >
+                                    {isConfirmed ? (
+                                      <CheckCircle2 size={14} className="text-emerald-700 dark:text-emerald-400 stroke-[2.5]" />
+                                    ) : (
+                                      <Circle size={14} className="text-typography-400 stroke-[2]" />
+                                    )}
+                                    <span>{isConfirmed ? 'Confirmado' : 'Pendente'}</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => generateLetter(item.id)}
+                                    disabled={isGenerating === item.id}
+                                    className="h-9 px-2.5 rounded-xl text-xs font-bold bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                                    title="Gerar Carta ao Instrutor"
+                                  >
+                                    {isGenerating === item.id ? <Loader2 size={14} className="animate-spin text-primary-200" /> : <Mail size={14} />}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Cântico ou Intervalo
+                        return (
+                          <div
+                            key={item.id || itemIdx}
+                            className="p-3 rounded-2xl bg-surface-200/40 border border-surface-300/70 flex items-center justify-between gap-3 text-xs text-typography-600"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {item.isInterval ? (
+                                <Coffee size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              ) : (
+                                <Music size={15} className="text-primary-200 shrink-0" />
+                              )}
+                              <span className="font-bold text-typography-800 truncate">
+                                {item.title}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[10px] font-semibold text-typography-400">
+                                {item.time} {item.duration ? `• ${item.duration}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </div>
-      </div>
+      )}
 
       {/* A4 Document Viewport Container */}
       <div 
         ref={containerRef}
-        className="emr-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80"
+        className={`emr-viewport w-full max-w-full min-w-0 overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex flex-col gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80 ${
+          viewMode === 'a4' ? 'flex' : 'hidden print:flex'
+        }`}
         style={{
-          minHeight: '400px',
+          minHeight: viewMode === 'a4' ? '400px' : '0',
           touchAction: 'pan-x pan-y',
         }}
       >
+        <div className="min-w-full w-max flex flex-col items-center gap-8 mx-auto">
         {/* Render 2 Physical A4 Pages: Page 1 (Parte 1 Manhã) & Page 2 (Parte 2 Tarde) */}
         {currentConfig.sessions.map((session, pageIdx) => {
           const pageNum = pageIdx + 1;
@@ -1582,7 +2201,136 @@ export default function EMRView({
             </div>
           );
         })}
+        </div>
       </div>
+
+      {/* Barra Flutuante Suspensa - Estilo Leitor de PDF integrada ao Tema (Padrão S-303) */}
+      {viewMode === 'a4' && (
+        <div className="fixed bottom-4 sm:bottom-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none print:hidden">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pointer-events-auto bg-surface-100/95 dark:bg-surface-800/95 backdrop-blur-xl text-typography-800 dark:text-typography-100 border border-surface-300 dark:border-surface-600 shadow-2xl rounded-full px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1 sm:gap-2 transition-all hover:shadow-primary-200/10"
+          >
+            {/* Indicador de Documento / Página */}
+            <div className="flex items-center gap-1.5 px-2 py-1 text-typography-600 dark:text-typography-300 text-xs font-medium select-none">
+              <FileText size={14} className="text-primary-200" />
+              <span className="hidden sm:inline font-semibold">Folha A4</span>
+              <span className="text-[11px] text-typography-500 font-mono">1/{currentConfig.sessions?.length || 2}</span>
+            </div>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Zoom Out (-) */}
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= 35}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Diminuir Zoom (-)"
+            >
+              <Minus size={15} />
+            </button>
+
+            {/* Seletor / Indicador de Porcentagem de Zoom */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowZoomMenu(!showZoomMenu)}
+                className="px-2 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 rounded-lg text-xs font-bold font-mono text-typography-800 dark:text-typography-100 transition-all flex items-center gap-1 cursor-pointer"
+                title="Opções de visualização de Zoom"
+              >
+                <span className="min-w-[40px] text-center">{Math.round(zoom)}%</span>
+                <ChevronDown size={12} className="text-typography-500" />
+              </button>
+
+              {showZoomMenu && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface-100 dark:bg-surface-800 backdrop-blur-xl border border-surface-300 dark:border-surface-600 rounded-2xl shadow-2xl py-1.5 min-w-[200px] z-40 divide-y divide-surface-200 dark:divide-surface-700 text-xs text-typography-800 dark:text-typography-100">
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-typography-500">
+                    Nível de Zoom
+                  </div>
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={handleToggleAutoFit}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        autoFit ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Maximize2 size={13} className={autoFit ? 'text-primary-200' : 'text-typography-500'} />
+                        Ajustar à Tela (Automático)
+                      </span>
+                      {autoFit && <Check size={13} className="text-primary-200" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetZoom(100)}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        !autoFit && Math.round(zoom) === 100 ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span>100% (Tamanho Real)</span>
+                      {!autoFit && Math.round(zoom) === 100 && <Check size={13} className="text-primary-200" />}
+                    </button>
+                  </div>
+                  <div className="py-1">
+                    {[50, 65, 75, 85, 125, 150].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => handleSetZoom(s)}
+                        className={`w-full text-left px-3 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                          !autoFit && Math.round(zoom) === s ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-300'
+                        }`}
+                      >
+                        <span>{s}%</span>
+                        {!autoFit && Math.round(zoom) === s && <Check size={13} className="text-primary-200" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botão Zoom In (+) */}
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= 200}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Aumentar Zoom (+)"
+            >
+              <Plus size={15} />
+            </button>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Ajustar à Tela (Alterna entre Automático ou Não) */}
+            <button
+              type="button"
+              onClick={handleToggleAutoFit}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                autoFit 
+                  ? 'bg-primary-200 hover:bg-primary-150 text-white shadow-primary-200/30' 
+                  : 'bg-surface-200 hover:bg-surface-300 dark:bg-surface-700 dark:hover:bg-surface-600 text-typography-700 dark:text-typography-200'
+              }`}
+              title={autoFit ? 'Ajuste à tela está ATIVO (automático). Clique para tamanho real (100%)' : 'Clique para ajustar automaticamente à tela'}
+            >
+              {autoFit ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              <span className="hidden sm:inline">
+                {autoFit ? 'Ajustado' : 'Ajustar à tela'}
+              </span>
+              <span className="sm:hidden">
+                {autoFit ? 'Auto' : 'Ajustar'}
+              </span>
+              {autoFit && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              )}
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       {/* Modal de Edição de Dados da Escola */}
       <AnimatePresence>
@@ -1592,20 +2340,34 @@ export default function EMRView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-surface-300 relative text-typography-900"
             >
-              <div className="p-6 bg-[#37616b]/5 border-b border-[#37616b]/10 flex items-center justify-between">
+              <div 
+                className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+                style={{ 
+                  backgroundImage: `linear-gradient(to right, ${selectedSchoolType === 'ancians' ? '#37616b' : '#6366f1'}, transparent)` 
+                }} 
+              />
+              <div className={`p-6 border-b flex items-center justify-between ${
+                selectedSchoolType === 'ancians'
+                  ? 'bg-[#37616b]/5 border-[#37616b]/10'
+                  : 'bg-indigo-500/5 border-indigo-500/10'
+              }`}>
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-[#37616b]/10 rounded-xl text-[#37616b]">
+                  <div className={`p-2.5 rounded-xl ${
+                    selectedSchoolType === 'ancians'
+                      ? 'bg-[#37616b]/10 text-[#37616b]'
+                      : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                  }`}>
                     <Calendar size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Dados da Escola</h3>
-                    <p className="text-xs text-gray-500">Turma {selectedTurma + 1} • {currentConfig.modalidade} ({currentConfig.year})</p>
+                    <h3 className="text-lg font-black text-typography-900 uppercase tracking-tight">Dados da Escola</h3>
+                    <p className="text-xs text-typography-500">Turma {selectedTurma + 1} • {currentConfig.modalidade} ({currentConfig.year})</p>
                   </div>
                 </div>
-                <button onClick={() => setShowDetailsModal(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                  <X size={24} />
+                <button onClick={() => setShowDetailsModal(false)} className="p-2 text-typography-400 hover:text-typography-900 transition-colors cursor-pointer rounded-lg hover:bg-surface-200/60">
+                  <X size={22} />
                 </button>
               </div>
 
@@ -1613,9 +2375,9 @@ export default function EMRView({
                 <div className="flex-1 p-6 space-y-4 overflow-y-auto custom-scrollbar scroll-smooth">
                   {/* Local da Turma */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Local da Turma (Salão do Reino)</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Local da Turma (Salão do Reino)</label>
                     <div className="relative">
-                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400 z-10" />
                       <input 
                         type="text" 
                         list="emr-locais-modal"
@@ -1641,7 +2403,7 @@ export default function EMRView({
                           }
                         }}
                         placeholder="Ex: Salão do Reino Central"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                       <datalist id="emr-locais-modal">
                         {congregations.map(c => (
@@ -1653,45 +2415,45 @@ export default function EMRView({
 
                   {/* Endereço */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Endereço Completo</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Endereço Completo</label>
                     <div className="relative">
-                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.endereco || ''} 
                         onChange={e => updateDetail('endereco', e.target.value)}
                         placeholder="Ex: Rua das Flores, 123 - Centro"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   {/* Data da Escola */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Data da Escola</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Data da Escola</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.data || ''} 
                         onChange={e => updateDetail('data', e.target.value)}
                         placeholder="Ex: 15 de Outubro de 2027"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   {/* Congregação Anfitriã */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Congregação Anfitriã</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Congregação Anfitriã</label>
                     <div className="relative">
-                      <BookOpen size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <BookOpen size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.anfitria || ''} 
                         onChange={e => updateDetail('anfitria', e.target.value)}
                         placeholder="Ex: Congregação Central"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -1699,28 +2461,28 @@ export default function EMRView({
                   {/* Horários */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Início</label>
+                      <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Início</label>
                       <div className="relative">
-                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                         <input 
                           type="text" 
                           value={details.horarioInicio || '08:00'} 
                           onChange={e => updateDetail('horarioInicio', e.target.value)}
                           placeholder="08:00"
-                          className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                         />
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Término</label>
+                      <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Término</label>
                       <div className="relative">
-                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                         <input 
                           type="text" 
                           value={details.horarioFim || '16:00'} 
                           onChange={e => updateDetail('horarioFim', e.target.value)}
                           placeholder="16:00"
-                          className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                          className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -1728,22 +2490,26 @@ export default function EMRView({
 
                   {/* Horário Esposas */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Horário Especial (Esposas)</label>
+                    <label className="text-[10px] font-black uppercase text-typography-500 ml-1">Horário Especial (Esposas)</label>
                     <div className="relative">
-                      <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Clock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-typography-400" />
                       <input 
                         type="text" 
                         value={details.horarioEsposas || '14:45 às 16:00'} 
                         onChange={e => updateDetail('horarioEsposas', e.target.value)}
                         placeholder="Ex: 14:45 às 16:00"
-                        className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:border-[#37616b] outline-none transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-surface-200/60 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:border-[#37616b] outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   <button 
                     onClick={() => setShowDetailsModal(false)}
-                    className="w-full mt-4 py-3.5 bg-[#37616b] text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-[#37616b]/20 hover:bg-[#37616b]/90 transition-all active:scale-95 cursor-pointer"
+                    className={`w-full mt-4 py-3.5 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-all active:scale-95 cursor-pointer ${
+                      selectedSchoolType === 'ancians'
+                        ? 'bg-[#37616b] hover:bg-[#37616b]/90 shadow-[#37616b]/20'
+                        : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
+                    }`}
                   >
                     Confirmar Dados
                   </button>
@@ -1758,26 +2524,26 @@ export default function EMRView({
       <AnimatePresence>
         {hasChanges && !showDetailsModal && (
           <motion.div 
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
           >
-            <div className="flex items-center gap-2.5 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-typography-900 truncate">
                   Alterações não salvas
                 </span>
-                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
-                  EMR 2027 • {currentConfig.modalidade} • Turma {selectedTurma + 1}
+                <span className="text-[10px] text-typography-400 font-mono truncate hidden sm:inline">
+                  EMR {currentConfig.year} • {currentConfig.modalidade} • T{selectedTurma + 1}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
                   if (selectedSchoolType === 'ancians') {
@@ -1787,20 +2553,84 @@ export default function EMRView({
                   }
                 }}
                 disabled={isSaving}
-                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Descartar
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="px-4 sm:px-5 py-1.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/20 flex items-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
+                className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
-                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 <span>Salvar</span>
               </button>
             </div>
           </motion.div>
+        )}
+
+        {/* Modal de Confirmação ao Sair com Alterações Pendentes */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface-100 border border-surface-300 rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                  <AlertTriangle size={20} strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-black text-typography-900 leading-tight">
+                    Alterações não salvas
+                  </h3>
+                  <span className="text-xs text-typography-400 font-medium truncate block">
+                    EMR {currentConfig.year} • {currentConfig.modalidade} • Turma {selectedTurma + 1}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs sm:text-sm text-typography-500 leading-relaxed mb-5">
+                Existem alterações não salvas nesta turma da escola. O que deseja fazer antes de sair?
+              </p>
+
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={async () => { 
+                    await handleSave(); 
+                    setShowConfirmModal(false); 
+                    if (pendingAction) pendingAction(); 
+                  }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-primary-200 hover:bg-primary-150 text-white rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Save size={15} />
+                  <span>Salvar e Continuar</span>
+                </button>
+                <button 
+                  onClick={() => { 
+                    if (selectedSchoolType === 'ancians') {
+                      setAnciansParts(JSON.parse(initialAnciansParts || JSON.stringify(createEmptyTurmas())));
+                    } else {
+                      setServantsParts(JSON.parse(initialServantsParts || JSON.stringify(createEmptyTurmas())));
+                    }
+                    setShowConfirmModal(false); 
+                    if (pendingAction) pendingAction(); 
+                  }} 
+                  className="w-full py-2.5 sm:py-3 px-4 bg-surface-200/60 hover:bg-rose-500/10 text-typography-600 hover:text-rose-600 dark:hover:text-rose-400 border border-surface-300/80 rounded-xl font-semibold text-xs sm:text-sm transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  Descartar Alterações
+                </button>
+                <button 
+                  onClick={() => setShowConfirmModal(false)} 
+                  className="w-full py-2 text-typography-400 hover:text-typography-700 font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Continuar Editando
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

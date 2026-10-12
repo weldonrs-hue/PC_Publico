@@ -14,15 +14,60 @@ interface State {
 class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
-    error: null
+    error: null,
   };
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
+  public componentDidMount() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('error', this.handleWindowError);
+    }
+  }
+
+  public componentWillUnmount() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('error', this.handleWindowError);
+    }
+  }
+
+  private handleWindowError = (e: ErrorEvent) => {
+    const msg = e?.message || '';
+    if (
+      msg.includes('ChunkLoadError') ||
+      msg.includes('Loading chunk') ||
+      msg.includes("Unexpected token '<'")
+    ) {
+      this.recoverChunkError();
+    }
+  };
+
+  private recoverChunkError = () => {
+    try {
+      const storageKey = 'last_chunk_reload_attempt';
+      const lastAttempt = sessionStorage.getItem(storageKey);
+      const now = Date.now();
+      if (!lastAttempt || now - Number(lastAttempt) > 10000) {
+        sessionStorage.setItem(storageKey, String(now));
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    }
+  };
+
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+    const msg = error?.message || error?.toString() || '';
+    if (
+      msg.includes('ChunkLoadError') ||
+      msg.includes('Loading chunk') ||
+      msg.includes("Unexpected token '<'")
+    ) {
+      this.recoverChunkError();
+    }
   }
 
   public render() {
@@ -44,7 +89,7 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
             <button
               onClick={() => window.location.reload()}
-              className="w-full bg-[#6c40bd] text-white font-bold py-3 rounded-2xl shadow-lg hover:bg-[#5a35a0] transition-all"
+              className="w-full bg-[#6c40bd] text-white font-bold py-3 rounded-2xl shadow-lg hover:bg-[#5a35a0] transition-all cursor-pointer"
             >
               Recarregar Página
             </button>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { getAdminAuth } from '@/lib/server/firebase-admin';
-import { getWebAuthnConfig, consumeChallenge, getCredentialById, updateCredentialCounter } from '@/lib/server/webauthn-utils';
+import { getWebAuthnConfig, consumeChallenge, getCredentialById, updateCredentialCounter, parsePublicKey } from '@/lib/server/webauthn-utils';
 
 export const runtime = 'nodejs';
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         expectedRPID: rpID,
         credential: {
           id: credential.id,
-          publicKey: credential.publicKey instanceof Buffer ? credential.publicKey : (credential.publicKey?.toBuffer ? credential.publicKey.toBuffer() : Buffer.from(credential.publicKey || [])),
+          publicKey: Uint8Array.from(parsePublicKey(credential.publicKey)),
           counter: credential.counter,
           transports: credential.transports,
         },
@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
       if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
         try {
           const adminAuth = getAdminAuth();
-          customToken = await adminAuth.createCustomToken(credential.userId);
+          if (adminAuth) {
+            customToken = await adminAuth.createCustomToken(credential.userId);
+          }
         } catch {
           // Não-fatal caso a assinatura de token não esteja configurada
         }

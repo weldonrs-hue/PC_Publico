@@ -1,39 +1,42 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  ChevronLeft, 
-  Loader2,
-  TrendingUp,
-  Users,
-  Calendar,
-  DollarSign,
-  BarChart3,
-  Printer,
-  FileDown,
-  Download,
-  Activity,
-  PieChart as PieChartIcon,
-  ChevronDown
-} from 'lucide-react';
-import { motion } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { createCircuitFolderStructure } from '@/utils/fileSystem';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
+  Activity,
+  AlertTriangle,
+  Award,
+  BarChart3,
+  BookOpen,
+  ChevronLeft,
+  FileDown,
+  FileText,
+  LayoutDashboard,
+  Loader2,
+  PieChart as PieChartIcon,
+  Printer,
+  Sparkles,
+  TrendingUp,
+  UserCheck,
+  UserPlus,
+  Users,
+  UserX
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
   CartesianGrid,
-  Tooltip,
+  Cell,
   Legend,
-  ResponsiveContainer
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
 } from 'recharts';
 
 interface CircuitStatisticsViewProps {
@@ -87,6 +90,14 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   const [stats, setStats] = useState<any>(null);
   const [congCount, setCongCount] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [viewMode, setViewMode] = useState<'dashboard' | 'folha'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_stats_view_mode') as 'dashboard' | 'folha';
+      if (saved === 'dashboard' || saved === 'folha') return saved;
+      return window.innerWidth < 1024 ? 'dashboard' : 'folha';
+    }
+    return 'folha';
+  });
   const [showCharts, setShowCharts] = useState(true);
   const [showComposition, setShowComposition] = useState(true);
   const [showAttendance, setShowAttendance] = useState(true);
@@ -246,8 +257,8 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="animate-spin text-sky-500" size={48} />
-        <p className="text-gray-500 font-medium">Calculando estatísticas do circuito...</p>
+        <div className="w-8 h-8 border-4 border-primary-200 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-typography-600">Calculando estatísticas do circuito...</p>
       </div>
     );
   }
@@ -255,22 +266,22 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
   if (!stats || congCount === 0) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
-        <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-sky-500">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between bg-surface-100 border border-surface-300 p-4 sm:p-5 rounded-3xl shadow-sm">
+          <div className="flex items-center gap-3">
             <button 
               onClick={onBack} 
-              className="p-2 hover:bg-gray-100 rounded-full transition-all text-sky-600 bg-white shadow-md border border-gray-200"
+              className="p-2 sm:p-2.5 rounded-xl border border-surface-300 hover:bg-surface-200 text-typography-700 hover:text-typography-900 transition-colors shadow-2xs cursor-pointer group"
               title="Voltar ao Painel"
             >
-              <ChevronLeft size={28} strokeWidth={3} />
+              <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
             </button>
-            <h2 className="text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">Estatísticas do Circuito</h2>
           </div>
         </div>
-        <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center space-y-4">
-          <BarChart3 className="mx-auto text-gray-300" size={64} />
-          <p className="text-gray-500 font-medium">Nenhuma análise de atividade encontrada para as congregações.</p>
-          <button onClick={onBack} className="px-6 py-2 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-700 transition-all">
+        <div className="bg-surface-100 border border-surface-300 p-12 rounded-3xl shadow-sm text-center space-y-4">
+          <BarChart3 className="mx-auto text-typography-400" size={56} />
+          <p className="text-sm text-typography-600 font-medium">Nenhuma análise de atividade encontrada para as congregações.</p>
+          <button onClick={onBack} className="px-6 py-2.5 bg-primary-200 hover:bg-primary-300 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer">
             Voltar ao Painel
           </button>
         </div>
@@ -388,369 +399,728 @@ export default function CircuitStatisticsView({ userId, personalData, onBack }: 
         /* Support for PDF capture styles */
         .pdf-capture {
           background-color: #ffffff !important;
-          color: #1a1a1a !important;
+          color: #0f172a !important;
         }
         .pdf-capture * {
-          border-color: #e5e7eb !important;
-          /* Force standard color space for capture */
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
-        .pdf-capture .bg-\[\#e9ecef\] {
-          background-color: #e9ecef !important;
-        }
-        .pdf-capture .bg-\[\#f2f2f2\] {
-          background-color: #f2f2f2 !important;
-        }
-        .pdf-capture .bg-\[\#fdf5e6\] {
-          background-color: #fdf5e6 !important;
-        }
-        .pdf-capture .bg-\[\#a9d08e\] {
-          background-color: #a9d08e !important;
-        }
-        .pdf-capture .bg-\[\#f4b084\] {
-          background-color: #f4b084 !important;
-        }
-        .pdf-capture .text-\[\#002060\] {
-          color: #002060 !important;
-        }
-        .pdf-capture .text-white {
-          color: #ffffff !important;
-        }
-        .pdf-capture h1, .pdf-capture h2, .pdf-capture h3 {
-          color: #000000 !important;
-        }
-        .pdf-capture .bg-white {
-          background-color: #ffffff !important;
-        }
-        .pdf-capture .bg-gray-50 {
-          background-color: #f9fafb !important;
-        }
-        .pdf-capture .bg-gray-100 {
-          background-color: #f3f4f6 !important;
-        }
       `}</style>
       {/* Header - Hidden in Print */}
-      <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-2xl shadow-md border-l-8 border-sky-500 print:hidden gap-4">
-        <div className="flex items-center gap-4 w-full sm:w-auto">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-surface-100 border border-surface-300 p-4 sm:p-5 rounded-3xl shadow-sm print:hidden gap-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+        <div className="flex items-center gap-3">
           <button 
             onClick={onBack} 
-            className="p-2 hover:bg-gray-100 rounded-full transition-all text-sky-600 bg-white shadow-md border border-gray-200"
+            className="p-2 sm:p-2.5 rounded-xl border border-surface-300 hover:bg-surface-200 text-typography-700 hover:text-typography-900 transition-colors shadow-2xs cursor-pointer group"
             title="Voltar ao Painel"
           >
-            <ChevronLeft size={28} strokeWidth={3} />
+            <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
           </button>
-          <h2 className="text-2xl font-black text-gray-800 tracking-tight">Estatísticas do Circuito</h2>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">Estatísticas do Circuito</h2>
+            <p className="text-xs text-typography-500 font-medium">Consolidado de {congCount} congregações</p>
+          </div>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <button 
-            onClick={handleSavePDF} 
-            disabled={generating}
-            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm disabled:opacity-50"
-          >
-            {generating ? (
-              <Loader2 size={18} className="animate-spin text-sky-600" />
-            ) : (
-              <FileDown size={18} className="text-sky-600" />
-            )}
-            <span>{generating ? 'Gerando...' : 'Baixar PDF'}</span>
-          </button>
-          <button 
-            onClick={() => window.print()} 
-            className="flex-1 sm:flex-none py-2.5 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-sm"
-          >
-            <Printer size={18} className="text-sky-600" /> 
-            <span>Imprimir</span>
-          </button>
+
+        {/* Seletor de Modo e Ações */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Seletor de Visão */}
+          <div className="flex bg-surface-200 p-1 rounded-2xl border border-surface-300">
+            <button
+              type="button"
+              onClick={() => setViewMode('dashboard')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'dashboard'
+                  ? 'bg-surface-100 text-primary-200 shadow-2xs'
+                  : 'text-typography-600 hover:text-typography-900'
+              }`}
+            >
+              <LayoutDashboard size={14} />
+              Painel Geral
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('folha')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'folha'
+                  ? 'bg-surface-100 text-primary-200 shadow-2xs'
+                  : 'text-typography-600 hover:text-typography-900'
+              }`}
+            >
+              <FileText size={14} />
+              Folha Oficial (A4)
+            </button>
+          </div>
+
+          {/* Botões de Ação */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleSavePDF} 
+              disabled={generating}
+              className="flex-1 sm:flex-initial py-2 px-3.5 bg-primary-200 hover:bg-primary-300 text-white rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-xs shadow-xs disabled:opacity-50 cursor-pointer whitespace-nowrap"
+            >
+              {generating ? (
+                <Loader2 size={15} className="animate-spin text-white" />
+              ) : (
+                <FileDown size={15} className="text-white" />
+              )}
+              <span>{generating ? 'Gerando...' : 'PDF'}</span>
+            </button>
+            <button 
+              onClick={() => window.print()} 
+              className="flex-1 sm:flex-initial py-2 px-3.5 bg-surface-200 hover:bg-surface-300 border border-surface-300 text-typography-800 rounded-xl transition-colors flex items-center justify-center gap-2 font-bold text-xs cursor-pointer whitespace-nowrap"
+            >
+              <Printer size={15} /> 
+              <span>Imprimir</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* A4 Document Container */}
-      <div className="overflow-x-auto pb-4">
-        <div id="circuit-stats-form" className="min-w-[800px] space-y-6 bg-white p-[8mm] shadow-2xl border border-gray-200 print:shadow-none print:border-none print:p-0 print:space-y-4 font-sans text-gray-900 overflow-hidden leading-tight print:min-w-0">
-        
-        {/* Document Title - Visible only in PDF/Print */}
-        <div className="hidden print:block text-center pt-2 pb-4">
-          <h1 className="text-4xl font-bold tracking-tight text-sky-600">Estatísticas do Circuito</h1>
-        </div>
-
-        {/* Summary Line */}
-        <div className="flex items-center justify-center gap-2 text-[24px] font-normal py-4">
-          <span className="italic">Total de publicadores ativos do circuito em</span>
-          <span className="bg-[#e9ecef] px-3 py-1 rounded font-bold text-[24px] text-gray-900 border border-gray-300">
-            {congCount}
-          </span>
-          <span className="italic">congregações:</span>
-          <span className="bg-[#e9ecef] px-4 py-1 rounded font-bold text-[24px] text-[#002060] border border-gray-300 ml-2 min-w-[80px] text-center">
-            {stats.pubAtivos}
-          </span>
-        </div>
-
-        {/* Dynamic Charts Section - Hidden in Print */}
-        <div className="space-y-4 print:hidden">
-          <button 
-            onClick={() => setShowCharts(!showCharts)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all text-xs font-bold uppercase tracking-widest text-gray-600 shadow-sm"
-          >
-            <BarChart3 size={16} className="text-sky-500" />
-            {showCharts ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}
-            <ChevronDown size={16} className={`transform transition-transform ${showCharts ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showCharts && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
-            >
-              <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px] relative">
-                <button 
-                  onClick={() => setShowComposition(!showComposition)}
-                  className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg transition-all text-gray-400 hover:text-gray-600"
-                  title={showComposition ? "Fechar" : "Abrir"}
-                >
-                  <ChevronDown size={20} className={`transform transition-transform ${showComposition ? 'rotate-180' : ''}`} />
-                </button>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 bg-sky-100 text-sky-600 rounded-xl">
-                    <PieChartIcon size={20} />
-                  </div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Composição do Circuito</h3>
-                </div>
-                {showComposition ? (
-                  <div className="flex-1">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: 'Publicadores', value: stats.ministério.publicadores.relatando },
-                            { name: 'Pio. Regulares', value: stats.ministério.pioneirosRegulares.relatando },
-                            { name: 'Pio. Especiais', value: stats.ministério.pioneirosEspeciais.relatando },
-                            { name: 'Pio. Auxiliares', value: stats.ministério.pioneirosAuxiliares.relatando },
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {[
-                            '#0EA5E9', // Sky
-                            '#8B5CF6', // Violet
-                            '#F59E0B', // Amber
-                            '#10B981', // Emerald
-                          ].map((color, index) => (
-                            <Cell key={`cell-${index}`} fill={color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36}/>
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-gray-400 italic text-xs">
-                    Gráfico minimizado
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex flex-col h-[350px] relative">
-                <button 
-                  onClick={() => setShowAttendance(!showAttendance)}
-                  className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg transition-all text-gray-400 hover:text-gray-600"
-                  title={showAttendance ? "Fechar" : "Abrir"}
-                >
-                  <ChevronDown size={20} className={`transform transition-transform ${showAttendance ? 'rotate-180' : ''}`} />
-                </button>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 bg-violet-100 text-violet-600 rounded-xl">
-                    <Activity size={20} />
-                  </div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-800">Assistência às Reuniões</h3>
-                </div>
-                {showAttendance ? (
-                  <div className="flex-1">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={[
-                          { name: 'Meio de Semana', valor: Math.round(stats.reunioes.meioSemana) },
-                          { name: 'Fim de Semana', valor: Math.round(stats.reunioes.fimSemana) },
-                          { name: 'Não Publicadores', valor: Math.max(0, circuitDifferenceVal) },
-                        ]}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
-                        <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                        <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
-                          <Cell fill="#8B5CF6" />
-                          <Cell fill="#3B82F6" />
-                          <Cell fill="#F59E0B" />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-gray-400 italic text-xs">
-                    Gráfico minimizado
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </div>
-
-        {/* Section 1: Ministry Averages */}
-        <div className="space-y-0">
-          <div className="grid grid-cols-[1fr_120px_120px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[22px]">MÉDIAS DO CIRCUITO NO MINISTÉRIO</h3>
-            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média mensal</span>
-            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média mensal</span>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {[
-              { id: 'publicadores', label: 'PUBLICADORES' },
-              { id: 'pioneirosAuxiliares', label: 'PIONEIROS AUXILIARES' },
-              { id: 'pioneirosRegulares', label: 'PIONEIROS REGULARES' },
-              { id: 'pioneirosEspeciais', label: 'PIONEIROS ESPECIAIS' }
-            ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
-                <span className="font-bold text-gray-800 text-[20px] uppercase pl-1">{item.label}</span>
-                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].relatando)}</div>
-                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.ministério[item.id].estudos)}</div>
-              </div>
-            ))}
-            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 bg-[#fdf5e6]">
-              <span className="font-normal text-gray-800 text-[20px] uppercase pl-1">Média mensal de <span className="font-bold">ESTUDOS BÍBLICOS:</span></span>
-              <div className="text-center font-bold text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{Math.round(stats.estatisticas.mediaEstudos)}</div>
-              <div className="text-center font-bold text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
-                {stats.pubAtivos > 0 ? (stats.estatisticas.mediaEstudos / stats.pubAtivos).toFixed(1).replace('.', ',') : '0,0'} / Pub
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: Spiritual Situation */}
-        <div className="space-y-0 pt-2">
-          <div className="grid grid-cols-[1fr_120px_120px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[22px]">SITUAÇÃO ESPIRITUAL DOS PUBLICADORES</h3>
-            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média / 6 meses</span>
-            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Porcentagem</span>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {[
-              { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos' },
-              { id: 'irregulares', label: 'Número de PUBLICADORES IRREGULARES desde a última visita:' },
-              { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES desde a última visita:' },
-              { id: 'reativados', label: 'Quantos foram REATIVADOS desde a última visita:' },
-              { id: 'readmitidos', label: 'Quantos foram READMITIDOS desde a última visita:' }
-            ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
-                <span className="text-[20px] text-gray-800 pl-1">
-                  {item.label.includes(':') ? 
-                    <><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></> : 
-                    <><span className="font-normal">{item.label.split('DIRIGEM')[0]}</span><span className="font-bold">DIRIGEM</span><span className="font-normal">{item.label.split('DIRIGEM')[1]}</span></>
-                  }
+      {/* MODO 1: DASHBOARD INTERATIVO MODERNO E 100% RESPONSIVO */}
+      {viewMode === 'dashboard' && (
+        <div className="space-y-6 print:hidden">
+          {/* CARDS PRINCIPAIS DE DESTAQUE (KPIs) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* KPI 1: Publicadores Ativos */}
+            <div className="p-4 sm:p-5 bg-surface-100 border border-surface-300 rounded-3xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                  Publicadores Ativos
                 </span>
-                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+                <div className="w-8 h-8 rounded-xl bg-primary-200/10 text-primary-200 flex items-center justify-center">
+                  <Users size={16} />
+                </div>
               </div>
-            ))}
-            
-            {/* Growth Bar */}
-            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-[#a9d08e] border-y border-white">
-              <span className="font-bold text-white text-[20px] uppercase tracking-wider text-right pr-4">Crescimento de publicadores:</span>
-              <div className="text-center font-bold text-[24px] text-white">{crescimento}</div>
-              <div className="text-center font-bold text-[24px] text-white">{percCrescimento.replace('.', ',')}%</div>
+              <div>
+                <span className="text-2xl sm:text-3xl font-black text-typography-900 tracking-tight">
+                  {stats.pubAtivos}
+                </span>
+                <p className="text-xs text-typography-500 mt-0.5">
+                  Em {congCount} congregações
+                </p>
+              </div>
             </div>
 
-            {[
-              { id: 'inativos', label: 'Quantos ficaram INATIVOS desde a última visita:' },
-              { id: 'removidos', label: 'Quantos foram DESASSOCIADOS desde a última visita:' }
-            ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
-                <span className="text-[20px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
-                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+            {/* KPI 2: Média de Estudos */}
+            <div className="p-4 sm:p-5 bg-surface-100 border border-surface-300 rounded-3xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                  Estudos Bíblicos
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center">
+                  <BookOpen size={16} />
+                </div>
               </div>
-            ))}
-
-            {/* Decrease Bar */}
-            <div className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-[#f4b084] border-y border-white">
-              <span className="font-bold text-white text-[20px] uppercase tracking-wider text-right pr-4">Decréscimo de Publicadores:</span>
-              <div className="text-center font-bold text-[24px] text-white">{decrescimo}</div>
-              <div className="text-center font-bold text-[24px] text-white">{percDecrescimo.replace('.', ',')}%</div>
+              <div>
+                <span className="text-2xl sm:text-3xl font-black text-typography-900 tracking-tight">
+                  {Math.round(stats.estatisticas.mediaEstudos)}
+                </span>
+                <p className="text-xs text-typography-500 mt-0.5">
+                  {stats.pubAtivos > 0 ? (stats.estatisticas.mediaEstudos / stats.pubAtivos).toFixed(1).replace('.', ',') : '0,0'} / publicador
+                </p>
+              </div>
             </div>
 
-            {[
-              { id: 'batizados', label: 'Quantos foram BATIZADOS desde a última visita:' },
-              { id: 'anciaos', label: 'Número de ANCIÃOS:' },
-              { id: 'servos', label: 'Números de SERVOS MINISTERIAIS:' }
-            ].map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1 bg-white">
-                <span className="text-[20px] text-gray-800 pl-1"><span className="font-normal">{item.label.split(':')[0]}</span><span className="font-bold">:{item.label.split(':')[1]}</span></span>
-                <div className="text-center font-normal text-[24px] bg-[#f2f2f2] py-1 mx-1 rounded-sm">{stats.estatisticas[item.id]}</div>
-                <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%</div>
+            {/* KPI 3: Assistência Média */}
+            <div className="p-4 sm:p-5 bg-surface-100 border border-surface-300 rounded-3xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                  Assistência Fim de Semana
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <Activity size={16} />
+                </div>
               </div>
-            ))}
+              <div>
+                <span className="text-2xl sm:text-3xl font-black text-typography-900 tracking-tight">
+                  {Math.round(stats.reunioes.fimSemana)}
+                </span>
+                <p className="text-xs text-typography-500 mt-0.5">
+                  Meio de sem: {Math.round(stats.reunioes.meioSemana)}
+                </p>
+              </div>
+            </div>
+
+            {/* KPI 4: Saldo Espiritual */}
+            <div className="p-4 sm:p-5 bg-surface-100 border border-surface-300 rounded-3xl shadow-2xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                  Balanço Espiritual
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
+                  <TrendingUp size={16} />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                    +{crescimento}
+                  </span>
+                  <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-lg border border-rose-500/20">
+                    -{decrescimo}
+                  </span>
+                </div>
+                <p className="text-xs text-typography-500 mt-1">
+                  Saldo Líquido: <strong className="text-typography-800">{crescimento - decrescimo >= 0 ? `+${crescimento - decrescimo}` : `${crescimento - decrescimo}`}</strong>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* GRÁFICOS DINÂMICOS */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Gráfico 1: Composição do Circuito */}
+            <div className="bg-surface-100 p-5 rounded-3xl shadow-2xs border border-surface-300 flex flex-col h-[340px]">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-primary-200/10 text-primary-200 rounded-xl">
+                  <PieChartIcon size={18} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-typography-900">
+                    Composição dos Publicadores
+                  </h3>
+                  <p className="text-[11px] text-typography-500">Distribuição no ministério</p>
+                </div>
+              </div>
+              <div className="flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Publicadores', value: Math.round(stats.ministério.publicadores.relatando) },
+                        { name: 'Pio. Regulares', value: Math.round(stats.ministério.pioneirosRegulares.relatando) },
+                        { name: 'Pio. Especiais', value: Math.round(stats.ministério.pioneirosEspeciais.relatando) },
+                        { name: 'Pio. Auxiliares', value: Math.round(stats.ministério.pioneirosAuxiliares.relatando) },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={75}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {['#3B82F6', '#8B5CF6', '#F59E0B', '#10B981'].map((color, index) => (
+                        <Cell key={`cell-${index}`} fill={color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'var(--color-surface-100)', 
+                        borderColor: 'var(--color-surface-300)', 
+                        color: 'var(--color-typography-900)', 
+                        borderRadius: '14px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)' 
+                      }}
+                    />
+                    <Legend verticalAlign="bottom" height={32}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Gráfico 2: Assistência às Reuniões */}
+            <div className="bg-surface-100 p-5 rounded-3xl shadow-2xs border border-surface-300 flex flex-col h-[340px]">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl">
+                  <Activity size={18} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-typography-900">
+                    Assistência às Reuniões
+                  </h3>
+                  <p className="text-[11px] text-typography-500">Média presencial e virtual</p>
+                </div>
+              </div>
+              <div className="flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { name: 'Meio de Semana', valor: Math.round(stats.reunioes.meioSemana) },
+                      { name: 'Fim de Semana', valor: Math.round(stats.reunioes.fimSemana) },
+                      { name: 'Não Publicadores', valor: Math.max(0, circuitDifferenceVal) },
+                    ]}
+                    margin={{ top: 15, right: 20, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-surface-300)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--color-typography-600)' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--color-typography-600)' }} />
+                    <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: 'var(--color-surface-100)', borderColor: 'var(--color-surface-300)', color: 'var(--color-typography-900)', borderRadius: '14px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }} />
+                    <Bar dataKey="valor" radius={[8, 8, 0, 0]}>
+                      <Cell fill="#8B5CF6" />
+                      <Cell fill="#3B82F6" />
+                      <Cell fill="#10B981" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* SEÇÃO 1: MÉDIAS DO CIRCUITO NO MINISTÉRIO */}
+          <div className="bg-surface-100 border border-surface-300 rounded-3xl p-5 md:p-6 shadow-2xs space-y-4">
+            <div className="border-b border-surface-300 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-typography-900">
+                  Médias do Circuito no Ministério
+                </h3>
+                <p className="text-xs text-typography-500">Atividade mensal dividida por categoria</p>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary-200 bg-primary-200/10 px-2.5 py-1 rounded-full border border-primary-200/20">
+                Ministério
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { id: 'publicadores', label: 'Publicadores', color: 'border-blue-500/20 bg-blue-500/5' },
+                { id: 'pioneirosAuxiliares', label: 'Pioneiros Auxiliares', color: 'border-emerald-500/20 bg-emerald-500/5' },
+                { id: 'pioneirosRegulares', label: 'Pioneiros Regulares', color: 'border-purple-500/20 bg-purple-500/5' },
+                { id: 'pioneirosEspeciais', label: 'Pioneiros Especiais', color: 'border-amber-500/20 bg-amber-500/5' },
+              ].map(cat => (
+                <div key={cat.id} className={`p-4 rounded-2xl border ${cat.color} space-y-3`}>
+                  <h4 className="text-xs font-bold uppercase text-typography-800">{cat.label}</h4>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-surface-300/60">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-typography-400">Relatando</span>
+                      <p className="text-lg font-black text-typography-900 mt-0.5">
+                        {Math.round(stats.ministério[cat.id]?.relatando || 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-typography-400">Estudos</span>
+                      <p className="text-lg font-black text-typography-900 mt-0.5">
+                        {Math.round(stats.ministério[cat.id]?.estudos || 0)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3.5 bg-surface-200/60 rounded-2xl border border-surface-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-bold text-typography-800">
+                Média mensal de Estudos Bíblicos do Circuito:
+              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-black text-typography-900">
+                  {Math.round(stats.estatisticas.mediaEstudos)} estudos
+                </span>
+                <span className="text-xs font-bold text-primary-200 bg-primary-200/10 px-2.5 py-0.5 rounded-lg border border-primary-200/20">
+                  {stats.pubAtivos > 0 ? (stats.estatisticas.mediaEstudos / stats.pubAtivos).toFixed(1).replace('.', ',') : '0,0'} / Publicador
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SEÇÃO 2: SITUAÇÃO ESPIRITUAL DOS PUBLICADORES */}
+          <div className="bg-surface-100 border border-surface-300 rounded-3xl p-5 md:p-6 shadow-2xs space-y-4">
+            <div className="border-b border-surface-300 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider text-typography-900">
+                  Situação Espiritual dos Publicadores
+                </h3>
+                <p className="text-xs text-typography-500">Movimentação nos últimos 6 meses</p>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-500 bg-violet-500/10 px-2.5 py-1 rounded-full border border-violet-500/20">
+                Espiritualidade
+              </span>
+            </div>
+
+            {/* Destaques de Crescimento e Decréscimo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    Crescimento de Publicadores
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-2xl font-black text-emerald-800 dark:text-emerald-300">
+                      +{crescimento}
+                    </span>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      (+{percCrescimento.replace('.', ',')}%)
+                    </span>
+                  </div>
+                </div>
+                <UserPlus size={28} className="text-emerald-500/80" />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                    Decréscimo de Publicadores
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-2xl font-black text-rose-800 dark:text-rose-300">
+                      -{decrescimo}
+                    </span>
+                    <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                      (-{percDecrescimo.replace('.', ',')}%)
+                    </span>
+                  </div>
+                </div>
+                <UserX size={28} className="text-rose-500/80" />
+              </div>
+            </div>
+
+            {/* Grid de Itens Detalhados */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {[
+                { label: 'Dirigem Estudos', val: stats.estatisticas.dirigemEstudos, icon: UserCheck, color: 'text-blue-500' },
+                { label: 'Novos Publicadores', val: stats.estatisticas.novosPublicadores, icon: Sparkles, color: 'text-emerald-500' },
+                { label: 'Reativados', val: stats.estatisticas.reativados, icon: TrendingUp, color: 'text-teal-500' },
+                { label: 'Readmitidos', val: stats.estatisticas.readmitidos, icon: UserCheck, color: 'text-cyan-500' },
+                { label: 'Batizados', val: stats.estatisticas.batizados, icon: Award, color: 'text-sky-500' },
+                { label: 'Irregulares', val: stats.estatisticas.irregulares, icon: AlertTriangle, color: 'text-amber-500', isAlert: true },
+                { label: 'Inativos', val: stats.estatisticas.inativos, icon: UserX, color: 'text-rose-500', isAlert: true },
+                { label: 'Desassociados / Remov.', val: stats.estatisticas.removidos, icon: UserX, color: 'text-red-500', isAlert: true },
+                { label: 'Anciãos', val: stats.estatisticas.anciaos, icon: Users, color: 'text-indigo-500' },
+                { label: 'Servos Ministeriais', val: stats.estatisticas.servos, icon: Users, color: 'text-violet-500' },
+              ].map(item => {
+                const Icon = item.icon;
+                const percent = stats.pubAtivos > 0 ? ((item.val / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0';
+                return (
+                  <div key={item.label} className="p-3 bg-surface-200/50 border border-surface-300 rounded-2xl flex flex-col justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Icon size={14} className={item.color} />
+                      <span className="text-[11px] font-bold text-typography-700 truncate">{item.label}</span>
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-between">
+                      <span className={`text-lg font-black ${item.isAlert ? 'text-rose-600 dark:text-rose-400' : 'text-typography-900'}`}>
+                        {item.val}
+                      </span>
+                      <span className="text-[10px] font-bold text-typography-400">
+                        {percent}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SEÇÃO 3: REUNIÕES & DONATIVOS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Reuniões Congregacionais */}
+            <div className="bg-surface-100 border border-surface-300 rounded-3xl p-5 shadow-2xs space-y-3">
+              <div className="border-b border-surface-300 pb-2">
+                <h3 className="text-xs font-black uppercase tracking-wider text-typography-900">
+                  Reuniões Congregacionais
+                </h3>
+                <p className="text-[11px] text-typography-500">Médias de assistência</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="p-3 bg-surface-200/50 rounded-xl flex items-center justify-between border border-surface-300">
+                  <span className="text-xs font-bold text-typography-700">Meio de Semana</span>
+                  <span className="text-base font-black text-typography-900">
+                    {Math.round(stats.reunioes.meioSemana)}
+                  </span>
+                </div>
+                <div className="p-3 bg-surface-200/50 rounded-xl flex items-center justify-between border border-surface-300">
+                  <span className="text-xs font-bold text-typography-700">Fim de Semana</span>
+                  <span className="text-base font-black text-typography-900">
+                    {Math.round(stats.reunioes.fimSemana)}
+                  </span>
+                </div>
+                <div className="p-3 bg-primary-200/5 rounded-xl flex items-center justify-between border border-primary-200/20">
+                  <span className="text-xs font-bold text-primary-200">Não Publicadores Presentes</span>
+                  <span className="text-sm font-black text-primary-200">
+                    {circuitSign}{circuitDifferenceVal} ({circuitSign}{circuitPercentageFormatted}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Donativos do Circuito */}
+            <div className="bg-surface-100 border border-surface-300 rounded-3xl p-5 shadow-2xs space-y-3">
+              <div className="border-b border-surface-300 pb-2">
+                <h3 className="text-xs font-black uppercase tracking-wider text-typography-900">
+                  Donativos do Circuito
+                </h3>
+                <p className="text-[11px] text-typography-500">Média dos últimos 6 meses</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="p-3 bg-surface-200/50 rounded-xl flex items-center justify-between border border-surface-300">
+                  <span className="text-xs font-bold text-typography-700">Obra Mundial</span>
+                  <span className="text-sm font-black text-typography-900">
+                    {formatCurrency(stats.donativos.obraMundial)}
+                  </span>
+                </div>
+                <div className="p-3 bg-surface-200/50 rounded-xl flex items-center justify-between border border-surface-300">
+                  <span className="text-xs font-bold text-typography-700">Congregação</span>
+                  <span className="text-sm font-black text-typography-900">
+                    {formatCurrency(stats.donativos.congregacao)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Section 3: Meeting Attendance */}
-        <div className="space-y-0 pt-2">
-          <div className="grid grid-cols-[1fr_240px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[22px]">REUNIÕES CONGREGACIONAIS</h3>
-            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Assistência mensal</span>
+      {/* MODO 2 OU EXPORTAÇÃO: FOLHA OFICIAL A4 */}
+      <div className={viewMode === 'dashboard' ? 'fixed -left-[9999px] top-0 pointer-events-none print:static print:pointer-events-auto print:block' : 'space-y-4'}>
+        {viewMode === 'folha' && (
+          <div className="p-3.5 bg-primary-200/5 border border-primary-200/20 rounded-2xl flex items-center justify-between gap-3 print:hidden">
+            <div className="flex items-center gap-2">
+              <FileText size={16} className="text-primary-200 shrink-0" />
+              <p className="text-xs text-typography-700">
+                Esta é a visualização exata do formulário impresso em papel A4 e do arquivo PDF.
+              </p>
+            </div>
+            <button
+              onClick={() => setViewMode('dashboard')}
+              className="text-xs font-bold text-primary-200 hover:underline shrink-0 cursor-pointer"
+            >
+              Voltar ao Painel Geral
+            </button>
           </div>
-          <div className="divide-y divide-gray-200">
-            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
-              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">MEIO DE SEMANA</span></span>
-              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.meioSemana)}</div>
-            </div>
-            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
-              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Reunião de <span className="font-bold">FIM DE SEMANA</span></span>
-              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{Math.round(stats.reunioes.fimSemana)}</div>
-            </div>
-            <div className="grid grid-cols-[1fr_240px] items-center py-1.5 bg-[#fdf5e6]">
-              <span className="font-normal text-gray-800 text-[20px] uppercase pl-1">Média dos que assistem a reunião e <span className="font-bold">NÃO SÃO</span> Publicadores:</span>
-              <div className="text-center font-bold text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">
-                {circuitSign}{circuitDifferenceVal} ({circuitSign}{circuitPercentageFormatted}%)
+        )}
+
+        <div className="overflow-x-auto pb-6">
+          <div id="circuit-stats-form" className="min-w-[800px] max-w-[850px] bg-white p-[8mm] shadow-xl rounded-3xl border border-slate-200 print:shadow-none print:border-none print:p-0 print:rounded-none font-sans text-slate-900 overflow-hidden mx-auto flex flex-col justify-between space-y-4">
+          
+            {/* Cabeçalho Executivo do A4 */}
+            <div className="border-b border-slate-200 pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white px-2.5 py-0.5 rounded-md">
+                    Circuito {personalData?.circuito || 'Circuito'}
+                  </span>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900 mt-1">
+                    Estatísticas do Circuito
+                  </h1>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Emissão</span>
+                  <p className="text-xs font-bold text-slate-700">{new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+              </div>
+
+              {/* Faixa de Resumo de Publicadores Ativos */}
+              <div className="mt-3 bg-slate-50 border border-slate-200/90 rounded-2xl p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-700">
+                    Total de Publicadores Ativos do Circuito
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-lg">
+                    {congCount} congregações
+                  </span>
+                </div>
+                <div className="text-2xl font-black text-slate-950 px-3 py-0.5 bg-white border border-slate-200 rounded-xl min-w-[70px] text-center shadow-2xs">
+                  {stats.pubAtivos}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Section 4: Donations */}
-        <div className="space-y-0 pt-2">
-          <div className="grid grid-cols-[1fr_240px] items-end border-b border-[#002060] pb-0.5">
-            <h3 className="font-bold text-[#002060] uppercase text-[22px]">DONATIVOS DO CIRCUITO</h3>
-            <span className="text-[14px] font-normal text-gray-500 uppercase text-center">Média / 6 meses</span>
-          </div>
-          <div className="divide-y divide-gray-200">
-            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
-              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">OBRA MUNDIAL</span></span>
-              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.obraMundial)}</div>
-            </div>
-            <div className="grid grid-cols-[1fr_240px] items-center py-1 bg-white">
-              <span className="text-[20px] font-normal text-gray-800 uppercase pl-1">Donativos para a <span className="font-bold">CONGREGAÇÃO</span></span>
-              <div className="text-center font-normal text-[24px] bg-[#e9ecef] py-1 mx-1 rounded-sm">{formatCurrency(stats.donativos.congregacao)}</div>
-            </div>
-          </div>
-        </div>
+            {/* Seção 1: Médias do Ministério */}
+            <div className="space-y-1">
+              <div className="grid grid-cols-[1fr_120px_120px] items-center border-b-2 border-slate-900 pb-1">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-wider">
+                  MÉDIAS DO CIRCUITO NO MINISTÉRIO
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Relatando</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Estudos</span>
+              </div>
+              
+              <div className="divide-y divide-slate-100">
+                {[
+                  { id: 'publicadores', label: 'PUBLICADORES' },
+                  { id: 'pioneirosAuxiliares', label: 'PIONEIROS AUXILIARES' },
+                  { id: 'pioneirosRegulares', label: 'PIONEIROS REGULARES' },
+                  { id: 'pioneirosEspeciais', label: 'PIONEIROS ESPECIAIS' }
+                ].map((item) => (
+                  <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1">
+                    <span className="font-bold text-slate-800 text-xs uppercase pl-1">{item.label}</span>
+                    <div className="text-center font-extrabold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {Math.round(stats.ministério[item.id].relatando)}
+                    </div>
+                    <div className="text-center font-extrabold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {Math.round(stats.ministério[item.id].estudos)}
+                    </div>
+                  </div>
+                ))}
 
-        {/* Footer Info - Hidden in Print or very small */}
-        <div className="pt-2 flex justify-between items-end border-t border-gray-100 text-[10px] text-gray-300 font-medium print:pt-1">
-          <div>Relatório gerado em: {new Date().toLocaleDateString('pt-BR')}</div>
-          <div className="uppercase tracking-widest">ProgCir Web</div>
+                {/* Destaque: Média Mensal de Estudos Bíblicos */}
+                <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 px-1 bg-amber-50/70 border border-amber-200/70 rounded-xl mt-1">
+                  <span className="font-bold text-amber-950 text-xs uppercase pl-1">
+                    Média mensal de <strong className="font-black">ESTUDOS BÍBLICOS:</strong>
+                  </span>
+                  <div className="text-center font-black text-xs text-amber-950 bg-white py-1 mx-1 rounded-lg border border-amber-200/90">
+                    {Math.round(stats.estatisticas.mediaEstudos)}
+                  </div>
+                  <div className="text-center font-black text-xs text-amber-950 bg-white py-1 mx-1 rounded-lg border border-amber-200/90">
+                    {stats.pubAtivos > 0 ? (stats.estatisticas.mediaEstudos / stats.pubAtivos).toFixed(1).replace('.', ',') : '0,0'} / Pub
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 2: Situação Espiritual dos Publicadores */}
+            <div className="space-y-1">
+              <div className="grid grid-cols-[1fr_120px_120px] items-center border-b-2 border-slate-900 pb-1">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-wider">
+                  SITUAÇÃO ESPIRITUAL DOS PUBLICADORES
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Média / 6m</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Porcentagem</span>
+              </div>
+
+              <div className="divide-y divide-slate-100">
+                {[
+                  { id: 'dirigemEstudos', label: 'Quantos DIRIGEM Estudos Bíblicos' },
+                  { id: 'novosPublicadores', label: 'Número de NOVOS PUBLICADORES desde a última visita:' },
+                  { id: 'reativados', label: 'Quantos foram REATIVADOS desde a última visita:' },
+                  { id: 'readmitidos', label: 'Quantos foram READMITIDOS desde a última visita:' }
+                ].map((item) => (
+                  <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1">
+                    <span className="text-xs text-slate-800 pl-1">
+                      {item.label.includes(':') ? 
+                        <><span className="font-medium">{item.label.split(':')[0]}</span><span className="font-black">:{item.label.split(':')[1]}</span></> : 
+                        <><span className="font-medium">{item.label.split('DIRIGEM')[0]}</span><span className="font-black">DIRIGEM</span><span className="font-medium">{item.label.split('DIRIGEM')[1]}</span></>
+                      }
+                    </span>
+                    <div className="text-center font-bold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {stats.estatisticas[item.id]}
+                    </div>
+                    <div className="text-center font-bold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Faixa de Crescimento */}
+                <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 px-1 bg-emerald-600 text-white rounded-xl my-1 shadow-2xs">
+                  <span className="font-black text-white text-xs uppercase tracking-wider pl-1">
+                    Crescimento de publicadores:
+                  </span>
+                  <div className="text-center font-black text-xs text-white bg-emerald-700/60 py-0.5 mx-1 rounded-md">
+                    +{crescimento}
+                  </div>
+                  <div className="text-center font-black text-xs text-white bg-emerald-700/60 py-0.5 mx-1 rounded-md">
+                    +{percCrescimento.replace('.', ',')}%
+                  </div>
+                </div>
+
+                {[
+                  { id: 'irregulares', label: 'Número de PUBLICADORES IRREGULARES desde a última visita:' },
+                  { id: 'inativos', label: 'Quantos ficaram INATIVOS desde a última visita:' },
+                  { id: 'removidos', label: 'Quantos foram DESASSOCIADOS desde a última visita:' }
+                ].map((item) => (
+                  <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1">
+                    <span className="text-xs text-slate-800 pl-1">
+                      <span className="font-medium">{item.label.split(':')[0]}</span><span className="font-black">:{item.label.split(':')[1]}</span>
+                    </span>
+                    <div className="text-center font-bold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {stats.estatisticas[item.id]}
+                    </div>
+                    <div className="text-center font-bold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%
+                    </div>
+                  </div>
+                ))}
+
+                {/* Faixa de Decréscimo */}
+                <div className="grid grid-cols-[1fr_120px_120px] items-center py-1.5 px-1 bg-rose-600 text-white rounded-xl my-1 shadow-2xs">
+                  <span className="font-black text-white text-xs uppercase tracking-wider pl-1">
+                    Decréscimo de publicadores:
+                  </span>
+                  <div className="text-center font-black text-xs text-white bg-rose-700/60 py-0.5 mx-1 rounded-md">
+                    -{decrescimo}
+                  </div>
+                  <div className="text-center font-black text-xs text-white bg-rose-700/60 py-0.5 mx-1 rounded-md">
+                    -{percDecrescimo.replace('.', ',')}%
+                  </div>
+                </div>
+
+                {[
+                  { id: 'batizados', label: 'Quantos foram BATIZADOS desde a última visita:' },
+                  { id: 'anciaos', label: 'Número de ANCIÃOS:' },
+                  { id: 'servos', label: 'Números de SERVOS MINISTERIAIS:' }
+                ].map((item) => (
+                  <div key={item.id} className="grid grid-cols-[1fr_120px_120px] items-center py-1">
+                    <span className="text-xs text-slate-800 pl-1">
+                      <span className="font-medium">{item.label.split(':')[0]}</span><span className="font-black">:{item.label.split(':')[1]}</span>
+                    </span>
+                    <div className="text-center font-bold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {stats.estatisticas[item.id]}
+                    </div>
+                    <div className="text-center font-bold text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                      {stats.pubAtivos > 0 ? ((stats.estatisticas[item.id] / stats.pubAtivos) * 100).toFixed(1).replace('.', ',') : '0,0'}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Seção 3: Reuniões Congregacionais */}
+            <div className="space-y-1">
+              <div className="grid grid-cols-[1fr_240px] items-center border-b-2 border-slate-900 pb-1">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-wider">
+                  REUNIÕES CONGREGACIONAIS
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Assistência mensal</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                <div className="grid grid-cols-[1fr_240px] items-center py-1">
+                  <span className="text-xs text-slate-800 pl-1 uppercase font-medium">Reunião de <strong className="font-black">MEIO DE SEMANA</strong></span>
+                  <div className="text-center font-black text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                    {Math.round(stats.reunioes.meioSemana)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-[1fr_240px] items-center py-1">
+                  <span className="text-xs text-slate-800 pl-1 uppercase font-medium">Reunião de <strong className="font-black">FIM DE SEMANA</strong></span>
+                  <div className="text-center font-black text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                    {Math.round(stats.reunioes.fimSemana)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-[1fr_240px] items-center py-1.5 px-1 bg-indigo-50/70 border border-indigo-200/70 rounded-xl mt-1">
+                  <span className="font-bold text-indigo-950 text-xs pl-1">
+                    Média dos que assistem à reunião e <strong className="font-black">NÃO SÃO</strong> Publicadores:
+                  </span>
+                  <div className="text-center font-black text-xs text-indigo-950 bg-white py-1 mx-1 rounded-lg border border-indigo-200/90">
+                    {circuitSign}{circuitDifferenceVal} ({circuitSign}{circuitPercentageFormatted}%)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 4: Donativos do Circuito */}
+            <div className="space-y-1">
+              <div className="grid grid-cols-[1fr_240px] items-center border-b-2 border-slate-900 pb-1">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-wider">
+                  DONATIVOS DO CIRCUITO
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Média / 6 meses</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                <div className="grid grid-cols-[1fr_240px] items-center py-1">
+                  <span className="text-xs text-slate-800 pl-1 uppercase font-medium">Donativos para a <strong className="font-black">OBRA MUNDIAL</strong></span>
+                  <div className="text-center font-black text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                    {formatCurrency(stats.donativos.obraMundial)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-[1fr_240px] items-center py-1">
+                  <span className="text-xs text-slate-800 pl-1 uppercase font-medium">Donativos para a <strong className="font-black">CONGREGAÇÃO</strong></span>
+                  <div className="text-center font-black text-xs bg-slate-100/90 text-slate-900 py-1 mx-1 rounded-lg border border-slate-200/60">
+                    {formatCurrency(stats.donativos.congregacao)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé Elegante do A4 */}
+            <div className="pt-2 flex justify-between items-center border-t border-slate-200 text-[10px] text-slate-400 font-semibold print:pt-1">
+              <div>Emitido via ProgCir Web</div>
+              <div className="uppercase tracking-widest">Documento Oficial do Circuito</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 }

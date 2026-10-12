@@ -4,6 +4,7 @@ import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LGPDConsent from '@/components/LGPDConsent';
 import { DialogProvider } from '@/hooks/useDialog';
+import { ThemeProvider } from '@/context/ThemeContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -89,12 +90,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-br" suppressHydrationWarning className={`${inter.variable} ${notoSans.variable} ${notoSerif.variable} ${manrope.variable} ${libreBaskerville.variable} ${playfairDisplay.variable} ${dancingScript.variable} ${pacifico.variable} ${caveat.variable} ${satisfy.variable} ${marckScript.variable}`}>
-      <body suppressHydrationWarning className="bg-gray-50 font-sans">
+      <body suppressHydrationWarning className="font-sans antialiased min-h-screen">
         <ErrorBoundary>
-          <DialogProvider>
-            {children}
-            <LGPDConsent />
-          </DialogProvider>
+          <ThemeProvider>
+            <DialogProvider>
+              {children}
+              <LGPDConsent />
+            </DialogProvider>
+          </ThemeProvider>
         </ErrorBoundary>
       </body>
     </html>

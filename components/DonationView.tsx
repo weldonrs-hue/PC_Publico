@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Copy, Check, Coffee, Rocket, ArrowLeft, ShieldCheck, Zap, QrCode as QrIcon } from 'lucide-react';
+import { Copy, Check, Rocket, ChevronLeft, ShieldCheck, Zap, QrCode as QrIcon } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Pix } from '@/lib/pix-utils';
 
@@ -40,125 +40,141 @@ export default function DonationView({ onBack }: DonationViewProps) {
       title: 'Studio de Programação',
       description: 'Ambiente de desenvolvimento e licenças de ferramentas necessárias para a construção e manutenção do código.',
       icon: Rocket,
-      color: 'bg-blue-50 text-blue-600',
-      borderColor: 'border-blue-100'
+      color: 'bg-blue-500/10 text-blue-500',
     },
     {
       title: 'Banco de Dados',
       description: 'Armazenamento seguro e de alta disponibilidade para todos os dados das congregações e itinerários.',
       icon: Zap,
-      color: 'bg-amber-50 text-amber-600',
-      borderColor: 'border-amber-100'
+      color: 'bg-amber-500/10 text-amber-500',
     },
     {
       title: 'Servidor e Hospedagem',
       description: 'Infraestrutura em nuvem para garantir que a plataforma esteja online 24/7 com performance estável.',
       icon: ShieldCheck,
-      color: 'bg-emerald-50 text-emerald-600',
-      borderColor: 'border-emerald-100'
+      color: 'bg-emerald-500/10 text-emerald-500',
     },
     {
       title: 'Segurança e LGPD',
       description: 'Certificados SSL, criptografia de dados e sistemas de proteção para garantir a privacidade das informações.',
       icon: ShieldCheck,
-      color: 'bg-violet-50 text-violet-600',
-      borderColor: 'border-violet-100'
+      color: 'bg-purple-500/10 text-purple-500',
     }
   ];
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto"
+      className="max-w-4xl mx-auto space-y-6"
     >
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-3">
         <button 
           onClick={onBack}
-          className="p-3 bg-white hover:bg-gray-50 rounded-2xl shadow-sm text-gray-600 transition-all active:scale-95"
+          className="p-2 hover:bg-surface-200 rounded-xl transition-all text-typography-700 bg-surface-100 shadow-xs border border-surface-300 cursor-pointer"
+          title="Voltar"
         >
-          <ArrowLeft size={20} />
+          <ChevronLeft size={20} />
         </button>
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">Apoio ao Projeto</h1>
-          <p className="text-gray-500 font-medium">Contribua para a manutenção do ProgCir</p>
+          <h1 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">Apoio ao Projeto</h1>
+          <p className="text-xs sm:text-sm text-typography-500 font-medium">Contribua para a manutenção e evolução do ProgCir</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        {/* Main Content Card */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-xl shadow-violet-100/50 border border-violet-50 relative overflow-hidden">
-            <div className="relative z-10 space-y-8">
-              <div className="space-y-4">
-                <h2 className="text-3xl font-black text-gray-900 leading-tight">
-                  Infraestrutura <span className="text-violet-600">Necessária</span>
-                </h2>
-                <p className="text-gray-600 leading-relaxed">
-                  Para manter o ProgCir funcionando com excelência e segurança para todos os usuários, dependemos de uma estrutura técnica robusta que demanda investimentos mensais.
-                </p>
+      {/* Main Content Card */}
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-6 sm:p-8 md:p-10 shadow-xs relative overflow-hidden space-y-8">
+        {/* Top gradient accent line */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+
+        <div className="space-y-3">
+          <h2 className="text-2xl sm:text-3xl font-black text-typography-900 tracking-tight">
+            Infraestrutura <span className="text-primary-200">Necessária</span>
+          </h2>
+          <p className="text-sm sm:text-base text-typography-600 leading-relaxed max-w-2xl">
+            Para manter o ProgCir funcionando com excelência e segurança para todos os usuários, dependemos de uma estrutura técnica em nuvem que demanda investimentos contínuos.
+          </p>
+        </div>
+
+        {/* Technical Needs Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {technicalNeeds.map((need, index) => (
+            <div key={index} className="p-4 sm:p-5 bg-surface-200/40 border border-surface-300 rounded-2xl flex items-start gap-4">
+              <div className={`w-11 h-11 ${need.color} rounded-xl border border-surface-300/40 flex items-center justify-center shrink-0`}>
+                <need.icon size={22} />
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {technicalNeeds.map((need, index) => (
-                  <div key={index} className={`p-5 bg-white rounded-3xl border ${need.borderColor} shadow-sm space-y-3`}>
-                    <div className={`w-12 h-12 ${need.color} rounded-2xl flex items-center justify-center flex-shrink-0`}>
-                      <need.icon size={24} />
-                    </div>
-                    <div>
-                      <h4 className="font-black text-gray-900 text-sm uppercase tracking-tight">{need.title}</h4>
-                      <p className="text-xs text-gray-500 leading-relaxed mt-1">{need.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="flex-1 p-6 bg-gray-900 rounded-[2rem] text-white space-y-4 shadow-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-black uppercase tracking-wider">Apoio via PIX</h3>
-                      <p className="text-xs text-gray-400">Qualquer valor contribui para estas necessidades técnicas.</p>
-                    </div>
-                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                      <Zap className="text-violet-400" />
-                    </div>
-                  </div>
-
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between gap-4 border border-white/10">
-                    <code className="text-sm md:text-base font-mono font-bold text-violet-200 break-all">
-                      {displayKey}
-                    </code>
-                    <button 
-                      onClick={handleCopy}
-                      className={`flex-shrink-0 p-3 rounded-xl transition-all ${
-                        copied ? 'bg-emerald-500 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      {copied ? <Check size={20} /> : <Copy size={20} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="md:w-48 bg-white border-2 border-dashed border-gray-200 rounded-[2rem] flex flex-col items-center justify-center p-6 space-y-3 group hover:border-violet-300 transition-colors">
-                  <div className="w-32 h-32 bg-gray-50 rounded-2xl flex items-center justify-center group-hover:bg-violet-50 transition-colors p-3 overflow-hidden">
-                    {pixPayload ? (
-                      <QRCodeSVG 
-                        value={pixPayload} 
-                        size={112} 
-                        level="M"
-                        includeMargin={false}
-                        className="w-full h-full"
-                      />
-                    ) : (
-                      <QrIcon size={48} className="text-gray-300 group-hover:text-violet-400 transition-colors" />
-                    )}
-                  </div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Escaneie o<br/>QR Code PIX</p>
-                </div>
+              <div className="space-y-1 min-w-0">
+                <h4 className="font-bold text-sm text-typography-900 leading-snug">{need.title}</h4>
+                <p className="text-xs text-typography-500 leading-relaxed">{need.description}</p>
               </div>
             </div>
+          ))}
+        </div>
+
+        {/* PIX Donation Box */}
+        <div className="flex flex-col md:flex-row gap-5 items-stretch">
+          <div className="flex-1 p-6 bg-surface-200/60 border border-surface-300 rounded-2xl flex flex-col justify-between space-y-4">
+            <div>
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-primary-200/10 text-primary-200 flex items-center justify-center">
+                  <Zap size={18} />
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-typography-900">Apoio via PIX</h3>
+              </div>
+              <p className="text-xs text-typography-500 leading-relaxed">
+                Qualquer contribuição voluntária ajuda diretamente na sustentabilidade do projeto.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[11px] font-black uppercase tracking-wider text-typography-500 ml-0.5">Chave Celular</span>
+              <div className="bg-surface-100 border border-surface-300 rounded-xl p-3 flex items-center justify-between gap-3 shadow-xs">
+                <code className="text-sm sm:text-base font-mono font-bold text-typography-900 truncate">
+                  {displayKey}
+                </code>
+                <button 
+                  onClick={handleCopy}
+                  className={`px-3.5 py-2 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    copied 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-primary-200 hover:bg-primary-150 text-white shadow-xs'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check size={14} strokeWidth={3} />
+                      <span>Copiado</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>Copiar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* QR Code */}
+          <div className="md:w-52 bg-surface-200/40 border border-surface-300 rounded-2xl flex flex-col items-center justify-center p-5 space-y-3">
+            <div className="w-32 h-32 bg-white rounded-xl flex items-center justify-center p-2.5 shadow-xs border border-surface-300">
+              {pixPayload ? (
+                <QRCodeSVG 
+                  value={pixPayload} 
+                  size={108} 
+                  level="M"
+                  includeMargin={false}
+                  className="w-full h-full"
+                />
+              ) : (
+                <QrIcon size={44} className="text-typography-400" />
+              )}
+            </div>
+            <p className="text-[11px] font-bold text-typography-500 uppercase tracking-wider text-center leading-tight">
+              Escaneie o QR Code PIX
+            </p>
           </div>
         </div>
       </div>

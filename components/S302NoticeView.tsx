@@ -19,21 +19,25 @@ import {
   Settings2,
   Save,
   Maximize2,
+  Minimize2,
   Move,
   Type,
   Sparkles,
-  PenTool
+  PenTool,
+  Edit3,
+  CheckCircle2,
+  Building2
 } from 'lucide-react';
-import Image from 'next/image';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useDialog } from '@/hooks/useDialog';
-import { toPng, toJpeg } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import ImageCropper from './ImageCropper';
 import SignaturePad from './SignaturePad';
 import DraggableSignature from './DraggableSignature';
+import CustomSelect from '@/components/CustomSelect';
 
 interface ElementLayout {
   top: number;
@@ -109,13 +113,21 @@ interface S302NoticeViewProps {
 export default function S302NoticeView({ events, initialIndex, userId, isAdmin, onBack }: S302NoticeViewProps) {
   const { showAlert } = useDialog();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const currentEvent = events[currentIndex];
+  const currentEvent = events[currentIndex] || events[0];
   const { congregacao, data, semana, substituteName } = currentEvent;
 
   const [loading, setLoading] = useState(true);
   const [personalData, setPersonalData] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   
+  // Tab Switch: 'form' (Mobile/Editor) vs 'preview' (Folha S-302)
+  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('preview');
+  // Auto-fit mode for mobile preview
+  const [autoFit, setAutoFit] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [showScrollArrows, setShowScrollArrows] = useState(false);
+
   // Design Mode States
   const [isDesignMode, setIsDesignMode] = useState(false);
   const [layout, setLayout] = useState<S302Layout>(DEFAULT_LAYOUT);
@@ -125,12 +137,45 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   
-  // Signature States (Similar to AppointmentLetterView)
+  // Signature States
   const [signatureName, setSignatureName] = useState('');
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Responsive scale calculation for S-302 (width ~794px / 210mm)
+  useEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return;
+      const containerWidth = containerRef.current.offsetWidth;
+      const s302WidthPx = 794; // 210mm in pixels at 96dpi
+      
+      if (autoFit) {
+        const calculated = Math.min(1.2, (containerWidth - 24) / s302WidthPx);
+        setScale(Math.max(0.3, calculated));
+        setShowScrollArrows(false);
+      } else {
+        setScale(1);
+        setShowScrollArrows(containerWidth < s302WidthPx);
+      }
+    };
+
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) observer.observe(containerRef.current);
+    updateScale();
+
+    return () => observer.disconnect();
+  }, [autoFit, activeTab]);
+
+  const scrollContainer = (direction: 'left' | 'right') => {
+    if (!containerRef.current) return;
+    const scrollAmount = containerRef.current.offsetWidth * 0.8;
+    containerRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  };
 
   const removeImageBackground = () => {
     if (!signatureImage) return;
@@ -154,17 +199,16 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       ctx.drawImage(img, 0, 0);
       
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
+      const dataArr = imageData.data;
       const threshold = 230; 
       
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+      for (let i = 0; i < dataArr.length; i += 4) {
+        const r = dataArr[i];
+        const g = dataArr[i + 1];
+        const b = dataArr[i + 2];
         
         if (r > threshold && g > threshold && b > threshold) {
-          data[i + 3] = 0;
+          dataArr[i + 3] = 0;
         }
       }
       
@@ -209,7 +253,6 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
 
         if (layoutSnap.exists()) {
           const remoteLayout = layoutSnap.data() as S302Layout;
-          // Deep merge with defaults to ensure no missing keys cause undefined values
           setLayout({
             header: { ...DEFAULT_LAYOUT.header, ...remoteLayout.header },
             body: { ...DEFAULT_LAYOUT.body, ...remoteLayout.body },
@@ -240,8 +283,10 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
     try {
       await setDoc(doc(db, 's302_layouts', 'shared_layout'), layout);
       setIsDesignMode(false);
+      showAlert('Coordenadas de layout salvas com sucesso.', 'Sucesso');
     } catch (error) {
       console.error('Error saving layout:', error);
+      showAlert('Erro ao salvar as posições do layout.', 'Erro');
     } finally {
       setIsSavingLayout(false);
     }
@@ -277,7 +322,6 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       };
       reader.readAsDataURL(file);
     }
-    // Reset input
     e.target.value = '';
   };
 
@@ -313,10 +357,9 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
 
     setGenerating(true);
     try {
-      // Use toJpeg for high quality capture
       const dataUrl = await toJpeg(element, {
         quality: 0.95,
-        pixelRatio: 3, // High resolution for text clarity
+        pixelRatio: 3,
         backgroundColor: '#ffffff',
       });
 
@@ -328,23 +371,18 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
       });
 
       const imgProps = pdf.getImageProperties(dataUrl);
-      const pdfWidth = 210; // A4 width is 210mm
+      const pdfWidth = 210;
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      // Fit the image to A4 with the specified scale and position
-      const scale = 0.85;
-      const imgWidth = pdfWidth * scale;
-      const imgScaledHeight = pdfHeight * scale;
+      const pdfScale = 0.85;
+      const imgWidth = pdfWidth * pdfScale;
+      const imgScaledHeight = pdfHeight * pdfScale;
       const xOffset = (pdfWidth - imgWidth) / 2;
-      const yOffset = 20; // 20mm from top
+      const yOffset = 20;
 
       pdf.addImage(dataUrl, 'JPEG', xOffset, yOffset, imgWidth, imgScaledHeight, undefined, 'FAST');
       
-      // Format date for filename: yyyy mm-dd
-      // Try to find the Monday date (using the semana field)
       let formattedDate = semana.replace(/\//g, '-');
-      
-      // Match the first date pattern DD/MM/YYYY in the semana string
       const fullDateMatch = semana.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
       
       if (fullDateMatch) {
@@ -353,7 +391,6 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         const year = fullDateMatch[3];
         formattedDate = `${year} ${month}-${day}`;
       } else {
-        // Fallback: try to extract parts from strings like "14-20/09/2026"
         const numbers = semana.match(/\d+/g);
         if (numbers && numbers.length >= 3) {
           const year = numbers.find(n => n.length === 4);
@@ -368,12 +405,11 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
         }
       }
 
-      // Format: S-302 (yyyy mm-dd) Congregação — CIDADE UF
       const filename = `S-302 (${formattedDate}) ${congregacao.nome} — ${congregacao.cidade.toUpperCase()} ${congregacao.estado.toUpperCase()}.pdf`;
       pdf.save(filename);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      await showAlert('Erro ao gerar o PDF. Por favor, tente novamente.', 'Erro');
+      showAlert('Erro ao gerar o PDF. Por favor, tente novamente.', 'Erro');
     } finally {
       setGenerating(false);
     }
@@ -390,15 +426,624 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <Loader2 className="animate-spin text-[#512da8] mb-4" size={48} />
-        <p className="text-gray-500 font-bold">Carregando formulário...</p>
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Loader2 className="animate-spin text-amber-500" size={42} />
+        <p className="text-typography-500 font-medium text-sm">Carregando formulário S-302...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 print:bg-white print:pb-0 print:min-h-0">
+    <div className="space-y-6 w-full pb-12">
+      {/* Header Unificado com Design System */}
+      <div className="relative bg-surface-100 p-4 sm:p-5 rounded-2xl border border-surface-300 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-hidden print:hidden">
+        {/* Faixa Gradiente Superior */}
+        <div 
+          className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+          style={{ backgroundImage: 'linear-gradient(to right, #EA580C, #F59E0B, transparent)' }}
+        />
+
+        <div className="flex items-center gap-3 min-w-0">
+          <button 
+            onClick={onBack}
+            className="p-2 hover:bg-surface-200 rounded-xl transition-all text-typography-700 bg-surface-100 shadow-xs border border-surface-300 cursor-pointer shrink-0"
+            title="Voltar"
+          >
+            <ChevronLeft size={20} strokeWidth={2.5} />
+          </button>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 shrink-0">
+            <FileText size={20} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-typography-900 tracking-tight truncate">
+              S-302 Aviso de Visitas
+            </h2>
+            <p className="text-xs text-typography-500 truncate flex items-center gap-1.5 mt-0.5">
+              <span className="font-semibold text-typography-700">{congregacao.nome}</span>
+              <span>•</span>
+              <span>{data || semana}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Controles de Ação, Navegação e Abas */}
+        <div className="flex flex-wrap items-center gap-2.5 justify-start md:justify-end">
+          {/* Navegador de Congregações */}
+          {events.length > 1 && (
+            <div className="flex items-center bg-surface-200 p-1 rounded-xl border border-surface-300/60 shrink-0">
+              <button
+                onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+                disabled={currentIndex === 0}
+                className="p-1.5 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Congregação anterior"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+              <div className="px-2 text-[11px] font-bold text-typography-700 font-mono">
+                {currentIndex + 1} / {events.length}
+              </div>
+              <button
+                onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
+                disabled={currentIndex === events.length - 1}
+                className="p-1.5 rounded-lg hover:bg-surface-100 text-typography-600 hover:text-typography-900 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Próxima congregação"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Seletor de Modo: Formulário (Mobile) vs Aviso Oficial */}
+          <div className="flex bg-surface-200 p-1 rounded-xl border border-surface-300/60 shrink-0">
+            <button
+              onClick={() => setActiveTab('form')}
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'form' 
+                  ? 'bg-surface-100 text-typography-900 shadow-xs' 
+                  : 'text-typography-500 hover:text-typography-900'
+              }`}
+              title="Modo Formulário"
+            >
+              <Edit3 size={14} />
+              <span>Dados da Visita</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'preview' 
+                  ? 'bg-surface-100 text-typography-900 shadow-xs' 
+                  : 'text-typography-500 hover:text-typography-900'
+              }`}
+              title="Visualizar Folha S-302"
+            >
+              <FileText size={14} />
+              <span>Aviso S-302</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button 
+                onClick={() => {
+                  setIsDesignMode(!isDesignMode);
+                  if (!isDesignMode) setActiveTab('preview');
+                }}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border ${
+                  isDesignMode 
+                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-400' 
+                    : 'bg-surface-200 hover:bg-surface-300 text-typography-700 border-surface-300'
+                }`}
+                title="Personalizar coordenadas de impressão"
+              >
+                <Settings2 size={15} />
+                <span className="hidden sm:inline">{isDesignMode ? 'Sair do Design' : 'Design'}</span>
+              </button>
+            )}
+
+            <button 
+              onClick={handleDownloadPDF}
+              disabled={generating}
+              className="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+              title="Baixar PDF"
+            >
+              {generating ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              <span className="hidden sm:inline">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
+              <span className="sm:hidden">PDF</span>
+            </button>
+
+            <button 
+              onClick={handlePrint}
+              className="bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              title="Imprimir"
+            >
+              <Printer size={15} />
+              <span className="hidden sm:inline">Imprimir</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ABA 1: MODO DADOS DA VISITA (100% RESPONSIVO & AMIGÁVEL PARA CELULAR) */}
+      {activeTab === 'form' && (
+        <motion.div 
+          key="s302-form-view"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          className="space-y-5 max-w-4xl mx-auto"
+        >
+          {/* Card: Dados Oficiais da Visita */}
+          <div className="bg-surface-100 rounded-2xl p-4 sm:p-5 border border-surface-300 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-typography-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 size={14} className="text-amber-500" />
+                <span>Dados do Aviso de Visita</span>
+              </h3>
+              {events.length > 1 && (
+                <span className="text-[11px] font-mono font-semibold text-typography-500 bg-surface-200 px-2 py-0.5 rounded-md">
+                  Item {currentIndex + 1} de {events.length}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div className="bg-surface-200/60 p-3 rounded-xl border border-surface-300/40 space-y-1">
+                <span className="text-[10px] text-typography-400 font-semibold block uppercase">Congregação</span>
+                <span className="font-bold text-typography-900 block">{congregacao.nome}</span>
+                <span className="text-xs text-typography-500 block">{congregacao.cidade} - {congregacao.estado}</span>
+              </div>
+
+              <div className="bg-surface-200/60 p-3 rounded-xl border border-surface-300/40 space-y-1">
+                <span className="text-[10px] text-typography-400 font-semibold block uppercase">Superintendente</span>
+                <span className="font-bold text-typography-900 block">{visitorName}</span>
+                <span className="text-xs text-typography-500 block">
+                  {substituteName ? 'Superintendente Substituto' : (personalData?.circuito || 'Circuito')}
+                </span>
+              </div>
+
+              <div className="bg-surface-200/60 p-3 rounded-xl border border-surface-300/40 space-y-1">
+                <span className="text-[10px] text-typography-400 font-semibold block uppercase">Data Informada</span>
+                <span className="font-bold text-typography-900 block">{data}</span>
+                <span className="text-xs text-typography-500 block">Semana: {semana}</span>
+              </div>
+
+              <div className="bg-surface-200/60 p-3 rounded-xl border border-surface-300/40 space-y-1">
+                <span className="text-[10px] text-typography-400 font-semibold block uppercase">Número de Registro</span>
+                <span className="font-bold text-typography-900 block font-mono">Nº {congregacao.numero || 'S/N'}</span>
+                <span className="text-xs text-typography-500 block">Formulário Oficial S-302-T</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Assinatura do Superintendente */}
+          <div className="bg-surface-100 rounded-2xl p-4 sm:p-5 border border-surface-300 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold text-typography-500 uppercase tracking-wider flex items-center gap-1.5">
+              <PenTool size={14} className="text-amber-500" />
+              <span>Assinatura do Superintendente</span>
+            </h3>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-typography-700 uppercase tracking-wider">
+                  Nome por Extenso / Assinatura em Texto
+                </label>
+                <input 
+                  type="text"
+                  value={signatureName}
+                  onChange={(e) => setSignatureName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-sm text-typography-900 placeholder:text-typography-400 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 transition-colors"
+                  placeholder="Nome do superintendente que assina"
+                />
+              </div>
+
+              {/* Assinatura Gráfica / Imagem */}
+              <div className="bg-surface-200/50 p-4 rounded-xl border border-surface-300/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-typography-700">Assinatura Digital / Imagem:</span>
+                  {signatureImage && (
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <CheckCircle2 size={12} />
+                      <span>Assinatura Ativa</span>
+                    </span>
+                  )}
+                </div>
+
+                {signatureImage ? (
+                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-surface-300">
+                    <div className="h-14 w-48 flex items-center justify-center border border-dashed border-gray-200 bg-gray-50/50 rounded-lg p-1">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={signatureImage} 
+                        alt="Assinatura" 
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={removeImageBackground}
+                        disabled={isProcessing}
+                        className="px-3 py-1.5 bg-surface-200 hover:bg-surface-300 text-typography-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        title="Remover fundo branco da imagem"
+                      >
+                        {isProcessing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                        <span>Remover Fundo</span>
+                      </button>
+                      <button
+                        onClick={() => setShowSignaturePad(true)}
+                        className="px-3 py-1.5 bg-surface-200 hover:bg-surface-300 text-typography-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <PenTool size={13} />
+                        <span>Redesenhar</span>
+                      </button>
+                      <button
+                        onClick={handleRemoveSignature}
+                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                        <span>Remover</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2.5">
+                    <button
+                      onClick={() => setShowSignaturePad(true)}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles size={14} />
+                      <span>Desenhar Assinatura na Tela</span>
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Upload size={14} />
+                      <span>Enviar Foto da Assinatura</span>
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-surface-300/80 text-xs text-typography-500">
+              <span>Os dados preenchidos são aplicados instantaneamente ao formulário oficial S-302.</span>
+              <button
+                onClick={() => setActiveTab('preview')}
+                className="text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                <span>Visualizar na folha oficial</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ABA 2: AVISO OFICIAL S-302 (PREVIEW E DESIGN) */}
+      <div 
+        className={activeTab === 'form' ? 'opacity-0 pointer-events-none absolute -left-[9999px] top-0' : 'block'}
+      >
+        <div className="relative w-full max-w-7xl mx-auto space-y-4">
+          {/* Barra de Ferramentas de Zoom da Folha */}
+          <div className="flex items-center justify-between bg-surface-100 p-2.5 sm:p-3 rounded-xl border border-surface-300 shadow-xs print:hidden">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-typography-700">Visualização do S-302:</span>
+              <button
+                onClick={() => setAutoFit(!autoFit)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  autoFit 
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' 
+                    : 'bg-surface-200 text-typography-600 hover:bg-surface-300'
+                }`}
+                title="Ajustar automaticamente à largura da tela"
+              >
+                {autoFit ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                <span>{autoFit ? 'Ajustado à Tela' : 'Tamanho Real (100%)'}</span>
+              </button>
+            </div>
+            <div className="text-xs text-typography-500 font-mono">
+              Zoom: {Math.round(scale * 100)}%
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
+            {/* Sidebar do Modo Design (Admin) */}
+            {isDesignMode && isAdmin && (
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="w-full lg:w-80 shrink-0 space-y-4 print:hidden"
+              >
+                <div className="bg-surface-100 rounded-2xl shadow-xs border border-surface-300 p-5 space-y-4">
+                  <h3 className="text-sm font-bold text-typography-900 flex items-center gap-2">
+                    <Settings2 size={18} className="text-amber-500" />
+                    <span>Ajustar Coordenadas</span>
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-typography-600 uppercase mb-1.5 block">
+                        Elemento para ajustar
+                      </label>
+                      <CustomSelect 
+                        value={selectedElement || ''} 
+                        onChange={(val) => setSelectedElement((val || null) as keyof S302Layout)}
+                        options={[
+                          { value: '', label: 'Selecione...' },
+                          { value: 'header', label: 'Cabeçalho (Título)' },
+                          { value: 'body', label: 'Texto de Instrução' },
+                          { value: 'congregation', label: 'Campo Congregação' },
+                          { value: 'visitor', label: 'Campo Superintendente' },
+                          { value: 'visitDate', label: 'Campo Data' },
+                          { value: 'signature', label: 'Assinatura / Nome' },
+                        ]}
+                        size="sm"
+                        placeholder="Selecione..."
+                      />
+                    </div>
+
+                    {selectedElement && (
+                      <div className="space-y-4 pt-3 border-t border-surface-300/80">
+                        <div>
+                          <div className="flex justify-between items-center mb-1 text-xs">
+                            <span className="font-semibold text-typography-700 flex items-center gap-1">
+                              <Move size={13} /> Posição Vertical
+                            </span>
+                            <span className="font-mono font-bold text-amber-600">
+                              {selectedElement === 'signature' ? (layout.signature as any).bottom : (layout as any)[selectedElement].top}mm
+                            </span>
+                          </div>
+                          <input 
+                            type="range" min="0" max="138" step="1"
+                            value={selectedElement === 'signature' ? (layout.signature as any).bottom : (layout as any)[selectedElement].top}
+                            onChange={(e) => updateLayout(
+                              selectedElement, 
+                              selectedElement === 'signature' ? 'bottom' : 'top', 
+                              parseInt(e.target.value)
+                            )}
+                            className="w-full accent-amber-500"
+                          />
+                        </div>
+
+                        {selectedElement !== 'header' && (
+                          <div>
+                            <div className="flex justify-between items-center mb-1 text-xs">
+                              <span className="font-semibold text-typography-700 flex items-center gap-1">
+                                <Move size={13} className="rotate-90" /> Posição Horizontal
+                              </span>
+                              <span className="font-mono font-bold text-amber-600">
+                                {selectedElement === 'signature' ? (layout.signature as any).right : (layout as any)[selectedElement].left}mm
+                              </span>
+                            </div>
+                            <input 
+                              type="range" min="0" max="200" step="1"
+                              value={selectedElement === 'signature' ? (layout.signature as any).right : (layout as any)[selectedElement].left}
+                              onChange={(e) => updateLayout(
+                                selectedElement, 
+                                selectedElement === 'signature' ? 'right' : 'left', 
+                                parseInt(e.target.value)
+                              )}
+                              className="w-full accent-amber-500"
+                            />
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex justify-between items-center mb-1 text-xs">
+                            <span className="font-semibold text-typography-700 flex items-center gap-1">
+                              <Type size={13} /> Tamanho da Fonte
+                            </span>
+                            <span className="font-mono font-bold text-amber-600">
+                              {(layout as any)[selectedElement].fontSize}pt
+                            </span>
+                          </div>
+                          <input 
+                            type="range" min="8" max="24" step="1"
+                            value={(layout as any)[selectedElement].fontSize}
+                            onChange={(e) => updateLayout(selectedElement, 'fontSize', parseInt(e.target.value))}
+                            className="w-full accent-amber-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={handleSaveLayout}
+                      disabled={isSavingLayout}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50 mt-2 cursor-pointer"
+                    >
+                      {isSavingLayout ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span>Salvar Posições</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Visualização da Folha Oficial S-302 */}
+            <div className="flex-1 space-y-4">
+              <div 
+                ref={containerRef}
+                className="bg-surface-200/50 shadow-inner rounded-2xl overflow-x-auto border border-surface-300 print:shadow-none print:border-none w-full print:max-w-none print:w-full print:m-0 print:p-0 flex justify-start sm:justify-center p-2 sm:p-6 custom-scrollbar scroll-smooth"
+              >
+                <div 
+                  style={{ 
+                    width: `${210 * scale}mm`, 
+                    height: `${138 * scale}mm`,
+                    minWidth: 'min-content',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                  className="print:w-full print:h-auto"
+                >
+                  <div 
+                    id="s302-print-container"
+                    ref={previewRef}
+                    className="bg-white shadow-lg print:shadow-none min-w-[210mm] w-[210mm] h-[138mm] relative font-serif-document text-black border border-gray-400 shrink-0 overflow-hidden print:overflow-visible"
+                    style={{ 
+                      backgroundColor: 'white',
+                      transform: `scale(${scale})`,
+                      transformOrigin: 'top left',
+                      transition: 'transform 0.15s ease-out'
+                    }}
+                  >
+                    {/* Header */}
+                    <h1 
+                      className={`absolute left-0 right-0 text-center font-bold tracking-wide uppercase cursor-pointer transition-all ${selectedElement === 'header' ? 'bg-amber-500/10 ring-2 ring-amber-500 ring-inset' : ''}`}
+                      style={{ 
+                        top: `${layout.header.top}mm`, 
+                        fontSize: `${layout.header.fontSize}pt` 
+                      }}
+                      onClick={() => isDesignMode && setSelectedElement('header')}
+                    >
+                      AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO
+                    </h1>
+      
+                    {/* Body Content */}
+                    <div 
+                      className={`absolute cursor-pointer transition-all ${selectedElement === 'body' ? 'bg-amber-500/10 ring-2 ring-amber-500 ring-inset' : ''}`}
+                      style={{ 
+                        top: `${layout.body.top}mm`, 
+                        left: `${layout.body.left}mm`,
+                        right: '15mm',
+                        fontSize: `${layout.body.fontSize}pt`,
+                        lineHeight: '1.4'
+                      }}
+                      onClick={() => isDesignMode && setSelectedElement('body')}
+                    >
+                      <p className="mb-[8pt]">Prezados Irmãos:</p>
+                      <p className="indent-[40pt] text-justify">
+                        Por favor notem os seguintes arranjos para a próxima visita do supe- rintendente de circuito. 
+                        Informe a congregação e depois coloque este aviso no quadro de anúncios.
+                      </p>
+                    </div>
+
+                    <div 
+                      className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'congregation' ? 'bg-amber-500/10 ring-2 ring-amber-500 ring-inset' : ''}`}
+                      style={{ 
+                        top: `${layout.congregation.top}mm`,
+                        left: `${layout.congregation.left}mm`, 
+                        right: '15mm' 
+                      }}
+                      onClick={() => isDesignMode && setSelectedElement('congregation')}
+                    >
+                      <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.congregation.fontSize}pt` }}>Congregação:</span>
+                      <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                        {fullCongName}
+                      </div>
+                    </div>
+
+                    <div 
+                      className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitor' ? 'bg-amber-500/10 ring-2 ring-amber-500 ring-inset' : ''}`}
+                      style={{ 
+                        top: `${layout.visitor.top}mm`,
+                        left: `${layout.visitor.left}mm`, 
+                        right: '15mm' 
+                      }}
+                      onClick={() => isDesignMode && setSelectedElement('visitor')}
+                    >
+                      <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitor.fontSize}pt` }}>Superintendente de circuito:</span>
+                      <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                        {visitorName}
+                      </div>
+                    </div>
+
+                    <div 
+                      className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitDate' ? 'bg-amber-500/10 ring-2 ring-amber-500 ring-inset' : ''}`}
+                      style={{ 
+                        top: `${layout.visitDate.top}mm`,
+                        left: `${layout.visitDate.left}mm`, 
+                        right: '15mm' 
+                      }}
+                      onClick={() => isDesignMode && setSelectedElement('visitDate')}
+                    >
+                      <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitDate.fontSize}pt` }}>Data da visita:</span>
+                      <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
+                        {data}
+                      </div>
+                    </div>
+                    
+                    {/* Signature Block */}
+                    <div 
+                      className={`absolute flex flex-col items-center cursor-pointer transition-all ${selectedElement === 'signature' ? 'bg-amber-500/10 ring-2 ring-amber-500 ring-inset' : ''}`}
+                      style={{ 
+                        bottom: `${layout.signature.bottom}mm`, 
+                        right: `${layout.signature.right}mm`,
+                        width: `${layout.signature.width}mm`
+                      }}
+                      onClick={() => isDesignMode && setSelectedElement('signature')}
+                    >
+                      <div className="w-full text-center mb-[4pt]" style={{ fontSize: `${layout.signature.fontSize}pt` }}>Seu irmão,</div>
+                      
+                      <div className="w-full relative flex flex-col items-center group">
+                        <div 
+                          className="w-full relative flex items-end justify-center transition-transform"
+                          style={{ 
+                            height: `${layout.signature.imageHeight || 12}mm`,
+                            marginBottom: `${layout.signature.imageOffset || 0}mm`,
+                            transform: `translateX(${layout.signature.imageShiftX || 0}mm)`
+                          }}
+                        >
+                          {!signatureImage && (
+                            <span className="font-signature text-[#004aad] text-2xl leading-none">{signatureName}</span>
+                          )}
+                        </div>
+                        <div className="w-full border-b border-black"></div>
+                      </div>
+                    </div>
+
+                    {signatureImage && signaturePlacement && (
+                      <DraggableSignature 
+                        image={signatureImage}
+                        initialX={signaturePlacement.x}
+                        initialY={signaturePlacement.y}
+                        initialScale={signaturePlacement.scale}
+                        onSave={handleSignaturePlacementSave}
+                        containerRef={previewRef}
+                      />
+                    )}
+
+                    <div className="absolute bottom-[0.8cm] left-[1.5cm] flex gap-[20pt] text-[11pt] font-sans">
+                      <span>S-302-T</span>
+                      <span>12/14</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Signature Pad Modal */}
+      {showSignaturePad && (
+        <SignaturePad 
+          initialName={personalData?.nome || signatureName}
+          onSave={handleSignaturePadSave}
+          onCancel={() => setShowSignaturePad(false)}
+        />
+      )}
+
+      {/* Image Cropper for Signature */}
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setImageToCrop(null)}
+          aspect={6}
+          cropShape="rect"
+          lockAspect={false}
+        />
+      )}
+
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
@@ -438,465 +1083,6 @@ export default function S302NoticeView({ events, initialIndex, userId, isAdmin, 
           }
         }
       `}} />
-      
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between bg-[#512da8] p-4 rounded-2xl shadow-lg no-print gap-4 m-2 sm:m-4">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button 
-            onClick={onBack}
-            className="p-2 hover:bg-white/20 rounded-full transition-all text-white bg-white/10 shadow-md border border-white/20"
-            title="Voltar"
-          >
-            <ChevronLeft size={24} strokeWidth={3} />
-          </button>
-          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            S-302 Aviso de Visitas
-          </h2>
-        </div>
-
-        <div className="flex gap-2 w-full sm:w-auto justify-end">
-          {isAdmin && (
-            <button 
-              onClick={() => setIsDesignMode(!isDesignMode)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-md ${
-                isDesignMode ? 'bg-white text-[#512da8]' : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-            >
-              <Settings2 size={20} />
-              {isDesignMode ? 'Sair do Design' : 'Personalizar Layout'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto p-2 sm:p-4 flex flex-col lg:flex-row gap-4 sm:gap-6 no-print-container">
-        {/* Design Sidebar */}
-        {isDesignMode && (
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="w-full lg:w-80 shrink-0 space-y-6 no-print"
-          >
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Settings2 size={20} className="text-[#512da8]" />
-                Modo Design
-              </h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Elemento para ajustar</label>
-                  <select 
-                    value={selectedElement || ''} 
-                    onChange={(e) => setSelectedElement(e.target.value as keyof S302Layout)}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#512da8] focus:border-[#512da8] outline-none font-medium"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="header">Cabeçalho (Título)</option>
-                    <option value="body">Texto de Instrução</option>
-                    <option value="congregation">Campo Congregação</option>
-                    <option value="visitor">Campo Superintendente</option>
-                    <option value="visitDate">Campo Data</option>
-                    <option value="signature">Assinatura / Nome</option>
-                  </select>
-                </div>
-
-                {selectedElement && (
-                  <div className="space-y-6 pt-4 border-t border-gray-100">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                          <Move size={14} /> Posição Vertical {selectedElement === 'signature' ? '(de baixo)' : '(do topo)'}
-                        </label>
-                        <span className="text-xs font-mono font-bold text-[#512da8]">
-                          {selectedElement === 'signature' ? (layout.signature as any).bottom : (layout as any)[selectedElement].top}mm
-                        </span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="138" step="1"
-                        value={selectedElement === 'signature' ? (layout.signature as any).bottom : (layout as any)[selectedElement].top}
-                        onChange={(e) => updateLayout(selectedElement, selectedElement === 'signature' ? 'bottom' : 'top', parseInt(e.target.value))}
-                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                          <Move size={14} /> Posição Horizontal {selectedElement === 'signature' ? '(da direita)' : '(da esquerda)'}
-                        </label>
-                        <span className="text-xs font-mono font-bold text-[#512da8]">
-                          {selectedElement === 'signature' ? (layout.signature as any).right : (layout as any)[selectedElement].left}mm
-                        </span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="210" step="1"
-                        value={selectedElement === 'signature' ? (layout.signature as any).right : (layout as any)[selectedElement].left}
-                        onChange={(e) => updateLayout(selectedElement, selectedElement === 'signature' ? 'right' : 'left', parseInt(e.target.value))}
-                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                          <Type size={14} /> Tamanho da Fonte
-                        </label>
-                        <span className="text-xs font-mono font-bold text-[#512da8]">
-                          {(layout as any)[selectedElement].fontSize}pt
-                        </span>
-                      </div>
-                      <input 
-                        type="range" min="6" max="40" step="0.5"
-                        value={(layout as any)[selectedElement].fontSize}
-                        onChange={(e) => updateLayout(selectedElement, 'fontSize', parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
-                      />
-                    </div>
-
-                    {selectedElement === 'signature' && (
-                      <div className="space-y-6">
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                              <Maximize2 size={14} /> Largura do Bloco
-                            </label>
-                            <span className="text-xs font-mono font-bold text-[#512da8]">
-                              {layout.signature.width}mm
-                            </span>
-                          </div>
-                          <input 
-                            type="range" min="20" max="150" step="1"
-                            value={layout.signature.width}
-                            onChange={(e) => updateLayout('signature', 'width', parseInt(e.target.value))}
-                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                              <Maximize2 size={14} /> Altura da Imagem
-                            </label>
-                            <span className="text-xs font-mono font-bold text-[#512da8]">
-                              {layout.signature.imageHeight}mm
-                            </span>
-                          </div>
-                          <input 
-                            type="range" min="5" max="50" step="1"
-                            value={layout.signature.imageHeight}
-                            onChange={(e) => updateLayout('signature', 'imageHeight', parseInt(e.target.value))}
-                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                              <Move size={14} /> Ajuste Vertical Imagem
-                            </label>
-                            <span className="text-xs font-mono font-bold text-[#512da8]">
-                              {layout.signature.imageOffset}mm
-                            </span>
-                          </div>
-                          <input 
-                            type="range" min="-20" max="20" step="0.5"
-                            value={layout.signature.imageOffset}
-                            onChange={(e) => updateLayout('signature', 'imageOffset', parseFloat(e.target.value))}
-                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                              <Move size={14} /> Ajuste Horizontal Imagem
-                            </label>
-                            <span className="text-xs font-mono font-bold text-[#512da8]">
-                              {layout.signature.imageShiftX}mm
-                            </span>
-                          </div>
-                          <input 
-                            type="range" min="-50" max="50" step="0.5"
-                            value={layout.signature.imageShiftX}
-                            onChange={(e) => updateLayout('signature', 'imageShiftX', parseFloat(e.target.value))}
-                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#512da8]"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <button 
-                  onClick={handleSaveLayout}
-                  disabled={isSavingLayout}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 mt-4"
-                >
-                  {isSavingLayout ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-                  Salvar Posições
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        <div className="flex-1 space-y-6 no-print-container">
-          {/* Info Card - Simplified/Updated Controls */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print:border-none print:shadow-none print:overflow-visible"
-          >
-            <div className="bg-[#512da8] p-3 sm:p-4 text-white flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
-              <div className="flex items-center bg-white/10 rounded-xl p-1 gap-1 w-full sm:w-auto">
-                <button
-                  onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-                  disabled={currentIndex === 0}
-                  className="p-2 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronsLeft size={20} />
-                </button>
-                <div className="px-2 sm:px-4 flex flex-col items-center flex-1 sm:flex-initial min-w-[120px]">
-                  <span className="text-xs sm:text-sm font-bold truncate max-w-[150px] sm:max-w-none">
-                    {congregacao.nome}
-                  </span>
-                  <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest leading-none">
-                    {currentIndex + 1} / {events.length}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setCurrentIndex(prev => Math.min(events.length - 1, prev + 1))}
-                  disabled={currentIndex === events.length - 1}
-                  className="p-2 rounded-lg hover:bg-white/20 transition-all text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronsRight size={20} />
-                </button>
-              </div>
-
-              <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
-                <button 
-                  onClick={handlePrint}
-                  className="bg-white/20 text-white px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
-                >
-                  <Printer size={16} />
-                  IMPRIMIR
-                </button>
-                <button 
-                  onClick={handleDownloadPDF}
-                  disabled={generating}
-                  className="bg-white text-[#512da8] px-4 py-1.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-2 disabled:opacity-50"
-                >
-                  {generating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                  Baixar PDF
-                </button>
-              </div>
-            </div>
-
-            <div className="p-2 sm:p-8 overflow-x-auto flex justify-start sm:justify-center bg-gray-100 print:bg-white print:p-0 print:overflow-visible">
-              {/* Visual Form Representation */}
-              <div 
-                id="s302-print-container"
-                ref={previewRef}
-                className="bg-white shadow-2xl print:shadow-none min-w-[210mm] w-[210mm] h-[138mm] relative font-serif-document text-black border border-gray-400 shrink-0 overflow-hidden print:overflow-visible"
-                style={{ backgroundColor: 'white' }}
-              >
-                {/* Header */}
-                <h1 
-                  className={`absolute left-0 right-0 text-center font-bold tracking-wide uppercase cursor-pointer transition-all ${selectedElement === 'header' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.header.top}mm`, 
-                    fontSize: `${layout.header.fontSize}pt` 
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('header')}
-                >
-                  AVISO SOBRE A VISITA DO SUPERINTENDENTE DE CIRCUITO
-                </h1>
-  
-                {/* Body Content */}
-                <div 
-                  className={`absolute cursor-pointer transition-all ${selectedElement === 'body' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.body.top}mm`, 
-                    left: `${layout.body.left}mm`,
-                    right: '15mm',
-                    fontSize: `${layout.body.fontSize}pt`,
-                    lineHeight: '1.4'
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('body')}
-                >
-                  <p className="mb-[8pt]">Prezados Irmãos:</p>
-                  <p className="indent-[40pt] text-justify">
-                    Por favor notem os seguintes arranjos para a próxima visita do supe- rintendente de circuito. 
-                    Informe a congregação e depois coloque este aviso no quadro de anúncios.
-                  </p>
-                </div>
-
-                <div 
-                  className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'congregation' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.congregation.top}mm`,
-                    left: `${layout.congregation.left}mm`, 
-                    right: '15mm' 
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('congregation')}
-                >
-                  <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.congregation.fontSize}pt` }}>Congregação:</span>
-                  <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
-                    {fullCongName}
-                  </div>
-                </div>
-
-                <div 
-                  className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitor' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.visitor.top}mm`,
-                    left: `${layout.visitor.left}mm`, 
-                    right: '15mm' 
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('visitor')}
-                >
-                  <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitor.fontSize}pt` }}>Superintendente de circuito:</span>
-                  <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
-                    {visitorName}
-                  </div>
-                </div>
-
-                <div 
-                  className={`absolute flex items-end cursor-pointer transition-all ${selectedElement === 'visitDate' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    top: `${layout.visitDate.top}mm`,
-                    left: `${layout.visitDate.left}mm`, 
-                    right: '15mm' 
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('visitDate')}
-                >
-                  <span className="whitespace-nowrap pr-2" style={{ fontSize: `${layout.visitDate.fontSize}pt` }}>Data da visita:</span>
-                  <div className="flex-1 border-b border-black border-dotted font-bold px-3 min-h-[1.5em] flex items-end">
-                    {data}
-                  </div>
-                </div>
-                
-                {/* Signature Block */}
-                <div 
-                  className={`absolute flex flex-col items-center cursor-pointer transition-all ${selectedElement === 'signature' ? 'bg-[#512da8]/10 ring-2 ring-[#512da8] ring-inset' : ''}`}
-                  style={{ 
-                    bottom: `${layout.signature.bottom}mm`, 
-                    right: `${layout.signature.right}mm`,
-                    width: `${layout.signature.width}mm`
-                  }}
-                  onClick={() => isDesignMode && setSelectedElement('signature')}
-                >
-                  <div className="w-full text-center mb-[4pt]" style={{ fontSize: `${layout.signature.fontSize}pt` }}>Seu irmão,</div>
-                  
-                  <div className="w-full relative flex flex-col items-center group">
-                    <div 
-                      className="w-full relative flex items-end justify-center transition-transform"
-                      style={{ 
-                        height: `${layout.signature.imageHeight || 12}mm`,
-                        marginBottom: `${layout.signature.imageOffset || 0}mm`,
-                        transform: `translateX(${layout.signature.imageShiftX || 0}mm)`
-                      }}
-                    >
-                      {!signatureImage && (
-                        <span className="font-signature text-[#004aad] text-2xl leading-none">{signatureName}</span>
-                      )}
-                    </div>
-                    <div className="w-full border-b border-black"></div>
-                  </div>
-                </div>
-
-                {/* Draggable Signature Layer */}
-                {signatureImage && signaturePlacement && (
-                  <DraggableSignature 
-                    image={signatureImage}
-                    initialX={signaturePlacement.x}
-                    initialY={signaturePlacement.y}
-                    initialScale={signaturePlacement.scale}
-                    onSave={handleSignaturePlacementSave}
-                    containerRef={previewRef}
-                  />
-                )}
-
-                <div className="absolute bottom-[0.8cm] left-[1.5cm] flex gap-[20pt] text-[11pt] font-sans">
-                  <span>S-302-T</span>
-                  <span>12/14</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 no-print">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={generating}
-              className="flex-1 bg-[#512da8] hover:bg-[#4527a0] text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-            >
-              {generating ? (
-                <Loader2 size={24} className="animate-spin" />
-              ) : (
-                <Download size={24} />
-              )}
-              {generating ? 'Gerando PDF...' : 'Baixar PDF'}
-            </button>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex gap-3 no-print">
-            <div className="shrink-0 mt-0.5">⚠️</div>
-            <p>
-              Este recurso preenche o formulário oficial S-302-T. Se os dados não aparecerem nos locais corretos, 
-              pode ser necessário ajustar as coordenadas de impressão no modo Design.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 no-print">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <PenTool size={20} className="text-[#512da8]" />
-              Assinatura Global
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowSignaturePad(true)}
-                className="px-6 py-2.5 bg-[#512da8] text-white rounded-xl font-bold text-sm shadow-md hover:bg-[#4527a0] transition-all flex items-center gap-2"
-              >
-                <Sparkles size={16} />
-                Nova Assinatura Digital
-              </button>
-              {signatureImage && (
-                <button
-                  onClick={handleRemoveSignature}
-                  className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-all flex items-center gap-2"
-                >
-                  <Trash2 size={16} />
-                  Remover
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Signature Pad Modal */}
-      {showSignaturePad && (
-        <SignaturePad 
-          initialName={personalData?.nome || signatureName}
-          onSave={handleSignaturePadSave}
-          onCancel={() => setShowSignaturePad(false)}
-        />
-      )}
-
-      {/* Image Cropper for Signature */}
-      {imageToCrop && (
-        <ImageCropper 
-          image={imageToCrop}
-          onCropComplete={handleCropComplete}
-          onCancel={() => setImageToCrop(null)}
-          aspect={6}
-          cropShape="rect"
-          lockAspect={false}
-        />
-      )}
     </div>
   );
 }

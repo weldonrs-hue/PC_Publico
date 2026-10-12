@@ -148,10 +148,10 @@ export default function FloatingStopwatch() {
   if (!isOpen) return (
     <button 
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-6 portrait:bottom-20 right-6 bg-violet-600 text-white p-4 rounded-full shadow-2xl hover:bg-violet-700 transition-all hover:scale-110 active:scale-95 z-50 flex items-center justify-center"
+      className="fixed bottom-6 portrait:bottom-20 right-6 bg-primary-200 text-white p-3.5 rounded-2xl shadow-xl hover:bg-primary-150 transition-all hover:scale-105 active:scale-95 z-40 flex items-center justify-center cursor-pointer ring-2 ring-primary-200/30"
       title="Abrir Cronômetro"
     >
-      <Clock size={24} />
+      <Clock size={22} strokeWidth={2.2} />
     </button>
   );
 
@@ -162,23 +162,28 @@ export default function FloatingStopwatch() {
       initial={{ x: 0, y: 0 }}
       className="fixed bottom-6 portrait:bottom-20 right-6 z-50 select-none"
     >
-      <div className={`bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-gray-100 overflow-hidden transition-all duration-300 ${isMinimized ? 'w-48' : 'w-72'}`}>
+      <div className={`bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 overflow-hidden transition-all duration-300 relative text-typography-900 ${isMinimized ? 'w-52' : 'w-76'}`}>
+        {/* Top Accent Stripe */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent z-10" />
+
         {/* Header/Handle */}
-        <div className="bg-gray-50/50 p-2.5 flex items-center justify-between cursor-move border-b border-gray-100">
-          <div className="flex items-center gap-2 text-gray-400">
+        <div className="bg-surface-200/70 p-3 pt-3.5 flex items-center justify-between cursor-move border-b border-surface-300/80">
+          <div className="flex items-center gap-2 text-typography-500">
             <GripHorizontal size={16} />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Cronômetro</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-typography-700">Cronômetro</span>
           </div>
           <div className="flex items-center gap-1">
             <button 
               onClick={() => setIsMinimized(!isMinimized)}
-              className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500 transition-colors"
+              className="p-1.5 hover:bg-surface-200 rounded-xl text-typography-500 hover:text-typography-900 transition-colors cursor-pointer"
+              title={isMinimized ? "Expandir" : "Minimizar"}
             >
               {isMinimized ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
             <button 
               onClick={() => setIsOpen(false)}
-              className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-lg text-gray-500 transition-colors"
+              className="p-1.5 hover:bg-rose-500/10 hover:text-rose-600 rounded-xl text-typography-500 transition-colors cursor-pointer"
+              title="Fechar"
             >
               <X size={14} />
             </button>
@@ -189,12 +194,12 @@ export default function FloatingStopwatch() {
         {!isMinimized && (
           <div className="p-5 space-y-5">
             {/* Display */}
-            <div className={`text-center py-6 bg-gray-950 rounded-2xl shadow-inner border border-white/5 relative overflow-hidden ${time < 60 && mode === 'timer' && time > 0 ? 'animate-pulse' : ''}`}>
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-              <span className={`text-5xl font-mono font-bold tracking-tighter transition-colors ${time <= 0 && mode === 'timer' ? 'text-red-500' : 'text-emerald-400'}`}>
+            <div className={`text-center py-6 bg-surface-200/60 rounded-2xl shadow-inner border border-surface-300/80 relative overflow-hidden ${time < 60 && mode === 'timer' && time > 0 ? 'animate-pulse' : ''}`}>
+              <div className="absolute inset-0 bg-gradient-to-b from-primary-200/5 to-transparent pointer-events-none" />
+              <span className={`text-4xl sm:text-5xl font-mono font-black tracking-tight transition-colors ${time <= 0 && mode === 'timer' ? 'text-rose-600 dark:text-rose-400' : 'text-primary-200 dark:text-primary-150'}`}>
                 {formatTime(time)}
               </span>
-              <div className="text-[10px] uppercase font-black text-gray-600 mt-2 tracking-[0.2em]">
+              <div className="text-[10px] uppercase font-black text-typography-400 mt-2 tracking-widest">
                 {mode === 'stopwatch' ? 'Decorrido' : 'Restante'}
               </div>
             </div>
@@ -203,7 +208,7 @@ export default function FloatingStopwatch() {
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={handleReset}
-                className="p-3 hover:bg-gray-100 rounded-full text-gray-500 transition-all active:scale-90"
+                className="p-3 hover:bg-surface-200 rounded-full text-typography-500 hover:text-typography-900 transition-all active:scale-90 cursor-pointer"
                 title="Reiniciar"
               >
                 <RotateCcw size={20} />
@@ -211,18 +216,18 @@ export default function FloatingStopwatch() {
               
               <button
                 onClick={handleStartPause}
-                className={`p-5 rounded-full shadow-xl transition-all active:scale-95 flex items-center justify-center ${
+                className={`p-5 rounded-full shadow-lg transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
                   isRunning 
-                    ? 'bg-amber-100 text-amber-600 hover:bg-amber-200 hover:shadow-amber-200/50' 
-                    : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200 hover:shadow-emerald-200/50'
+                    ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-500/25' 
+                    : 'bg-primary-200 text-white hover:bg-primary-150 shadow-primary-200/25'
                 }`}
               >
-                {isRunning ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
+                {isRunning ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
               </button>
 
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className={`p-3 rounded-full transition-all active:scale-90 ${showSettings ? 'bg-violet-100 text-violet-600' : 'hover:bg-gray-100 text-gray-500'}`}
+                className={`p-3 rounded-full transition-all active:scale-90 cursor-pointer ${showSettings ? 'bg-primary-200/10 text-primary-200' : 'hover:bg-surface-200 text-typography-500'}`}
                 title="Ajustes"
               >
                 <Settings size={20} />
@@ -238,12 +243,12 @@ export default function FloatingStopwatch() {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100">
+                  <div className="bg-surface-200/70 rounded-2xl p-4 space-y-4 border border-surface-300">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Modo</span>
+                      <span className="text-[11px] font-bold text-typography-600 uppercase tracking-wider">Modo</span>
                       <button 
                         onClick={toggleMode}
-                        className="text-[10px] font-black px-3 py-1.5 bg-white border border-gray-200 rounded-lg uppercase text-violet-600 hover:border-violet-300 hover:shadow-sm transition-all"
+                        className="text-[10px] font-black px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-xl uppercase text-primary-200 hover:border-primary-200 shadow-2xs transition-all cursor-pointer"
                       >
                         {mode === 'stopwatch' ? 'Timer' : 'Crono'}
                       </button>
@@ -251,31 +256,31 @@ export default function FloatingStopwatch() {
 
                     {mode === 'timer' && (
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Minutos</span>
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => adjustTimer(-1)} className="w-8 h-8 flex items-center justify-center bg-white border rounded-lg hover:bg-gray-50 hover:shadow-sm active:scale-90 transition-all">-</button>
-                          <span className="text-sm font-mono font-bold w-6 text-center text-gray-700">{timerValue}</span>
-                          <button onClick={() => adjustTimer(1)} className="w-8 h-8 flex items-center justify-center bg-white border rounded-lg hover:bg-gray-50 hover:shadow-sm active:scale-90 transition-all">+</button>
+                        <span className="text-[11px] font-bold text-typography-600 uppercase tracking-wider">Minutos</span>
+                        <div className="flex items-center gap-2.5">
+                          <button onClick={() => adjustTimer(-1)} className="w-8 h-8 flex items-center justify-center bg-surface-100 border border-surface-300 rounded-xl hover:bg-surface-200 shadow-2xs active:scale-90 transition-all font-bold text-typography-700 cursor-pointer">-</button>
+                          <span className="text-sm font-mono font-bold w-6 text-center text-typography-900">{timerValue}</span>
+                          <button onClick={() => adjustTimer(1)} className="w-8 h-8 flex items-center justify-center bg-surface-100 border border-surface-300 rounded-xl hover:bg-surface-200 shadow-2xs active:scale-90 transition-all font-bold text-typography-700 cursor-pointer">+</button>
                         </div>
                       </div>
                     )}
 
-                    <div className="pt-2 border-t border-gray-100 flex flex-col gap-3">
+                    <div className="pt-2 border-t border-surface-300/80 flex flex-col gap-2.5">
                       <button 
                         onClick={toggleBroadcast}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
                           isBroadcasting 
-                            ? 'bg-red-50 text-red-600 border border-red-100' 
-                            : 'bg-blue-50 text-blue-600 border border-blue-100'
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' 
+                            : 'bg-primary-200/10 text-primary-200 border-primary-200/20'
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <Radio size={16} className={isBroadcasting ? 'animate-pulse' : ''} />
-                          <span className="text-[10px] font-black uppercase tracking-widest">
+                          <Radio size={15} className={isBroadcasting ? 'animate-pulse' : ''} />
+                          <span className="text-[10px] font-black uppercase tracking-wider">
                             {isBroadcasting ? 'Transmitindo...' : 'Transmitir Link'}
                           </span>
                         </div>
-                        <div className={`w-8 h-4 rounded-full relative transition-colors ${isBroadcasting ? 'bg-red-500' : 'bg-gray-300'}`}>
+                        <div className={`w-8 h-4 rounded-full relative transition-colors ${isBroadcasting ? 'bg-rose-500' : 'bg-surface-300'}`}>
                           <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${isBroadcasting ? 'left-4.5' : 'left-0.5'}`} />
                         </div>
                       </button>
@@ -283,10 +288,10 @@ export default function FloatingStopwatch() {
                       {isBroadcasting && (
                         <button 
                           onClick={copyBroadcastLink}
-                          className="flex items-center justify-center gap-2 w-full py-2 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all"
+                          className="flex items-center justify-center gap-2 w-full py-2 bg-surface-100 border border-surface-300 rounded-xl hover:border-primary-200 shadow-2xs transition-all cursor-pointer text-typography-700"
                         >
-                          {copying ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} className="text-gray-400" />}
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">
+                          {copying ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} className="text-typography-400" />}
+                          <span className="text-[10px] font-bold uppercase tracking-wider">
                             {copying ? 'Copiado!' : 'Copiar Link'}
                           </span>
                         </button>
@@ -301,11 +306,11 @@ export default function FloatingStopwatch() {
 
         {/* Minimized View */}
         {isMinimized && (
-          <div className="p-3.5 flex items-center justify-between bg-gray-950 text-emerald-400">
-            <span className="text-2xl font-mono font-bold tracking-tighter">{formatTime(time)}</span>
+          <div className="p-3.5 flex items-center justify-between bg-surface-200/70 text-primary-200">
+            <span className="text-2xl font-mono font-black tracking-tight">{formatTime(time)}</span>
             <button
               onClick={handleStartPause}
-              className={`p-2 rounded-lg transition-colors ${isRunning ? 'bg-amber-400/10 text-amber-400 hover:bg-amber-400/20' : 'bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20'}`}
+              className={`p-2 rounded-xl transition-colors cursor-pointer ${isRunning ? 'bg-amber-500/10 text-amber-600 hover:bg-amber-500/20' : 'bg-primary-200/10 text-primary-200 hover:bg-primary-200/20'}`}
             >
               {isRunning ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
             </button>

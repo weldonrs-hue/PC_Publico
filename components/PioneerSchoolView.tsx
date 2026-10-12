@@ -1,55 +1,56 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronDown,
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Search, 
-  Save, 
-  X,
-  Loader2,
-  UserPlus,
-  ClipboardPaste,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Users,
-  LayoutList,
-  Printer,
-  FileDown,
-  Info,
-  Undo2,
-  FileText,
-  Mail,
-  Filter,
-  Check
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import PSSAssignmentLetters from './PSSAssignmentLetters';
-import PioneerSchoolLetters from './PioneerSchoolLetters';
-import { db, auth } from '@/lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
+import { useDialog } from '@/hooks/useDialog';
+import { db } from '@/lib/firebase';
+import { handleFirestoreError, OperationType } from '@/utils/firestore';
+import Docxtemplater from 'docxtemplater';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   limit,
-  orderBy,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
   writeBatch
 } from 'firebase/firestore';
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Calendar,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ClipboardPaste,
+  Edit2,
+  FileDown,
+  FileText,
+  Filter,
+  Info,
+  LayoutGrid,
+  LayoutList,
+  Loader2,
+  Plus,
+  Save,
+  Search,
+  Table as TableIcon,
+  Trash2,
+  UserPlus,
+  Users,
+  X
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { useDialog } from '@/hooks/useDialog';
+import { Fragment, useEffect, useState } from 'react';
+import PSSAssignmentLetters from './PSSAssignmentLetters';
+import CustomSelect from '@/components/CustomSelect';
 
 interface Student {
   id: string;
@@ -215,6 +216,58 @@ const WORKSHOP_DATA = [
   }
 ];
 
+const WORKSHOP_THEMES: Record<string, {
+  sidebarBg: string;
+  sidebarText: string;
+  sidebarBorder: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  cardBorder: string;
+  accentBar: string;
+}> = {
+  workshop1: {
+    sidebarBg: 'bg-teal-500/10 dark:bg-teal-500/15',
+    sidebarText: 'text-teal-800 dark:text-teal-200',
+    sidebarBorder: 'border-teal-500/25',
+    badgeBg: 'bg-teal-500/10 dark:bg-teal-500/20',
+    badgeText: 'text-teal-700 dark:text-teal-300',
+    badgeBorder: 'border-teal-500/25',
+    cardBorder: 'border-l-teal-500',
+    accentBar: 'bg-teal-500',
+  },
+  workshop2: {
+    sidebarBg: 'bg-sky-500/10 dark:bg-sky-500/15',
+    sidebarText: 'text-sky-800 dark:text-sky-200',
+    sidebarBorder: 'border-sky-500/25',
+    badgeBg: 'bg-sky-500/10 dark:bg-sky-500/20',
+    badgeText: 'text-sky-700 dark:text-sky-300',
+    badgeBorder: 'border-sky-500/25',
+    cardBorder: 'border-l-sky-500',
+    accentBar: 'bg-sky-500',
+  },
+  workshop3: {
+    sidebarBg: 'bg-indigo-500/10 dark:bg-indigo-500/15',
+    sidebarText: 'text-indigo-800 dark:text-indigo-200',
+    sidebarBorder: 'border-indigo-500/25',
+    badgeBg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
+    badgeText: 'text-indigo-700 dark:text-indigo-300',
+    badgeBorder: 'border-indigo-500/25',
+    cardBorder: 'border-l-indigo-500',
+    accentBar: 'bg-indigo-500',
+  },
+  workshop4: {
+    sidebarBg: 'bg-amber-500/10 dark:bg-amber-500/15',
+    sidebarText: 'text-amber-800 dark:text-amber-200',
+    sidebarBorder: 'border-amber-500/25',
+    badgeBg: 'bg-amber-500/10 dark:bg-amber-500/20',
+    badgeText: 'text-amber-700 dark:text-amber-400',
+    badgeBorder: 'border-amber-500/25',
+    cardBorder: 'border-l-amber-500',
+    accentBar: 'bg-amber-500',
+  },
+};
+
 interface PioneerSchoolViewProps {
   userId: string;
   onBack: () => void;
@@ -274,6 +327,7 @@ export default function PioneerSchoolView({
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
   const [originalSchoolInfo, setOriginalSchoolInfo] = useState<SchoolInfo>(defaultSchoolInfo);
   const [isSavingInfo, setIsSavingInfo] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
@@ -291,6 +345,33 @@ export default function PioneerSchoolView({
   });
   const [downloadingDesignacao, setDownloadingDesignacao] = useState(false);
   const [personalData, setPersonalData] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_pioneer_school_view_mode');
+      if (saved === 'table' || saved === 'list') return saved as 'table' | 'list';
+      return window.innerWidth < 768 ? 'list' : 'table';
+    }
+    return 'table';
+  });
+
+  const handleViewModeChange = (mode: 'table' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('progcir_pioneer_school_view_mode', mode);
+  };
+
+  const [workshopViewMode, setWorkshopViewMode] = useState<'table' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_pioneer_school_workshop_view_mode');
+      if (saved === 'table' || saved === 'list') return saved as 'table' | 'list';
+      return window.innerWidth < 768 ? 'list' : 'table';
+    }
+    return 'table';
+  });
+
+  const handleWorkshopViewModeChange = (mode: 'table' | 'list') => {
+    setWorkshopViewMode(mode);
+    localStorage.setItem('progcir_pioneer_school_workshop_view_mode', mode);
+  };
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -332,8 +413,7 @@ export default function PioneerSchoolView({
 
     const q = query(
       collection(db, 'pioneer_school_students'), 
-      where('userId', '==', userId),
-      orderBy('nome', 'asc')
+      where('userId', '==', userId)
     );
 
     const unsubscribeStudents = onSnapshot(q, (snapshot) => {
@@ -341,6 +421,8 @@ export default function PioneerSchoolView({
         ...doc.data(),
         id: doc.id
       })) as Student[];
+      // Client-side sort alphabetically by default (avoiding Firestore composite index requirement)
+      studentsData.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
       setStudents(studentsData);
       setLoading(false);
     }, (error) => {
@@ -444,6 +526,10 @@ export default function PioneerSchoolView({
   const hasInfoChanges = !isEqualInfo(schoolInfo, originalSchoolInfo);
 
   const handleTabChange = (tab: 'students' | 'workshops' | 'info' | 'templates_pss') => {
+    if (tab === 'info') {
+      setIsInfoModalOpen(true);
+      return;
+    }
     if (activeTab === 'info' && hasInfoChanges) {
       setPendingAction(() => () => setActiveTab(tab));
       setIsUnsavedModalOpen(true);
@@ -1216,41 +1302,40 @@ export default function PioneerSchoolView({
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white shadow-2xl border border-gray-200 rounded-2xl px-3 py-3 sm:px-6 sm:py-4 flex items-center gap-2 sm:gap-6 w-[95%] sm:w-auto overflow-hidden text-gray-800 print:hidden"
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1001] bg-surface-100/95 dark:bg-surface-200/95 backdrop-blur-md text-typography-900 shadow-2xl border border-surface-300 rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 sm:gap-4 w-[calc(100vw-1.5rem)] max-w-lg print:hidden"
           >
             <div className="flex items-center gap-2 shrink-0">
-              <span className="bg-[#37616b] text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
+              <span className="bg-primary-200 text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold">
                 {selectedStudents.length}
               </span>
-              <span className="text-[10px] sm:text-sm font-medium text-gray-600 hidden xs:inline">selecionados</span>
+              <span className="text-[11px] sm:text-xs font-semibold text-typography-600 hidden xs:inline">selecionado(s)</span>
             </div>
-            <div className="h-6 sm:h-8 w-px bg-gray-200 shrink-0" />
-            <div className="flex items-center gap-1.5 sm:gap-3 flex-1 sm:flex-none justify-around sm:justify-start">
+            <div className="h-5 sm:h-6 w-px bg-surface-300 shrink-0" />
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => setSelectedStudents([])}
-                className="text-[10px] sm:text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors px-1 shrink-0"
+                className="text-xs font-semibold text-typography-500 hover:text-typography-800 transition-colors px-2 py-1.5 rounded-lg cursor-pointer"
               >
-                <span className="sm:hidden">Sair</span>
-                <span className="hidden sm:inline">Cancelar</span>
+                Cancelar
               </button>
               <button
                 onClick={handleDownloadDesignacao}
                 disabled={downloadingDesignacao}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-[#37616b] text-white rounded-lg sm:rounded-xl hover:bg-[#2c4d55] transition-all font-bold disabled:opacity-50 shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-200 hover:bg-primary-150 text-white rounded-xl transition-all text-xs font-bold disabled:opacity-50 shrink-0 shadow-xs cursor-pointer"
               >
-                {downloadingDesignacao ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
-                <span className="text-[10px] sm:text-sm">
+                {downloadingDesignacao ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                <span>
                   <span className="hidden sm:inline">Baixar Convite</span>
-                  <span className="sm:hidden">Baixar</span>
+                  <span className="sm:hidden">Convite</span>
                 </span>
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-red-50 text-red-600 rounded-lg sm:rounded-xl hover:bg-red-100 transition-all font-bold shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl transition-all text-xs font-bold shrink-0 cursor-pointer"
               >
-                <Trash2 size={16} />
-                <span className="text-[10px] sm:text-sm">
-                  <span className="hidden sm:inline">Excluir Selecionados</span>
+                <Trash2 size={14} />
+                <span>
+                  <span className="hidden sm:inline">Excluir</span>
                   <span className="sm:hidden">Excluir</span>
                 </span>
               </button>
@@ -1259,9 +1344,14 @@ export default function PioneerSchoolView({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-6 print:hidden">
+      {/* Barra Superior / Header Card */}
+      <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 md:p-5 shadow-xs space-y-4 print:hidden relative overflow-hidden">
+        <div 
+          className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
+          style={{ backgroundImage: 'linear-gradient(to right, #10B981, #059669, transparent)' }}
+        />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => {
                 if (activeTab === 'info' && hasInfoChanges) {
@@ -1271,137 +1361,213 @@ export default function PioneerSchoolView({
                   onBack();
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-all text-[#37616b] bg-white shadow-md border border-gray-200 shrink-0"
+              className="p-2 sm:p-2.5 hover:bg-surface-200 text-typography-700 bg-surface-200/60 rounded-xl shadow-2xs border border-surface-300 transition-all cursor-pointer shrink-0"
+              title="Voltar"
             >
-              <ChevronLeft size={28} strokeWidth={3} />
+              <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-800 truncate flex items-center gap-2">
-              Escola do Serviço de Pioneiro
-              {isGuest && (
-                <span className="bg-amber-100 text-amber-700 text-[10px] uppercase font-black px-2 py-0.5 rounded-full border border-amber-200">
-                  Convidado
-                </span>
-              )}
-            </h2>
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight truncate flex items-center gap-2">
+                Escola do Serviço de Pioneiro
+                {isGuest && (
+                  <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                    Convidado
+                  </span>
+                )}
+              </h2>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-          {activeTab === 'students' ? (
-            <>
-              <div className={`relative flex items-center transition-all duration-300 ${showSearch ? 'flex-1 md:w-64' : 'w-10'}`}>
-                <button 
-                  onClick={() => setShowSearch(!showSearch)}
-                  className={`p-2 rounded-xl transition-all flex items-center justify-center ${showSearch ? 'absolute left-1 z-10 text-[#37616b]' : 'hover:bg-gray-100 border border-gray-200 text-gray-600'}`}
-                  title="Buscar aluno"
-                >
-                  <Search size={20} />
-                </button>
-                {showSearch && (
-                  <motion.input
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: '100%', opacity: 1 }}
-                    autoFocus
-                    type="text"
-                    placeholder="Buscar aluno..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onBlur={() => { if (!searchTerm) setShowSearch(false); }}
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] focus:border-transparent outline-none transition-all"
-                  />
-                )}
-              </div>
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm overflow-hidden whitespace-nowrap pl-[9px] hover:pl-4"
-                title="Importar da Área de Transferência"
-              >
-                <Plus size={20} className="text-gray-400 shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Importar</span>
-              </button>
-              <button
-                onClick={() => handleOpenModal()}
-                className="group flex items-center h-10 w-10 hover:w-32 transition-all duration-500 ease-in-out rounded-full bg-[#37616b] text-white shadow-md overflow-hidden whitespace-nowrap pl-[9px] hover:pl-4"
-                title="Adicionar Aluno"
-              >
-                <UserPlus size={20} className="shrink-0" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-2 font-black text-[10px] uppercase tracking-widest">Adicionar</span>
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
-              <span className="text-[10px] font-bold text-gray-400 ml-2 uppercase tracking-widest">
-                Turma:
-              </span>
-              <div className="flex gap-1">
-                {(['1', '2', '3'] as const).map((t) => {
-                  const isDisabled = isGuest && guestTurma !== 'all' && guestTurma !== t;
-                  if (isGuest && guestTurma !== 'all' && guestTurma !== t) return null;
-                  
-                  return (
-                    <button
-                      key={t}
-                      onClick={() => handleTurmaChange(t)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        selectedTurma === t 
-                          ? 'bg-amber-100 text-amber-700 shadow-sm' 
-                          : 'text-gray-400 hover:bg-gray-50'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {activeTab === 'students' ? (
+              <>
+                <div className={`relative flex items-center transition-all duration-300 ${showSearch ? 'flex-1 md:w-60' : 'w-9'}`}>
+                  <button 
+                    onClick={() => setShowSearch(!showSearch)}
+                    className={`p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer ${
+                      showSearch 
+                        ? 'absolute left-1 z-10 text-primary-200' 
+                        : 'bg-surface-100 hover:bg-surface-200 border border-surface-300 text-typography-600 shadow-2xs'
+                    }`}
+                    title="Buscar aluno"
+                  >
+                    <Search size={18} />
+                  </button>
+                  {showSearch && (
+                    <motion.input
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: '100%', opacity: 1 }}
+                      autoFocus
+                      type="text"
+                      placeholder="Buscar aluno..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onBlur={() => { if (!searchTerm) setShowSearch(false); }}
+                      className="w-full pl-9 pr-3.5 py-1.5 bg-surface-100 border border-surface-300 text-typography-900 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs transition-all shadow-2xs placeholder:text-typography-400"
+                    />
+                  )}
+                </div>
 
-          {/* Action Buttons: PDF and Print moved to end */}
-          {activeTab !== 'info' && activeTab !== 'templates_pss' && (
-            <div className="flex items-center gap-2 ml-2">
+                {/* Alternador de Modo: Tabela vs Lista (igual ao Itinerário) */}
+                <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+                  <button 
+                    type="button"
+                    onClick={() => handleViewModeChange('table')}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'table' 
+                        ? 'bg-primary-200 text-white shadow-xs' 
+                        : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                    }`}
+                    title="Modo Tabela"
+                  >
+                    <TableIcon size={14} />
+                    <span className="hidden sm:inline">Tabela</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => handleViewModeChange('list')}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'list' 
+                        ? 'bg-primary-200 text-white shadow-xs' 
+                        : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                    }`}
+                    title="Modo Lista"
+                  >
+                    <LayoutList size={14} />
+                    <span className="hidden sm:inline">Lista</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-surface-100 hover:bg-surface-200 text-typography-700 border border-surface-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  title="Importar alunos da Área de Transferência"
+                >
+                  <Plus size={16} className="text-typography-400 shrink-0" />
+                  <span className="hidden sm:inline">Importar</span>
+                </button>
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-brand-primary text-brand-on-primary rounded-xl text-xs font-bold transition-all shadow-xs hover:opacity-90 cursor-pointer"
+                  title="Adicionar Aluno"
+                >
+                  <UserPlus size={16} className="shrink-0" />
+                  <span>Adicionar</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Alternador de Modo para Sessão de Treino */}
+                {activeTab === 'workshops' && (
+                  <div className="flex items-center bg-surface-200/80 p-0.5 rounded-xl border border-surface-300 shadow-2xs">
+                    <button 
+                      type="button"
+                      onClick={() => handleWorkshopViewModeChange('table')}
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        workshopViewMode === 'table' 
+                          ? 'bg-primary-200 text-white shadow-xs' 
+                          : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                      }`}
+                      title="Modo Tabela"
+                    >
+                      <TableIcon size={14} />
+                      <span className="hidden sm:inline">Tabela</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => handleWorkshopViewModeChange('list')}
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        workshopViewMode === 'list' 
+                          ? 'bg-primary-200 text-white shadow-xs' 
+                          : 'text-typography-600 hover:text-typography-900 hover:bg-surface-200/60'
+                      }`}
+                      title="Modo Lista"
+                    >
+                      <LayoutList size={14} />
+                      <span className="hidden sm:inline">Lista</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 bg-surface-100 border border-surface-300 rounded-xl px-2.5 py-1 shadow-2xs">
+                  <span className="text-[10px] font-bold text-typography-400 uppercase tracking-widest">
+                    Turma:
+                  </span>
+                  <div className="flex gap-1">
+                    {(['1', '2', '3'] as const).map((t) => {
+                      if (isGuest && guestTurma !== 'all' && guestTurma !== t) return null;
+                      
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => handleTurmaChange(t)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            selectedTurma === t 
+                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shadow-xs' 
+                              : 'text-typography-500 hover:bg-surface-200'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Dados da Turma / Modal Trigger */}
+            <button
+              onClick={() => setIsInfoModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-[0.98] cursor-pointer"
+              title="Editar dados da turma (data, instrutores, local, entrega de livros)"
+            >
+              <CalendarDays size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="hidden sm:inline">Dados da Turma</span>
+              <span className="sm:hidden">Dados</span>
+            </button>
+
+            {/* Action Buttons: PDF Download */}
+            {activeTab !== 'info' && activeTab !== 'templates_pss' && (
               <button
                 onClick={handleDownloadPDF}
                 disabled={generating}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#3e5e66] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-[#2c4d55] transition-all disabled:opacity-50 border-r-4 border-[#facc15]"
+                className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-surface-100 hover:bg-surface-200 text-typography-800 border border-surface-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
                 title="Baixar PDF"
               >
-                <div className="shrink-0">
-                  {generating ? <Loader2 size={20} className="animate-spin" /> : <FileDown size={20} className="text-[#facc15]" />}
-                </div>
-                <span className="font-black">
-                  {generating ? 'Gerando...' : 'Baixar PDF'}
-                </span>
+                {generating ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} className="text-amber-500" />}
+                <span className="hidden sm:inline">{generating ? 'Gerando...' : 'Baixar PDF'}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-        {/* Improved Tabs Row */}
-        <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-gray-100 -mx-4 px-4 md:mx-0 md:px-0 print:hidden">
+        {/* Tabs Row */}
+        <div className="flex items-center gap-3 sm:gap-6 overflow-x-auto pb-1 scrollbar-none border-b border-surface-300 pt-1">
           <button 
             onClick={() => handleTabChange('students')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'students' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'students' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
           >
             <Users size={16} />
             Lista de Alunos
           </button>
           <button 
             onClick={() => handleTabChange('info')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'info' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'info' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
           >
             <Info size={16} />
             Informações
           </button>
           <button 
             onClick={() => handleTabChange('workshops')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'workshops' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'workshops' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
           >
             <LayoutList size={16} />
             Sessão de Treino
           </button>
           <button 
             onClick={() => handleTabChange('templates_pss')}
-            className={`text-sm font-bold transition-all flex items-center gap-1.5 pb-2 border-b-2 whitespace-nowrap shrink-0 ${activeTab === 'templates_pss' ? 'text-[#37616b] border-[#37616b]' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+            className={`text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 pb-2.5 border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'templates_pss' ? 'text-primary-200 border-primary-200' : 'text-typography-500 border-transparent hover:text-typography-800'}`}
           >
             <FileText size={16} />
             Templates PSS
@@ -1438,33 +1604,35 @@ export default function PioneerSchoolView({
           table { 
             width: 100% !important; 
             border-collapse: collapse !important; 
-            border: 1px solid #000 !important; 
+            border: 1px solid #cbd5e1 !important; 
             font-size: 10pt !important; 
           }
           th, td { 
-            border: 1px solid #ccc !important; 
-            padding: 4pt 6pt !important; 
+            border: 1px solid #e2e8f0 !important; 
+            padding: 5pt 7pt !important; 
           }
           th { 
-            background-color: #37616b !important; 
-            color: white !important; 
+            background-color: #f8fafc !important; 
+            color: #0f172a !important; 
+            font-weight: 800 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important;
           }
           thead { display: table-header-group !important; }
         }
 
-        /* Support for PDF capture styles - Aligned with Circuit Statistics view */
+        /* Support for PDF capture styles */
         .pdf-capture {
           background-color: #ffffff !important;
-          color: #1a1a1a !important;
-          padding: 10mm !important;
+          color: #0f172a !important;
+          padding: 12mm 14mm !important;
           width: 1200px !important;
           min-height: auto !important;
         }
 
         .pdf-capture * {
-          border-color: #e5e7eb !important;
+          border-color: #e2e8f0 !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
@@ -1488,13 +1656,13 @@ export default function PioneerSchoolView({
         .pdf-capture .workshop-participant-text {
           display: block !important;
           font-weight: 700 !important;
-          color: #000 !important;
-          font-size: 15px !important;
+          color: #1e293b !important;
+          font-size: 13px !important;
         }
 
         .pdf-capture .turma-text {
           display: block !important;
-          font-size: 12px !important;
+          font-size: 11px !important;
           text-align: center !important;
           font-weight: bold !important;
         }
@@ -1502,351 +1670,657 @@ export default function PioneerSchoolView({
         .pdf-capture table {
           width: 100% !important;
           border-collapse: collapse !important;
-          border: 1px solid #e5e7eb !important;
+          border: 1.5px solid #cbd5e1 !important;
         }
 
         .pdf-capture th {
-          background-color: #37616b !important;
-          color: #ffffff !important;
-          font-weight: bold !important;
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          font-weight: 800 !important;
+          font-size: 11px !important;
+          letter-spacing: 0.05em !important;
+          padding: 10px 14px !important;
+          border-bottom: 2px solid #cbd5e1 !important;
+        }
+
+        .pdf-capture .students-table th {
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          border-bottom: 2px solid #cbd5e1 !important;
         }
 
         .pdf-capture .sessions-table th {
-          background-color: #3e5e66 !important;
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          border-bottom: 2px solid #cbd5e1 !important;
         }
 
-        .pdf-capture .bg-\[\#e8f1f3\] {
-          background-color: #e8f1f3 !important;
+        .pdf-capture .students-table tbody tr:nth-child(even) {
+          background-color: #f8fafc !important;
         }
 
-        .pdf-capture .bg-\[\#5d7c85\] {
-          background-color: #5d7c85 !important;
+        .pdf-capture .students-table td {
+          padding: 9px 12px !important;
+          font-size: 12px !important;
+          border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        .pdf-capture .sessions-table td {
+          border-bottom: 1px solid #e2e8f0 !important;
+          border-right: 1px solid #e2e8f0 !important;
+        }
+
+          /* Lateral dos Workshops no PDF */
+        .pdf-capture .workshop-sidebar-workshop1 {
+          background-color: #e6f4f6 !important;
+          color: #164e57 !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop2 {
+          background-color: #eaf3fb !important;
+          color: #154e75 !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop3 {
+          background-color: #eff1fc !important;
+          color: #2e2a7b !important;
+        }
+        .pdf-capture .workshop-sidebar-workshop4 {
+          background-color: #fef6e7 !important;
+          color: #7c4a0e !important;
+        }
+
+        .scenario-badge,
+        .pdf-capture .scenario-badge {
+          white-space: nowrap !important;
+          word-break: keep-all !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          flex-shrink: 0 !important;
         }
       `}</style>
 
-      <div id="pioneer-school-report" className="space-y-6 print:space-y-4 bg-white">
-        {/* Document Header - Visible only in Print/PDF - Matched to Circuit Stats style */}
-        <div className="hidden print:block text-center pt-2 pb-4">
-          <h1 className="text-4xl font-bold tracking-tight text-[#37616b]">Escola do Serviço de Pioneiro</h1>
-          <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mt-2">
-            {activeTab === 'students' ? 'Lista de Alunos' : `Sessão de Treino - Turma ${selectedTurma}`}
-          </p>
+      <div id="pioneer-school-report" className="space-y-6 print:space-y-4 bg-transparent print:bg-white">
+        {/* Document Header - Visible only in Print/PDF */}
+        <div className="hidden print:block text-center pt-3 pb-5 border-b border-slate-200 mb-5">
+          <div className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-slate-100 text-slate-600 mb-2 border border-slate-200">
+            Programa de Ensino Teocrático
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Escola do Serviço de Pioneiro</h1>
+          <div className="flex items-center justify-center gap-3 text-xs font-bold uppercase tracking-wider text-gray-500 mt-2">
+            <span>{activeTab === 'students' ? 'Lista Oficial de Alunos' : `Sessão de Treino — Turma ${selectedTurma}`}</span>
+            {defaultCircuit && (
+              <>
+                <span>•</span>
+                <span>Circuito {defaultCircuit}</span>
+              </>
+            )}
+            {activeTab === 'students' && sortedStudents.length > 0 && (
+              <>
+                <span>•</span>
+                <span>{sortedStudents.length} Alunos</span>
+              </>
+            )}
+          </div>
         </div>
 
         <div id="pdf-content">
           {activeTab === 'students' ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px] students-table">
-                <thead>
-                  <tr className="bg-[#37616b] text-white">
-                    <th className="px-4 py-2 w-10 print:hidden pdf-hidden">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-gray-300 text-[#37616b] focus:ring-[#37616b] cursor-pointer"
-                        checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="px-4 py-2 font-bold text-sm uppercase tracking-wider w-10 text-center">
-                      Nº
-                    </th>
-                    <th 
-                      className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                      onClick={() => handleSort('nome')}
-                    >
-                      <div className="flex items-center">
-                        Nome do Aluno
-                        <span className="print:hidden pdf-hidden"><SortIcon column="nome" /></span>
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                      onClick={() => handleSort('congregacao')}
-                    >
-                      <div className="flex items-center">
-                        Congregação
-                        <span className="print:hidden pdf-hidden"><SortIcon column="congregacao" /></span>
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-2 font-bold text-sm uppercase tracking-wider cursor-pointer hover:bg-[#2c4d55] transition-colors"
-                      onClick={() => handleSort('circuito')}
-                    >
-                      <div className="flex items-center">
-                        Circuito
-                        <span className="print:hidden pdf-hidden"><SortIcon column="circuito" /></span>
-                      </div>
-                    </th>
-                    <th 
-                      className="px-4 py-2 font-bold text-sm uppercase tracking-wider relative group/header text-center"
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        <button 
-                          className="hover:bg-[#2c4d55] px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                          onClick={() => handleSort('turma')}
-                        >
-                          Turma
-                          <span className="print:hidden pdf-hidden"><SortIcon column="turma" /></span>
-                        </button>
-                        
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowTurmaFilter(!showTurmaFilter);
-                          }}
-                          className={`p-1 rounded-md transition-all print:hidden pdf-hidden ${
-                            turmaFilter !== 'all' ? 'bg-amber-400 text-[#37616b] shadow-sm' : 'hover:bg-[#2c4d55] text-white/70 hover:text-white'
+            <div className="bg-surface-100 rounded-3xl shadow-xs border border-surface-300 overflow-hidden">
+              {/* Modo Lista / Cards (Exibido quando viewMode === 'list') */}
+              {viewMode === 'list' && (
+                <div className="print:hidden p-3.5 sm:p-5 space-y-2.5">
+                  {loading ? (
+                    <div className="py-12 text-center">
+                      <Loader2 className="animate-spin mx-auto text-primary-200" size={32} />
+                      <p className="mt-2 text-xs text-typography-500">Carregando alunos...</p>
+                    </div>
+                  ) : sortedStudents.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-typography-500">
+                      Nenhum aluno encontrado.
+                    </div>
+                  ) : (
+                    sortedStudents.map((student, index) => {
+                      const isSelected = selectedStudents.includes(student.id);
+                      const initials = student.nome?.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase() || '?';
+                      const accentColors = [
+                        'border-l-primary-200',
+                        'border-l-amber-400',
+                        'border-l-teal-400',
+                        'border-l-indigo-400',
+                        'border-l-rose-400',
+                      ];
+                      const accentBg = [
+                        'bg-primary-200/10 text-primary-200',
+                        'bg-amber-400/10 text-amber-600',
+                        'bg-teal-400/10 text-teal-600',
+                        'bg-indigo-400/10 text-indigo-600',
+                        'bg-rose-400/10 text-rose-600',
+                      ];
+                      const accentIdx = index % accentColors.length;
+                      return (
+                        <div 
+                          key={student.id}
+                          className={`pl-3.5 pr-3.5 py-3 rounded-2xl border-l-[3px] border border-surface-300/80 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isSelected 
+                              ? 'bg-primary-200/5 border-l-primary-200 border-primary-200/30 shadow-xs' 
+                              : `bg-surface-100 hover:bg-surface-200/40 ${accentColors[accentIdx]}`
                           }`}
                         >
-                          <Filter size={14} fill={turmaFilter !== 'all' ? 'currentColor' : 'none'} />
-                        </button>
-                      </div>
-
-                      {/* Dropdown Menu */}
-                      <AnimatePresence>
-                        {showTurmaFilter && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-40" 
-                              onClick={() => setShowTurmaFilter(false)}
+                          <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 mt-1 sm:mt-0 rounded border-surface-300 text-primary-200 focus:ring-primary-200 cursor-pointer shrink-0"
+                              checked={isSelected}
+                              onChange={() => toggleSelectStudent(student.id)}
                             />
-                            <motion.div
-                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                              className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 overflow-hidden normal-case tracking-normal font-normal"
-                            >
-                              {[
-                                { id: 'all', label: 'Todos os Alunos' },
-                                { id: 'none', label: 'Alunos sem Turma' },
-                                { id: '1', label: 'Turma 1' },
-                                { id: '2', label: 'Turma 2' },
-                                { id: '3', label: 'Turma 3' }
-                              ].map((option) => (
-                                <button
-                                  key={option.id}
-                                  onClick={() => {
-                                    setTurmaFilter(option.id);
-                                    setShowTurmaFilter(false);
-                                  }}
-                                  className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors ${
-                                    turmaFilter === option.id 
-                                      ? 'bg-amber-50 text-amber-700 font-bold' 
-                                      : 'text-gray-600 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {option.label}
-                                  {turmaFilter === option.id && <Check size={14} className="text-amber-600" />}
-                                </button>
-                              ))}
-                            </motion.div>
-                          </>
-                        )}
-                      </AnimatePresence>
-                    </th>
-                    <th className="px-6 py-2 font-bold text-sm uppercase tracking-wider w-24 text-center print:hidden pdf-hidden">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center">
-                        <Loader2 className="animate-spin mx-auto text-[#37616b]" size={32} />
-                        <p className="mt-2 text-gray-500">Carregando alunos...</p>
-                      </td>
-                    </tr>
-                  ) : sortedStudents.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                        Nenhum aluno encontrado.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedStudents.map((student, index) => (
-                      <tr 
-                        key={student.id} 
-                        className={`hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${selectedStudents.includes(student.id) ? 'bg-[#37616b]/5' : ''}`}
-                      >
-                        <td className="px-4 py-2 print:hidden pdf-hidden">
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 rounded border-gray-300 text-[#37616b] focus:ring-[#37616b] cursor-pointer"
-                            checked={selectedStudents.includes(student.id)}
-                            onChange={() => toggleSelectStudent(student.id)}
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-600 text-center">{index + 1}</td>
-                        <td className="px-6 py-2 text-sm font-bold text-gray-900">{student.nome}</td>
-                        <td className="px-6 py-2 text-sm text-gray-600">{student.congregacao}</td>
-                        <td className="px-6 py-2 text-sm text-gray-600">{student.circuito}</td>
-                        <td className="px-4 py-2 text-sm text-center">
-                          <div className="hidden turma-text">
-                            {student.turma ? (
-                              <span className="bg-[#FFBD00]/10 text-[#7A5C00] border border-[#FFBD00]/20 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap">
-                                TURMA {student.turma}
-                              </span>
-                            ) : (
-                              <span className="text-gray-300">-</span>
-                            )}
+                            <span className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 ${isSelected ? 'bg-primary-200/10 text-primary-200' : accentBg[accentIdx]}`}>
+                              {initials}
+                            </span>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-typography-900 truncate">
+                                {student.nome}
+                              </h4>
+                              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-typography-500">
+                                <span className="truncate">{student.congregacao || 'Sem congregação'}</span>
+                                {student.circuito && (
+                                  <>
+                                    <span className="text-surface-300">•</span>
+                                    <span className="text-typography-400">{student.circuito}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="select-turma-ui">
-                            <select
+
+                          <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-300/50">
+                            <CustomSelect
                               value={student.turma || ''}
-                              onChange={(e) => handleUpdateTurma(student.id, e.target.value)}
-                              className={`px-2 py-1 rounded-lg font-bold text-xs border-none focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer appearance-none text-center transition-all ${
-                                student.turma 
-                                  ? 'bg-amber-100 text-amber-700' 
-                                  : 'bg-gray-100 text-gray-400 italic'
-                              }`}
-                            >
-                              <option value="">-</option>
-                              <option value="1">TURMA 1</option>
-                              <option value="2">TURMA 2</option>
-                              <option value="3">TURMA 3</option>
-                            </select>
+                              onChange={(val) => handleUpdateTurma(student.id, val)}
+                              options={[
+                                { value: '', label: 'Sem Turma' },
+                                { value: '1', label: 'Turma 1' },
+                                { value: '2', label: 'Turma 2' },
+                                { value: '3', label: 'Turma 3' },
+                              ]}
+                              className="w-28"
+                              size="sm"
+                            />
+
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => handleOpenModal(student)}
+                                className="p-1.5 text-typography-500 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-colors cursor-pointer"
+                                title="Editar"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteClick(student.id)}
+                                className="p-1.5 text-typography-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                title="Excluir"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-2 text-sm print:hidden pdf-hidden">
-                          <div className="flex items-center justify-center gap-2">
-                            <button 
-                              onClick={() => handleOpenModal(student)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Editar"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteClick(student.id)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                        </div>
+                      );
+                    })
                   )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : activeTab === 'workshops' ? (
-          <div className="w-full">
-            <div className="overflow-x-auto pb-8 scrollbar-thin scrollbar-thumb-gray-300" id="itinerary-table-container">
-              <table className="w-full border-collapse min-w-[800px] sessions-table bg-white">
+                </div>
+              )}
+
+              {/* Modo Tabela (Visível quando viewMode === 'table' e SEMPRE ativo no print/pdf) */}
+              <div className={`${viewMode === 'table' ? 'block' : 'hidden print:block'} overflow-x-auto custom-scrollbar`}>
+                <table className="w-full text-left border-collapse min-w-[700px] students-table">
                   <thead>
-                    <tr className="bg-[#3e5e66] text-white uppercase tracking-wider">
-                      <th className="p-4 text-left font-bold text-xl h-[60px]" colSpan={2}>
-                        SESSÃO DE TREINO 
-                        <span className="text-yellow-400 italic ml-4">TURMA {selectedTurma}</span>
+                    <tr className="bg-primary-200/10 dark:bg-primary-200/15 border-b border-primary-200/20 text-typography-800 dark:text-typography-100">
+                      <th className="px-4 py-3.5 w-10 print:hidden pdf-hidden">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-surface-300 text-primary-200 focus:ring-primary-200 cursor-pointer"
+                          checked={selectedStudents.length === sortedStudents.length && sortedStudents.length > 0}
+                          onChange={toggleSelectAll}
+                        />
                       </th>
-                      <th className="p-4 text-right align-bottom font-bold text-sm tracking-widest h-[60px] w-[449.8px]">
-                        PARTICIPANTES
+                      <th className="px-3 py-3.5 font-black text-xs uppercase tracking-wider w-12 text-center text-primary-200">
+                        Nº
+                      </th>
+                      <th 
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
+                        onClick={() => handleSort('nome')}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Nome do Aluno
+                          <span className="print:hidden pdf-hidden"><SortIcon column="nome" /></span>
+                        </div>
+                      </th>
+                      <th 
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
+                        onClick={() => handleSort('congregacao')}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Congregação
+                          <span className="print:hidden pdf-hidden"><SortIcon column="congregacao" /></span>
+                        </div>
+                      </th>
+                      <th 
+                        className="px-5 py-3.5 font-bold text-xs uppercase tracking-wider cursor-pointer hover:bg-primary-200/15 transition-colors"
+                        onClick={() => handleSort('circuito')}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Circuito
+                          <span className="print:hidden pdf-hidden"><SortIcon column="circuito" /></span>
+                        </div>
+                      </th>
+                      <th 
+                        className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider relative group/header text-center"
+                      >
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button 
+                            className="hover:bg-primary-200/15 px-2 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            onClick={() => handleSort('turma')}
+                          >
+                            Turma
+                            <span className="print:hidden pdf-hidden"><SortIcon column="turma" /></span>
+                          </button>
+                          
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowTurmaFilter(!showTurmaFilter);
+                            }}
+                            className={`p-1 rounded-md transition-all print:hidden pdf-hidden cursor-pointer ${
+                              turmaFilter !== 'all' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 shadow-xs' : 'hover:bg-surface-300/40 text-typography-400 hover:text-typography-800'
+                            }`}
+                          >
+                            <Filter size={13} fill={turmaFilter !== 'all' ? 'currentColor' : 'none'} />
+                          </button>
+                        </div>
+
+                        {/* Dropdown Menu */}
+                        <AnimatePresence>
+                          {showTurmaFilter && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setShowTurmaFilter(false)}
+                              />
+                              <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-surface-100 rounded-2xl shadow-xl border border-surface-300 py-1 z-50 overflow-hidden normal-case tracking-normal font-normal text-left"
+                              >
+                                {[
+                                  { id: 'all', label: 'Todos os Alunos' },
+                                  { id: 'none', label: 'Alunos sem Turma' },
+                                  { id: '1', label: 'Turma 1' },
+                                  { id: '2', label: 'Turma 2' },
+                                  { id: '3', label: 'Turma 3' }
+                                ].map((option) => (
+                                  <button
+                                    key={option.id}
+                                    onClick={() => {
+                                      setTurmaFilter(option.id);
+                                      setShowTurmaFilter(false);
+                                    }}
+                                    className={`w-full px-4 py-2 text-left text-xs sm:text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                                      turmaFilter === option.id 
+                                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold' 
+                                        : 'text-typography-600 hover:bg-surface-200'
+                                    }`}
+                                  >
+                                    {option.label}
+                                    {turmaFilter === option.id && <Check size={14} className="text-amber-600" />}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </th>
+                      <th className="px-5 py-3 font-bold text-xs uppercase tracking-wider w-24 text-center print:hidden pdf-hidden text-typography-500">
+                        Ações
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-800">
-                    {WORKSHOP_DATA.map((workshop) => (
-                      <Fragment key={workshop.id}>
-                        {workshop.scenarios.map((scenario, sIndex) => (
-                          <tr key={scenario.id} className="group min-h-0 h-1">
-                             {sIndex === 0 && (
-                              <td 
-                                className="w-[20px] bg-[#5d7c85] text-white border-r border-[#aebfc5] border-b border-[#aebfc5] p-0 align-middle" 
-                                rowSpan={workshop.scenarios.length}
+                  <tbody className="divide-y divide-surface-300/60">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center">
+                          <Loader2 className="animate-spin mx-auto text-primary-200" size={32} />
+                          <p className="mt-2 text-xs text-typography-500">Carregando alunos...</p>
+                        </td>
+                      </tr>
+                    ) : sortedStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-xs text-typography-500">
+                          Nenhum aluno encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedStudents.map((student, index) => (
+                        <tr 
+                          key={student.id} 
+                          className={`hover:bg-surface-200/40 transition-colors border-b border-surface-300/40 last:border-0 ${
+                            selectedStudents.includes(student.id) ? 'bg-primary-200/5' : ''
+                          }`}
+                        >
+                          <td className="px-4 py-3 print:hidden pdf-hidden">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded border-surface-300 text-primary-200 focus:ring-primary-200 cursor-pointer"
+                              checked={selectedStudents.includes(student.id)}
+                              onChange={() => toggleSelectStudent(student.id)}
+                            />
+                          </td>
+                          <td className="px-3 py-3 text-xs font-semibold text-typography-500 text-center">{index + 1}</td>
+                          <td className="px-5 py-3 text-sm font-bold text-typography-900">{student.nome}</td>
+                          <td className="px-5 py-3 text-xs sm:text-sm text-typography-600">{student.congregacao}</td>
+                          <td className="px-5 py-3 text-xs sm:text-sm text-typography-500">{student.circuito}</td>
+                          <td className="px-4 py-3 text-xs sm:text-sm text-center">
+                            <div className="hidden turma-text">
+                              {student.turma ? (
+                                <span className="bg-amber-500/10 text-amber-700 border border-amber-500/20 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap">
+                                  TURMA {student.turma}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </div>
+                            <div className="select-turma-ui inline-block">
+                              <CustomSelect
+                                value={student.turma || ''}
+                                onChange={(val) => handleUpdateTurma(student.id, val)}
+                                options={[
+                                  { value: '', label: '-' },
+                                  { value: '1', label: 'Turma 1' },
+                                  { value: '2', label: 'Turma 2' },
+                                  { value: '3', label: 'Turma 3' },
+                                ]}
+                                placeholder="-"
+                                className="w-24 text-center"
+                                size="sm"
+                                direction={index >= sortedStudents.length - 4 ? 'up' : 'down'}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-sm print:hidden pdf-hidden">
+                            <div className="flex items-center justify-center gap-1">
+                              <button 
+                                onClick={() => handleOpenModal(student)}
+                                className="p-1.5 text-typography-500 hover:text-primary-200 hover:bg-surface-200 rounded-lg transition-colors cursor-pointer"
+                                title="Editar"
                               >
-                                <div className="[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-bold text-[15px] uppercase tracking-wider whitespace-nowrap w-[19.5px] mx-auto py-4">
-                                  {workshop.label}
-                                </div>
-                              </td>
-                            )}
-                            <td className={`border border-[#aebfc5] p-2.5 relative align-top transition-colors group-hover:bg-[#f8fafb] before:content-[''] before:absolute before:top-0 before:left-0 before:w-0 before:height-0 before:border-t-[6px] before:border-t-[#d32f2f] before:border-r-[6px] before:border-r-transparent ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col gap-0.5">
-                                <div 
-                                  className="cursor-pointer group/scenario flex items-start gap-1.5"
-                                  onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteClick(student.id)}
+                                className="p-1.5 text-typography-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                title="Excluir"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+        ) : activeTab === 'workshops' ? (
+          <>
+            {/* Modo Lista (Mobile-friendly, oculto no PDF/impressão) */}
+            {workshopViewMode === 'list' && (
+              <div className="space-y-4 print:hidden pdf-hidden">
+                {WORKSHOP_DATA.map((workshop) => {
+                  const theme = WORKSHOP_THEMES[workshop.id] || WORKSHOP_THEMES.workshop1;
+                  return (
+                    <div key={workshop.id} className="space-y-2.5">
+                      {/* Workshop header */}
+                      <div className="flex items-center gap-2.5 px-1 pt-1">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder}`}>
+                          {workshop.label}
+                        </span>
+                        <div className="flex-1 h-px bg-surface-300/60" />
+                      </div>
+
+                      {workshop.scenarios.map((scenario) => {
+                        const participantCount = workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2;
+                        const isExpanded = expandedScenario === scenario.id;
+
+                        return (
+                          <div
+                            key={scenario.id}
+                            className={`bg-surface-100 border border-surface-300/80 border-l-[3.5px] ${theme.cardBorder} rounded-2xl shadow-2xs transition-all relative`}
+                          >
+                            {/* Card header */}
+                            <div
+                              className="flex items-start gap-3 p-3.5 cursor-pointer select-none"
+                              onClick={() => setExpandedScenario(isExpanded ? null : scenario.id)}
+                            >
+                              <span className={`shrink-0 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-lg text-xs font-black scenario-badge ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder} mt-0.5`}>
+                                Cena&nbsp;{scenario.id}
+                              </span>
+                              <p className="flex-1 text-xs font-bold text-typography-800 leading-snug">
+                                {scenario.text}
+                              </p>
+                              <button
+                                type="button"
+                                className={`shrink-0 p-1 rounded-lg border transition-all ${
+                                  isExpanded
+                                    ? 'bg-primary-200 text-white border-primary-200'
+                                    : 'bg-surface-200 text-typography-400 border-surface-300'
+                                }`}
+                              >
+                                <ChevronDown
+                                  size={14}
+                                  className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                />
+                              </button>
+                            </div>
+
+                            {/* Instructions (collapsible) */}
+                            <AnimatePresence>
+                              {isExpanded && scenario.instructions && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
                                 >
-                                  <span className="font-bold text-sm shrink-0 leading-tight">({scenario.id})</span>
-                                  <span className="flex-1 text-[12px] font-bold leading-tight">
-                                    {scenario.text}
-                                  </span>
-                                  <div className={`shrink-0 p-2 rounded-full shadow-md transition-all print:hidden pdf-hidden border-2 ${expandedScenario === scenario.id ? 'bg-[#3e5e66] text-white border-[#3e5e66]' : 'bg-white text-[#3e5e66] border-[#3e5e66] hover:bg-[#3e5e66] hover:text-white'}`}>
-                                    <ChevronDown 
-                                      size={18} 
-                                      className={`transform transition-transform duration-300 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                  <div className="mx-3.5 mb-3 p-3 bg-surface-200/60 border border-surface-300 rounded-xl text-xs text-typography-700 leading-relaxed font-normal">
+                                    {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Participants */}
+                            <div className="px-3.5 pb-3.5 space-y-2 border-t border-surface-300/50 pt-3">
+                              {Array.from({ length: participantCount }).map((_, idx) => {
+                                const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                                const roleLabel = getParticipantLabel(scenario.id, idx);
+                                return (
+                                  <div key={idx} className="flex items-center gap-2 relative">
+                                    {roleLabel && (
+                                      <span className="text-[10px] font-bold text-typography-400 uppercase tracking-wider w-20 shrink-0">
+                                        {roleLabel}
+                                      </span>
+                                    )}
+                                    <CustomSelect
+                                      value={participant}
+                                      onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
+                                      placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
+                                      options={[
+                                        { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
+                                        ...workshopDropdownStudents.map((student) => ({
+                                          value: student.nome,
+                                          label: student.nome,
+                                          badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
+                                        }))
+                                      ]}
+                                      className="flex-1"
+                                      size="sm"
+                                      direction="auto"
+                                      searchable={true}
                                     />
                                   </div>
-                                </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-                                <AnimatePresence>
-                                  {(expandedScenario === scenario.id) && scenario.instructions && (
-                                    <motion.div
-                                      initial={{ height: 0, opacity: 0 }}
-                                      animate={{ height: 'auto', opacity: 1 }}
-                                      exit={{ height: 0, opacity: 0 }}
-                                      className="overflow-hidden"
+            {/* Modo Tabela (Desktop na tela, e SEMPRE renderizado para o PDF/impressão) */}
+            <div className={`${workshopViewMode === 'table' ? 'block' : 'hidden print:block'} w-full bg-surface-100 border border-surface-300 rounded-3xl overflow-hidden shadow-2xs`}>
+              <div className="overflow-x-auto pb-6 custom-scrollbar" id="itinerary-table-container">
+                <table className="w-full border-collapse min-w-[800px] sessions-table text-left">
+                  <thead>
+                    <tr className="bg-primary-200/10 dark:bg-primary-200/15 border-b border-primary-200/25">
+                      <th className="p-4 text-left font-black text-sm tracking-wider text-typography-900" colSpan={2}>
+                        <div className="flex items-center gap-3">
+                          <span className="uppercase tracking-widest text-xs font-black text-typography-800 dark:text-typography-100">Sessão de Treino</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-primary-200 text-white shadow-2xs">
+                            Turma {selectedTurma}
+                          </span>
+                        </div>
+                      </th>
+                      <th className="p-4 text-right align-middle font-black text-[11px] tracking-widest text-typography-600 dark:text-typography-400 uppercase w-[440px]">
+                        Participantes
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-300/60">
+                    {WORKSHOP_DATA.map((workshop) => {
+                      const theme = WORKSHOP_THEMES[workshop.id] || WORKSHOP_THEMES.workshop1;
+                      return (
+                        <Fragment key={workshop.id}>
+                          {workshop.scenarios.map((scenario, sIndex) => (
+                            <tr key={scenario.id} className="group transition-colors">
+                              {sIndex === 0 && (
+                                <td 
+                                  className={`w-[42px] ${theme.sidebarBg} ${theme.sidebarText} border-r ${theme.sidebarBorder} border-b border-surface-300/70 p-0 align-middle text-center workshop-sidebar-${workshop.id}`} 
+                                  rowSpan={workshop.scenarios.length}
+                                >
+                                  <div className={`[writing-mode:vertical-lr] rotate-180 flex items-center justify-center font-black text-[11px] uppercase tracking-[0.25em] whitespace-nowrap w-[42px] mx-auto py-6 ${theme.sidebarText}`}>
+                                    {workshop.label}
+                                  </div>
+                                </td>
+                              )}
+                              <td className="border-r border-b border-surface-300/70 p-3.5 relative align-top transition-colors group-hover:bg-surface-200/40 bg-surface-100">
+                                <div className="flex flex-col gap-1">
+                                  <div 
+                                    className="cursor-pointer group/scenario flex items-start gap-2.5"
+                                    onClick={() => setExpandedScenario(expandedScenario === scenario.id ? null : scenario.id)}
+                                  >
+                                    <span className={`shrink-0 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-lg text-xs font-black scenario-badge ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder}`}>
+                                      Cena&nbsp;{scenario.id}
+                                    </span>
+                                    <span className="flex-1 text-xs font-bold text-typography-800 leading-snug pt-0.5">
+                                      {scenario.text}
+                                    </span>
+                                    <button
+                                      type="button" 
+                                      className={`shrink-0 p-1 rounded-lg border transition-all print:hidden pdf-hidden ${
+                                        expandedScenario === scenario.id 
+                                          ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                                          : 'bg-surface-200 text-typography-400 border-surface-300 hover:text-typography-800 hover:bg-surface-300'
+                                      }`}
                                     >
-                                      <div className="mt-3 p-4 bg-white border border-slate-200 border-l-[4px] border-[#3e5e66] rounded-md shadow-sm text-[13.5px] text-slate-950 font-bold leading-relaxed">
-                                        {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                      <ChevronDown 
+                                        size={14} 
+                                        className={`transform transition-transform duration-200 ${expandedScenario === scenario.id ? 'rotate-180' : ''}`} 
+                                      />
+                                    </button>
+                                  </div>
+
+                                  <AnimatePresence>
+                                    {(expandedScenario === scenario.id) && scenario.instructions && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="mt-2.5 p-3.5 bg-surface-200/60 border border-surface-300 rounded-xl shadow-2xs text-xs text-typography-800 leading-relaxed font-normal">
+                                          {scenario.instructions.replace('Instruções para a parte:', '').replace('Instruções para a parte', '').trim()}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              </td>
+                              <td className="border-b border-surface-300/70 p-2.5 w-[440px] align-top bg-surface-100">
+                                <div className="flex flex-col gap-1.5">
+                                  {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
+                                    const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
+                                    const roleLabel = getParticipantLabel(scenario.id, idx);
+                                    
+                                    return (
+                                      <div 
+                                        key={idx} 
+                                        className="relative flex items-center min-h-[34px]"
+                                      >
+                                        <div className="hidden workshop-participant-text py-0.5 w-full">
+                                          {participant ? (
+                                            <div className="text-xs">
+                                              {roleLabel && <span className="text-slate-500 font-semibold mr-1.5">{roleLabel}:</span>}
+                                              <span className="font-bold text-slate-900">{participant}</span>
+                                              <span className="text-teal-600 font-bold ml-1.5">✓</span>
+                                            </div>
+                                          ) : (
+                                            idx < 2 ? (
+                                              <div className="text-xs text-slate-400 py-0.5 font-light">
+                                                {roleLabel && <span className="text-slate-400 font-medium mr-1.5">{roleLabel}:</span>}
+                                                <span className="tracking-widest">____________________________________</span>
+                                              </div>
+                                            ) : null
+                                          )}
+                                        </div>
+                                        <div className="workshop-select-ui w-full">
+                                          <CustomSelect
+                                            value={participant}
+                                            onChange={(val) => handleParticipantChange(scenario.id, idx, val)}
+                                            placeholder={roleLabel ? `${roleLabel} - Selecionar` : 'Selecionar Aluno'}
+                                            options={[
+                                              { value: '', label: roleLabel ? `${roleLabel} (Vazio)` : '- Limpar -' },
+                                              ...workshopDropdownStudents.map((student) => ({
+                                                value: student.nome,
+                                                label: student.nome,
+                                                badge: assignedStudentNames.has(student.nome) ? '✓' : undefined
+                                              }))
+                                            ]}
+                                            className="w-full"
+                                            dropdownClassName="w-full min-w-[280px]"
+                                            size="sm"
+                                            direction={scenario.id >= 8 ? 'up' : 'down'}
+                                            searchable={true}
+                                          />
+                                        </div>
                                       </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            </td>
-                            <td className={`border border-[#aebfc5] p-0 w-[45%] align-top ${sIndex % 2 === 0 ? 'bg-[#e8f1f3]' : 'bg-white'}`}>
-                              <div className="flex flex-col divide-y divide-[#aebfc5]">
-                                {Array.from({ length: workshop.id === 'workshop2' && scenario.id === 5 ? 4 : 2 }).map((_, idx) => {
-                                  const participant = workshopAssignments[scenario.id]?.participants?.split('|')[idx] || '';
-                                  const isFocused = focusedSlot?.scenarioId === scenario.id && focusedSlot?.slotIndex === idx;
-                                  
-                                  return (
-                                    <div 
-                                      key={idx} 
-                                      className={`relative px-2 py-0.5 min-h-[32px] flex items-center transition-all ${isFocused ? 'ring-2 ring-inset ring-[#3e5e66] bg-white z-10' : ''}`}
-                                    >
-                                      <div className="hidden workshop-participant-text text-[15px] font-medium text-slate-800">
-                                        {participant ? (
-                                          getParticipantLabel(scenario.id, idx) 
-                                            ? `${getParticipantLabel(scenario.id, idx)} - ${participant} ✓` 
-                                            : `${participant} ✓`
-                                        ) : (idx < 2 ? '...........................................' : '')}
-                                      </div>
-                                      <div className="workshop-select-ui w-full h-full">
-                                        <select
-                                          data-slot={`${scenario.id}-${idx}`}
-                                          value={participant}
-                                          onChange={(e) => handleParticipantChange(scenario.id, idx, e.target.value)}
-                                          onFocus={() => setFocusedSlot({ scenarioId: scenario.id, slotIndex: idx })}
-                                          onBlur={() => setFocusedSlot(null)}
-                                          onKeyDown={(e) => handleWorkshopKeyDown(e, scenario.id, idx)}
-                                          className={`w-full bg-transparent border-none rounded-none text-[15px] py-1 cursor-pointer transition-colors focus:ring-0 outline-none appearance-none block leading-tight ${!participant ? 'text-slate-400 font-normal italic' : 'text-slate-800 font-bold'}`}
-                                        >
-                                          <option value="" className="text-slate-400 font-normal italic">
-                                            {getParticipantLabel(scenario.id, idx) ? `${getParticipantLabel(scenario.id, idx)} - ` : '- Selecionar -'}
-                                          </option>
-                                          {workshopDropdownStudents.map((student) => (
-                                            <option key={student.id} value={student.nome} className="text-slate-800 font-bold">
-                                              {student.nome} {assignedStudentNames.has(student.nome) ? '✓' : ''}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </Fragment>
-                    ))}
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
-              </table>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
 
         ) : activeTab === 'templates_pss' ? (
           <PSSAssignmentLetters 
@@ -1858,11 +2332,12 @@ export default function PioneerSchoolView({
             workshopAssignments={workshopAssignments}
           />
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-[#37616b] p-4 text-white">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <Info size={20} />
-                Informações da Escola
+          <div className="bg-surface-100 rounded-3xl shadow-xs border border-surface-300 overflow-hidden relative">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-transparent" />
+            <div className="bg-surface-200/50 p-4 border-b border-surface-300 text-typography-900 flex items-center justify-between">
+              <h3 className="text-base font-black flex items-center gap-2">
+                <Info size={18} className="text-emerald-500" />
+                Informações da Escola (Turma {selectedTurma})
               </h3>
             </div>
 
@@ -2076,49 +2551,245 @@ export default function PioneerSchoolView({
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-6 portrait:bottom-20 landscape:bottom-6 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-gray-950/95 text-white backdrop-blur-lg px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 sm:gap-6 border border-white/15 max-w-[calc(100vw-1.5rem)] w-auto no-print"
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md no-print"
           >
-            <div className="flex items-center gap-2.5 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                <span className="relative inline-flex rounded-full h-2 sm:h-2.5 w-2 sm:w-2.5 bg-amber-500"></span>
               </span>
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-gray-200 whitespace-nowrap">
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs sm:text-sm font-semibold truncate">
                   Alterações não salvas
                 </span>
-                <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                <span className="text-[10px] text-typography-500 font-mono hidden sm:inline truncate">
                   Escola de Pioneiros • Dados Gerais
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => setSchoolInfo({ ...originalSchoolInfo })}
                 disabled={isSavingInfo}
-                className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-gray-300 hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                className="px-2.5 py-1.5 text-xs font-medium text-typography-600 hover:text-typography-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Descartar
               </button>
               <button
                 onClick={handleSaveInfo}
                 disabled={isSavingInfo}
-                className="px-3.5 sm:px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {isSavingInfo ? (
                   <>
-                    <Loader2 size={15} className="animate-spin shrink-0" />
+                    <Loader2 size={14} className="animate-spin shrink-0" />
                     <span>Salvando...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={15} className="shrink-0" />
-                    <span>Salvar Agora</span>
+                    <Save size={14} className="shrink-0" />
+                    <span>Salvar</span>
                   </>
                 )}
               </button>
             </div>
           </motion.div>
+        )}
+
+        {isInfoModalOpen && (
+          <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md no-print">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-2xl overflow-hidden relative text-typography-900 flex flex-col max-h-[90vh]"
+            >
+              <div 
+                className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90 z-10"
+                style={{ backgroundImage: 'linear-gradient(to right, #10B981, #059669, transparent)' }}
+              />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <CalendarDays size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-typography-900 uppercase tracking-tight">
+                      Dados da Escola (Turma {selectedTurma})
+                    </h3>
+                    <p className="text-xs text-typography-500">
+                      Datas, locais, instrutores e confirmações da ESP
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsInfoModalOpen(false)} 
+                  className="p-1.5 rounded-xl text-typography-400 hover:text-typography-800 hover:bg-surface-200 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Data da Turma</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.dataTurma}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, dataTurma: e.target.value })}
+                      placeholder="Ex: 06/07/2026 - 11/07/2026"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Local da Escola</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.localEscola}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, localEscola: e.target.value })}
+                      placeholder="Congregação - Cidade UF"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Instrutor A</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.instrutorA}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorA: e.target.value })}
+                      placeholder="Nome do Instrutor A"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Instrutor B</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.instrutorB}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, instrutorB: e.target.value })}
+                      placeholder="Nome do Instrutor B"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-typography-700 uppercase tracking-wider mb-1.5 ml-0.5">Endereço da Escola</label>
+                    <input
+                      type="text"
+                      value={schoolInfo.enderecoEscola}
+                      onChange={(e) => setSchoolInfo({ ...schoolInfo, enderecoEscola: e.target.value })}
+                      placeholder="Endereço completo da escola"
+                      className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-surface-300 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-typography-700 flex items-center gap-1.5">
+                    <LayoutList size={14} className="text-emerald-500" />
+                    Entrega do Livro
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Endereço de Entrega</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.entregaLivroEndereco}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroEndereco: e.target.value })}
+                        placeholder="Local de entrega dos livros"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Data e Hora de Entrega</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.entregaLivroDataHora}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, entregaLivroDataHora: e.target.value })}
+                        placeholder="Ex: sábado, 06/06/2026 às 09:00"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-surface-300 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-typography-700 flex items-center gap-1.5">
+                    <Users size={14} className="text-emerald-500" />
+                    Confirmação de Frequência
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-typography-600 mb-1 ml-0.5">Data Limite</label>
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoDataLimite}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoDataLimite: e.target.value })}
+                        placeholder="Data limite"
+                        className="w-full px-3.5 py-2.5 bg-surface-200/50 border border-surface-300 rounded-xl focus:border-primary-200 focus:ring-1 focus:ring-primary-200 outline-none text-xs text-typography-900 font-medium"
+                      />
+                    </div>
+                    <div className="p-3 bg-blue-500/5 rounded-2xl border border-blue-500/20 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block">Instrutor A</span>
+                      <input
+                        type="email"
+                        value={schoolInfo.confirmacaoEmail}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmail: e.target.value })}
+                        placeholder="E-mail"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoWhatsapp}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsapp: e.target.value })}
+                        placeholder="WhatsApp"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div className="p-3 bg-amber-500/5 rounded-2xl border border-amber-500/20 space-y-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 block">Instrutor B</span>
+                      <input
+                        type="email"
+                        value={schoolInfo.confirmacaoEmailB}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoEmailB: e.target.value })}
+                        placeholder="E-mail B"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                      <input
+                        type="text"
+                        value={schoolInfo.confirmacaoWhatsappB}
+                        onChange={(e) => setSchoolInfo({ ...schoolInfo, confirmacaoWhatsappB: e.target.value })}
+                        placeholder="WhatsApp B"
+                        className="w-full px-3 py-1.5 bg-surface-100 border border-surface-300 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-surface-300 bg-surface-200/50 flex items-center justify-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsInfoModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-typography-600 hover:text-typography-900 rounded-xl transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleSaveInfo();
+                    setIsInfoModalOpen(false);
+                  }}
+                  disabled={isSavingInfo}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingInfo ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>{isSavingInfo ? 'Salvando...' : 'Salvar Alterações'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
 
         {isModalOpen && (
@@ -2127,89 +2798,91 @@ export default function PioneerSchoolView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              className="bg-surface-100 rounded-3xl shadow-2xl border border-surface-300 w-full max-w-md overflow-hidden relative text-typography-900"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-                <h3 className="text-lg font-bold text-gray-800">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-transparent z-10" />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50">
+                <h3 className="text-base font-black text-typography-900 uppercase tracking-wider">
                   {editingStudent ? 'Editar Aluno' : 'Novo Aluno'}
                 </h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
+                <button 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="p-1 rounded-xl text-typography-400 hover:text-typography-800 hover:bg-surface-200 transition-colors cursor-pointer"
+                >
+                  <X size={20} />
                 </button>
               </div>
 
               <form onSubmit={handleSave} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Nome do Aluno</label>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Nome do Aluno</label>
                   <input
                     required
                     type="text"
                     value={formData.nome}
                     onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none"
+                    className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/30 focus:border-primary-200 outline-none transition-all"
                     placeholder="Nome completo"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Congregação</label>
-                  <select
-                    required
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Congregação</label>
+                  <CustomSelect
                     value={formData.congregacao}
-                    onChange={(e) => setFormData({ ...formData, congregacao: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white"
-                  >
-                    <option value="">Selecione a congregação</option>
-                    {congregations.map(c => {
-                      const label = getCongregationLabel(c);
-                      return (
-                        <option key={c.id} value={label}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, congregacao: val })}
+                    options={congregations.map(c => getCongregationLabel(c))}
+                    placeholder="Selecione a congregação"
+                    className="w-full"
+                    dropdownClassName="w-full max-w-full"
+                    size="md"
+                    searchable={true}
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Circuito</label>
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Circuito</label>
                   <input
                     required
                     type="text"
                     value={formData.circuito}
                     onChange={(e) => setFormData({ ...formData, circuito: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none"
+                    className="w-full px-3.5 py-2.5 bg-surface-200/60 border border-surface-300 rounded-xl text-sm font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/30 focus:border-primary-200 outline-none transition-all"
                     placeholder="Ex: PB-003"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Turma</label>
-                  <select
+                  <label className="block text-xs font-bold text-typography-700 mb-1.5 ml-0.5">Turma</label>
+                  <CustomSelect
                     value={formData.turma}
-                    onChange={(e) => setFormData({ ...formData, turma: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#37616b] outline-none bg-white font-bold"
-                  >
-                    <option value="">Nenhuma turma</option>
-                    <option value="1">Turma 1</option>
-                    <option value="2">Turma 2</option>
-                    <option value="3">Turma 3</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, turma: val })}
+                    options={[
+                      { value: '', label: 'Nenhuma turma' },
+                      { value: '1', label: 'Turma 1' },
+                      { value: '2', label: 'Turma 2' },
+                      { value: '3', label: 'Turma 3' },
+                    ]}
+                    placeholder="Selecione a turma"
+                    className="w-full"
+                    dropdownClassName="w-full max-w-full"
+                    size="md"
+                  />
                 </div>
 
-                <div className="pt-4 flex gap-3">
+                <div className="pt-3 flex gap-3">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
+                    className="flex-1 px-4 py-2.5 border border-surface-300 text-typography-700 rounded-xl hover:bg-surface-200 font-bold text-xs transition-all cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 bg-primary-200 text-white rounded-xl hover:bg-primary-300 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Save size={20} />
+                    <Save size={16} />
                     Salvar
                   </button>
                 </div>
@@ -2226,45 +2899,46 @@ export default function PioneerSchoolView({
       {/* Modal Alterações Não Salvas */}
       <AnimatePresence>
         {isUnsavedModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface-100 border border-surface-300 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-5 sm:p-6 text-center relative"
             >
-              <div className="p-8 text-center">
-                <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Save size={32} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Alterações não salvas</h3>
-                <p className="text-gray-600 mb-8">
-                  Você fez alterações nas informações da escola. Deseja salvar antes de sair?
-                </p>
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleConfirmSave}
-                    className="w-full px-6 py-3 bg-[#37616b] text-white rounded-xl hover:bg-[#2c4d55] font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                  >
-                    <Save size={20} />
-                    Sim, salvar e continuar
-                  </button>
-                  <button
-                    onClick={handleConfirmDiscard}
-                    className="w-full px-6 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 font-bold transition-all"
-                  >
-                    Sair sem salvar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsUnsavedModalOpen(false);
-                      setPendingAction(null);
-                    }}
-                    className="w-full px-6 py-3 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-bold transition-all"
-                  >
-                    Cancelar e continuar editando
-                  </button>
-                </div>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
+              <div className="w-12 h-12 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3.5">
+                <AlertTriangle size={24} />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-typography-900 mb-1.5">
+                Alterações não salvas
+              </h3>
+              <p className="text-xs sm:text-sm text-typography-600 mb-5 leading-relaxed">
+                Você fez alterações nas informações da escola. Deseja salvar antes de sair?
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleConfirmSave}
+                  className="w-full py-2.5 px-4 bg-brand-primary text-brand-on-primary rounded-xl font-bold text-xs sm:text-sm hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Save size={16} />
+                  Salvar e continuar
+                </button>
+                <button
+                  onClick={handleConfirmDiscard}
+                  className="w-full py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                >
+                  Descartar e sair
+                </button>
+                <button
+                  onClick={() => {
+                    setIsUnsavedModalOpen(false);
+                    setPendingAction(null);
+                  }}
+                  className="w-full py-2 px-4 border border-surface-300 text-typography-600 hover:text-typography-900 hover:bg-surface-200/50 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer mt-1"
+                >
+                  Continuar editando
+                </button>
               </div>
             </motion.div>
           </div>
@@ -2279,17 +2953,18 @@ export default function PioneerSchoolView({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-surface-100 rounded-3xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-surface-300 relative text-typography-900"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-transparent z-10" />
+              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-300 bg-surface-200/50">
                 <div className="flex items-center gap-2">
-                  <ClipboardPaste className="text-[#37616b]" size={24} />
-                  <h3 className="text-lg font-bold text-gray-800">
+                  <ClipboardPaste className="text-teal-600 dark:text-teal-400" size={24} />
+                  <h3 className="text-lg font-bold text-typography-900">
                     Importar da Área de Transferência
                   </h3>
                 </div>
-                <button onClick={() => setIsImportModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={24} />
+                <button onClick={() => setIsImportModalOpen(false)} className="text-typography-400 hover:text-typography-900 p-1 rounded-xl hover:bg-surface-200 transition-colors cursor-pointer">
+                  <X size={20} />
                 </button>
               </div>
 

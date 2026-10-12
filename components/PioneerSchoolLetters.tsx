@@ -1,33 +1,27 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import PizZip from 'pizzip';
+
+import { useDialog } from '@/hooks/useDialog';
+import { cleanPSSMetadata, extractTagsFromDocx, getMissingTags } from '@/lib/docxUtils';
+import { db } from '@/lib/firebase';
 import Docxtemplater from 'docxtemplater';
-import { 
-  FileText, 
-  Download, 
-  RefreshCw, 
-  CheckCircle2, 
-  List,
-  AlertCircle,
+import { collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, query, setDoc, where } from 'firebase/firestore';
+import {
+  CheckCircle2,
   FileDown,
-  Mail,
-  PenTool,
-  Sparkles,
-  Loader2,
-  Trash2,
-  Settings2,
   FileUp,
-  Save,
+  Loader2,
+  Mail,
   Printer,
+  RefreshCw,
+  Save,
+  Settings2,
   X
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { extractTagsFromDocx, getMissingTags, cleanPSSMetadata } from '@/lib/docxUtils';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, query, where, limit, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '@/utils/firestore';
-import { useDialog } from '@/hooks/useDialog';
+import { AnimatePresence, motion } from 'motion/react';
+import PizZip from 'pizzip';
+import React, { useEffect, useRef, useState } from 'react';
+import CustomSelect from './CustomSelect';
 
 interface Template {
   id: string;
@@ -154,12 +148,12 @@ export default function PioneerSchoolLetters({
             await (viewer as any).setScrollMode('continuous');
           } catch (e) {}
           
-          // Add a generous delay before marking as ready to ensure internal setup is complete
+          // Add a delay before marking as ready to ensure internal setup is complete
           setTimeout(() => {
             if (!destroyed && viewerRef.current) {
                setIsViewerReady(true);
             }
-          }, 1000);
+          }, 600);
         }
       } catch (err: any) {
         console.error('UDoc Viewer Init Error inside PioneerSchoolLetters:', err);
@@ -170,9 +164,25 @@ export default function PioneerSchoolLetters({
       initViewer();
     }
 
+    // Observe container size changes so UDoc re-layouts on mobile / orientation changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (previewRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        if (viewerRef.current) {
+          try {
+            (viewerRef.current as any).setZoomMode('fit-page-width');
+          } catch (e) {}
+        }
+      });
+      resizeObserver.observe(previewRef.current);
+    }
+
     return () => {
       destroyed = true;
       setIsViewerReady(false);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       if (viewerRef.current) {
         try { 
           const v = viewerRef.current;
@@ -201,6 +211,9 @@ export default function PioneerSchoolLetters({
           }
           const loadData = new Uint8Array(buffer);
           await viewerRef.current.load(loadData);
+          try {
+            await (viewerRef.current as any).setZoomMode('fit-page-width');
+          } catch (e) {}
         } catch (err: any) {
           if (!active) return;
           console.error('UDoc Viewer Load Error (ESP):', err);
@@ -1025,23 +1038,108 @@ export default function PioneerSchoolLetters({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)] min-h-[500px]">
-      {/* Sidebar: Selection & Settings Toggle */}
-      <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
-        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4 h-auto lg:h-[calc(100vh-140px)] min-h-[500px]">
+      {/* Mobile Top Controls: Compact template selector & immediate action buttons */}
+      <div className="lg:hidden flex flex-col gap-3 p-4 bg-surface-100 rounded-3xl border border-surface-300 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-transparent border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Mail size={16} strokeWidth={1.8} />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-typography-400">Modelo</span>
+              <h4 className="text-xs font-bold text-typography-900 leading-tight">
+                {templatesList.find(t => t.id === selectedTemplate)?.name || selectedTemplate}
+              </h4>
+            </div>
+          </div>
+          
+          {canManage && (
+            <button
+              onClick={() => setIsManaging(!isManaging)}
+              className={`p-2 rounded-xl transition-all border ${
+                isManaging 
+                  ? 'bg-primary-200 text-white border-primary-200' 
+                  : 'bg-surface-200 text-typography-700 border-surface-300 hover:bg-surface-300'
+              }`}
+              title="Configurar Templates"
+            >
+              <Settings2 size={16} />
+            </button>
+          )}
+        </div>
+
+        <CustomSelect
+          value={selectedTemplate}
+          onChange={(val) => setSelectedTemplate(val)}
+          options={templatesList.map(t => ({
+            value: t.id,
+            label: t.name,
+            badge: templates[t.id]?.isPrivate ? 'Privado' : templates[t.id] ? 'Global' : undefined
+          }))}
+          className="w-full"
+          dropdownClassName="w-full max-w-full"
+          size="sm"
+        />
+
+        {/* Action Buttons for Mobile */}
+        <div className="flex items-center gap-2 pt-1">
+          {needsProcessing ? (
+            <button
+              onClick={() => processAndPreview()}
+              disabled={isProcessing}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-primary-200 text-white rounded-xl shadow-xs hover:bg-primary-300 active:scale-[0.98] transition-all disabled:opacity-50 font-bold text-xs"
+            >
+              {isProcessing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              Gerar Carta Agora
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={downloadAsDocx}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-surface-200 text-typography-800 rounded-xl border border-surface-300 hover:bg-surface-300 transition-all font-bold text-xs"
+              >
+                <FileDown size={14} className="text-primary-200" />
+                DOCX
+              </button>
+              <button
+                onClick={downloadAsPdf}
+                disabled={generating}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-surface-200 text-typography-800 rounded-xl border border-surface-300 hover:bg-surface-300 transition-all font-bold text-xs disabled:opacity-50"
+              >
+                {generating ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} className="text-primary-200" />}
+                PDF
+              </button>
+              <button
+                onClick={() => viewerRef.current?.print()}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-primary-200 text-white rounded-xl shadow-xs hover:bg-primary-300 transition-all font-bold text-xs"
+              >
+                <Printer size={14} />
+                Imprimir
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop Sidebar: Selection & Settings Toggle */}
+      <div className="hidden lg:flex w-72 flex-col gap-4 shrink-0 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h3 className="font-black text-gray-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
-              <Mail size={14} className="text-emerald-600" />
+            <h3 className="font-black text-typography-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-transparent border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <Mail size={12} strokeWidth={1.8} />
+              </div>
               Modelos
             </h3>
             
             {canManage && (
               <button
                 onClick={() => setIsManaging(!isManaging)}
-                className={`p-1.5 rounded-xl transition-all ${
+                className={`p-1.5 rounded-xl border transition-all ${
                   isManaging 
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
-                    : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
+                    ? 'bg-primary-200 text-white border-primary-200 shadow-2xs' 
+                    : 'text-typography-400 hover:text-typography-900 hover:bg-surface-200 border-surface-300'
                 }`}
                 title="Configurar Templates"
               >
@@ -1057,24 +1155,28 @@ export default function PioneerSchoolLetters({
                 onClick={() => setSelectedTemplate(template.id)}
                 className={`flex items-center gap-3 px-3 py-2.5 transition-all border rounded-2xl text-left group relative overflow-hidden ${
                    selectedTemplate === template.id
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md scale-[1.02]'
-                    : 'bg-gray-50/50 text-gray-600 border-gray-100 hover:border-emerald-200 hover:bg-white'
+                    ? 'bg-surface-200 text-typography-900 border-primary-200/60 shadow-2xs ring-1 ring-primary-200/30'
+                    : 'bg-surface-200/40 text-typography-600 border-surface-300/80 hover:border-surface-300 hover:bg-surface-200 hover:text-typography-900'
                 }`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 ${selectedTemplate === template.id ? 'bg-white/20' : 'bg-emerald-100/50'}`}>
-                  <Mail size={16} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-600'} />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 border ${
+                  selectedTemplate === template.id 
+                    ? 'border-primary-200/60 text-primary-200 bg-transparent' 
+                    : 'border-surface-300 text-typography-400 bg-transparent'
+                }`}>
+                  <Mail size={16} strokeWidth={1.8} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="block font-black uppercase tracking-tight text-[10px] leading-tight truncate">{template.name}</span>
                   {templates[template.id] ? (
                     <div className="flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 size={8} className={selectedTemplate === template.id ? 'text-white' : 'text-emerald-500'} />
-                      <span className={`text-[6px] font-black uppercase tracking-widest ${selectedTemplate === template.id ? 'text-white/80' : 'text-gray-400'}`}>
+                      <CheckCircle2 size={8} className="text-emerald-500" />
+                      <span className="text-[6px] font-black uppercase tracking-widest text-typography-400">
                         {templates[template.id].isPrivate ? 'PRIVADO' : 'GLOBAL'}
                       </span>
                     </div>
                   ) : (
-                    <span className="text-[6px] font-black uppercase tracking-widest text-red-500 leading-none mt-1 block">
+                    <span className="text-[6px] font-black uppercase tracking-widest text-rose-500 leading-none mt-1 block">
                       Não configurado
                     </span>
                   )}
@@ -1086,29 +1188,29 @@ export default function PioneerSchoolLetters({
 
         {/* Quick Actions Panel */}
         {status === 'success' && !isProcessing && (
-          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Ações do Documento</h4>
+          <div className="bg-surface-100 p-4 rounded-3xl border border-surface-300 shadow-xs space-y-4">
+            <h4 className="text-[9px] font-black text-typography-400 uppercase tracking-widest px-1">Ações do Documento</h4>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={downloadAsDocx}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-gray-50 text-emerald-700 rounded-2xl border border-gray-100 hover:bg-emerald-50 hover:border-emerald-200 transition-all group"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-surface-200 text-typography-800 rounded-2xl border border-surface-300 hover:bg-surface-300 hover:border-primary-200/40 transition-all group"
               >
-                <FileDown size={18} className="group-hover:scale-110 transition-transform" />
+                <FileDown size={18} className="group-hover:scale-110 transition-transform text-typography-600" />
                 <span className="text-[8px] font-black uppercase tracking-tighter">DOCX</span>
               </button>
 
               <button
                 onClick={downloadAsPdf}
                 disabled={generating}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all group disabled:opacity-50"
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-surface-200 text-typography-800 rounded-2xl border border-surface-300 hover:bg-surface-300 hover:border-primary-200/40 transition-all group disabled:opacity-50"
               >
-                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform" />}
+                {generating ? <Loader2 size={18} className="animate-spin" /> : <FileDown size={18} className="group-hover:scale-110 transition-transform text-typography-600" />}
                 <span className="text-[8px] font-black uppercase tracking-tighter">PDF</span>
               </button>
 
               <button
                 onClick={() => viewerRef.current?.print()}
-                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-gray-900 text-white rounded-2xl shadow-lg shadow-black/20 hover:bg-black transition-all font-black text-[10px] uppercase tracking-widest"
+                className="col-span-2 flex items-center justify-center gap-2 p-3 bg-primary-200 text-white rounded-2xl shadow-xs hover:bg-primary-300 transition-all font-black text-[10px] uppercase tracking-widest"
               >
                 <Printer size={16} />
                 Imprimir Agora
@@ -1119,7 +1221,7 @@ export default function PioneerSchoolLetters({
       </div>
 
       {/* Main Content: Management & Viewer */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col gap-4 min-w-0 h-auto lg:h-full min-h-[550px] lg:min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
           {isManaging ? (
             <motion.div
@@ -1127,25 +1229,25 @@ export default function PioneerSchoolLetters({
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-emerald-50/50 p-5 rounded-3xl border border-emerald-100 shadow-sm shrink-0"
+              className="bg-surface-200/50 p-5 rounded-3xl border border-surface-300 shadow-xs shrink-0"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
-                    <FileUp size={20} />
+                  <div className="w-10 h-10 rounded-xl bg-transparent border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <FileUp size={20} strokeWidth={1.8} />
                   </div>
                   <div>
-                    <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">
+                    <h4 className="text-[11px] font-black text-typography-900 uppercase tracking-widest">
                       Configurar Template
                     </h4>
-                    <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">
+                    <p className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                       {templatesList.find(t => t.id === selectedTemplate)?.name}
                     </p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsManaging(false)} 
-                  className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-gray-400 hover:text-red-500 shadow-sm transition-colors"
+                  className="w-8 h-8 flex items-center justify-center bg-surface-100 rounded-full text-typography-400 hover:text-rose-500 border border-surface-300 transition-colors"
                 >
                   <X size={16} />
                 </button>
@@ -1157,7 +1259,7 @@ export default function PioneerSchoolLetters({
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className={`w-full h-24 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl transition-all ${
-                      file ? 'bg-white border-emerald-300 text-emerald-700 shadow-inner' : 'bg-white border-gray-200 text-gray-400 hover:border-emerald-300'
+                      file ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600' : 'bg-surface-100 border-surface-300 text-typography-400 hover:border-primary-200/40'
                     }`}
                   >
                     <FileUp size={24} className={file ? 'text-emerald-500' : ''} />
@@ -1167,20 +1269,20 @@ export default function PioneerSchoolLetters({
 
                 <div className="flex flex-col justify-between gap-2">
                   {isAdmin && (
-                    <label className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 cursor-pointer hover:bg-emerald-50 transition-colors">
+                    <label className="flex items-center gap-3 p-3 bg-surface-100 rounded-2xl border border-surface-300 cursor-pointer hover:bg-surface-200 transition-colors">
                       <input 
                         type="checkbox" 
                         checked={saveAsGlobal} 
                         onChange={e => setSaveAsGlobal(e.target.checked)}
-                        className="w-4 h-4 accent-emerald-600"
+                        className="w-4 h-4 accent-primary-200"
                       />
-                      <span className="text-[9px] font-black text-gray-600 uppercase tracking-tight">Definir como GLOBAL</span>
+                      <span className="text-[9px] font-black text-typography-700 uppercase tracking-tight">Definir como GLOBAL</span>
                     </label>
                   )}
                   <button
                     onClick={saveTemplate}
                     disabled={!file || isSaving}
-                    className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                    className="w-full h-12 bg-primary-200 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-primary-300 shadow-xs transition-all flex items-center justify-center gap-2"
                   >
                     {isSaving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
                     {isSaving ? 'SALVANDO...' : 'SALVAR MODELO'}
@@ -1192,15 +1294,15 @@ export default function PioneerSchoolLetters({
         </AnimatePresence>
 
         {/* Viewer Section */}
-        <div className="flex-1 bg-white border border-gray-100 rounded-3xl shadow-inner relative overflow-hidden flex flex-col">
-          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-white/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+        <div className="flex-1 bg-surface-100 border border-surface-300 rounded-3xl shadow-xs relative overflow-hidden flex flex-col min-h-[550px] sm:min-h-[620px] lg:min-h-0">
+          <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-surface-100/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-surface-300 shadow-2xs">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Prévia em Tempo Real</span>
+            <span className="text-[8px] font-black text-typography-500 uppercase tracking-widest">Prévia em Tempo Real</span>
           </div>
           
           <div 
             ref={previewRef} 
-            className="flex-1 w-full overflow-hidden"
+            className="w-full h-[550px] sm:h-[620px] lg:h-full lg:flex-1 overflow-hidden"
           />
         </div>
       </div>
@@ -1209,6 +1311,8 @@ export default function PioneerSchoolLetters({
         .udoc-viewer-container {
           border-radius: 0 !important;
           height: 100% !important;
+          width: 100% !important;
+          min-height: 100% !important;
         }
         .udoc-pages {
           background-color: #f8fafc !important;
