@@ -25,7 +25,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     ? `Confira a programação de campo, refeições, estudos bíblicos e reuniões da visita à Congregação ${cong}${periodo ? ` (${periodo})` : ''}.`
     : 'Link fixo atualizado automaticamente a cada semana com saídas de campo, estudos bíblicos, reuniões e almoços da visita.';
 
-  const ogParams = new URLSearchParams({ tipo: 'esposa' });
+  const ogParams = new URLSearchParams({ tipo: 'esposa', v: '3' });
   if (cong) ogParams.set('cong', cong);
   if (periodo) ogParams.set('periodo', periodo);
   const ogImageUrl = `${origin}/api/og/visita?${ogParams.toString()}`;

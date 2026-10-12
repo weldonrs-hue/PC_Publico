@@ -102,7 +102,7 @@ export default function VisitScheduleManagerView({
   const permanentWifeToken = `fixo_${encodeURIComponent(userId || safeUserId)}`;
   const friendlyEsposasUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/visita/${permanentWifeToken}/esposa`
+      ? `${window.location.origin}/visita/${permanentWifeToken}/esposa?v=2`
       : '';
 
   const [copiedType, setCopiedType] = useState<'anciaos' | 'congregacao' | 'esposas' | null>(null);

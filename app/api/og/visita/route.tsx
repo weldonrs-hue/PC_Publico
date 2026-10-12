@@ -60,13 +60,13 @@ export async function GET(request: NextRequest) {
       subtitle: periodo
         ? `Período: ${periodo}`
         : 'Atualizado automaticamente a cada semana • Campo, Estudos, Reuniões e Almoços',
-      bgGradient: 'linear-gradient(135deg, #fff1f2 0%, #fce7f3 55%, #fbcfe8 100%)',
+      bgGradient: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%)',
       textColor: '#831843',
       subtitleColor: '#9d174d',
       accentColor: '#be185d',
-      badgeBg: 'rgba(255, 255, 255, 0.78)',
-      borderColor: 'rgba(190, 24, 93, 0.2)',
-      circleBg: 'rgba(244, 114, 182, 0.14)',
+      badgeBg: 'rgba(255, 255, 255, 0.85)',
+      borderColor: 'rgba(190, 24, 93, 0.22)',
+      circleBg: 'rgba(255, 255, 255, 0.35)',
       iconFill: '#be185d',
       iconPath: 'M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z',
     },
