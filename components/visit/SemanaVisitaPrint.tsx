@@ -441,6 +441,7 @@ export default function SemanaVisitaPrint({
                     <div className="name-badge">
                       <input
                         type="text"
+                        size={Math.max((page.primaryBadgeName || '').length, 4)}
                         value={page.primaryBadgeName}
                         disabled={!page.isPrimaryBadgeEditable || !canEdit('circuitOverseerOnly')}
                         onChange={(e) => page.onPrimaryBadgeChange && page.onPrimaryBadgeChange(e.target.value)}
@@ -506,6 +507,7 @@ export default function SemanaVisitaPrint({
                       <div className="name-badge">
                         <input
                           type="text"
+                          size={Math.max((page.spouseBadgeName || 'ESPOSA').length, 4)}
                           value={page.spouseBadgeName || 'ESPOSA'}
                           disabled={!page.isSpouseBadgeEditable || !canEdit('circuitOverseerOnly')}
                           onChange={(e) => page.onSpouseBadgeChange && page.onSpouseBadgeChange(e.target.value)}
@@ -1485,7 +1487,7 @@ export default function SemanaVisitaPrint({
 
         .editable-field:disabled {
           color: #333;
-          border-bottom: 1px solid transparent;
+          border-bottom: 1px solid #ccc;
         }
 
         .day-icon {
@@ -1501,26 +1503,31 @@ export default function SemanaVisitaPrint({
         }
 
         .name-badge {
-          display: inline-block;
+          display: block;
+          width: 100%;
           background: #1a5c5a;
           color: white;
-          font-size: 9px;
-          font-weight: 700;
-          padding: 2px 9px;
-          border-radius: 4px;
+          font-size: 9.5px;
+          font-weight: 800;
+          padding: 3px 10px 4px 10px;
+          border-radius: 5px;
           margin-bottom: 3px;
           letter-spacing: 0.5px;
-          vertical-align: top;
+          box-sizing: border-box;
         }
 
         .name-badge input {
           background: transparent;
           border: none;
+          border-bottom: 2.5px solid white;
+          padding: 0 2px 1px 0;
           color: white;
-          font-size: 9px;
-          font-weight: 700;
+          font-size: 9.5px;
+          font-weight: 800;
           font-family: inherit;
-          width: 120px;
+          text-transform: uppercase;
+          width: auto;
+          min-width: 45px;
           outline: none;
         }
 
@@ -1536,8 +1543,8 @@ export default function SemanaVisitaPrint({
 
         .meeting-label {
           font-size: 9.5px;
-          font-weight: 700;
-          color: #444;
+          font-weight: 800;
+          color: #1a5c5a;
           letter-spacing: 0.3px;
         }
 
@@ -1559,9 +1566,10 @@ export default function SemanaVisitaPrint({
           background: transparent;
           font-family: inherit;
           font-size: 10.5px;
+          font-weight: 600;
           padding: 1px 4px;
           outline: none;
-          color: #333;
+          color: #1a5c5a;
         }
 
         .meeting-input:focus {
@@ -1569,8 +1577,8 @@ export default function SemanaVisitaPrint({
         }
 
         .meeting-input:disabled {
-          color: #333;
-          border-bottom: 1px solid transparent;
+          color: #1a5c5a;
+          border-bottom: 1px solid #ccc;
         }
 
         .meeting-input.small {
