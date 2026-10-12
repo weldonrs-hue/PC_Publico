@@ -268,9 +268,10 @@ export async function toggleCompleteTask(
     const nextDueDate = calculateNextRecurrenceDate(
       baseDate,
       item.recurrence,
-      item.recurrenceInterval,
-      item.recurrenceUnit
+      item.recurrenceInterval ?? 1,
+      item.recurrenceUnit ?? 'months'
     );
+
 
     let nextAttentionDate: string | null = null;
     if (item.attentionDate && item.dueDate) {

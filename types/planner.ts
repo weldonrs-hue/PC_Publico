@@ -72,3 +72,34 @@ export interface UrgencyInfo {
   sortWeight: number;          // menor valor = maior prioridade no topo da lista
 }
 
+// Compatibilidade com DTOs
+export type PlannerPriority = PriorityLevel;
+export type PlannerStatus = TaskStatus;
+export type PlannerRecurrence = RecurrenceFrequency;
+export type PlannerRecurrenceUnit = RecurrenceUnit;
+
+export interface CreatePlannerItemDto {
+  type: PlannerItemType;
+  title: string;
+  description?: string;
+  hasDeadline?: boolean;
+  dueDate?: string | null;
+  attentionDate?: string | null;
+  priority?: PriorityLevel;
+  status?: TaskStatus;
+  isRecurring?: boolean;
+  recurrence?: RecurrenceFrequency | null;
+  recurrenceInterval?: number | null;
+  recurrenceUnit?: RecurrenceUnit | null;
+  date?: string | null;
+  time?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  userId?: string;
+}
+
+export interface UpdatePlannerItemDto extends Partial<CreatePlannerItemDto> {
+  reopen?: boolean;
+}
+
+
