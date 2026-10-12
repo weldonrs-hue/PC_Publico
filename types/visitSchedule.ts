@@ -257,11 +257,16 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
       ...INITIAL_VISIT_SCHEDULE.permissions,
       ...(raw.permissions || {}),
     },
-    fieldService: Array.isArray(raw.fieldService) ? raw.fieldService : [...INITIAL_VISIT_SCHEDULE.fieldService],
+    fieldService: Array.isArray(raw.fieldService)
+      ? raw.fieldService.map((fs: any) => ({
+          ...fs,
+          day: (fs.day || '').replace(/doming0/gi, 'Domingo').trim(),
+        }))
+      : [...INITIAL_VISIT_SCHEDULE.fieldService],
     meals: Array.isArray(raw.meals)
       ? raw.meals.map((m: any, idx: number) => ({
           id: m.id || Date.now().toString() + '_' + idx,
-          day: (m.day || '').replace(/-feira/gi, '').trim(),
+          day: (m.day || '').replace(/-feira/gi, '').replace(/doming0/gi, 'Domingo').trim(),
           host: m.isLodging ? (m.host || 'Hospedagem') : (m.host || ''),
           addressPhone: m.isLodging ? (m.addressPhone || 'Almoço na Hospedagem') : (m.addressPhone || ''),
           isLodging: !!m.isLodging,

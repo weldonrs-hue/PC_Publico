@@ -1017,15 +1017,15 @@ export default function SemanaVisitaPrint({
                 <table style={{ height: 'calc(100% - 40px)' }}>
                   <thead>
                     <tr>
-                      <th style={{ width: '18%' }}>DIA</th>
-                      <th style={{ width: '35%' }}>ANFITRIÃO</th>
-                      <th style={{ width: '47%' }}>ENDEREÇO / TELEFONE</th>
+                      <th style={{ width: '22%' }}>DIA</th>
+                      <th style={{ width: '33%' }}>ANFITRIÃO</th>
+                      <th style={{ width: '45%' }}>ENDEREÇO / TELEFONE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.meals.map((row, idx) => (
                       <tr key={row.id || idx} style={{ height: `${100 / (data.meals.length || 1)}%` }}>
-                        <td>{row.day}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{(row.day || '').replace(/0/g, 'o')}</td>
                         <td>
                           {row.isLodging ? (
                             <span style={{ fontWeight: 700, color: '#c0392b' }}>Hospedagem</span>
@@ -1169,11 +1169,14 @@ export default function SemanaVisitaPrint({
           font-family: 'Roboto', Arial, sans-serif;
           background: transparent;
           color: #333;
-          padding: 16px 0 40px 0;
+          padding: 16px 8px 40px 8px;
           display: flex;
           flex-direction: column;
-          align-items: center;
+          align-items: flex-start;
           gap: 20px;
+          width: max-content;
+          min-width: 100%;
+          box-sizing: border-box;
         }
 
         .print-bar {
@@ -1230,6 +1233,7 @@ export default function SemanaVisitaPrint({
           display: flex;
           flex-direction: column;
           align-items: center;
+          margin: 0 auto;
         }
 
         .page-indicator {
