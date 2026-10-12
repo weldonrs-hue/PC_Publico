@@ -124,7 +124,7 @@ export default function CustomSelect({
   const isRight = align === 'right';
 
   return (
-    <div ref={containerRef} className={`relative inline-block ${className}`}>
+    <div ref={containerRef} className={`relative inline-block max-w-full ${className}`}>
       {label && (
         <label 
           htmlFor={selectId}
@@ -142,9 +142,9 @@ export default function CustomSelect({
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={`w-full ${sizeClasses[size]} rounded-xl font-bold bg-surface-200/80 hover:bg-surface-200 active:scale-[0.99] border border-surface-300 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/20 text-typography-900 flex items-center justify-between gap-2 shadow-2xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+        className={`w-full max-w-full min-w-0 overflow-hidden ${sizeClasses[size]} rounded-xl font-bold bg-surface-200/80 hover:bg-surface-200 active:scale-[0.99] border border-surface-300 focus:border-primary-200 focus:ring-2 focus:ring-primary-200/20 text-typography-900 flex items-center justify-between gap-2 shadow-2xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
       >
-        <span className="truncate">
+        <span className="truncate min-w-0 flex-1 text-left">
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
@@ -166,7 +166,9 @@ export default function CustomSelect({
             role="listbox"
             className={`absolute ${isRight ? 'right-0' : 'left-0'} ${
               isUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-            } z-[100] min-w-full w-max max-w-[320px] bg-surface-100 border border-surface-300 rounded-2xl shadow-xl p-1.5 space-y-1 overflow-hidden ${dropdownClassName}`}
+            } z-[100] min-w-full bg-surface-100 border border-surface-300 rounded-2xl shadow-xl p-1.5 space-y-1 overflow-hidden ${
+              dropdownClassName || 'w-max max-w-[min(320px,calc(100vw-2rem))]'
+            }`}
           >
             {/* Campo de Busca Rápida */}
             {isSearchEnabled && (

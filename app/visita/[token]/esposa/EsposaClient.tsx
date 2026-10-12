@@ -415,8 +415,8 @@ export default function EsposasVisitaClient() {
 
         {/* SELETOR DE SEMANA INTELIGENTE (PERMITE ALTERNAR ENTRE SEMANA ATUAL, PRÓXIMA E ANTERIORES) */}
         {allSchedules.length > 1 && (
-          <div className="bg-surface-200/70 border border-surface-300 rounded-xl p-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <div className="bg-surface-200/70 border border-surface-300 rounded-xl p-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 max-w-full">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 max-w-full">
               <button
                 type="button"
                 onClick={() => {
@@ -434,18 +434,18 @@ export default function EsposasVisitaClient() {
               <CustomSelect
                 value={schedule.id || ''}
                 onChange={(val) => setSelectedScheduleId(val)}
-                className="flex-1 min-w-0"
-                dropdownClassName="w-full max-w-[360px]"
+                className="flex-1 min-w-0 w-0"
+                dropdownClassName="w-full max-w-full right-0"
                 size="sm"
                 options={allSchedules.map((item): CustomSelectOption => {
                   const st = getScheduleWeekStatus(item);
                   return {
                     value: item.id || '',
-                    label: `Congregação ${item.congregationName} (${item.visitPeriod})`,
+                    label: `${item.congregationName} • ${item.visitPeriod}`,
                     description: item.coupleNames ? `Casal: ${item.coupleNames}` : undefined,
                     badge:
                       st === 'atual'
-                        ? 'Semana Atual'
+                        ? 'Atual'
                         : st === 'proxima'
                         ? 'Próxima'
                         : st === 'anterior'
