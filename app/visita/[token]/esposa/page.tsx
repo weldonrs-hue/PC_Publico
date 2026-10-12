@@ -18,8 +18,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const periodo = sp?.periodo || '';
 
   const title = cong
-    ? `Programação das Esposas — Congregação ${cong}${periodo ? ` (${periodo})` : ''}`
-    : 'Programação Semanal da Visita — Link Único das Esposas';
+    ? `Programação da Esposa — Congregação ${cong}${periodo ? ` (${periodo})` : ''}`
+    : 'Programação Semanal da Visita — Link Único da Esposa';
 
   const description = cong
     ? `Confira a programação de campo, refeições, estudos bíblicos e reuniões da visita à Congregação ${cong}${periodo ? ` (${periodo})` : ''}.`

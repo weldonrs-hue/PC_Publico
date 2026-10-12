@@ -144,7 +144,7 @@ export default function VisitScheduleManagerView({
       type: 'success',
       text:
         type === 'esposas'
-          ? 'Dados salvos e Link Único Permanente das Esposas copiado!'
+          ? 'Dados salvos e Link Único Permanente da Esposa copiado!'
           : `Dados salvos e link para ${label} copiado! (${schedule?.congregationName} • ${schedule?.visitPeriod})`,
     });
     setTimeout(() => setCopiedType(null), 2500);
@@ -188,11 +188,10 @@ export default function VisitScheduleManagerView({
     if (!friendlyEsposasUrl || !schedule) return;
     await handleSave(undefined, true);
     const msg = encodeURIComponent(
-      `🌸 *Programação Semanal da Visita — Link Único Permanente*\n\n` +
-      `Queridas irmãs,\n\n` +
-      `Segue o nosso *link fixo* da programação da visita (saídas de campo, estudos bíblicos, reuniões e almoços):\n\n` +
+      `🌸 *Programação Semanal da Visita*\n\n` +
+      `Segue o nosso *link fixo* para você acompanhar a programação das nossas visitas (saídas de campo, estudos bíblicos, reuniões e almoços):\n\n` +
       `👉 ${friendlyEsposasUrl}\n\n` +
-      `_Você pode salvar ou fixar este link! Ele abre automaticamente na visita da semana atual e também permite consultar a próxima semana ou semanas anteriores._`
+      `_Você pode salvar ou fixar este link! Ele abre automaticamente na visita da semana atual e também permite ver a próxima semana ou semanas anteriores._`
     );
     window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
   };
@@ -690,7 +689,7 @@ export default function VisitScheduleManagerView({
             </div>
           </div>
 
-          {/* 3. Link Único Permanente para as Esposas (Sem Pastoreio) */}
+          {/* 3. Link Único Permanente para a Esposa (Sem Pastoreio) */}
           <div className="bg-pink-500/5 border border-pink-500/20 rounded-2xl p-4 flex flex-col justify-between gap-3">
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -698,7 +697,7 @@ export default function VisitScheduleManagerView({
                   <span className="w-2 h-2 rounded-full bg-pink-500" />
                   <h3 className="text-xs font-black uppercase tracking-wide text-pink-700 flex items-center gap-1.5">
                     <Share2 size={14} />
-                    3. Link Único das Esposas
+                    3. Link Único da Esposa
                   </h3>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-700 border border-pink-500/25">
@@ -717,9 +716,9 @@ export default function VisitScheduleManagerView({
 
             <div className="flex items-center gap-1.5 pt-1">
               <button
-                onClick={() => handleCopyTargetLink(friendlyEsposasUrl, 'esposas', 'as Esposas')}
+                onClick={() => handleCopyTargetLink(friendlyEsposasUrl, 'esposas', 'a Esposa')}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-surface-100 border border-surface-300 text-typography-800 hover:bg-surface-200 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-                title="Copiar link das Esposas"
+                title="Copiar link da Esposa"
               >
                 {copiedType === 'esposas' ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                 {copiedType === 'esposas' ? 'Copiado!' : 'Copiar'}
@@ -728,7 +727,7 @@ export default function VisitScheduleManagerView({
               <button
                 onClick={handleWhatsAppShareEsposas}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-                title="Compartilhar no WhatsApp com Esposas"
+                title="Compartilhar no WhatsApp com a Esposa"
               >
                 <MessageCircle size={13} />
                 WhatsApp

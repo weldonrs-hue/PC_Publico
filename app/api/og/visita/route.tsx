@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       iconPath: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
     },
     esposa: {
-      badge: cong ? 'PROGRAMAÇÃO DA VISITA • ESPOSAS' : 'LINK ÚNICO PERMANENTE • ESPOSAS',
+      badge: cong ? 'PROGRAMAÇÃO DA VISITA • ESPOSA' : 'LINK ÚNICO PERMANENTE • ESPOSA',
       title: cong ? `Congregação ${cong}` : 'Programação Semanal da Visita',
       subtitle: periodo
         ? `Período: ${periodo}`
