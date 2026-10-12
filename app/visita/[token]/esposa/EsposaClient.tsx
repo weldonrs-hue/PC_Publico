@@ -33,16 +33,46 @@ function parseVisitPeriodRange(
   if (!periodStr) return null;
   const currentYear = new Date().getFullYear();
 
+  const normalizeYear = (y?: string) => {
+    if (!y) return null;
+    const num = parseInt(y, 10);
+    return num < 100 ? 2000 + num : num;
+  };
+
+  const alignToMondayStart = (d: Date) => {
+    const start = new Date(d);
+    start.setHours(0, 0, 0, 0);
+    const dow = start.getDay(); // 0=Dom, 1=Seg, 2=Ter...
+    // Alinha o início da semana para a Segunda-feira (00:00) daquela visita
+    if (dow > 1) {
+      start.setDate(start.getDate() - (dow - 1));
+    }
+    return start;
+  };
+
+  // 1. Formato de mesmo mês gerado pelo roteiro: "13 a 18/10/26" ou "13 a 18/10/2026"
+  const sameMonthMatch = periodStr.match(
+    /(?:^|[^\d/])(\d{1,2})\s*(?:a|-|até)\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/i
+  );
+  if (sameMonthMatch) {
+    const d1 = parseInt(sameMonthMatch[1], 10);
+    const d2 = parseInt(sameMonthMatch[2], 10);
+    const m = parseInt(sameMonthMatch[3], 10) - 1;
+    const y = normalizeYear(sameMonthMatch[4]) ?? currentYear;
+
+    const rawStart = new Date(y, m, d1, 0, 0, 0, 0);
+    const start = alignToMondayStart(rawStart);
+    const end = new Date(y, m, d2, 23, 59, 59, 999);
+    if (!isNaN(rawStart.getTime()) && !isNaN(end.getTime())) {
+      return { start, end, rawStart };
+    }
+  }
+
+  // 2. Formato com duas datas completas ou dia/mês: "28/10 a 02/11/26" ou "13/10/2026 a 18/10/2026"
   const brMatches = [...periodStr.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
   if (brMatches.length >= 1) {
     const first = brMatches[0];
     const second = brMatches.length >= 2 ? brMatches[1] : brMatches[0];
-
-    const normalizeYear = (y?: string) => {
-      if (!y) return null;
-      const num = parseInt(y, 10);
-      return num < 100 ? 2000 + num : num;
-    };
 
     const y2 = normalizeYear(second[3]) ?? normalizeYear(first[3]) ?? currentYear;
     const y1 = normalizeYear(first[3]) ?? y2;
@@ -53,17 +83,14 @@ function parseVisitPeriodRange(
     const m2 = parseInt(second[2], 10) - 1;
 
     const rawStart = new Date(y1, m1, d1, 0, 0, 0, 0);
-    const start = new Date(rawStart);
-    // Se a visita começa na terça-feira, já considera a partir da segunda-feira como "Semana Atual"
-    if (start.getDay() === 2) {
-      start.setDate(start.getDate() - 1);
-    }
+    const start = alignToMondayStart(rawStart);
     const end = new Date(y2, m2, d2, 23, 59, 59, 999);
     if (!isNaN(rawStart.getTime()) && !isNaN(end.getTime())) {
       return { start, end, rawStart };
     }
   }
 
+  // 3. Formato ISO YYYY-MM-DD
   const isoMatches = [...periodStr.matchAll(/(\d{4})-(\d{2})-(\d{2})/g)];
   if (isoMatches.length >= 1) {
     const first = isoMatches[0];
@@ -77,10 +104,7 @@ function parseVisitPeriodRange(
       0,
       0
     );
-    const start = new Date(rawStart);
-    if (start.getDay() === 2) {
-      start.setDate(start.getDate() - 1);
-    }
+    const start = alignToMondayStart(rawStart);
     const end = new Date(
       parseInt(second[1], 10),
       parseInt(second[2], 10) - 1,
