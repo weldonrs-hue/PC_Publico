@@ -28,6 +28,7 @@ import {
   Check,
   CheckCircle2,
   ClipboardList,
+  ClipboardPaste,
   Copy,
   Eye,
   FileText,
@@ -35,6 +36,7 @@ import {
   Lock,
   Plus,
   Printer,
+  Quote,
   RefreshCw,
   RotateCcw,
   Save,
@@ -47,7 +49,7 @@ import {
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface EldersMeetingAgendaViewProps {
@@ -75,6 +77,7 @@ export default function EldersMeetingAgendaView({
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
   const [mobileSection, setMobileSection] = useState<'geral' | 'assuntos' | 'recomendacoes'>('assuntos');
+  const [openExcerptIds, setOpenExcerptIds] = useState<Record<string, boolean>>({});
   const [feedbackMsg, setFeedbackMsg] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
@@ -278,6 +281,7 @@ export default function EldersMeetingAgendaView({
           id: `topic_${Date.now()}_${idx}`,
           subject: t.subject || '',
           reference: t.reference || '',
+          referenceText: t.referenceText || '',
         })),
         footerNote: source.footerNote || agenda.footerNote,
       };
@@ -309,7 +313,7 @@ export default function EldersMeetingAgendaView({
       ...prev,
       topics: [
         ...prev.topics,
-        { id: `topic_${Date.now()}`, subject: '', reference: '' },
+        { id: `topic_${Date.now()}`, subject: '', reference: '', referenceText: '' },
       ],
     }));
   };
@@ -320,6 +324,31 @@ export default function EldersMeetingAgendaView({
       next[idx] = { ...next[idx], [field]: value };
       return { ...prev, topics: next };
     });
+  };
+
+  const handlePasteParagraph = async (idx: number, topicId: string) => {
+    setOpenExcerptIds((prev) => ({ ...prev, [topicId]: true }));
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          updateAgenda((prev) => {
+            const next = [...prev.topics];
+            const current = next[idx]?.referenceText?.trim() || '';
+            const merged = current ? `${current}\n\n${text.trim()}` : text.trim();
+            next[idx] = { ...next[idx], referenceText: merged };
+            return { ...prev, topics: next };
+          });
+          setFeedbackMsg({
+            type: 'info',
+            text: `Parágrafo colado no Assunto #${idx + 1}!`,
+          });
+          setTimeout(() => setFeedbackMsg(null), 2500);
+        }
+      }
+    } catch {
+      // Se o navegador bloquear leitura direta da área de transferência, apenas abre o campo para colar manualmente
+    }
   };
 
   const removeTopic = (idx: number) => {
@@ -509,51 +538,126 @@ export default function EldersMeetingAgendaView({
                     </td>
                   </tr>
                 ) : (
-                  agenda.topics.map((topic, idx) => (
-                    <tr key={topic.id || idx}>
-                      <td className="agenda-num-cell">{idx + 1}</td>
-                      <td>
-                        {isPrintOnly ? (
-                          <div className="agenda-cell-text font-medium">{topic.subject}</div>
-                        ) : (
-                          <textarea
-                            rows={1}
-                            value={topic.subject}
-                            onChange={(e) => updateTopic(idx, 'subject', e.target.value)}
-                            placeholder="Descreva o assunto ou necessidade..."
-                            className="agenda-table-textarea font-medium"
-                          />
-                        )}
-                      </td>
-                      <td>
-                        {isPrintOnly ? (
-                          <div className="agenda-cell-text text-slate-600">{topic.reference}</div>
-                        ) : (
-                          <textarea
-                            rows={1}
-                            value={topic.reference}
-                            onChange={(e) => updateTopic(idx, 'reference', e.target.value)}
-                            placeholder="Ex: ks cap. 1 § 3; Carta X..."
-                            className="agenda-table-textarea text-slate-600"
-                          />
-                        )}
-                      </td>
-                      {!isPrintOnly && (
-                        <td className="print:hidden text-center">
-                          {agenda.topics.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeTopic(idx)}
-                              className="agenda-row-delete-btn"
-                              title="Remover assunto"
-                            >
-                              ×
-                            </button>
+                  agenda.topics.map((topic, idx) => {
+                    const topicKey = topic.id || `topic_${idx}`;
+                    const hasExcerpt = Boolean(topic.referenceText && topic.referenceText.trim());
+                    const showExcerptRow = isPrintOnly
+                      ? hasExcerpt
+                      : hasExcerpt || Boolean(openExcerptIds[topicKey]);
+
+                    return (
+                      <Fragment key={topicKey}>
+                        <tr>
+                          <td className="agenda-num-cell">{idx + 1}</td>
+                          <td>
+                            {isPrintOnly ? (
+                              <div className="agenda-cell-text font-medium">{topic.subject}</div>
+                            ) : (
+                              <textarea
+                                rows={1}
+                                value={topic.subject}
+                                onChange={(e) => updateTopic(idx, 'subject', e.target.value)}
+                                placeholder="Descreva o assunto ou necessidade..."
+                                className="agenda-table-textarea font-medium"
+                              />
+                            )}
+                          </td>
+                          <td>
+                            {isPrintOnly ? (
+                              <div className="agenda-cell-text text-slate-600">{topic.reference}</div>
+                            ) : (
+                              <div className="space-y-1">
+                                <textarea
+                                  rows={1}
+                                  value={topic.reference}
+                                  onChange={(e) => updateTopic(idx, 'reference', e.target.value)}
+                                  placeholder="Ex: ks cap. 1 § 3; Carta X..."
+                                  className="agenda-table-textarea text-slate-600"
+                                />
+                                {!showExcerptRow && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePasteParagraph(idx, topicKey)}
+                                    className="agenda-paste-inline-btn print:hidden"
+                                    title="Colar ou digitar o parágrafo da referência"
+                                  >
+                                    + Colar parágrafo da referência
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          {!isPrintOnly && (
+                            <td className="print:hidden text-center">
+                              {agenda.topics.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeTopic(idx)}
+                                  className="agenda-row-delete-btn"
+                                  title="Remover assunto"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </td>
                           )}
-                        </td>
-                      )}
-                    </tr>
-                  ))
+                        </tr>
+
+                        {showExcerptRow && (
+                          <tr className="agenda-excerpt-row">
+                            <td className="agenda-num-cell" />
+                            <td colSpan={2} className="agenda-excerpt-cell">
+                              <div className="agenda-excerpt-box">
+                                {isPrintOnly ? (
+                                  <div className="agenda-excerpt-text">{topic.referenceText}</div>
+                                ) : (
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between gap-2 print:hidden">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                        Trecho / Parágrafo da Referência
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handlePasteParagraph(idx, topicKey)}
+                                          className="text-[10px] font-bold text-sky-700 hover:underline cursor-pointer"
+                                        >
+                                          Colar da área de transferência
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            updateTopic(idx, 'referenceText', '');
+                                            setOpenExcerptIds((prev) => ({
+                                              ...prev,
+                                              [topicKey]: false,
+                                            }));
+                                          }}
+                                          className="text-[10px] font-semibold text-slate-400 hover:text-red-600 cursor-pointer"
+                                        >
+                                          Remover trecho
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <textarea
+                                      rows={3}
+                                      value={topic.referenceText || ''}
+                                      onChange={(e) =>
+                                        updateTopic(idx, 'referenceText', e.target.value)
+                                      }
+                                      placeholder="Cole aqui o parágrafo da publicação ou carta para facilitar a leitura na reunião..."
+                                      className="agenda-excerpt-textarea"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            {!isPrintOnly && <td className="print:hidden" />}
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1009,6 +1113,67 @@ export default function EldersMeetingAgendaView({
           color: #dc2626;
         }
 
+        .agenda-paste-inline-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 10px;
+          font-weight: 700;
+          color: #0369a1;
+          background: #f0f9ff;
+          border: 1px dashed #7dd3fc;
+          border-radius: 5px;
+          padding: 2px 7px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .agenda-paste-inline-btn:hover {
+          background: #e0f2fe;
+          border-color: #38bdf8;
+        }
+
+        .agenda-excerpt-row {
+          background: #f8fafc !important;
+        }
+
+        .agenda-excerpt-cell {
+          padding: 6px 10px 9px !important;
+        }
+
+        .agenda-excerpt-box {
+          border-left: 3px solid #1e3a5f;
+          background: #f1f5f9;
+          border-radius: 0 6px 6px 0;
+          padding: 6px 10px;
+        }
+
+        .agenda-excerpt-text {
+          font-size: 11px;
+          line-height: 1.45;
+          color: #1e293b;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
+        .agenda-excerpt-textarea {
+          width: 100%;
+          border: 1px solid #cbd5e1;
+          border-radius: 5px;
+          background: #ffffff;
+          font-size: 11px;
+          line-height: 1.45;
+          color: #1e293b;
+          padding: 5px 8px;
+          resize: vertical;
+          outline: none;
+          font-family: inherit;
+        }
+
+        .agenda-excerpt-textarea:focus {
+          border-color: #1e3a5f;
+        }
+
         .agenda-recs-columns {
           display: flex;
           flex-direction: column;
@@ -1305,77 +1470,142 @@ export default function EldersMeetingAgendaView({
                   </button>
                 </div>
 
-                {agenda.topics.map((topic, idx) => (
-                  <div
-                    key={topic.id || idx}
-                    className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3"
-                  >
-                    <div className="flex items-center justify-between border-b border-surface-300 pb-2">
-                      <span className="text-xs font-black text-primary-200 bg-primary-200/10 px-2.5 py-0.5 rounded-lg border border-primary-200/20">
-                        Assunto #{idx + 1}
-                      </span>
+                {agenda.topics.map((topic, idx) => {
+                  const topicKey = topic.id || `topic_${idx}`;
+                  const hasExcerpt = Boolean(topic.referenceText && topic.referenceText.trim());
+                  const isExcerptOpen = hasExcerpt || Boolean(openExcerptIds[topicKey]);
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveTopic(idx, 'up')}
-                          disabled={idx === 0}
-                          className="p-1 rounded-lg text-typography-400 hover:text-typography-800 hover:bg-surface-200 disabled:opacity-30 cursor-pointer"
-                          title="Mover para cima"
-                        >
-                          <ArrowUp size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveTopic(idx, 'down')}
-                          disabled={idx === agenda.topics.length - 1}
-                          className="p-1 rounded-lg text-typography-400 hover:text-typography-800 hover:bg-surface-200 disabled:opacity-30 cursor-pointer"
-                          title="Mover para baixo"
-                        >
-                          <ArrowDown size={14} />
-                        </button>
-                        {agenda.topics.length > 1 && (
+                  return (
+                    <div
+                      key={topicKey}
+                      className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3"
+                    >
+                      <div className="flex items-center justify-between border-b border-surface-300 pb-2">
+                        <span className="text-xs font-black text-primary-200 bg-primary-200/10 px-2.5 py-0.5 rounded-lg border border-primary-200/20">
+                          Assunto #{idx + 1}
+                        </span>
+
+                        <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => removeTopic(idx)}
-                            className="p-1 rounded-lg text-typography-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer ml-1"
-                            title="Remover assunto"
+                            onClick={() => moveTopic(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1 rounded-lg text-typography-400 hover:text-typography-800 hover:bg-surface-200 disabled:opacity-30 cursor-pointer"
+                            title="Mover para cima"
                           >
-                            <Trash2 size={14} />
+                            <ArrowUp size={14} />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => moveTopic(idx, 'down')}
+                            disabled={idx === agenda.topics.length - 1}
+                            className="p-1 rounded-lg text-typography-400 hover:text-typography-800 hover:bg-surface-200 disabled:opacity-30 cursor-pointer"
+                            title="Mover para baixo"
+                          >
+                            <ArrowDown size={14} />
+                          </button>
+                          {agenda.topics.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeTopic(idx)}
+                              className="p-1 rounded-lg text-typography-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer ml-1"
+                              title="Remover assunto"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                            Assunto / Necessidade
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="Ex: Pastoreio e encorajamento aos publicadores irregulares..."
+                            value={topic.subject}
+                            onChange={(e) => updateTopic(idx, 'subject', e.target.value)}
+                            className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                              Referência Bíblica / Teocrática
+                            </label>
+                            {!isExcerptOpen && (
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handlePasteParagraph(idx, topicKey)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/25 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                                  title="Colar parágrafo copiado do JW Library / WOL"
+                                >
+                                  <ClipboardPaste size={12} />
+                                  <span>Colar parágrafo da referência</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <textarea
+                            rows={2}
+                            placeholder="Ex: ks cap. 25 §§ 1-4; 1 Ped. 5:2, 3..."
+                            value={topic.reference}
+                            onChange={(e) => updateTopic(idx, 'reference', e.target.value)}
+                            className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
+                          />
+                        </div>
+
+                        {isExcerptOpen && (
+                          <div className="p-3 bg-surface-200/60 border-l-4 border-l-primary-200 border border-surface-300 rounded-r-xl rounded-l-xs space-y-2">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-primary-200 flex items-center gap-1.5">
+                                <Quote size={12} />
+                                Parágrafo / Trecho da Referência (Opcional)
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handlePasteParagraph(idx, topicKey)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-200 hover:underline cursor-pointer"
+                                  title="Colar parágrafo da área de transferência"
+                                >
+                                  <ClipboardPaste size={12} />
+                                  <span>Colar copiado</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateTopic(idx, 'referenceText', '');
+                                    setOpenExcerptIds((prev) => ({
+                                      ...prev,
+                                      [topicKey]: false,
+                                    }));
+                                  }}
+                                  className="text-[11px] font-semibold text-typography-400 hover:text-red-500 transition-colors cursor-pointer"
+                                >
+                                  Remover trecho
+                                </button>
+                              </div>
+                            </div>
+                            <textarea
+                              rows={4}
+                              placeholder="Cole aqui o parágrafo copiado do JW Library, WOL ou carta para que apareça na pauta logo abaixo do assunto..."
+                              value={topic.referenceText || ''}
+                              onChange={(e) =>
+                                updateTopic(idx, 'referenceText', e.target.value)
+                              }
+                              className="w-full text-xs leading-relaxed p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
-
-                    <div className="space-y-2.5">
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
-                          Assunto / Necessidade
-                        </label>
-                        <textarea
-                          rows={2}
-                          placeholder="Ex: Pastoreio e encorajamento aos publicadores irregulares..."
-                          value={topic.subject}
-                          onChange={(e) => updateTopic(idx, 'subject', e.target.value)}
-                          className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
-                          Referência Bíblica / Teocrática
-                        </label>
-                        <textarea
-                          rows={2}
-                          placeholder="Ex: ks cap. 25 §§ 1-4; 1 Ped. 5:2, 3..."
-                          value={topic.reference}
-                          onChange={(e) => updateTopic(idx, 'reference', e.target.value)}
-                          className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <button
                   type="button"

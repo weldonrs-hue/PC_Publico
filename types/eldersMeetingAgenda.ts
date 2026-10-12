@@ -2,6 +2,7 @@ export interface AgendaTopicItem {
   id: string;
   subject: string;
   reference: string;
+  referenceText?: string;
 }
 
 export interface AgendaRecommendationItem {
@@ -48,9 +49,9 @@ export function normalizeEldersMeetingAgenda(
       openingPrayer: '',
       closingPrayer: '',
       topics: [
-        { id: 'topic_1', subject: '', reference: '' },
-        { id: 'topic_2', subject: '', reference: '' },
-        { id: 'topic_3', subject: '', reference: '' },
+        { id: 'topic_1', subject: '', reference: '', referenceText: '' },
+        { id: 'topic_2', subject: '', reference: '', referenceText: '' },
+        { id: 'topic_3', subject: '', reference: '', referenceText: '' },
       ],
       elderRecommendations: [],
       servantRecommendations: [],
@@ -72,11 +73,12 @@ export function normalizeEldersMeetingAgenda(
             id: t.id || `topic_${idx}_${Date.now()}`,
             subject: t.subject ?? '',
             reference: t.reference ?? '',
+            referenceText: t.referenceText ?? '',
           }))
         : [
-            { id: 'topic_1', subject: '', reference: '' },
-            { id: 'topic_2', subject: '', reference: '' },
-            { id: 'topic_3', subject: '', reference: '' },
+            { id: 'topic_1', subject: '', reference: '', referenceText: '' },
+            { id: 'topic_2', subject: '', reference: '', referenceText: '' },
+            { id: 'topic_3', subject: '', reference: '', referenceText: '' },
           ],
     elderRecommendations: Array.isArray(raw.elderRecommendations)
       ? raw.elderRecommendations.map((r, idx) => ({
