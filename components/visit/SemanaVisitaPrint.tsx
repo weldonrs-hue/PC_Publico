@@ -447,13 +447,17 @@ export default function SemanaVisitaPrint({
                   {/* PRIMEIRO CÔNJUGE (MARIDO / VIAJANTE / IRMÃO) */}
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <div className="name-badge">
-                      <input
-                        type="text"
-                        size={Math.max((page.primaryBadgeName || '').length, 4)}
-                        value={page.primaryBadgeName}
-                        disabled={!page.isPrimaryBadgeEditable || !canEdit('circuitOverseerOnly')}
-                        onChange={(e) => page.onPrimaryBadgeChange && page.onPrimaryBadgeChange(e.target.value)}
-                      />
+                      <span className="name-badge-sizer">
+                        <span className="name-badge-mirror" aria-hidden="true">
+                          {page.primaryBadgeName || ' '}
+                        </span>
+                        <input
+                          type="text"
+                          value={page.primaryBadgeName}
+                          disabled={!page.isPrimaryBadgeEditable || !canEdit('circuitOverseerOnly')}
+                          onChange={(e) => page.onPrimaryBadgeChange && page.onPrimaryBadgeChange(e.target.value)}
+                        />
+                      </span>
                     </div>
                     <table style={{ flex: 1 }}>
                       <thead>
@@ -513,13 +517,17 @@ export default function SemanaVisitaPrint({
                   {page.hasSpouse && page.spouseStudyRows && (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                       <div className="name-badge">
-                        <input
-                          type="text"
-                          size={Math.max((page.spouseBadgeName || 'ESPOSA').length, 4)}
-                          value={page.spouseBadgeName || 'ESPOSA'}
-                          disabled={!page.isSpouseBadgeEditable || !canEdit('circuitOverseerOnly')}
-                          onChange={(e) => page.onSpouseBadgeChange && page.onSpouseBadgeChange(e.target.value)}
-                        />
+                        <span className="name-badge-sizer">
+                          <span className="name-badge-mirror" aria-hidden="true">
+                            {page.spouseBadgeName || 'ESPOSA'}
+                          </span>
+                          <input
+                            type="text"
+                            value={page.spouseBadgeName || 'ESPOSA'}
+                            disabled={!page.isSpouseBadgeEditable || !canEdit('circuitOverseerOnly')}
+                            onChange={(e) => page.onSpouseBadgeChange && page.onSpouseBadgeChange(e.target.value)}
+                          />
+                        </span>
                       </div>
                       <table style={{ flex: 1 }}>
                         <thead>
@@ -1548,18 +1556,37 @@ export default function SemanaVisitaPrint({
           box-sizing: border-box;
         }
 
-        .name-badge input {
-          background: transparent;
-          border: none;
+        .name-badge-sizer {
+          display: inline-grid;
+          align-items: center;
           border-bottom: 2.5px solid white;
-          padding: 0 2px 1px 0;
-          color: white;
+          padding-bottom: 1px;
+        }
+
+        .name-badge-mirror,
+        .name-badge-sizer input {
+          grid-area: 1 / 1 / 2 / 2;
           font-size: 9.5px;
           font-weight: 800;
           font-family: inherit;
           text-transform: uppercase;
-          width: auto;
-          min-width: 45px;
+          letter-spacing: 0.5px;
+          padding: 0;
+          margin: 0;
+        }
+
+        .name-badge-mirror {
+          visibility: hidden;
+          white-space: pre;
+          pointer-events: none;
+        }
+
+        .name-badge-sizer input {
+          background: transparent;
+          border: none !important;
+          color: white;
+          width: 100%;
+          min-width: 1ch;
           outline: none;
         }
 
