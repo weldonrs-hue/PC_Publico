@@ -2516,8 +2516,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             <Calendar size={16} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="font-bold text-sm text-typography-900">Semana da Visita</div>
-                            <div className="text-[11px] text-typography-500 truncate">Programação de atividades com link para os anciãos</div>
+                            <div className="font-bold text-sm text-typography-900">Programação de Atividades</div>
+                            <div className="text-[11px] text-typography-500 truncate">Atividades da semana da visita e links de compartilhamento</div>
                           </div>
                         </button>
 

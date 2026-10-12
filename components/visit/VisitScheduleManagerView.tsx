@@ -578,7 +578,7 @@ export default function VisitScheduleManagerView({
                   {schedule.congregationName}
                 </h1>
                 <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-primary-200/10 text-primary-200 border border-primary-200/20 whitespace-nowrap">
-                  Semana da Visita
+                  Programação de Atividades
                 </span>
               </div>
               <div className="flex items-center gap-1.5 mt-0.5 text-xs text-typography-500 font-medium">
