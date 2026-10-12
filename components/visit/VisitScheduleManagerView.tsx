@@ -1,49 +1,45 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  ArrowLeft, 
-  Share2, 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  Printer, 
-  Save, 
-  Lock, 
-  Unlock, 
-  Calendar, 
-  Clock, 
-  Sparkles,
-  MessageCircle,
-  FileText,
-  AlertCircle,
-  Eye,
-  Settings2,
-  Smartphone,
-  X,
-  Layers,
-  RefreshCw,
-  CheckCircle2,
-  HelpCircle,
-  Users,
-  ShieldCheck
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { VisitSchedule, INITIAL_VISIT_SCHEDULE, normalizeVisitSchedule, generateShareToken } from '@/types/visitSchedule';
-import SemanaVisitaPrint from './SemanaVisitaPrint';
-import SemanaVisitaForm from './SemanaVisitaForm';
 import CustomSelect, { CustomSelectOption } from '@/components/CustomSelect';
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  query, 
-  where, 
+import { generateShareToken, normalizeVisitSchedule, VisitSchedule } from '@/types/visitSchedule';
+import {
+  collection,
+  doc,
+  getDoc,
   getDocs,
-  onSnapshot 
+  onSnapshot,
+  query,
+  setDoc,
+  where
 } from 'firebase/firestore';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Calendar,
+  Check,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Eye,
+  HelpCircle,
+  Lock,
+  MessageCircle,
+  Printer,
+  RefreshCw,
+  Save,
+  Settings2,
+  Share2,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Unlock,
+  X
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useEffect, useMemo, useState } from 'react';
+import SemanaVisitaForm from './SemanaVisitaForm';
+import SemanaVisitaPrint from './SemanaVisitaPrint';
 
 interface VisitScheduleManagerViewProps {
   userId: string;
@@ -88,18 +84,110 @@ export default function VisitScheduleManagerView({
   const legacyDocId = `visit_${safeUserId}_${safeCongId}`;
 
   // URL amigável do link público com parâmetros legíveis de congregação e período
-  const friendlyPublicUrl = typeof window !== 'undefined' && schedule?.shareToken
-    ? (() => {
-        const url = new URL(`${window.location.origin}/visita/${schedule.shareToken}`);
-        if (schedule.congregationName) {
-          url.searchParams.set('cong', schedule.congregationName.trim());
-        }
-        if (schedule.visitPeriod) {
-          url.searchParams.set('periodo', schedule.visitPeriod.trim());
-        }
-        return url.toString();
-      })()
-    : '';
+  const getShareUrl = (pathSuffix: string = '') => {
+    if (typeof window === 'undefined' || !schedule?.shareToken) return '';
+    const url = new URL(`${window.location.origin}/visita/${schedule.shareToken}${pathSuffix}`);
+    if (schedule.congregationName) {
+      url.searchParams.set('cong', schedule.congregationName.trim());
+    }
+    if (schedule.visitPeriod) {
+      url.searchParams.set('periodo', schedule.visitPeriod.trim());
+    }
+    return url.toString();
+  };
+
+  const friendlyPublicUrl = getShareUrl('');
+  const friendlyCongregacaoUrl = getShareUrl('/congregacao');
+  const friendlyEsposasUrl = getShareUrl('/esposa');
+
+  const [copiedType, setCopiedType] = useState<'anciaos' | 'congregacao' | 'esposas' | null>(null);
+
+  const handleSave = async (customSchedule?: VisitSchedule, silent: boolean = false) => {
+    const toSave = customSchedule || schedule;
+    if (!toSave) return;
+    if (!silent) {
+      setSaving(true);
+      setFeedbackMsg(null);
+    }
+    try {
+      const docRef = doc(db, 'visit_schedules', docId);
+      const dataToSave = {
+        ...toSave,
+        id: docId,
+        updatedAt: new Date().toISOString(),
+      };
+      await setDoc(docRef, dataToSave, { merge: true });
+      if (!silent) {
+        setFeedbackMsg({ type: 'success', text: 'Programação salva com sucesso!' });
+        setTimeout(() => setFeedbackMsg(null), 3000);
+      }
+    } catch (err: any) {
+      console.error('Erro ao salvar:', err);
+      if (!silent) {
+        setFeedbackMsg({ type: 'error', text: 'Não foi possível salvar as alterações.' });
+      }
+    } finally {
+      if (!silent) setSaving(false);
+    }
+  };
+
+  const handleCopyTargetLink = async (url: string, type: 'anciaos' | 'congregacao' | 'esposas', label: string) => {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopiedType(type);
+    setFeedbackMsg({
+      type: 'success',
+      text: `Dados salvos e link para ${label} copiado! (${schedule?.congregationName} • ${schedule?.visitPeriod})`,
+    });
+    setTimeout(() => setCopiedType(null), 2500);
+    setTimeout(() => setFeedbackMsg(null), 3500);
+    // Salva automaticamente no Firestore para garantir que quem abrir o link veja exatamente o que está na tela
+    await handleSave(undefined, true);
+  };
+
+  const handleCopyLink = () => handleCopyTargetLink(friendlyPublicUrl, 'anciaos', 'os Anciãos');
+
+  const handleWhatsAppShare = async () => {
+    if (!friendlyPublicUrl || !schedule) return;
+    await handleSave(undefined, true);
+    const msg = encodeURIComponent(
+      `🏛️ *Semana da Visita — Congregação ${schedule.congregationName}*\n` +
+      `🗓️ *Período:* ${schedule.visitPeriod}\n\n` +
+      `Olá, irmãos da comissão de serviço!\n\n` +
+      `Segue o link para preenchimento da programação de atividades da congregação (saídas de campo, refeições e pastoreios):\n\n` +
+      `👉 ${friendlyPublicUrl}\n\n` +
+      `_Basta abrir pelo celular ou computador. As informações são sincronizadas automaticamente com o viajante._`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+  };
+
+  const handleWhatsAppShareCongregacao = async () => {
+    if (!friendlyCongregacaoUrl || !schedule) return;
+    await handleSave(undefined, true);
+    const msg = encodeURIComponent(
+      `🏛️ *Mural da Visita — Congregação ${schedule.congregationName}*\n` +
+      `🗓️ *Período:* ${schedule.visitPeriod}\n\n` +
+      `Prezados irmãos da congregação,\n\n` +
+      `Segue o link com a programação das *Saídas de Campo* e *Reuniões* da semana da visita do superintendente de circuito:\n\n` +
+      `👉 ${friendlyCongregacaoUrl}\n\n` +
+      `_Acompanhe os horários e locais das atividades congregacionais._`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+  };
+
+  const handleWhatsAppShareEsposas = async () => {
+    if (!friendlyEsposasUrl || !schedule) return;
+    await handleSave(undefined, true);
+    const msg = encodeURIComponent(
+      `🌸 *Programação da Semana da Visita — Congregação ${schedule.congregationName}*\n` +
+      `🗓️ *Período:* ${schedule.visitPeriod}\n\n` +
+      `Queridas irmãs,\n\n` +
+      `Segue a programação da semana da visita com horários de campo, estudos bíblicos, reuniões e almoços:\n\n` +
+      `👉 ${friendlyEsposasUrl}\n\n` +
+      `_Tenham uma excelente semana edificante!_`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+  };
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -148,7 +236,8 @@ export default function VisitScheduleManagerView({
             congregationId,
             congregationName,
             visitPeriod: visitPeriod || baseData?.visitPeriod || "Semana da Visita",
-            shareToken: baseData?.shareToken || generateShareToken(),
+            // Gera SEMPRE um novo shareToken exclusivo para este docId para nunca colidir com documentos legados no Firestore
+            shareToken: generateShareToken(),
             createdAt: baseData?.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
@@ -205,53 +294,6 @@ export default function VisitScheduleManagerView({
       if (unsubscribe) unsubscribe();
     };
   }, [docId, legacyDocId, userId, congregationId, congregationName, visitPeriod]);
-
-  const handleSave = async (customSchedule?: VisitSchedule) => {
-    const toSave = customSchedule || schedule;
-    if (!toSave) return;
-    setSaving(true);
-    setFeedbackMsg(null);
-    try {
-      const docRef = doc(db, 'visit_schedules', docId);
-      const dataToSave = {
-        ...toSave,
-        updatedAt: new Date().toISOString(),
-      };
-      await setDoc(docRef, dataToSave, { merge: true });
-      setFeedbackMsg({ type: 'success', text: 'Programação salva com sucesso!' });
-      setTimeout(() => setFeedbackMsg(null), 3000);
-    } catch (err: any) {
-      console.error('Erro ao salvar:', err);
-      setFeedbackMsg({ type: 'error', text: 'Não foi possível salvar as alterações.' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCopyLink = () => {
-    if (!friendlyPublicUrl) return;
-    navigator.clipboard.writeText(friendlyPublicUrl);
-    setCopied(true);
-    setFeedbackMsg({ 
-      type: 'success', 
-      text: `Link copiado! (${schedule?.congregationName} • ${schedule?.visitPeriod})` 
-    });
-    setTimeout(() => setCopied(false), 2500);
-    setTimeout(() => setFeedbackMsg(null), 3500);
-  };
-
-  const handleWhatsAppShare = () => {
-    if (!friendlyPublicUrl || !schedule) return;
-    const msg = encodeURIComponent(
-      `🏛️ *Semana da Visita — Congregação ${schedule.congregationName}*\n` +
-      `🗓️ *Período:* ${schedule.visitPeriod}\n\n` +
-      `Olá, irmãos da comissão de serviço!\n\n` +
-      `Segue o link para preenchimento da programação de atividades da congregação (saídas de campo, refeições e pastoreios):\n\n` +
-      `👉 ${friendlyPublicUrl}\n\n` +
-      `_Basta abrir pelo celular ou computador. As informações são sincronizadas automaticamente com o viajante._`
-    );
-    window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
-  };
 
   // Buscar visitas anteriores para replicação de modelo
   const handleOpenReplicateModal = async () => {
@@ -321,20 +363,20 @@ export default function VisitScheduleManagerView({
         activeDays: sourceSchedule.activeDays ? { ...sourceSchedule.activeDays } : schedule.activeDays,
         permissions: sourceSchedule.permissions ? { ...sourceSchedule.permissions } : schedule.permissions,
 
-        // 3. Reuniões: horários padrão e temas de discursos
+        // 3. Reuniões: temas de discursos e cânticos (os horários da reunião do meio de semana e fim de semana NÃO devem ser replicados, pois dependem da congregação)
         meetings: {
           ...schedule.meetings,
           midweek: {
             ...schedule.meetings?.midweek,
-            time: sourceSchedule.meetings?.midweek?.time || schedule.meetings?.midweek?.time,
+            time: schedule.meetings?.midweek?.time || '19:30', // Mantém o horário da congregação atual
             serviceTalkTheme: sourceSchedule.meetings?.midweek?.serviceTalkTheme || '',
             serviceTalkSong: sourceSchedule.meetings?.midweek?.serviceTalkSong || '',
             finalPrayerBrother: schedule.meetings?.midweek?.finalPrayerBrother || '',
           },
           weekend: {
             ...schedule.meetings?.weekend,
-            day: sourceSchedule.meetings?.weekend?.day || schedule.meetings?.weekend?.day,
-            time: sourceSchedule.meetings?.weekend?.time || schedule.meetings?.weekend?.time,
+            day: schedule.meetings?.weekend?.day || sourceSchedule.meetings?.weekend?.day || 'domingo',
+            time: schedule.meetings?.weekend?.time || '09:00', // Mantém o horário da congregação atual
             publicTalkTheme: sourceSchedule.meetings?.weekend?.publicTalkTheme || '',
             publicTalkSong: sourceSchedule.meetings?.weekend?.publicTalkSong || '',
             finalTalkTheme: sourceSchedule.meetings?.weekend?.finalTalkTheme || '',
@@ -357,38 +399,88 @@ export default function VisitScheduleManagerView({
           },
         },
 
-        // 5. Estudos bíblicos e revisitas planejados do casal
+        // 5. Estudos bíblicos e revisitas planejados do casal e acompanhantes
         studiesAndVisits: {
           ...schedule.studiesAndVisits,
           husbandName: sourceSchedule.studiesAndVisits?.husbandName || schedule.studiesAndVisits?.husbandName || '',
           wifeName: sourceSchedule.studiesAndVisits?.wifeName || schedule.studiesAndVisits?.wifeName || '',
-          husbandRows: sourceSchedule.studiesAndVisits?.husbandRows?.map((r, i) => ({
-            day: r.day || schedule.studiesAndVisits?.husbandRows?.[i]?.day || '',
+          husbandRows: sourceSchedule.studiesAndVisits?.husbandRows?.map((r) => ({
+            id: r.id || Date.now().toString() + Math.random().toString(36).substring(2, 6),
+            day: r.day || '',
             time: r.time || '',
             lesson: r.lesson || '',
-            companionPhone: schedule.studiesAndVisits?.husbandRows?.[i]?.companionPhone || '',
+            companionPhone: '', // Campo a ser preenchido pela congregação
           })) || schedule.studiesAndVisits?.husbandRows || [],
-          wifeRows: sourceSchedule.studiesAndVisits?.wifeRows?.map((r, i) => ({
-            day: r.day || schedule.studiesAndVisits?.wifeRows?.[i]?.day || '',
+          wifeRows: sourceSchedule.studiesAndVisits?.wifeRows?.map((r) => ({
+            id: r.id || Date.now().toString() + Math.random().toString(36).substring(2, 6),
+            day: r.day || '',
             time: r.time || '',
             lesson: r.lesson || '',
-            companionPhone: schedule.studiesAndVisits?.wifeRows?.[i]?.companionPhone || '',
+            companionPhone: '', // Campo a ser preenchido pela congregação
           })) || schedule.studiesAndVisits?.wifeRows || [],
+          companions: sourceSchedule.studiesAndVisits?.companions?.map((c) => ({
+            id: c.id || Date.now().toString() + Math.random().toString(36).substring(2, 6),
+            name: c.name || '',
+            hasWife: !!c.hasWife,
+            wifeName: c.wifeName || '',
+            rows: (c.rows || []).map((r) => ({
+              id: r.id || Date.now().toString() + Math.random().toString(36).substring(2, 6),
+              day: r.day || '',
+              time: r.time || '',
+              lesson: r.lesson || '',
+              companionPhone: '',
+            })),
+            wifeRows: (c.wifeRows || []).map((r) => ({
+              id: r.id || Date.now().toString() + Math.random().toString(36).substring(2, 6),
+              day: r.day || '',
+              time: r.time || '',
+              lesson: r.lesson || '',
+              companionPhone: '',
+            })),
+            hasShepherding: !!c.hasShepherding,
+            shepherding: (c.shepherding && c.shepherding.length > 0)
+              ? c.shepherding.map((sh, idx) => ({
+                  id: sh.id || Date.now().toString() + idx,
+                  dateTime: sh.dateTime || '',
+                  family: '',
+                  companion: '',
+                  situation: '',
+                }))
+              : [],
+          })) || schedule.studiesAndVisits?.companions || [],
         },
 
-        // 6. DADOS ESPECÍFICOS DA CONGREGAÇÃO ATUAL MANTIDOS RIGOROSAMENTE INTACTOS:
+        // 6. Saídas de Campo: replica apenas os dias e horários definidos pelo viajante. Os locais NUNCA devem vir pois são locais!
+        fieldService: (sourceSchedule.fieldService || []).map((fs, idx) => ({
+          id: fs.id || Date.now().toString() + idx,
+          day: fs.day || '',
+          time: fs.time || '',
+          location: schedule.fieldService?.[idx]?.location || '', // preserva local da congregação atual se houver, ou vazio
+        })),
+
+        // 7. Pastoreio: replica a quantidade e os dias/horários das visitas da semana de origem (sem dados confidenciais de famílias/irmãos locais)
+        shepherding: (sourceSchedule.shepherding && sourceSchedule.shepherding.length > 0)
+          ? sourceSchedule.shepherding.map((sh, idx) => ({
+              id: sh.id || Date.now().toString() + idx,
+              dateTime: sh.dateTime || '',
+              family: schedule.shepherding?.[idx]?.family || '',
+              companion: schedule.shepherding?.[idx]?.companion || '',
+              situation: schedule.shepherding?.[idx]?.situation || '',
+            }))
+          : schedule.shepherding,
+
+        // 8. DADOS ESPECÍFICOS DA CONGREGAÇÃO ATUAL MANTIDOS RIGOROSAMENTE INTACTOS:
         id: docId,
         userId: schedule.userId,
         congregationId: schedule.congregationId,
         congregationName: schedule.congregationName,
         visitPeriod: schedule.visitPeriod,
         shareToken: schedule.shareToken, // Mantém o token exclusivo da congregação atual
-        fieldService: schedule.fieldService, // Mantém as saídas de campo preenchidas
         meals: schedule.meals, // Mantém as refeições e anfitriões locais
-        shepherding: schedule.shepherding, // Mantém os pastoreios agendados
         status: schedule.status,
         updatedAt: new Date().toISOString(),
       };
+
 
       setSchedule(replicated);
       await handleSave(replicated);
@@ -482,55 +574,165 @@ export default function VisitScheduleManagerView({
           </div>
         </div>
 
-        {/* ÁREA DE COMPARTILHAMENTO COM ANCIÃOS */}
-        <div className="bg-primary-200/5 border border-primary-200/20 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Share2 size={16} className="text-primary-200" />
-              <h3 className="text-xs font-bold uppercase tracking-wide text-primary-200">
-                Link de Preenchimento para os Anciãos
-              </h3>
-            </div>
-            <p className="text-xs text-typography-600">
-              Envie este link para a congregação preencher os locais de campo, almoços e pastoreio sem precisar de login.
-            </p>
-            {friendlyPublicUrl && (
-              <div className="text-[11px] text-typography-500 font-mono truncate max-w-xl">
-                🔗 {friendlyPublicUrl}
+        {/* ÁREA DE COMPARTILHAMENTO COM 3 LINKS DISTINTOS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* 1. Link para os Anciãos (Edição / Preenchimento) */}
+          <div className="bg-primary-200/5 border border-primary-200/20 rounded-2xl p-4 flex flex-col justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary-200" />
+                <h3 className="text-xs font-black uppercase tracking-wide text-primary-200 flex items-center gap-1.5">
+                  <Share2 size={14} />
+                  1. Link dos Anciãos
+                </h3>
               </div>
-            )}
+              <p className="text-xs text-typography-600 leading-snug">
+                Para a comissão de serviço preencher locais de campo, almoços e pastoreio sem login.
+              </p>
+              {friendlyPublicUrl && (
+                <div className="text-[10px] text-typography-500 font-mono truncate bg-surface-100 p-1.5 rounded-lg border border-surface-300">
+                  {friendlyPublicUrl}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 pt-1">
+              <button
+                onClick={handleCopyLink}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-surface-100 border border-surface-300 text-typography-800 hover:bg-surface-200 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                title="Copiar link dos Anciãos"
+              >
+                {copiedType === 'anciaos' ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                {copiedType === 'anciaos' ? 'Copiado!' : 'Copiar'}
+              </button>
+
+              <button
+                onClick={handleWhatsAppShare}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                title="Compartilhar no WhatsApp com Anciãos"
+              >
+                <MessageCircle size={13} />
+                WhatsApp
+              </button>
+
+              {friendlyPublicUrl && (
+                <a
+                  href={friendlyPublicUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 text-typography-400 hover:text-primary-200 rounded-lg hover:bg-surface-200 transition-colors"
+                  title="Abrir página em nova aba"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <button
-              onClick={handleCopyLink}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-surface-100 border border-surface-300 text-typography-800 hover:bg-surface-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-              title="Copiar link amigável"
-            >
-              {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-              {copied ? 'Link Copiado!' : 'Copiar Link'}
-            </button>
+          {/* 2. Link Público para a Congregação (Mural) */}
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 flex flex-col justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <h3 className="text-xs font-black uppercase tracking-wide text-emerald-800 flex items-center gap-1.5">
+                  <Share2 size={14} />
+                  2. Mural da Congregação
+                </h3>
+              </div>
+              <p className="text-xs text-typography-600 leading-snug">
+                Público para todos os irmãos. Mostra <strong>apenas</strong> Saídas de Campo e Reuniões (sem pastoreio nem refeições).
+              </p>
+              {friendlyCongregacaoUrl && (
+                <div className="text-[10px] text-typography-500 font-mono truncate bg-surface-100 p-1.5 rounded-lg border border-surface-300">
+                  {friendlyCongregacaoUrl}
+                </div>
+              )}
+            </div>
 
-            <button
-              onClick={handleWhatsAppShare}
-              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-              title="Compartilhar no WhatsApp"
-            >
-              <MessageCircle size={14} />
-              WhatsApp
-            </button>
-
-            {friendlyPublicUrl && (
-              <a
-                href={friendlyPublicUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="p-1.5 text-typography-400 hover:text-primary-200 rounded-lg hover:bg-surface-200 transition-colors"
-                title="Abrir página pública em nova aba"
+            <div className="flex items-center gap-1.5 pt-1">
+              <button
+                onClick={() => handleCopyTargetLink(friendlyCongregacaoUrl, 'congregacao', 'o Mural da Congregação')}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-surface-100 border border-surface-300 text-typography-800 hover:bg-surface-200 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                title="Copiar link do Mural da Congregação"
               >
-                <ExternalLink size={16} />
-              </a>
-            )}
+                {copiedType === 'congregacao' ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                {copiedType === 'congregacao' ? 'Copiado!' : 'Copiar'}
+              </button>
+
+              <button
+                onClick={handleWhatsAppShareCongregacao}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                title="Compartilhar no WhatsApp com a Congregação"
+              >
+                <MessageCircle size={13} />
+                WhatsApp
+              </button>
+
+              {friendlyCongregacaoUrl && (
+                <a
+                  href={friendlyCongregacaoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 text-typography-400 hover:text-emerald-600 rounded-lg hover:bg-surface-200 transition-colors"
+                  title="Abrir mural em nova aba"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* 3. Link para as Esposas (Sem Pastoreio) */}
+          <div className="bg-pink-500/5 border border-pink-500/20 rounded-2xl p-4 flex flex-col justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-pink-500" />
+                <h3 className="text-xs font-black uppercase tracking-wide text-pink-700 flex items-center gap-1.5">
+                  <Share2 size={14} />
+                  3. Programação para Esposas
+                </h3>
+              </div>
+              <p className="text-xs text-typography-600 leading-snug">
+                Visão completa com estudos do casal, refeições e reuniões, mas <strong>sem</strong> os dados de pastoreio.
+              </p>
+              {friendlyEsposasUrl && (
+                <div className="text-[10px] text-typography-500 font-mono truncate bg-surface-100 p-1.5 rounded-lg border border-surface-300">
+                  {friendlyEsposasUrl}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 pt-1">
+              <button
+                onClick={() => handleCopyTargetLink(friendlyEsposasUrl, 'esposas', 'as Esposas')}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-surface-100 border border-surface-300 text-typography-800 hover:bg-surface-200 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                title="Copiar link das Esposas"
+              >
+                {copiedType === 'esposas' ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                {copiedType === 'esposas' ? 'Copiado!' : 'Copiar'}
+              </button>
+
+              <button
+                onClick={handleWhatsAppShareEsposas}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                title="Compartilhar no WhatsApp com Esposas"
+              >
+                <MessageCircle size={13} />
+                WhatsApp
+              </button>
+
+              {friendlyEsposasUrl && (
+                <a
+                  href={friendlyEsposasUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 text-typography-400 hover:text-pink-600 rounded-lg hover:bg-surface-200 transition-colors"
+                  title="Abrir página em nova aba"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
@@ -734,18 +936,34 @@ export default function VisitScheduleManagerView({
         />
       </div>
 
-      {/* BARRA FLUTUANTE INFERIOR NO CELULAR */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-surface-100/95 backdrop-blur-md border-t border-surface-300 shadow-lg md:hidden print:hidden z-50">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+      {/* BARRA FLUTUANTE SUSPENSA PARA SALVAR (DESKTOP E MOBILE) */}
+      <div className="fixed bottom-4 sm:bottom-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none print:hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="pointer-events-auto bg-surface-100/95 dark:bg-surface-800/95 backdrop-blur-xl text-typography-800 dark:text-typography-100 border border-surface-300 dark:border-surface-600 shadow-2xl rounded-2xl sm:rounded-full px-3.5 sm:px-4 py-2 flex items-center gap-2.5 sm:gap-3 transition-all hover:shadow-primary-200/20"
+        >
+          <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-typography-600 dark:text-typography-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="truncate max-w-[140px]">{schedule.congregationName || 'Semana da Visita'}</span>
+          </div>
+
+          <div className="hidden sm:block w-px h-4 bg-surface-300 dark:bg-surface-600" />
+
           <button
+            type="button"
             onClick={() => handleSave()}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white py-3 px-4 rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
+            className="flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white py-2 px-5 rounded-xl sm:rounded-full font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            <Save size={16} />
-            {saving ? 'Salvando...' : 'Salvar Alterações'}
+            {saving ? (
+              <RefreshCw size={15} className="animate-spin" />
+            ) : (
+              <Save size={15} />
+            )}
+            <span>{saving ? 'Salvando alterações...' : 'Salvar Alterações'}</span>
           </button>
-        </div>
+        </motion.div>
       </div>
 
       {/* MODAL DE REPLICAÇÃO DE DADOS ENTRE SEMANAS */}

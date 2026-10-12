@@ -22,6 +22,7 @@ export interface MealRow {
   day: string;
   host: string;
   addressPhone: string;
+  isLodging?: boolean;
 }
 
 export interface ShepherdingRow {
@@ -50,6 +51,17 @@ export interface VisitPermissions {
   allowAdditionalMeetingsEdit?: boolean;
 }
 
+export interface CompanionStudyGroup {
+  id: string;
+  name: string;
+  rows: StudyVisitRow[];
+  hasWife?: boolean;
+  wifeName?: string;
+  wifeRows?: StudyVisitRow[];
+  hasShepherding?: boolean;
+  shepherding?: ShepherdingRow[];
+}
+
 export interface VisitSchedule {
   id?: string;
   userId?: string;
@@ -68,11 +80,13 @@ export interface VisitSchedule {
     wifeName?: string;
     husbandRows: StudyVisitRow[];
     wifeRows: StudyVisitRow[];
+    companions?: CompanionStudyGroup[];
     [key: string]: any;
   };
   meetings: {
     midweek: {
       time?: string;
+
       finalPrayerBrother?: string;
       serviceTalkTheme?: string;
       serviceTalkSong?: string;
@@ -180,12 +194,12 @@ export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'congregationId'
   },
   mealsHeaderTime: '12:00',
   meals: [
-    { day: 'Terça-feira', host: '', addressPhone: '' },
-    { day: 'Quarta-feira', host: '', addressPhone: '' },
-    { day: 'Quinta-feira', host: '', addressPhone: '' },
-    { day: 'Sexta-feira', host: '', addressPhone: '' },
-    { day: 'Sábado', host: '', addressPhone: '' },
-    { day: 'Domingo', host: '', addressPhone: '' },
+    { day: 'Terça', host: '', addressPhone: '', isLodging: false },
+    { day: 'Quarta', host: '', addressPhone: '', isLodging: false },
+    { day: 'Quinta', host: '', addressPhone: '', isLodging: false },
+    { day: 'Sexta', host: '', addressPhone: '', isLodging: false },
+    { day: 'Sábado', host: '', addressPhone: '', isLodging: false },
+    { day: 'Domingo', host: '', addressPhone: '', isLodging: false },
   ],
   shepherding: [
     { dateTime: 'Terça 15:00', family: '', companion: '', situation: '' },
@@ -244,7 +258,15 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
       ...(raw.permissions || {}),
     },
     fieldService: Array.isArray(raw.fieldService) ? raw.fieldService : [...INITIAL_VISIT_SCHEDULE.fieldService],
-    meals: Array.isArray(raw.meals) ? raw.meals : [...INITIAL_VISIT_SCHEDULE.meals],
+    meals: Array.isArray(raw.meals)
+      ? raw.meals.map((m: any, idx: number) => ({
+          id: m.id || Date.now().toString() + '_' + idx,
+          day: (m.day || '').replace(/-feira/gi, '').trim(),
+          host: m.isLodging ? (m.host || 'Hospedagem') : (m.host || ''),
+          addressPhone: m.isLodging ? (m.addressPhone || 'Almoço na Hospedagem') : (m.addressPhone || ''),
+          isLodging: !!m.isLodging,
+        }))
+      : [...INITIAL_VISIT_SCHEDULE.meals],
     shepherding: Array.isArray(raw.shepherding) ? raw.shepherding : [...INITIAL_VISIT_SCHEDULE.shepherding],
     studiesAndVisits: {
       ...INITIAL_VISIT_SCHEDULE.studiesAndVisits,
@@ -257,7 +279,20 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
       wifeRows: Array.isArray(raw.studiesAndVisits?.wifeRows)
         ? raw.studiesAndVisits.wifeRows
         : [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows],
+      companions: Array.isArray(raw.studiesAndVisits?.companions)
+        ? raw.studiesAndVisits.companions.map((c: any) => ({
+            id: c.id || Date.now().toString(),
+            name: c.name || '',
+            rows: Array.isArray(c.rows) ? c.rows : [],
+            hasWife: !!c.hasWife,
+            wifeName: c.wifeName || '',
+            wifeRows: Array.isArray(c.wifeRows) ? c.wifeRows : [],
+            hasShepherding: !!c.hasShepherding,
+            shepherding: Array.isArray(c.shepherding) ? c.shepherding : [],
+          }))
+        : [],
     },
+
     meetings: {
       ...INITIAL_VISIT_SCHEDULE.meetings,
       ...(raw.meetings || {}),
