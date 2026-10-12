@@ -45,6 +45,7 @@ import EMRServosView from '@/components/EMRServosView';
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 import ThemeSwitcher from '@/components/ui/theme-switcher';
+const WhatsAppNewsCardModal = dynamic(() => import('@/components/WhatsAppNewsCardModal'), { ssr: false });
 
 import { auth, db } from '@/lib/firebase';
 import { useDialog } from '@/hooks/useDialog';
@@ -64,7 +65,7 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal, clearQuotaExceeded } from '@/utils/firestore';
-import { Camera, User, ArrowLeft, AlertCircle, X, Coffee, Send, FileText, Sparkles, Check } from 'lucide-react';
+import { Camera, User, ArrowLeft, AlertCircle, X, Coffee, Send, FileText, Sparkles, Check, MessageCircle } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -896,6 +897,7 @@ export default function Home() {
   };
 
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showWhatsAppCard, setShowWhatsAppCard] = useState(false);
   const [newsContent, setNewsContent] = useState<any>(null);
 
   // Fetch News and Config
@@ -1060,25 +1062,44 @@ export default function Home() {
               </div>
 
               {/* Sticky Footer Bar - ALWAYS visible and accessible */}
-              <div className="p-3.5 sm:p-4 bg-surface-200/40 border-t border-surface-300 flex items-center justify-end gap-2.5 shrink-0">
+              <div className="p-3.5 sm:p-4 bg-surface-200/40 border-t border-surface-300 flex items-center justify-between gap-2.5 shrink-0 flex-wrap">
                 <button
-                  onClick={closeNews}
-                  className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
+                  type="button"
+                  onClick={() => setShowWhatsAppCard(true)}
+                  className="px-4 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Gerar card e mensagem formatada para o WhatsApp"
                 >
-                  Fechar
+                  <MessageCircle size={15} />
+                  <span>Card WhatsApp</span>
                 </button>
-                <button
-                  onClick={closeNews}
-                  className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Check size={16} strokeWidth={3} />
-                  <span>Entendido</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={closeNews}
+                    className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    onClick={closeNews}
+                    className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Check size={16} strokeWidth={3} />
+                    <span>Entendido</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      <WhatsAppNewsCardModal 
+        isOpen={showWhatsAppCard}
+        onClose={() => setShowWhatsAppCard(false)}
+        customTitle={newsContent?.title}
+        customContent={newsContent?.content}
+        version={newsContent?.version || 'v2.0'}
+      />
 
       <div className="print:hidden">
         <Sidebar 

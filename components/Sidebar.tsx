@@ -316,9 +316,7 @@ export default function Sidebar({
             <LogOut size={18} strokeWidth={1.8} />
             <span className="text-[10px] font-medium mt-0.5 truncate" style={{ color: 'var(--sidebar-text)' }}>Sair</span>
           </button>
-          <div className="portrait:flex landscape:hidden items-center justify-center px-4 opacity-20 select-none">
-            <span className="text-[8px] font-black tracking-widest">v1.5.0</span>
-          </div>
+          
         </nav>
 
         {/* Right Scroll Arrow (Mobile Portrait only) */}
@@ -357,9 +355,7 @@ export default function Sidebar({
           </span>
         </button>
 
-        <div className="pt-2 text-[9px] text-white/40 font-bold uppercase tracking-wider text-center hidden lg:block">
-          ProgCir v1.5.0
-        </div>
+        
       </div>
 
       {imageToCrop && (

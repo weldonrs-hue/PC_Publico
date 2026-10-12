@@ -45,6 +45,7 @@ import {
   Lock,
   Mail,
   MailCheck,
+  MessageCircle,
   RefreshCw,
   Settings,
   ShieldCheck,
@@ -59,6 +60,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 const RoleChangeRequestModal = dynamic(() => import('@/components/RoleChangeRequestModal'), { ssr: false });
+const WhatsAppNewsCardModal = dynamic(() => import('@/components/WhatsAppNewsCardModal'), { ssr: false });
 
 interface SettingsViewProps {
   userId: string;
@@ -236,6 +238,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
   const [isManagingInvites, setIsManagingInvites] = useState(false);
   const [isManagingNews, setIsManagingNews] = useState(false);
   const [showNewsPreview, setShowNewsPreview] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [activeTjSecCount, setActiveTjSecCount] = useState<number | null>(null);
   const [newsForm, setNewsForm] = useState({
     title: '',
@@ -1180,7 +1183,15 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
                     <h4 className="font-bold text-typography-900">Gerenciar Novidades</h4>
                     <p className="text-xs text-typography-500 max-w-md">Configure a mensagem que os usuários verão ao abrir o app pela primeira vez após uma atualização.</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <button 
+                      onClick={() => setShowWhatsAppModal(true)}
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-wider text-[10px] rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                      title="Gerar card e mensagem para grupos de WhatsApp"
+                    >
+                      <MessageCircle size={14} />
+                      Card WhatsApp
+                    </button>
                     <button 
                       onClick={() => setShowNewsPreview(true)}
                       className="px-4 py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-700 border border-surface-300 font-bold uppercase tracking-wider text-[10px] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
@@ -1236,7 +1247,7 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
 
         <div className="pt-10 flex flex-col items-center justify-center space-y-2 opacity-30 select-none no-print">
           <Logo iconSize="w-6 h-6" textSize="text-sm" showText={true} />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v1.5.0</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em]">v2.0</p>
         </div>
       </motion.div>
       
@@ -1444,20 +1455,33 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
               </div>
 
               {/* Sticky Footer */}
-              <div className="p-3.5 sm:p-4 bg-surface-100 border-t border-surface-300 flex items-center justify-end gap-2.5 shrink-0">
+              <div className="p-3.5 sm:p-4 bg-surface-100 border-t border-surface-300 flex items-center justify-between gap-2.5 shrink-0 flex-wrap">
                 <button
-                  onClick={() => setShowNewsPreview(false)}
-                  className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
+                  type="button"
+                  onClick={() => {
+                    setShowNewsPreview(false);
+                    setShowWhatsAppModal(true);
+                  }}
+                  className="px-4 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
-                  Fechar Prévia
+                  <MessageCircle size={15} />
+                  <span>Card WhatsApp</span>
                 </button>
-                <button
-                  onClick={() => setShowNewsPreview(false)}
-                  className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-primary-200 hover:bg-primary-300 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Check size={16} strokeWidth={3} />
-                  <span>Entendido</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowNewsPreview(false)}
+                    className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
+                  >
+                    Fechar Prévia
+                  </button>
+                  <button
+                    onClick={() => setShowNewsPreview(false)}
+                    className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-primary-200 hover:bg-primary-300 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Check size={16} strokeWidth={3} />
+                    <span>Entendido</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -2667,6 +2691,14 @@ export default function SettingsView({ userId, onBack, onViewChange, isAdmin, ap
           />
         )}
       </AnimatePresence>
+
+      <WhatsAppNewsCardModal 
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        customTitle={newsForm.title}
+        customContent={newsForm.content}
+        version={newsForm.version || 'v2.0'}
+      />
     </>
   );
 }
