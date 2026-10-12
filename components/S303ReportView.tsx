@@ -110,7 +110,16 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
   const [personalData, setPersonalData] = useState<any>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 1024;
+      const approxWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+      const approxAvailable = Math.max(240, approxWidth - 32);
+      const a4WidthPx = 1123;
+      return Math.max(0.35, Number((approxAvailable / a4WidthPx).toFixed(3)));
+    }
+    return 0.85;
+  });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [showScrollArrows, setShowScrollArrows] = useState(false);
@@ -136,8 +145,11 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
 
   // Cálculo da Escala Ideal para Ajustar à Tela (Focus PURAMENTE na LARGURA HORIZONTAL)
   const calculateAutoFitScale = () => {
-    if (!containerRef.current) return 1;
-    const containerWidth = containerRef.current.clientWidth;
+    let containerWidth = containerRef.current?.clientWidth || 0;
+    if (!containerWidth && typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 1024;
+      containerWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+    }
     // Largura útil disponível com margens confortáveis
     const availableWidth = Math.max(240, containerWidth - 32);
     const a4WidthPx = 1123; // 297mm em 96dpi (297 / 25.4 * 96)
@@ -166,11 +178,18 @@ export default function S303ReportView({ userId, congregation, visitDate, substi
     window.addEventListener('resize', handleResize);
     handleResize();
 
-    const timer = setTimeout(handleResize, 100);
+    handleResize();
+    const rafId = requestAnimationFrame(handleResize);
+    const timer50 = setTimeout(handleResize, 50);
+    const timer150 = setTimeout(handleResize, 150);
+    const timer300 = setTimeout(handleResize, 300);
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', handleResize);
-      clearTimeout(timer);
+      cancelAnimationFrame(rafId);
+      clearTimeout(timer50);
+      clearTimeout(timer150);
+      clearTimeout(timer300);
     };
   }, [autoFit, activeTab, scale]);
 

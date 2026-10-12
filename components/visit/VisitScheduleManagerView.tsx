@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, 
   Share2, 
@@ -19,11 +19,20 @@ import {
   AlertCircle,
   Eye,
   Settings2,
-  Smartphone
+  Smartphone,
+  X,
+  Layers,
+  RefreshCw,
+  CheckCircle2,
+  HelpCircle,
+  Users,
+  ShieldCheck
 } from 'lucide-react';
-import { VisitSchedule, INITIAL_VISIT_SCHEDULE } from '@/types/visitSchedule';
+import { motion, AnimatePresence } from 'motion/react';
+import { VisitSchedule, INITIAL_VISIT_SCHEDULE, normalizeVisitSchedule, generateShareToken } from '@/types/visitSchedule';
 import SemanaVisitaPrint from './SemanaVisitaPrint';
 import SemanaVisitaForm from './SemanaVisitaForm';
+import CustomSelect, { CustomSelectOption } from '@/components/CustomSelect';
 import { db } from '@/lib/firebase';
 import { 
   collection, 
@@ -41,6 +50,7 @@ interface VisitScheduleManagerViewProps {
   congregationId: string;
   congregationName: string;
   visitPeriod?: string;
+  visitId?: string;
   onBack: () => void;
 }
 
@@ -49,6 +59,7 @@ export default function VisitScheduleManagerView({
   congregationId,
   congregationName,
   visitPeriod = '',
+  visitId,
   onBack,
 }: VisitScheduleManagerViewProps) {
   const [schedule, setSchedule] = useState<VisitSchedule | null>(null);
@@ -56,59 +67,144 @@ export default function VisitScheduleManagerView({
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'form' | 'preview' | 'permissions'>('form');
-  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
 
+  // Estados para replicação de dados entre semanas
+  const [isReplicateModalOpen, setIsReplicateModalOpen] = useState(false);
+  const [previousSchedules, setPreviousSchedules] = useState<VisitSchedule[]>([]);
+  const [loadingPreviousSchedules, setLoadingPreviousSchedules] = useState(false);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [replicating, setReplicating] = useState(false);
 
-  // ID do documento baseado na congregação e no usuário
-  const docId = `visit_${userId}_${congregationId}`;
+  // ID do documento baseado na congregação, usuário e identificador da visita/período
+  const safeUserId = (userId || "default_user").replace(/[\/\s]/g, "_");
+  const safeCongId = (congregationId || "cong_temp").replace(/[\/\s]/g, "_");
 
-  // Gerar um token aleatório simples de 10 caracteres
-  const generateToken = () => {
-    return Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 6);
-  };
+  // Inclui identificador único da visita para evitar sobreposição entre visitas distintas à mesma congregação
+  const safeVisitKey = (visitId || (visitPeriod ? visitPeriod.replace(/[^a-zA-Z0-9]/g, '_') : 'atual'))
+    .trim()
+    .slice(0, 32);
+  const docId = `visit_${safeUserId}_${safeCongId}_${safeVisitKey}`;
+  const legacyDocId = `visit_${safeUserId}_${safeCongId}`;
+
+  // URL amigável do link público com parâmetros legíveis de congregação e período
+  const friendlyPublicUrl = typeof window !== 'undefined' && schedule?.shareToken
+    ? (() => {
+        const url = new URL(`${window.location.origin}/visita/${schedule.shareToken}`);
+        if (schedule.congregationName) {
+          url.searchParams.set('cong', schedule.congregationName.trim());
+        }
+        if (schedule.visitPeriod) {
+          url.searchParams.set('periodo', schedule.visitPeriod.trim());
+        }
+        return url.toString();
+      })()
+    : '';
 
   useEffect(() => {
-    let unsubscribe: () => void;
+    let unsubscribe: (() => void) | undefined;
+    let isCancelled = false;
 
-    const loadData = async () => {
-      setLoading(true);
+    // Redefinir estados locais ao trocar de congregação/visita para garantir isolamento e unicidade total
+    setSchedule(null);
+    setLoading(true);
+    setCopied(false);
+    setFeedbackMsg(null);
+
+    const initAndSubscribe = async () => {
       try {
-        const docRef = doc(db, 'visit_schedules', docId);
-        
-        // Listener em tempo real
-        unsubscribe = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setSchedule(docSnap.data() as VisitSchedule);
-          } else {
-            // Inicializar novo rascunho
-            const newSchedule: VisitSchedule = {
-              ...INITIAL_VISIT_SCHEDULE,
-              id: docId,
-              userId,
-              congregationId,
-              congregationName,
-              visitPeriod: visitPeriod || 'Semana da Visita',
-              shareToken: generateToken(),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
+        const primaryDocRef = doc(db, 'visit_schedules', docId);
+        const primarySnap = await getDoc(primaryDocRef);
+
+        if (isCancelled) return;
+
+        if (primarySnap.exists()) {
+          // Documento já existe com token persistido
+          const loadedData = normalizeVisitSchedule(primarySnap.data() as VisitSchedule);
+          setSchedule(loadedData);
+        } else {
+          // Documento ainda não existe no Firestore
+          // Verificar compatibilidade retroativa com chave antiga legada (visit_${userId}_${congregationId})
+          let baseData: Partial<VisitSchedule> | null = null;
+          if (docId !== legacyDocId) {
+            try {
+              const legacyDocRef = doc(db, 'visit_schedules', legacyDocId);
+              const legacySnap = await getDoc(legacyDocRef);
+              if (legacySnap.exists()) {
+                const lData = legacySnap.data() as VisitSchedule;
+                if (!lData.visitPeriod || lData.visitPeriod === visitPeriod || lData.visitPeriod === 'Semana da Visita') {
+                  baseData = lData;
+                }
+              }
+            } catch (legacyErr) {
+              console.warn("Verificação de documento legado ignorada:", legacyErr);
+            }
+          }
+
+          const newSchedule: VisitSchedule = normalizeVisitSchedule({
+            ...(baseData || {}),
+            id: docId,
+            userId,
+            congregationId,
+            congregationName,
+            visitPeriod: visitPeriod || baseData?.visitPeriod || "Semana da Visita",
+            shareToken: baseData?.shareToken || generateShareToken(),
+            createdAt: baseData?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+
+          // CRÍTICO: Persistir imediatamente no Firestore!
+          // Isso garante que se o usuário copiar o link ou enviar no WhatsApp logo após abrir a tela,
+          // o link público (/visita/[token]) encontrará o documento sem falhas ("Link Não Encontrado").
+          await setDoc(primaryDocRef, newSchedule, { merge: true });
+          if (!isCancelled) {
             setSchedule(newSchedule);
           }
-          setLoading(false);
-        });
-      } catch (err: any) {
-        console.error('Erro ao carregar programação da visita:', err);
-        setFeedbackMsg({ type: 'error', text: 'Erro ao carregar dados do banco.' });
+        }
+
+        if (isCancelled) return;
         setLoading(false);
+
+        // Assinar atualizações em tempo real para sincronização com preenchimentos dos anciãos
+        unsubscribe = onSnapshot(primaryDocRef, (snap) => {
+          if (snap.exists() && !isCancelled) {
+            setSchedule(normalizeVisitSchedule(snap.data() as VisitSchedule));
+          }
+        }, (error) => {
+          console.error("Erro no listener em tempo real da visita:", error);
+          if (!isCancelled) {
+            setFeedbackMsg({ type: "error", text: "Erro ao sincronizar dados em tempo real com o banco." });
+            setLoading(false);
+          }
+        });
+
+      } catch (err: any) {
+        console.error('Erro ao inicializar programação da visita:', err);
+        if (!isCancelled) {
+          const fallbackSchedule: VisitSchedule = normalizeVisitSchedule({
+            id: docId,
+            userId,
+            congregationId,
+            congregationName,
+            visitPeriod: visitPeriod || "Semana da Visita",
+            shareToken: generateShareToken(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          setSchedule(fallbackSchedule);
+          setFeedbackMsg({ type: 'error', text: 'Não foi possível inicializar a persistência. Verifique a conexão.' });
+          setLoading(false);
+        }
       }
     };
 
-    loadData();
+    initAndSubscribe();
 
     return () => {
+      isCancelled = true;
       if (unsubscribe) unsubscribe();
     };
-  }, [docId, userId, congregationId, congregationName, visitPeriod]);
+  }, [docId, legacyDocId, userId, congregationId, congregationName, visitPeriod]);
 
   const handleSave = async (customSchedule?: VisitSchedule) => {
     const toSave = customSchedule || schedule;
@@ -132,28 +228,187 @@ export default function VisitScheduleManagerView({
     }
   };
 
-  // URL do link público para os anciãos
-  const publicUrl = typeof window !== 'undefined' && schedule?.shareToken
-    ? `${window.location.origin}/visita/${schedule.shareToken}`
-    : '';
-
   const handleCopyLink = () => {
-    if (!publicUrl) return;
-    navigator.clipboard.writeText(publicUrl);
+    if (!friendlyPublicUrl) return;
+    navigator.clipboard.writeText(friendlyPublicUrl);
     setCopied(true);
+    setFeedbackMsg({ 
+      type: 'success', 
+      text: `Link copiado! (${schedule?.congregationName} • ${schedule?.visitPeriod})` 
+    });
     setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => setFeedbackMsg(null), 3500);
   };
 
   const handleWhatsAppShare = () => {
-    if (!publicUrl || !schedule) return;
+    if (!friendlyPublicUrl || !schedule) return;
     const msg = encodeURIComponent(
-      `Olá, irmãos da comissão de serviço da Congregação *${schedule.congregationName}*!\n\n` +
-      `Segue o link para preencher a programação de atividades da *Semana da Visita* (${schedule.visitPeriod}):\n\n` +
-      `👉 ${publicUrl}\n\n` +
-      `Basta acessar pelo celular ou computador, preencher os detalhes (locais de saída de campo, almoços, pastoreios) e clicar em salvar.`
+      `🏛️ *Semana da Visita — Congregação ${schedule.congregationName}*\n` +
+      `🗓️ *Período:* ${schedule.visitPeriod}\n\n` +
+      `Olá, irmãos da comissão de serviço!\n\n` +
+      `Segue o link para preenchimento da programação de atividades da congregação (saídas de campo, refeições e pastoreios):\n\n` +
+      `👉 ${friendlyPublicUrl}\n\n` +
+      `_Basta abrir pelo celular ou computador. As informações são sincronizadas automaticamente com o viajante._`
     );
     window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
   };
+
+  // Buscar visitas anteriores para replicação de modelo
+  const handleOpenReplicateModal = async () => {
+    setIsReplicateModalOpen(true);
+    setLoadingPreviousSchedules(true);
+    try {
+      const q1 = query(
+        collection(db, 'visit_schedules'),
+        where('userId', '==', userId)
+      );
+      const snap = await getDocs(q1);
+      const list: VisitSchedule[] = [];
+      snap.forEach((d) => {
+        const item = normalizeVisitSchedule(d.data() as VisitSchedule);
+        if (d.id !== docId && item.shareToken !== schedule?.shareToken) {
+          list.push({ ...item, id: d.id });
+        }
+      });
+
+      if (list.length === 0 && safeUserId !== userId) {
+        const q2 = query(
+          collection(db, 'visit_schedules'),
+          where('userId', '==', safeUserId)
+        );
+        const snap2 = await getDocs(q2);
+        snap2.forEach((d) => {
+          const item = normalizeVisitSchedule(d.data() as VisitSchedule);
+          if (d.id !== docId && item.shareToken !== schedule?.shareToken) {
+            list.push({ ...item, id: d.id });
+          }
+        });
+      }
+
+      // Ordenar pelas mais recentes
+      list.sort((a, b) => {
+        const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+      setPreviousSchedules(list);
+      if (list.length > 0) {
+        setSelectedSourceId(list[0].id || '');
+      }
+    } catch (err) {
+      console.error('Erro ao buscar visitas anteriores para replicação:', err);
+      setFeedbackMsg({ type: 'error', text: 'Não foi possível carregar o histórico de visitas.' });
+    } finally {
+      setLoadingPreviousSchedules(false);
+    }
+  };
+
+  // Executar a replicação dos campos do viajante mantendo intactos os dados da congregação atual
+  const executeReplication = async (sourceSchedule: VisitSchedule) => {
+    if (!schedule) return;
+    setReplicating(true);
+    try {
+      const replicated: VisitSchedule = {
+        ...schedule,
+
+        // 1. Dados fixos do viajante e casal
+        circuit: sourceSchedule.circuit || schedule.circuit,
+        coupleNames: sourceSchedule.coupleNames || schedule.coupleNames,
+        mealsHeaderTime: sourceSchedule.mealsHeaderTime || schedule.mealsHeaderTime,
+
+        // 2. Configurações de dias ativos e permissões concedidas
+        activeDays: sourceSchedule.activeDays ? { ...sourceSchedule.activeDays } : schedule.activeDays,
+        permissions: sourceSchedule.permissions ? { ...sourceSchedule.permissions } : schedule.permissions,
+
+        // 3. Reuniões: horários padrão e temas de discursos
+        meetings: {
+          ...schedule.meetings,
+          midweek: {
+            ...schedule.meetings?.midweek,
+            time: sourceSchedule.meetings?.midweek?.time || schedule.meetings?.midweek?.time,
+            serviceTalkTheme: sourceSchedule.meetings?.midweek?.serviceTalkTheme || '',
+            serviceTalkSong: sourceSchedule.meetings?.midweek?.serviceTalkSong || '',
+            finalPrayerBrother: schedule.meetings?.midweek?.finalPrayerBrother || '',
+          },
+          weekend: {
+            ...schedule.meetings?.weekend,
+            day: sourceSchedule.meetings?.weekend?.day || schedule.meetings?.weekend?.day,
+            time: sourceSchedule.meetings?.weekend?.time || schedule.meetings?.weekend?.time,
+            publicTalkTheme: sourceSchedule.meetings?.weekend?.publicTalkTheme || '',
+            publicTalkSong: sourceSchedule.meetings?.weekend?.publicTalkSong || '',
+            finalTalkTheme: sourceSchedule.meetings?.weekend?.finalTalkTheme || '',
+            finalTalkSong: sourceSchedule.meetings?.weekend?.finalTalkSong || '',
+          },
+        },
+
+        // 4. Reuniões Adicionais (Pioneiros e Anciãos/SM)
+        additionalMeetings: {
+          ...schedule.additionalMeetings,
+          pioneers: {
+            ...schedule.additionalMeetings?.pioneers,
+            day: sourceSchedule.additionalMeetings?.pioneers?.day || schedule.additionalMeetings?.pioneers?.day,
+            time: sourceSchedule.additionalMeetings?.pioneers?.time || schedule.additionalMeetings?.pioneers?.time,
+          },
+          eldersAndServants: {
+            ...schedule.additionalMeetings?.eldersAndServants,
+            day: sourceSchedule.additionalMeetings?.eldersAndServants?.day || schedule.additionalMeetings?.eldersAndServants?.day,
+            time: sourceSchedule.additionalMeetings?.eldersAndServants?.time || schedule.additionalMeetings?.eldersAndServants?.time,
+          },
+        },
+
+        // 5. Estudos bíblicos e revisitas planejados do casal
+        studiesAndVisits: {
+          ...schedule.studiesAndVisits,
+          husbandName: sourceSchedule.studiesAndVisits?.husbandName || schedule.studiesAndVisits?.husbandName || '',
+          wifeName: sourceSchedule.studiesAndVisits?.wifeName || schedule.studiesAndVisits?.wifeName || '',
+          husbandRows: sourceSchedule.studiesAndVisits?.husbandRows?.map((r, i) => ({
+            day: r.day || schedule.studiesAndVisits?.husbandRows?.[i]?.day || '',
+            time: r.time || '',
+            lesson: r.lesson || '',
+            companionPhone: schedule.studiesAndVisits?.husbandRows?.[i]?.companionPhone || '',
+          })) || schedule.studiesAndVisits?.husbandRows || [],
+          wifeRows: sourceSchedule.studiesAndVisits?.wifeRows?.map((r, i) => ({
+            day: r.day || schedule.studiesAndVisits?.wifeRows?.[i]?.day || '',
+            time: r.time || '',
+            lesson: r.lesson || '',
+            companionPhone: schedule.studiesAndVisits?.wifeRows?.[i]?.companionPhone || '',
+          })) || schedule.studiesAndVisits?.wifeRows || [],
+        },
+
+        // 6. DADOS ESPECÍFICOS DA CONGREGAÇÃO ATUAL MANTIDOS RIGOROSAMENTE INTACTOS:
+        id: docId,
+        userId: schedule.userId,
+        congregationId: schedule.congregationId,
+        congregationName: schedule.congregationName,
+        visitPeriod: schedule.visitPeriod,
+        shareToken: schedule.shareToken, // Mantém o token exclusivo da congregação atual
+        fieldService: schedule.fieldService, // Mantém as saídas de campo preenchidas
+        meals: schedule.meals, // Mantém as refeições e anfitriões locais
+        shepherding: schedule.shepherding, // Mantém os pastoreios agendados
+        status: schedule.status,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setSchedule(replicated);
+      await handleSave(replicated);
+      setIsReplicateModalOpen(false);
+      setFeedbackMsg({
+        type: 'success',
+        text: `Dados do viajante replicados com sucesso de "${sourceSchedule.congregationName}" (${sourceSchedule.visitPeriod})!`,
+      });
+      setTimeout(() => setFeedbackMsg(null), 4000);
+    } catch (err) {
+      console.error('Erro ao replicar dados da visita:', err);
+      setFeedbackMsg({ type: 'error', text: 'Erro ao aplicar os dados replicados.' });
+    } finally {
+      setReplicating(false);
+    }
+  };
+
+  const selectedSourceSchedule = useMemo(() => {
+    return previousSchedules.find(p => p.id === selectedSourceId) || previousSchedules[0] || null;
+  }, [previousSchedules, selectedSourceId]);
 
   if (loading) {
     return (
@@ -197,7 +452,17 @@ export default function VisitScheduleManagerView({
           </div>
 
           {/* Botões de Ação */}
-          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto flex-wrap">
+            <button
+              type="button"
+              onClick={handleOpenReplicateModal}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-surface-200 hover:bg-surface-300 border border-surface-300 text-typography-800 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-colors whitespace-nowrap cursor-pointer shadow-2xs"
+              title="Replicar modelo ou discursos de outra semana"
+            >
+              <Copy size={15} className="text-primary-200" />
+              <span>Replicar de outra semana</span>
+            </button>
+
             <button
               onClick={() => handleSave()}
               disabled={saving}
@@ -229,12 +494,18 @@ export default function VisitScheduleManagerView({
             <p className="text-xs text-typography-600">
               Envie este link para a congregação preencher os locais de campo, almoços e pastoreio sem precisar de login.
             </p>
+            {friendlyPublicUrl && (
+              <div className="text-[11px] text-typography-500 font-mono truncate max-w-xl">
+                🔗 {friendlyPublicUrl}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
             <button
               onClick={handleCopyLink}
               className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-surface-100 border border-surface-300 text-typography-800 hover:bg-surface-200 px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+              title="Copiar link amigável"
             >
               {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
               {copied ? 'Link Copiado!' : 'Copiar Link'}
@@ -243,14 +514,15 @@ export default function VisitScheduleManagerView({
             <button
               onClick={handleWhatsAppShare}
               className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+              title="Compartilhar no WhatsApp"
             >
               <MessageCircle size={14} />
               WhatsApp
             </button>
 
-            {publicUrl && (
+            {friendlyPublicUrl && (
               <a
-                href={publicUrl}
+                href={friendlyPublicUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="p-1.5 text-typography-400 hover:text-primary-200 rounded-lg hover:bg-surface-200 transition-colors"
@@ -264,11 +536,15 @@ export default function VisitScheduleManagerView({
 
         {/* FEEDBACK MENSAGEM */}
         {feedbackMsg && (
-          <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-            feedbackMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+          <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200 ${
+            feedbackMsg.type === 'success' 
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+              : feedbackMsg.type === 'error'
+              ? 'bg-red-50 text-red-800 border border-red-200'
+              : 'bg-blue-50 text-blue-800 border border-blue-200'
           }`}>
             {feedbackMsg.type === 'success' ? <Check size={15} /> : <AlertCircle size={15} />}
-            {feedbackMsg.text}
+            <span>{feedbackMsg.text}</span>
           </div>
         )}
 
@@ -315,11 +591,33 @@ export default function VisitScheduleManagerView({
       {/* CONTEÚDO DA ABA (TELA) */}
       <div className="print:hidden">
         {activeTab === 'form' && (
-          <SemanaVisitaForm
-            data={schedule}
-            onChange={(updated) => setSchedule(updated)}
-            elderMode={false}
-          />
+          <div className="space-y-4">
+            {/* Dica rápida de replicação de modelo */}
+            <div className="bg-surface-100 border border-surface-300 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-1.5 rounded-lg bg-primary-200/10 text-primary-200 shrink-0">
+                  <Sparkles size={16} />
+                </div>
+                <div className="text-typography-700">
+                  Preenchendo uma nova semana? Você pode <strong className="text-typography-900">replicar seus discursos, horários padrão e estudos</strong> de outra congregação com 1 clique.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenReplicateModal}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary-200/10 hover:bg-primary-200/20 text-primary-200 border border-primary-200/30 rounded-xl font-bold text-xs transition-colors shrink-0 cursor-pointer"
+              >
+                <Copy size={13} />
+                Replicar de outra semana
+              </button>
+            </div>
+
+            <SemanaVisitaForm
+              data={schedule}
+              onChange={(updated) => setSchedule(updated)}
+              elderMode={false}
+            />
+          </div>
         )}
 
         {activeTab === 'preview' && (
@@ -386,9 +684,8 @@ export default function VisitScheduleManagerView({
                   label: 'Reuniões Adicionais (Pioneiros / Anciãos)',
                   desc: 'Permite que alterem os dias e horários das reuniões especiais.',
                 },
-
               ].map((item) => {
-                const isAllowed = !!(schedule.permissions as any)[item.key];
+                const isAllowed = !!(schedule.permissions as any)?.[item.key];
                 return (
                   <div
                     key={item.key}
@@ -450,7 +747,175 @@ export default function VisitScheduleManagerView({
           </button>
         </div>
       </div>
+
+      {/* MODAL DE REPLICAÇÃO DE DADOS ENTRE SEMANAS */}
+      <AnimatePresence>
+        {isReplicateModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface-100 border border-surface-300 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col relative"
+            >
+              {/* Header do Modal */}
+              <div className="p-4 sm:p-5 border-b border-surface-300 flex items-center justify-between sticky top-0 bg-surface-100/95 backdrop-blur-xs z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-primary-200/10 text-primary-200">
+                    <Copy size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-typography-900 tracking-tight">
+                      Replicar Dados de Outra Semana
+                    </h3>
+                    <p className="text-xs text-typography-500">
+                      Importe seus temas de discursos, horários padrão e rotina fixa
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsReplicateModalOpen(false)}
+                  className="p-1.5 rounded-lg text-typography-400 hover:text-typography-900 hover:bg-surface-200 transition-colors cursor-pointer"
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Corpo do Modal */}
+              <div className="p-4 sm:p-6 space-y-5 flex-1">
+                {loadingPreviousSchedules ? (
+                  <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                    <div className="w-7 h-7 border-3 border-primary-200 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs text-typography-500 font-medium">Buscando semanas anteriores...</p>
+                  </div>
+                ) : previousSchedules.length === 0 ? (
+                  <div className="py-8 text-center space-y-3 bg-surface-200/50 rounded-2xl p-6 border border-surface-300">
+                    <div className="w-12 h-12 bg-primary-200/10 text-primary-200 rounded-2xl flex items-center justify-center mx-auto">
+                      <HelpCircle size={24} />
+                    </div>
+                    <h4 className="text-sm font-bold text-typography-900">Nenhuma outra visita encontrada</h4>
+                    <p className="text-xs text-typography-500 max-w-md mx-auto leading-relaxed">
+                      Quando você cadastrar e salvar a programação de outras semanas no itinerário, poderá copiá-las aqui com 1 clique para preencher instantaneamente as próximas congregações!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Botão Rápido: Copiar da Última Visita */}
+                    {previousSchedules[0] && (
+                      <div className="bg-primary-200/5 border border-primary-200/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary-200 block mb-0.5">
+                            Opção Mais Rápida
+                          </span>
+                          <h4 className="text-xs font-bold text-typography-900 truncate">
+                            {previousSchedules[0].congregationName}
+                          </h4>
+                          <span className="text-[11px] text-typography-500">
+                            {previousSchedules[0].visitPeriod}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => executeReplication(previousSchedules[0])}
+                          disabled={replicating}
+                          className="flex items-center justify-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-3.5 py-2 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                        >
+                          <Sparkles size={14} />
+                          Copiar da Última Visita
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Ou Selecionar Visita Específica */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-typography-800 block">
+                        Ou selecione outra semana do histórico:
+                      </label>
+                      <CustomSelect
+                        value={selectedSourceId}
+                        onChange={(val) => setSelectedSourceId(val)}
+                        options={previousSchedules.map((p): CustomSelectOption => ({
+                          value: p.id || '',
+                          label: `${p.congregationName} — ${p.visitPeriod}`,
+                          description: p.coupleNames ? `Casal: ${p.coupleNames}` : undefined,
+                        }))}
+                        placeholder="Escolha a visita de origem..."
+                        size="md"
+                        searchable={previousSchedules.length > 4}
+                      />
+                    </div>
+
+                    {/* Card Informativo com o que é copiado vs preservado */}
+                    <div className="bg-surface-200/60 rounded-2xl p-4 border border-surface-300 text-xs space-y-3">
+                      <div className="font-bold text-typography-900 flex items-center gap-1.5">
+                        <ShieldCheck size={15} className="text-primary-200" />
+                        O que acontece ao replicar?
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                        <div className="bg-surface-100 p-2.5 rounded-xl border border-surface-300 space-y-1">
+                          <span className="font-bold text-emerald-700 flex items-center gap-1">
+                            <Check size={12} /> Copiado do Viajante:
+                          </span>
+                          <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
+                            <li>Temas e cânticos dos discursos</li>
+                            <li>Horários padrão das reuniões</li>
+                            <li>Nomes do casal e circuito</li>
+                            <li>Estudos/revisitas planejados</li>
+                            <li>Reuniões de pioneiros e anciãos</li>
+                            <li>Dias ativos e permissões</li>
+                          </ul>
+                        </div>
+
+                        <div className="bg-surface-100 p-2.5 rounded-xl border border-surface-300 space-y-1">
+                          <span className="font-bold text-primary-200 flex items-center gap-1">
+                            <Lock size={12} /> Mantido Intacto (Atual):
+                          </span>
+                          <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
+                            <li><strong>{schedule.congregationName}</strong> (Nome e ID)</li>
+                            <li><strong>{schedule.visitPeriod}</strong> (Período atual)</li>
+                            <li>Link exclusivo dos anciãos</li>
+                            <li>Saídas de campo preenchidas</li>
+                            <li>Almoços e pastoreios locais</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Rodapé do Modal */}
+              <div className="p-4 sm:p-5 border-t border-surface-300 flex items-center justify-end gap-2 bg-surface-100 sticky bottom-0 z-10">
+                <button
+                  type="button"
+                  onClick={() => setIsReplicateModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-surface-300 text-typography-700 hover:bg-surface-200 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                {previousSchedules.length > 0 && selectedSourceSchedule && (
+                  <button
+                    type="button"
+                    onClick={() => executeReplication(selectedSourceSchedule)}
+                    disabled={replicating}
+                    className="flex items-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {replicating ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={14} />
+                    )}
+                    {replicating ? 'Replicando...' : 'Replicar da Visita Selecionada'}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-

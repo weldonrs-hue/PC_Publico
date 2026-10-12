@@ -47,17 +47,17 @@ export default function SemanaVisitaForm({
       case 'midweekMeeting':
         return data.permissions?.allowMidweekMeetingTimeEdit ?? true;
       case 'weekendMeeting':
-        return data.permissions.allowWeekendMeetingTimeEdit;
+        return data.permissions?.allowWeekendMeetingTimeEdit ?? true;
       case 'fieldService':
-        return data.permissions.allowFieldServiceEdit;
+        return data.permissions?.allowFieldServiceEdit ?? true;
       case 'meals':
-        return data.permissions.allowMealsEdit;
+        return data.permissions?.allowMealsEdit ?? true;
       case 'shepherding':
-        return data.permissions.allowShepherdingEdit;
+        return data.permissions?.allowShepherdingEdit ?? true;
       case 'studies':
-        return data.permissions.allowStudiesEdit;
+        return data.permissions?.allowStudiesEdit ?? true;
       case 'additionalMeetings':
-        return data.permissions.allowAdditionalMeetingsEdit;
+        return data.permissions?.allowAdditionalMeetingsEdit ?? true;
       case 'circuitOverseerOnly':
         return false;
       default:
@@ -69,9 +69,9 @@ export default function SemanaVisitaForm({
   // As abas se adaptam dependendo se é o Viajante ou o Ancião
   const tabs = [
     ...(!elderMode ? [{ id: 'geral', label: 'Geral', icon: Users }] : []),
-    { id: 'campo', label: 'Campo', icon: MapPin, count: data.fieldService.length },
-    { id: 'refeicoes', label: 'Refeições', icon: Utensils, count: data.meals.length },
-    { id: 'pastoreio', label: 'Pastoreio', icon: Heart, count: data.shepherding.length },
+    { id: 'campo', label: 'Campo', icon: MapPin, count: (data.fieldService || []).length },
+    { id: 'refeicoes', label: 'Refeições', icon: Utensils, count: (data.meals || []).length },
+    { id: 'pastoreio', label: 'Pastoreio', icon: Heart, count: (data.shepherding || []).length },
     { id: 'reunioes', label: 'Reuniões', icon: Calendar },
     { id: 'estudos', label: 'Estudos', icon: BookOpen },
   ];
@@ -134,7 +134,7 @@ export default function SemanaVisitaForm({
               </label>
               <div className="grid grid-cols-6 gap-2">
                 {(['ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as const).map((dayKey) => {
-                  const isChecked = !!data.activeDays[dayKey];
+                  const isChecked = !!(data.activeDays && data.activeDays[dayKey]);
                   return (
                     <button
                       type="button"
@@ -142,7 +142,7 @@ export default function SemanaVisitaForm({
                       onClick={() =>
                         update((prev) => ({
                           ...prev,
-                          activeDays: { ...prev.activeDays, [dayKey]: !isChecked },
+                          activeDays: { ...(prev.activeDays || {}), [dayKey]: !isChecked },
                         }))
                       }
                       className={`py-2.5 rounded-xl text-xs font-black uppercase transition-all flex flex-col items-center gap-1 cursor-pointer ${

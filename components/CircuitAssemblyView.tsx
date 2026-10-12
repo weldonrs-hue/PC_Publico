@@ -699,10 +699,12 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const [showZoomMenu, setShowZoomMenu] = useState(false);
   const [zoom, setZoom] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('circuit_assembly_a4_zoom');
-      if (saved) return parseInt(saved, 10);
+      const isMobile = window.innerWidth < 1024;
+      const approxWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+      const approxAvailable = Math.max(240, approxWidth - 32);
+      return Math.max(35, Math.round((approxAvailable / 793.7) * 100));
     }
-    return 80;
+    return 85;
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -710,10 +712,12 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const ZOOM_STEPS = [35, 50, 65, 75, 85, 100, 115, 125, 150, 175, 200];
 
   const calculateAutoFitZoom = useCallback(() => {
-    if (!containerRef.current) return 100;
-    const containerWidth = containerRef.current.clientWidth;
+    let containerWidth = containerRef.current?.clientWidth || 0;
+    if (!containerWidth && typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 1024;
+      containerWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+    }
     const availableWidth = Math.max(240, containerWidth - 32);
-    // A4 Portrait largura em px: 210mm @ 96dpi = 793.7px
     const a4WidthPx = 793.7;
     const calculated = Math.round((availableWidth / a4WidthPx) * 100);
     return Math.max(35, calculated);
@@ -776,11 +780,18 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     window.addEventListener('resize', handleResize);
     handleResize();
 
-    const timer = setTimeout(handleResize, 100);
+    handleResize();
+    const rafId = requestAnimationFrame(handleResize);
+    const timer50 = setTimeout(handleResize, 50);
+    const timer150 = setTimeout(handleResize, 150);
+    const timer300 = setTimeout(handleResize, 300);
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', handleResize);
-      clearTimeout(timer);
+      cancelAnimationFrame(rafId);
+      clearTimeout(timer50);
+      clearTimeout(timer150);
+      clearTimeout(timer300);
     };
   }, [autoFit, viewMode, calculateAutoFitZoom]);
 

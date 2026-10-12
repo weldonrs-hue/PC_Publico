@@ -4,6 +4,12 @@ export type PlannerStatus = 'pending' | 'in_progress' | 'completed';
 export type PlannerRecurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type PlannerRecurrenceUnit = 'days' | 'weeks' | 'months' | 'years';
 
+// Aliases for compatibility
+export type PriorityLevel = PlannerPriority;
+export type TaskStatus = PlannerStatus;
+export type RecurrenceFrequency = PlannerRecurrence;
+export type RecurrenceUnit = PlannerRecurrenceUnit;
+
 export interface PlannerItem {
   id: string;
   userId: string;
@@ -47,6 +53,7 @@ export interface CreatePlannerItemDto {
   time?: string | null;
   location?: string | null;
   notes?: string | null;
+  userId?: string;
 }
 
 export interface UpdatePlannerItemDto extends Partial<CreatePlannerItemDto> {

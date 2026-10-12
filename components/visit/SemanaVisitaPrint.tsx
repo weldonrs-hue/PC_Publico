@@ -31,17 +31,17 @@ export default function SemanaVisitaPrint({
       case 'midweekMeeting':
         return data.permissions?.allowMidweekMeetingTimeEdit ?? true;
       case 'weekendMeeting':
-        return data.permissions.allowWeekendMeetingTimeEdit;
+        return data.permissions?.allowWeekendMeetingTimeEdit ?? true;
       case 'fieldService':
-        return data.permissions.allowFieldServiceEdit;
+        return data.permissions?.allowFieldServiceEdit ?? true;
       case 'meals':
-        return data.permissions.allowMealsEdit;
+        return data.permissions?.allowMealsEdit ?? true;
       case 'shepherding':
-        return data.permissions.allowShepherdingEdit;
+        return data.permissions?.allowShepherdingEdit ?? true;
       case 'studies':
-        return data.permissions.allowStudiesEdit;
+        return data.permissions?.allowStudiesEdit ?? true;
       case 'additionalMeetings':
-        return data.permissions.allowAdditionalMeetingsEdit;
+        return data.permissions?.allowAdditionalMeetingsEdit ?? true;
       case 'circuitOverseerOnly':
         return false;
       default:
@@ -89,12 +89,12 @@ export default function SemanaVisitaPrint({
                 <label>{dayKey.toUpperCase()}</label>
                 <input
                   type="checkbox"
-                  checked={!!data.activeDays[dayKey]}
+                  checked={!!(data.activeDays && data.activeDays[dayKey])}
                   disabled={!canEdit('circuitOverseerOnly')}
                   onChange={(e) =>
                     update((prev) => ({
                       ...prev,
-                      activeDays: { ...prev.activeDays, [dayKey]: e.target.checked },
+                      activeDays: { ...(prev.activeDays || {}), [dayKey]: e.target.checked },
                     }))
                   }
                 />

@@ -1063,16 +1063,19 @@ export default function Home() {
 
               {/* Sticky Footer Bar - ALWAYS visible and accessible */}
               <div className="p-3.5 sm:p-4 bg-surface-200/40 border-t border-surface-300 flex items-center justify-between gap-2.5 shrink-0 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setShowWhatsAppCard(true)}
-                  className="px-4 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  title="Gerar card e mensagem formatada para o WhatsApp"
-                >
-                  <MessageCircle size={15} />
-                  <span>Card WhatsApp</span>
-                </button>
-                <div className="flex items-center gap-2">
+                {isAdminUser && (
+                  <button
+                    type="button"
+                    onClick={() => setShowWhatsAppCard(true)}
+                    className="px-4 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    title="Gerar card e mensagem formatada para o WhatsApp"
+                  >
+                    <MessageCircle size={15} />
+                    <span>Card WhatsApp</span>
+                  </button>
+                )}
+                <div className={`flex items-center gap-2 ${!isAdminUser ? "ml-auto" : ""}`}>
+
                   <button
                     onClick={closeNews}
                     className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
@@ -1093,13 +1096,15 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      <WhatsAppNewsCardModal 
-        isOpen={showWhatsAppCard}
-        onClose={() => setShowWhatsAppCard(false)}
-        customTitle={newsContent?.title}
-        customContent={newsContent?.content}
-        version={newsContent?.version || 'v2.0'}
-      />
+      {isAdminUser && (
+        <WhatsAppNewsCardModal 
+          isOpen={showWhatsAppCard}
+          onClose={() => setShowWhatsAppCard(false)}
+          customTitle={newsContent?.title}
+          customContent={newsContent?.content}
+          version={newsContent?.version || 'v2.0'}
+        />
+      )}
 
       <div className="print:hidden">
         <Sidebar 

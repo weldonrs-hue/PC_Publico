@@ -56,6 +56,7 @@ export interface VisitSchedule {
   congregationId?: string;
   congregationName: string;
   visitPeriod: string;
+  visitId?: string;
   shareToken: string;
   circuit?: string;
   coupleNames?: string;
@@ -195,3 +196,91 @@ export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'congregationId'
   ],
   status: 'rascunho',
 };
+
+export function generateShareToken(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const arr = new Uint8Array(12);
+    crypto.getRandomValues(arr);
+    let token = '';
+    for (let i = 0; i < arr.length; i++) {
+      token += chars[arr[i] % chars.length];
+    }
+    return token;
+  }
+  return Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
+}
+
+export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): VisitSchedule {
+  if (!raw) {
+    return {
+      ...INITIAL_VISIT_SCHEDULE,
+      congregationName: "",
+      visitPeriod: "Semana da Visita",
+      shareToken: generateShareToken(),
+      fieldService: [...INITIAL_VISIT_SCHEDULE.fieldService],
+      meals: [...INITIAL_VISIT_SCHEDULE.meals],
+      shepherding: [...INITIAL_VISIT_SCHEDULE.shepherding],
+      studiesAndVisits: {
+        ...INITIAL_VISIT_SCHEDULE.studiesAndVisits,
+        husbandRows: [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.husbandRows],
+        wifeRows: [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows],
+      },
+    };
+  }
+
+  return {
+    ...INITIAL_VISIT_SCHEDULE,
+    ...raw,
+    congregationName: raw.congregationName || "",
+    visitPeriod: raw.visitPeriod || "Semana da Visita",
+    shareToken: raw.shareToken || generateShareToken(),
+    activeDays: {
+      ...INITIAL_VISIT_SCHEDULE.activeDays,
+      ...(raw.activeDays || {}),
+    },
+    permissions: {
+      ...INITIAL_VISIT_SCHEDULE.permissions,
+      ...(raw.permissions || {}),
+    },
+    fieldService: Array.isArray(raw.fieldService) ? raw.fieldService : [...INITIAL_VISIT_SCHEDULE.fieldService],
+    meals: Array.isArray(raw.meals) ? raw.meals : [...INITIAL_VISIT_SCHEDULE.meals],
+    shepherding: Array.isArray(raw.shepherding) ? raw.shepherding : [...INITIAL_VISIT_SCHEDULE.shepherding],
+    studiesAndVisits: {
+      ...INITIAL_VISIT_SCHEDULE.studiesAndVisits,
+      ...(raw.studiesAndVisits || {}),
+      husbandName: raw.studiesAndVisits?.husbandName || "",
+      wifeName: raw.studiesAndVisits?.wifeName || "",
+      husbandRows: Array.isArray(raw.studiesAndVisits?.husbandRows)
+        ? raw.studiesAndVisits.husbandRows
+        : [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.husbandRows],
+      wifeRows: Array.isArray(raw.studiesAndVisits?.wifeRows)
+        ? raw.studiesAndVisits.wifeRows
+        : [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows],
+    },
+    meetings: {
+      ...INITIAL_VISIT_SCHEDULE.meetings,
+      ...(raw.meetings || {}),
+      midweek: {
+        ...INITIAL_VISIT_SCHEDULE.meetings.midweek,
+        ...(raw.meetings?.midweek || {}),
+      },
+      weekend: {
+        ...INITIAL_VISIT_SCHEDULE.meetings.weekend,
+        ...(raw.meetings?.weekend || {}),
+      },
+    },
+    additionalMeetings: {
+      ...INITIAL_VISIT_SCHEDULE.additionalMeetings,
+      ...(raw.additionalMeetings || {}),
+      pioneers: {
+        ...INITIAL_VISIT_SCHEDULE.additionalMeetings.pioneers,
+        ...(raw.additionalMeetings?.pioneers || {}),
+      },
+      eldersAndServants: {
+        ...INITIAL_VISIT_SCHEDULE.additionalMeetings.eldersAndServants,
+        ...(raw.additionalMeetings?.eldersAndServants || {}),
+      },
+    },
+  };
+}

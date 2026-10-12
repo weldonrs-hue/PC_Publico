@@ -571,7 +571,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [showAppointmentLetter, setShowAppointmentLetter] = useState(false);
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
   const [showVisitSchedule, setShowVisitSchedule] = useState(false);
-  const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string} | null>(null);
+  const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string, visitId?: string} | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'list'>(() => {
     if (typeof window !== 'undefined') {
       const savedMode = localStorage.getItem('progcir_itineraries_view_mode') as 'table' | 'list' | null;
@@ -1460,19 +1460,25 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleVisitScheduleClick = () => {
-    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
-      let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
-      if (!cong && selectedItem.congregacao) {
-        cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
-      }
-      setVisitScheduleParams({
-        congregacaoId: cong?.id || selectedItem.congregacaoId || 'cong_temp',
-        congregacaoNome: cong?.nome || selectedItem.congregacao || 'Congregação',
-        periodo: selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita'
-      });
-      setShowVisitSchedule(true);
-      setModalMode(null);
+    if (!selectedItem) return;
+    let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+    if (!cong && selectedItem.congregacao) {
+      cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
     }
+    const safeCongId = cong?.id || selectedItem.congregacaoId || (selectedItem.id ? `item_${selectedItem.id}` : 'cong_temp');
+    const safeCongNome = cong?.nome || selectedItem.congregacao || selectedItem.evento || 'Congregação';
+    const safePeriodo = selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita';
+
+    const visitId = selectedItem.id ? String(selectedItem.id) : undefined;
+
+    setVisitScheduleParams({
+      congregacaoId: safeCongId,
+      congregacaoNome: safeCongNome,
+      periodo: safePeriodo,
+      visitId,
+    });
+    setShowVisitSchedule(true);
+    setModalMode(null);
   };
 
   const handleEditClick = () => {
@@ -1781,6 +1787,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         congregationId={visitScheduleParams.congregacaoId}
         congregationName={visitScheduleParams.congregacaoNome}
         visitPeriod={visitScheduleParams.periodo}
+        visitId={visitScheduleParams.visitId}
         onBack={() => setShowVisitSchedule(false)}
       />
     );

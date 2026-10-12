@@ -4,10 +4,23 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { VisitSchedule } from '@/types/visitSchedule';
+import { VisitSchedule, normalizeVisitSchedule } from '@/types/visitSchedule';
 import SemanaVisitaPrint from '@/components/visit/SemanaVisitaPrint';
 import SemanaVisitaForm from '@/components/visit/SemanaVisitaForm';
-import { Save, CheckCircle2, AlertCircle, Printer, ShieldCheck, Smartphone, FileText, Check } from 'lucide-react';
+import { 
+  Save, 
+  CheckCircle2, 
+  AlertCircle, 
+  Printer, 
+  ShieldCheck, 
+  Smartphone, 
+  FileText, 
+  Check,
+  Calendar,
+  Building2,
+  Users,
+  Clock
+} from 'lucide-react';
 
 export default function PublicVisitSchedulePage() {
   const params = useParams();
@@ -21,6 +34,31 @@ export default function PublicVisitSchedulePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'form' | 'print'>('form');
 
+  // Parâmetros legíveis na URL para identificação imediata
+  const [urlCongName, setUrlCongName] = useState<string>('');
+  const [urlPeriod, setUrlPeriod] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search);
+      const c = search.get('cong');
+      const p = search.get('periodo');
+      if (c) setUrlCongName(c);
+      if (p) setUrlPeriod(p);
+    }
+  }, []);
+
+  // Atualizar o título da aba do navegador para identificação clara da congregação e período
+  useEffect(() => {
+    const cong = schedule?.congregationName || urlCongName;
+    const period = schedule?.visitPeriod || urlPeriod;
+    if (cong) {
+      document.title = `Semana da Visita — Congregação ${cong}${period ? ` (${period})` : ''}`;
+    } else {
+      document.title = 'Semana da Visita com a Congregação';
+    }
+  }, [schedule, urlCongName, urlPeriod]);
+
   useEffect(() => {
     if (!token) return;
 
@@ -32,11 +70,11 @@ export default function PublicVisitSchedulePage() {
         const snap = await getDocs(q);
 
         if (snap.empty) {
-          setErrorMsg('Programação não encontrada ou o link informado é inválido.');
+          setErrorMsg('Programação não encontrada ou o link informado expirou/é inválido.');
         } else {
           const docFound = snap.docs[0];
           setDocId(docFound.id);
-          setSchedule(docFound.data() as VisitSchedule);
+          setSchedule(normalizeVisitSchedule(docFound.data() as VisitSchedule));
         }
       } catch (err: any) {
         console.error('Erro ao buscar programação pública:', err);
@@ -77,11 +115,23 @@ export default function PublicVisitSchedulePage() {
     }
   };
 
+  const displayCongName = schedule?.congregationName || urlCongName || 'Congregação';
+  const displayPeriod = schedule?.visitPeriod || urlPeriod || 'Semana da Visita';
+
   if (loading) {
     return (
       <div className="min-h-screen bg-surface-200 flex flex-col items-center justify-center p-6 space-y-4">
         <div className="w-10 h-10 border-4 border-primary-200 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-semibold text-typography-700">Carregando programação da congregação...</p>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-bold text-typography-900">
+            Carregando programação da visita...
+          </p>
+          {(urlCongName || urlPeriod) && (
+            <p className="text-xs text-typography-500 font-medium">
+              {urlCongName} {urlPeriod && `• ${urlPeriod}`}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -94,7 +144,18 @@ export default function PublicVisitSchedulePage() {
             <AlertCircle size={30} />
           </div>
           <h2 className="text-lg font-black text-typography-900">Link Não Encontrado</h2>
-          <p className="text-xs text-typography-600 leading-relaxed">{errorMsg}</p>
+          <p className="text-xs text-typography-600 leading-relaxed">
+            {errorMsg}
+          </p>
+          {urlCongName && (
+            <div className="bg-surface-200/60 p-3 rounded-xl border border-surface-300 text-xs text-typography-700">
+              Tentando acessar: <strong>Congregação {urlCongName}</strong>
+              {urlPeriod && <span> ({urlPeriod})</span>}
+            </div>
+          )}
+          <p className="text-[11px] text-typography-400">
+            Verifique se o superintendente de circuito gerou um novo link para esta visita e solicite o link atualizado.
+          </p>
         </div>
       </div>
     );
@@ -104,25 +165,40 @@ export default function PublicVisitSchedulePage() {
 
   return (
     <div className="min-h-screen bg-surface-200/60 pb-24 md:pb-12 pt-3 px-3 md:px-6">
-      {/* CABEÇALHO SUPERIOR FIXO / COMPACTO */}
-      <div className="max-w-2xl mx-auto bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-sm mb-4 print:hidden space-y-3">
+      {/* CABEÇALHO SUPERIOR DESTACADO E IDENTIFICÁVEL */}
+      <div className="max-w-2xl mx-auto bg-surface-100 border border-surface-300 rounded-2xl p-4 sm:p-5 shadow-sm mb-4 print:hidden space-y-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+        
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
+          <div className="space-y-1">
+            {/* Badges de Identificação Clara */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-primary-200/10 text-primary-200 border border-primary-200/20 px-2 py-0.5 rounded-md">
+              <span className="text-xs font-black uppercase tracking-wider bg-primary-200/10 text-primary-200 border border-primary-200/25 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                <Building2 size={13} />
                 Congregação {schedule.congregationName}
               </span>
-              <span className="text-xs text-typography-400">•</span>
-              <span className="text-xs font-semibold text-typography-500">
+              <span className="text-xs font-bold text-typography-600 bg-surface-200/80 px-2 py-0.5 rounded-lg border border-surface-300 flex items-center gap-1">
+                <Calendar size={12} className="text-primary-200" />
                 {schedule.visitPeriod}
               </span>
             </div>
-            <h1 className="text-base font-black text-typography-900 mt-1 tracking-tight">
-              Semana da Visita
-            </h1>
+
+            <div className="flex items-center gap-2 pt-0.5">
+              <h1 className="text-lg sm:text-xl font-black text-typography-900 tracking-tight">
+                Programação da Semana da Visita
+              </h1>
+            </div>
+
+            {schedule.coupleNames && (
+              <div className="text-xs text-typography-500 font-medium flex items-center gap-1.5">
+                <Users size={12} className="text-primary-200" />
+                <span>Superintendente de Circuito: <strong>{schedule.coupleNames}</strong></span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Botões de Ação Superiores */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleSave}
               disabled={saving}
@@ -146,7 +222,7 @@ export default function PublicVisitSchedulePage() {
         {/* FEEDBACK DE SALVAMENTO */}
         {savedSuccess && (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-            <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
             <span>
               <strong>Tudo certo!</strong> Informações salvas com sucesso. O viajante já pode visualizar os dados atualizados.
             </span>
@@ -179,6 +255,11 @@ export default function PublicVisitSchedulePage() {
               <FileText size={14} />
               Folha A4 Completa
             </button>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1 text-[11px] text-typography-400">
+            <ShieldCheck size={13} className="text-emerald-500" />
+            <span>Sincronização Segura</span>
           </div>
         </div>
       </div>
