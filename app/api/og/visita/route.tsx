@@ -16,8 +16,13 @@ export async function GET(request: NextRequest) {
       title: string;
       subtitle: string;
       bgGradient: string;
+      textColor: string;
+      subtitleColor: string;
       accentColor: string;
       badgeBg: string;
+      borderColor: string;
+      circleBg: string;
+      iconFill: string;
       iconPath: string;
     }
   > = {
@@ -26,8 +31,13 @@ export async function GET(request: NextRequest) {
       title: cong ? `Congregação ${cong}` : 'Programação da Visita',
       subtitle: periodo ? `Período: ${periodo}` : 'Preenchimento de Campo, Refeições e Pastoreio',
       bgGradient: 'linear-gradient(135deg, #2e1a47 0%, #4c2882 55%, #6d42be 100%)',
+      textColor: '#ffffff',
+      subtitleColor: 'rgba(255, 255, 255, 0.9)',
       accentColor: '#e9d5ff',
       badgeBg: 'rgba(255, 255, 255, 0.16)',
+      borderColor: 'rgba(255, 255, 255, 0.22)',
+      circleBg: 'rgba(255, 255, 255, 0.06)',
+      iconFill: '#ffffff',
       iconPath: 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z',
     },
     congregacao: {
@@ -35,8 +45,13 @@ export async function GET(request: NextRequest) {
       title: cong ? `Congregação ${cong}` : 'Mural da Semana da Visita',
       subtitle: periodo ? `Período: ${periodo}` : 'Saídas de Serviço de Campo e Reuniões',
       bgGradient: 'linear-gradient(135deg, #0f3d3b 0%, #176966 55%, #1d8a86 100%)',
+      textColor: '#ffffff',
+      subtitleColor: 'rgba(255, 255, 255, 0.9)',
       accentColor: '#99f6e4',
       badgeBg: 'rgba(255, 255, 255, 0.16)',
+      borderColor: 'rgba(255, 255, 255, 0.22)',
+      circleBg: 'rgba(255, 255, 255, 0.06)',
+      iconFill: '#ffffff',
       iconPath: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
     },
     esposa: {
@@ -45,9 +60,14 @@ export async function GET(request: NextRequest) {
       subtitle: periodo
         ? `Período: ${periodo}`
         : 'Atualizado automaticamente a cada semana • Campo, Estudos, Reuniões e Almoços',
-      bgGradient: 'linear-gradient(135deg, #1e293b 0%, #312e81 55%, #4f46e5 100%)',
-      accentColor: '#c7d2fe',
-      badgeBg: 'rgba(255, 255, 255, 0.14)',
+      bgGradient: 'linear-gradient(135deg, #fff1f2 0%, #fce7f3 55%, #fbcfe8 100%)',
+      textColor: '#831843',
+      subtitleColor: '#9d174d',
+      accentColor: '#be185d',
+      badgeBg: 'rgba(255, 255, 255, 0.78)',
+      borderColor: 'rgba(190, 24, 93, 0.2)',
+      circleBg: 'rgba(244, 114, 182, 0.14)',
+      iconFill: '#be185d',
       iconPath: 'M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z',
     },
   };
@@ -65,7 +85,7 @@ export async function GET(request: NextRequest) {
           justifyContent: 'space-between',
           background: cfg.bgGradient,
           padding: '60px 70px',
-          color: 'white',
+          color: cfg.textColor,
           fontFamily: 'sans-serif',
           position: 'relative',
         }}
@@ -79,7 +99,7 @@ export async function GET(request: NextRequest) {
             width: '420px',
             height: '420px',
             borderRadius: '210px',
-            background: 'rgba(255, 255, 255, 0.06)',
+            background: cfg.circleBg,
             display: 'flex',
           }}
         />
@@ -98,7 +118,7 @@ export async function GET(request: NextRequest) {
               display: 'flex',
               alignItems: 'center',
               background: cfg.badgeBg,
-              border: '1px solid rgba(255, 255, 255, 0.25)',
+              border: `1px solid ${cfg.borderColor}`,
               borderRadius: '999px',
               padding: '12px 26px',
               fontSize: '22px',
@@ -118,11 +138,11 @@ export async function GET(request: NextRequest) {
               width: '84px',
               height: '84px',
               borderRadius: '24px',
-              background: 'rgba(255, 255, 255, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
+              background: cfg.badgeBg,
+              border: `1px solid ${cfg.borderColor}`,
             }}
           >
-            <svg width="46" height="46" viewBox="0 0 24 24" fill="white">
+            <svg width="46" height="46" viewBox="0 0 24 24" fill={cfg.iconFill}>
               <path d={cfg.iconPath} />
             </svg>
           </div>
@@ -156,7 +176,7 @@ export async function GET(request: NextRequest) {
               fontSize: cong && cong.length > 22 ? '56px' : '68px',
               fontWeight: 900,
               lineHeight: 1.1,
-              color: '#ffffff',
+              color: cfg.textColor,
               display: 'flex',
             }}
           >
@@ -167,7 +187,7 @@ export async function GET(request: NextRequest) {
             style={{
               fontSize: '34px',
               fontWeight: 600,
-              color: 'rgba(255, 255, 255, 0.9)',
+              color: cfg.subtitleColor,
               marginTop: '6px',
               display: 'flex',
             }}
@@ -182,7 +202,7 @@ export async function GET(request: NextRequest) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+            borderTop: `1px solid ${cfg.borderColor}`,
             paddingTop: '28px',
             width: '100%',
           }}
@@ -194,7 +214,7 @@ export async function GET(request: NextRequest) {
               gap: '14px',
               fontSize: '24px',
               fontWeight: 700,
-              color: '#ffffff',
+              color: cfg.textColor,
             }}
           >
             <div
@@ -228,4 +248,3 @@ export async function GET(request: NextRequest) {
     }
   );
 }
-
