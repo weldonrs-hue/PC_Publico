@@ -11,6 +11,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Circle,
+  ClipboardList,
   Edit2,
   FileDown,
   FileText,
@@ -31,6 +32,7 @@ import ActivityAnalysisView from './ActivityAnalysisView';
 import AppointmentLetterView from './AppointmentLetterView';
 import S302NoticeView from './S302NoticeView';
 import S303ReportView from './S303ReportView';
+import EldersMeetingAgendaView from './visit/EldersMeetingAgendaView';
 import VisitScheduleManagerView from './visit/VisitScheduleManagerView';
 
 import { useDialog } from '@/hooks/useDialog';
@@ -572,6 +574,8 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
   const [showVisitSchedule, setShowVisitSchedule] = useState(false);
   const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string, visitId?: string} | null>(null);
+  const [showEldersAgenda, setShowEldersAgenda] = useState(false);
+  const [eldersAgendaParams, setEldersAgendaParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string, visitId?: string} | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'list'>(() => {
     if (typeof window !== 'undefined') {
       const savedMode = localStorage.getItem('progcir_itineraries_view_mode') as 'table' | 'list' | null;
@@ -1481,6 +1485,28 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
     setModalMode(null);
   };
 
+  const handleEldersAgendaClick = () => {
+    if (!selectedItem) return;
+    let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+    if (!cong && selectedItem.congregacao) {
+      cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
+    }
+    const safeCongId = cong?.id || selectedItem.congregacaoId || (selectedItem.id ? `item_${selectedItem.id}` : 'cong_temp');
+    const safeCongNome = cong?.nome || selectedItem.congregacao || selectedItem.evento || 'Congregação';
+    const safePeriodo = selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita';
+
+    const visitId = selectedItem.id ? String(selectedItem.id) : undefined;
+
+    setEldersAgendaParams({
+      congregacaoId: safeCongId,
+      congregacaoNome: safeCongNome,
+      periodo: safePeriodo,
+      visitId,
+    });
+    setShowEldersAgenda(true);
+    setModalMode(null);
+  };
+
   const handleEditClick = () => {
     if (selectedItem) {
       setIsAddingNew(false);
@@ -1789,6 +1815,19 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         visitPeriod={visitScheduleParams.periodo}
         visitId={visitScheduleParams.visitId}
         onBack={() => setShowVisitSchedule(false)}
+      />
+    );
+  }
+
+  if (showEldersAgenda && eldersAgendaParams) {
+    return (
+      <EldersMeetingAgendaView
+        userId={userId}
+        congregationId={eldersAgendaParams.congregacaoId}
+        congregationName={eldersAgendaParams.congregacaoNome}
+        visitPeriod={eldersAgendaParams.periodo}
+        visitId={eldersAgendaParams.visitId}
+        onBack={() => setShowEldersAgenda(false)}
       />
     );
   }
@@ -2518,6 +2557,20 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-sm text-typography-900">Programação de Atividades</div>
                             <div className="text-[11px] text-typography-500 truncate">Atividades da semana da visita e links de compartilhamento</div>
+                          </div>
+                        </button>
+
+                        <button 
+                          type="button"
+                          onClick={handleEldersAgendaClick}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all text-left group cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <ClipboardList size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">Pauta da Reunião de Anciãos</div>
+                            <div className="text-[11px] text-typography-500 truncate">Assuntos, referências e recomendações para o corpo</div>
                           </div>
                         </button>
 

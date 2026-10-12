@@ -66,6 +66,9 @@ service cloud.firestore {
     match /visit_schedules/{id} {
       allow read, write: if true;
     }
+    match /elders_meeting_agendas/{id} {
+      allow read, write: if true;
+    }
     match /planner_items/{id} {
       allow read, write: if true;
     }
