@@ -29,6 +29,12 @@ export type RecurrenceFrequency =
 
 export type RecurrenceUnit = 'days' | 'weeks' | 'months' | 'years';
 
+// Aliases for compatibility
+export type PriorityLevel = PlannerPriority;
+export type TaskStatus = PlannerStatus;
+export type RecurrenceFrequency = PlannerRecurrence;
+export type RecurrenceUnit = PlannerRecurrenceUnit;
+
 export interface PlannerItem {
   id: string;
   userId: string;

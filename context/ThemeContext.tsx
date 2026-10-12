@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
-export type ThemeType = '' | 'theme-teal' | 'theme-blue' | 'theme-dark'
+export type ThemeType = '' | 'theme-teal' | 'theme-blue' | 'theme-shafhy' | 'theme-dark'
 
 export interface ThemeOption {
   id: ThemeType
@@ -15,6 +15,7 @@ export const themes: ThemeOption[] = [
   { id: '', name: 'Roxo (Padrão)', color: '#6d42be', isDark: false },
   { id: 'theme-teal', name: 'Verde / Teal', color: '#178582', isDark: false },
   { id: 'theme-blue', name: 'Azul', color: '#3e6ba3', isDark: false },
+  { id: 'theme-shafhy', name: 'Grafite & Laranja', color: '#f97316', isDark: true },
   { id: 'theme-dark', name: 'Escuro', color: '#5d349e', isDark: true },
 ]
 
@@ -22,6 +23,7 @@ export const themeColorsMap: Record<ThemeType, string> = {
   '': '#6d42be',
   'theme-teal': '#178582',
   'theme-blue': '#3e6ba3',
+  'theme-shafhy': '#f97316',
   'theme-dark': '#5d349e',
 }
 
@@ -86,7 +88,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const isDark = theme === 'theme-dark'
+  const isDark = theme === 'theme-dark' || theme === 'theme-shafhy'
   const currentThemeOption = themes.find((t) => t.id === theme) || themes[0]
 
   return (

@@ -1,171 +1,167 @@
+export interface VisitScheduleDayMeal {
+  hostName?: string;
+  notes?: string;
+}
+
+export interface VisitScheduleFieldServiceMeeting {
+  time?: string;
+  location?: string;
+  leader?: string;
+  group?: string;
+}
+
 export interface FieldServiceRow {
-  id: string;
+  id?: string;
   day: string;
   time: string;
   location: string;
 }
 
-export interface StudyVisitRow {
-  id: string;
-  day: string;
-  time: string;
-  companionPhone: string;
-  lesson: string;
-}
-
 export interface MealRow {
-  id: string;
+  id?: string;
   day: string;
   host: string;
   addressPhone: string;
 }
 
 export interface ShepherdingRow {
-  id: string;
+  id?: string;
   dateTime: string;
   family: string;
   companion: string;
   situation: string;
 }
 
-export interface VisitPermissions {
-  allowMidweekMeetingTimeEdit: boolean;
-  allowWeekendMeetingTimeEdit: boolean;
-  allowFieldServiceEdit: boolean;
-  allowMealsEdit: boolean;
-  allowShepherdingEdit: boolean;
-  allowStudiesEdit: boolean;
-  allowAdditionalMeetingsEdit: boolean;
+export interface StudyVisitRow {
+  id?: string;
+  day: string;
+  time: string;
+  companionPhone: string;
+  lesson: string;
 }
 
+export interface VisitPermissions {
+  allowMidweekMeetingTimeEdit?: boolean;
+  allowWeekendMeetingTimeEdit?: boolean;
+  allowFieldServiceEdit?: boolean;
+  allowMealsEdit?: boolean;
+  allowShepherdingEdit?: boolean;
+  allowStudiesEdit?: boolean;
+  allowAdditionalMeetingsEdit?: boolean;
+}
 
 export interface VisitSchedule {
   id?: string;
-  userId: string;
-  congregationId: string;
+  userId?: string;
+  congregationId?: string;
   congregationName: string;
-  visitPeriod: string; // Ex: "14/10/2026 a 19/10/2026"
-  coupleNames: string; // Ex: "Marcelo e Aline"
-  
-  // Dias da visita
-  activeDays: {
-    ter: boolean;
-    qua: boolean;
-    qui: boolean;
-    sex: boolean;
-    sab: boolean;
-    dom: boolean;
-  };
-
-  // 1. Serviço de Campo
+  visitPeriod: string;
+  visitId?: string;
+  shareToken: string;
+  circuit?: string;
+  coupleNames?: string;
+  activeDays?: Record<string, boolean>;
+  permissions?: VisitPermissions;
   fieldService: FieldServiceRow[];
-
-  // 2. Estudos e Revisitas
   studiesAndVisits: {
-    husbandName: string;
+    husbandName?: string;
+    wifeName?: string;
     husbandRows: StudyVisitRow[];
-    wifeName: string;
     wifeRows: StudyVisitRow[];
+    [key: string]: any;
   };
-
-  // 3. Reuniões
   meetings: {
     midweek: {
-      time: string;
-      serviceTalkTheme: string;
-      serviceTalkSong: string;
-      finalPrayerBrother: string;
+      time?: string;
+      finalPrayerBrother?: string;
+      serviceTalkTheme?: string;
+      serviceTalkSong?: string;
+      [key: string]: any;
     };
     weekend: {
-      day: 'sabado' | 'domingo' | '';
-      time: string;
-      publicTalkTheme: string;
-      publicTalkSong: string;
-      finalTalkTheme: string;
-      finalTalkSong: string;
+      day?: 'sabado' | 'domingo' | string;
+      time?: string;
+      publicTalkTheme?: string;
+      publicTalkSong?: string;
+      finalTalkTheme?: string;
+      finalTalkSong?: string;
+      [key: string]: any;
     };
+    [key: string]: any;
   };
-
-  // 4. Reuniões Adicionais
   additionalMeetings: {
     pioneers: {
-      day: string;
-      time: string;
+      day?: string;
+      time?: string;
+      [key: string]: any;
     };
     eldersAndServants: {
-      day: string;
-      time: string;
+      day?: string;
+      time?: string;
+      [key: string]: any;
     };
+    [key: string]: any;
   };
-
-  // 5. Refeições
-  mealsHeaderTime: string; // Padrão: "(11:30)"
+  mealsHeaderTime?: string;
   meals: MealRow[];
-
-  // 6. Pastoreio
   shepherding: ShepherdingRow[];
-
-  // Controle de link e permissões
-  shareToken: string;
-  status: 'rascunho' | 'compartilhado' | 'preenchido' | 'finalizado';
-  permissions: VisitPermissions;
-  
-  createdAt: string;
-  updatedAt: string;
+  status?: 'rascunho' | 'preenchido' | 'confirmado';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export const DEFAULT_VISIT_PERMISSIONS: VisitPermissions = {
-  allowMidweekMeetingTimeEdit: true,
-  allowWeekendMeetingTimeEdit: true,
-  allowFieldServiceEdit: true,
-  allowMealsEdit: true,
-  allowShepherdingEdit: true,
-  allowStudiesEdit: true,
-  allowAdditionalMeetingsEdit: false,
-};
-
-
-export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'userId' | 'congregationId' | 'congregationName' | 'visitPeriod' | 'shareToken' | 'createdAt' | 'updatedAt'> = {
-  coupleNames: 'Marcelo e Aline',
+export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'congregationId' | 'congregationName' | 'visitPeriod' | 'shareToken' | 'createdAt' | 'updatedAt'> = {
+  circuit: '',
+  coupleNames: '',
   activeDays: {
-    ter: true,
-    qua: true,
-    qui: true,
-    sex: true,
-    sab: true,
-    dom: true,
+    terca: true,
+    quarta: true,
+    quinta: true,
+    sexta: true,
+    sabado: true,
+    domingo: true,
+  },
+  permissions: {
+    allowMidweekMeetingTimeEdit: true,
+    allowWeekendMeetingTimeEdit: true,
+    allowFieldServiceEdit: true,
+    allowMealsEdit: true,
+    allowShepherdingEdit: true,
+    allowStudiesEdit: true,
+    allowAdditionalMeetingsEdit: true,
   },
   fieldService: [
-    { id: '1', day: 'Quarta', time: '', location: '' },
-    { id: '2', day: 'Quarta', time: '', location: '' },
-    { id: '3', day: 'Quinta', time: '', location: '' },
-    { id: '4', day: 'Quinta', time: '', location: '' },
-    { id: '5', day: 'Sexta', time: '', location: '' },
-    { id: '6', day: 'Sábado', time: '', location: '' },
-    { id: '7', day: 'Domingo', time: '', location: '' },
+    { day: 'Terça-feira', time: '09:00', location: 'Salão do Reino' },
+    { day: 'Quarta-feira', time: '09:00', location: 'Salão do Reino' },
+    { day: 'Quinta-feira', time: '09:00', location: 'Salão do Reino' },
+    { day: 'Sexta-feira', time: '09:00', location: 'Salão do Reino' },
+    { day: 'Sábado', time: '09:00', location: 'Salão do Reino' },
+    { day: 'Domingo', time: '09:00', location: 'Salão do Reino' },
   ],
   studiesAndVisits: {
-    husbandName: 'MARCELO',
+    husbandName: '',
+    wifeName: '',
     husbandRows: [
-      { id: '1', day: 'Quarta', time: '', companionPhone: '', lesson: '' },
-      { id: '2', day: 'Quinta', time: '', companionPhone: '', lesson: '' },
+      { day: 'Quarta-feira', time: '', companionPhone: '', lesson: '' },
+      { day: 'Quinta-feira', time: '', companionPhone: '', lesson: '' },
+      { day: 'Sexta-feira', time: '', companionPhone: '', lesson: '' },
     ],
-    wifeName: 'ALINE',
     wifeRows: [
-      { id: '1', day: 'Quarta', time: '', companionPhone: '', lesson: '' },
-      { id: '2', day: 'Quinta', time: '', companionPhone: '', lesson: '' },
+      { day: 'Quarta-feira', time: '', companionPhone: '', lesson: '' },
+      { day: 'Quinta-feira', time: '', companionPhone: '', lesson: '' },
+      { day: 'Sexta-feira', time: '', companionPhone: '', lesson: '' },
     ],
   },
   meetings: {
     midweek: {
-      time: '',
+      time: '19:30',
+      finalPrayerBrother: '',
       serviceTalkTheme: '',
       serviceTalkSong: '',
-      finalPrayerBrother: '',
     },
     weekend: {
       day: 'domingo',
-      time: '',
+      time: '09:00',
       publicTalkTheme: '',
       publicTalkSong: '',
       finalTalkTheme: '',
@@ -173,22 +169,118 @@ export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'userId' | 'cong
     },
   },
   additionalMeetings: {
-    pioneers: { day: '', time: '' },
-    eldersAndServants: { day: '', time: '' },
+    pioneers: {
+      day: 'Sexta-feira',
+      time: '18:00',
+    },
+    eldersAndServants: {
+      day: 'Sábado',
+      time: '17:00',
+    },
   },
-  mealsHeaderTime: '(11:30)',
+  mealsHeaderTime: '12:00',
   meals: [
-    { id: '1', day: 'Terça', host: '', addressPhone: '' },
-    { id: '2', day: 'Quarta', host: '', addressPhone: '' },
-    { id: '3', day: 'Quinta', host: '', addressPhone: '' },
-    { id: '4', day: 'Sexta', host: '', addressPhone: '' },
-    { id: '5', day: 'Sábado', host: '', addressPhone: '' },
-    { id: '6', day: 'Domingo', host: '', addressPhone: '' },
+    { day: 'Terça-feira', host: '', addressPhone: '' },
+    { day: 'Quarta-feira', host: '', addressPhone: '' },
+    { day: 'Quinta-feira', host: '', addressPhone: '' },
+    { day: 'Sexta-feira', host: '', addressPhone: '' },
+    { day: 'Sábado', host: '', addressPhone: '' },
+    { day: 'Domingo', host: '', addressPhone: '' },
   ],
   shepherding: [
-    { id: '1', dateTime: '', family: '', companion: '', situation: '' },
-    { id: '2', dateTime: '', family: '', companion: '', situation: '' },
+    { dateTime: 'Terça 15:00', family: '', companion: '', situation: '' },
+    { dateTime: 'Quarta 15:00', family: '', companion: '', situation: '' },
+    { dateTime: 'Quinta 15:00', family: '', companion: '', situation: '' },
+    { dateTime: 'Sexta 15:00', family: '', companion: '', situation: '' },
+    { dateTime: 'Sábado 15:00', family: '', companion: '', situation: '' },
   ],
   status: 'rascunho',
-  permissions: DEFAULT_VISIT_PERMISSIONS,
 };
+
+export function generateShareToken(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const arr = new Uint8Array(12);
+    crypto.getRandomValues(arr);
+    let token = '';
+    for (let i = 0; i < arr.length; i++) {
+      token += chars[arr[i] % chars.length];
+    }
+    return token;
+  }
+  return Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
+}
+
+export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): VisitSchedule {
+  if (!raw) {
+    return {
+      ...INITIAL_VISIT_SCHEDULE,
+      congregationName: "",
+      visitPeriod: "Semana da Visita",
+      shareToken: generateShareToken(),
+      fieldService: [...INITIAL_VISIT_SCHEDULE.fieldService],
+      meals: [...INITIAL_VISIT_SCHEDULE.meals],
+      shepherding: [...INITIAL_VISIT_SCHEDULE.shepherding],
+      studiesAndVisits: {
+        ...INITIAL_VISIT_SCHEDULE.studiesAndVisits,
+        husbandRows: [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.husbandRows],
+        wifeRows: [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows],
+      },
+    };
+  }
+
+  return {
+    ...INITIAL_VISIT_SCHEDULE,
+    ...raw,
+    congregationName: raw.congregationName || "",
+    visitPeriod: raw.visitPeriod || "Semana da Visita",
+    shareToken: raw.shareToken || generateShareToken(),
+    activeDays: {
+      ...INITIAL_VISIT_SCHEDULE.activeDays,
+      ...(raw.activeDays || {}),
+    },
+    permissions: {
+      ...INITIAL_VISIT_SCHEDULE.permissions,
+      ...(raw.permissions || {}),
+    },
+    fieldService: Array.isArray(raw.fieldService) ? raw.fieldService : [...INITIAL_VISIT_SCHEDULE.fieldService],
+    meals: Array.isArray(raw.meals) ? raw.meals : [...INITIAL_VISIT_SCHEDULE.meals],
+    shepherding: Array.isArray(raw.shepherding) ? raw.shepherding : [...INITIAL_VISIT_SCHEDULE.shepherding],
+    studiesAndVisits: {
+      ...INITIAL_VISIT_SCHEDULE.studiesAndVisits,
+      ...(raw.studiesAndVisits || {}),
+      husbandName: raw.studiesAndVisits?.husbandName || "",
+      wifeName: raw.studiesAndVisits?.wifeName || "",
+      husbandRows: Array.isArray(raw.studiesAndVisits?.husbandRows)
+        ? raw.studiesAndVisits.husbandRows
+        : [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.husbandRows],
+      wifeRows: Array.isArray(raw.studiesAndVisits?.wifeRows)
+        ? raw.studiesAndVisits.wifeRows
+        : [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows],
+    },
+    meetings: {
+      ...INITIAL_VISIT_SCHEDULE.meetings,
+      ...(raw.meetings || {}),
+      midweek: {
+        ...INITIAL_VISIT_SCHEDULE.meetings.midweek,
+        ...(raw.meetings?.midweek || {}),
+      },
+      weekend: {
+        ...INITIAL_VISIT_SCHEDULE.meetings.weekend,
+        ...(raw.meetings?.weekend || {}),
+      },
+    },
+    additionalMeetings: {
+      ...INITIAL_VISIT_SCHEDULE.additionalMeetings,
+      ...(raw.additionalMeetings || {}),
+      pioneers: {
+        ...INITIAL_VISIT_SCHEDULE.additionalMeetings.pioneers,
+        ...(raw.additionalMeetings?.pioneers || {}),
+      },
+      eldersAndServants: {
+        ...INITIAL_VISIT_SCHEDULE.additionalMeetings.eldersAndServants,
+        ...(raw.additionalMeetings?.eldersAndServants || {}),
+      },
+    },
+  };
+}

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Users, ChevronLeft, Calendar, Clock, BookOpen, Music, Info, User, 
   Save, AlertTriangle, Loader2, Printer, MapPin, CalendarDays, ChevronDown, 
-  ChevronUp, CheckCircle2, Circle, Coffee, FileText, RefreshCw, Plus, 
+  ChevronUp, CheckCircle2, Circle, Coffee, FileText, RefreshCw, Plus, Minus,
   ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Edit3, X, Check, FileDown, Layers, LayoutGrid, LayoutList, Table as TableIcon
 } from 'lucide-react';
 import CustomSelect from '@/components/CustomSelect';
@@ -284,12 +284,79 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   const [availableYears, setAvailableYears] = useState<string[]>(['2026-2027']);
   const [selectedPart, setSelectedPart] = useState<number>(0);
   const [dynamicProgram, setDynamicProgram] = useState<PioneerProgram | null>(null);
-  const [viewMode, setViewMode] = useState<'responsive' | 'a4'>('responsive');
+  const [viewMode, setViewMode] = useState<'responsive' | 'a4'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_pioneer_meeting_view_mode') as 'responsive' | 'a4' | null;
+      if (saved === 'responsive' || saved === 'a4') return saved;
+      return window.innerWidth < 1024 ? 'responsive' : 'a4';
+    }
+    return 'a4';
+  });
 
-  // Zoom & Viewport controller state
-  const [zoom, setZoom] = useState<number>(80);
+  // Zoom & Viewport controller state (Padrão S-303)
+  const [autoFit, setAutoFit] = useState<boolean>(true);
+  const [showZoomMenu, setShowZoomMenu] = useState<boolean>(false);
+  const [zoom, setZoom] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 1024;
+      const approxWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+      const approxAvailable = Math.max(240, approxWidth - 32);
+      return Math.max(35, Math.round((approxAvailable / 793.7) * 100));
+    }
+    return 85;
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  const ZOOM_STEPS = [35, 50, 65, 75, 85, 100, 115, 125, 150, 175, 200];
+
+  const calculateAutoFitZoom = () => {
+    let containerWidth = containerRef.current?.clientWidth || 0;
+    if (!containerWidth && typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 1024;
+      containerWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+    }
+    const availableWidth = Math.max(240, containerWidth - 32);
+    const a4WidthPx = 793.7;
+    const calculated = Math.round((availableWidth / a4WidthPx) * 100);
+    return Math.max(35, calculated);
+  };
+
+  const handleZoomIn = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const next = ZOOM_STEPS.find(s => s > prev + 4);
+      return next ? next : Math.min(200, prev + 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleZoomOut = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const prevStep = [...ZOOM_STEPS].reverse().find(s => s < prev - 4);
+      return prevStep ? prevStep : Math.max(35, prev - 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleSetZoom = (newZoom: number) => {
+    setAutoFit(false);
+    setZoom(newZoom);
+    setShowZoomMenu(false);
+  };
+
+  const handleToggleAutoFit = () => {
+    if (autoFit) {
+      setAutoFit(false);
+      setZoom(100);
+    } else {
+      setAutoFit(true);
+      const fitZoom = calculateAutoFitZoom();
+      setZoom(fitZoom);
+    }
+    setShowZoomMenu(false);
+  };
 
   const staticProgram = STATIC_PROGRAMS[selectedYear] || STATIC_PROGRAMS['2026-2027'];
   
@@ -471,14 +538,35 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
     };
   }, [zoom]);
 
-  const handleFitToScreen = () => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.clientWidth - 48;
-      const a4WidthPx = 793.7;
-      const targetZoom = Math.round((containerWidth / a4WidthPx) * 100);
-      setZoom(Math.min(125, Math.max(40, targetZoom)));
-    }
-  };
+  // Observer de auto-ajuste ao redimensionar a tela
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      if (autoFit && viewMode === 'a4') {
+        const fitZoom = calculateAutoFitZoom();
+        setZoom(fitZoom);
+      }
+    };
+
+    const observer = new ResizeObserver(handleResize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    handleResize();
+    const rafId = requestAnimationFrame(handleResize);
+    const timer50 = setTimeout(handleResize, 50);
+    const timer150 = setTimeout(handleResize, 150);
+    const timer300 = setTimeout(handleResize, 300);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(rafId);
+      clearTimeout(timer50);
+      clearTimeout(timer150);
+      clearTimeout(timer300);
+    };
+  }, [autoFit, viewMode]);
 
   // Load Firestore data
   useEffect(() => {
@@ -1306,7 +1394,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
   }
 
   return (
-    <div id="pioneer-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
+    <div id="pioneer-meeting-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0 w-full max-w-full min-w-0 overflow-x-hidden">
       <style jsx global>{`
         @media screen {
           .print-only {
@@ -1448,9 +1536,9 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       `}</style>
 
       {/* Screen Header & Top Controls (no-print) */}
-      <div className="space-y-3 no-print">
+      <div className="space-y-3 no-print w-full max-w-full min-w-0">
         {/* Top bar: Back, Title, Mode Switch & Action Bar */}
-        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden">
+        <div className="flex items-center justify-between gap-3 bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs flex-wrap relative overflow-hidden w-full max-w-full min-w-0">
           <div 
             className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
             style={{ backgroundImage: 'linear-gradient(to right, #8B5CF6, #7C3AED, transparent)' }}
@@ -1596,62 +1684,6 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           </div>
         </div>
 
-        {/* Zoom Toolbar (apenas visível em Modo A4) */}
-        {viewMode === 'a4' && (
-          <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
-            <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
-              {/* Zoom Out */}
-              <button
-                onClick={() => setZoom(prev => Math.max(35, prev - 10))}
-                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-                title="Reduzir zoom (-10%)"
-                aria-label="Reduzir zoom"
-              >
-                <ZoomOut size={16} />
-              </button>
-
-              {/* Direct Zoom Presets */}
-              <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
-                {[60, 80, 100, 125].map(preset => (
-                  <button
-                    key={preset}
-                    onClick={() => setZoom(preset)}
-                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                      zoom === preset ? 'bg-primary-200 text-white shadow-xs' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {preset}%
-                  </button>
-                ))}
-              </div>
-
-              {/* Zoom In */}
-              <button
-                onClick={() => setZoom(prev => Math.min(200, prev + 10))}
-                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-                title="Aumentar zoom (+10%)"
-                aria-label="Aumentar zoom"
-              >
-                <ZoomIn size={16} />
-              </button>
-
-              {/* Fit to screen */}
-              <button
-                onClick={handleFitToScreen}
-                className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                title="Ajustar documento à largura da tela"
-              >
-                <Maximize2 size={13} />
-                <span className="hidden sm:inline">Ajustar</span>
-              </button>
-
-              {/* Current Zoom Level */}
-              <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
-                {zoom}%
-              </span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* MODO DE VISUALIZAÇÃO RESPONSIVO (CARDS MODERNOS SEM SCROLL LATERAL) */}
@@ -2081,7 +2113,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       {/* A4 Document Viewport Container */}
       <div 
         ref={containerRef}
-        className={`pioneer-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80 ${
+        className={`pioneer-viewport w-full max-w-full min-w-0 overflow-x-auto overflow-y-auto bg-slate-200/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex-col gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80 ${
           viewMode === 'a4' ? 'flex' : 'hidden print:flex'
         }`}
         style={{
@@ -2089,6 +2121,7 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
           touchAction: 'pan-x pan-y',
         }}
       >
+        <div className="min-w-full w-max flex flex-col items-center gap-8 mx-auto">
         {/* Render A4 Page */}
         {pioneerProgram.sessions.map((session, pageIdx) => {
           const pageNum = pageIdx + 1;
@@ -2524,7 +2557,136 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
             </div>
           );
         })}
+        </div>
       </div>
+
+      {/* Barra Flutuante Suspensa - Estilo Leitor de PDF integrada ao Tema (Padrão S-303) */}
+      {viewMode === 'a4' && (
+        <div className="fixed bottom-4 sm:bottom-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none print:hidden">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pointer-events-auto bg-surface-100/95 dark:bg-surface-800/95 backdrop-blur-xl text-typography-800 dark:text-typography-100 border border-surface-300 dark:border-surface-600 shadow-2xl rounded-full px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1 sm:gap-2 transition-all hover:shadow-primary-200/10"
+          >
+            {/* Indicador de Documento / Página */}
+            <div className="flex items-center gap-1.5 px-2 py-1 text-typography-600 dark:text-typography-300 text-xs font-medium select-none">
+              <FileText size={14} className="text-primary-200" />
+              <span className="hidden sm:inline font-semibold">Folha A4</span>
+              <span className="text-[11px] text-typography-500 font-mono">1/{pioneerProgram.sessions?.length || 1}</span>
+            </div>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Zoom Out (-) */}
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= 35}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Diminuir Zoom (-)"
+            >
+              <Minus size={15} />
+            </button>
+
+            {/* Seletor / Indicador de Porcentagem de Zoom */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowZoomMenu(!showZoomMenu)}
+                className="px-2 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 rounded-lg text-xs font-bold font-mono text-typography-800 dark:text-typography-100 transition-all flex items-center gap-1 cursor-pointer"
+                title="Opções de visualização de Zoom"
+              >
+                <span className="min-w-[40px] text-center">{Math.round(zoom)}%</span>
+                <ChevronDown size={12} className="text-typography-500" />
+              </button>
+
+              {showZoomMenu && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface-100 dark:bg-surface-800 backdrop-blur-xl border border-surface-300 dark:border-surface-600 rounded-2xl shadow-2xl py-1.5 min-w-[200px] z-40 divide-y divide-surface-200 dark:divide-surface-700 text-xs text-typography-800 dark:text-typography-100">
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-typography-500">
+                    Nível de Zoom
+                  </div>
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={handleToggleAutoFit}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        autoFit ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Maximize2 size={13} className={autoFit ? 'text-primary-200' : 'text-typography-500'} />
+                        Ajustar à Tela (Automático)
+                      </span>
+                      {autoFit && <Check size={13} className="text-primary-200" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetZoom(100)}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        !autoFit && Math.round(zoom) === 100 ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span>100% (Tamanho Real)</span>
+                      {!autoFit && Math.round(zoom) === 100 && <Check size={13} className="text-primary-200" />}
+                    </button>
+                  </div>
+                  <div className="py-1">
+                    {[50, 65, 75, 85, 125, 150].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => handleSetZoom(s)}
+                        className={`w-full text-left px-3 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                          !autoFit && Math.round(zoom) === s ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-300'
+                        }`}
+                      >
+                        <span>{s}%</span>
+                        {!autoFit && Math.round(zoom) === s && <Check size={13} className="text-primary-200" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botão Zoom In (+) */}
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= 200}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Aumentar Zoom (+)"
+            >
+              <Plus size={15} />
+            </button>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Ajustar à Tela (Alterna entre Automático ou Não) */}
+            <button
+              type="button"
+              onClick={handleToggleAutoFit}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                autoFit 
+                  ? 'bg-primary-200 hover:bg-primary-150 text-white shadow-primary-200/30' 
+                  : 'bg-surface-200 hover:bg-surface-300 dark:bg-surface-700 dark:hover:bg-surface-600 text-typography-700 dark:text-typography-200'
+              }`}
+              title={autoFit ? 'Ajuste à tela está ATIVO (automático). Clique para tamanho real (100%)' : 'Clique para ajustar automaticamente à tela'}
+            >
+              {autoFit ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              <span className="hidden sm:inline">
+                {autoFit ? 'Ajustado' : 'Ajustar à tela'}
+              </span>
+              <span className="sm:hidden">
+                {autoFit ? 'Auto' : 'Ajustar'}
+              </span>
+              {autoFit && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              )}
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       {/* MODAL: EDITAR DADOS DO EVENTO */}
       <AnimatePresence>
