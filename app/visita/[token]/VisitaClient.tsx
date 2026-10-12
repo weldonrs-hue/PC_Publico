@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -8,6 +8,7 @@ import { VisitSchedule, normalizeVisitSchedule } from '@/types/visitSchedule';
 import SemanaVisitaPrint from '@/components/visit/SemanaVisitaPrint';
 import SemanaVisitaForm from '@/components/visit/SemanaVisitaForm';
 import ThemeSwitcher from '@/components/ui/theme-switcher';
+import { AnimatePresence, motion } from 'motion/react';
 import { 
   Save, 
   CheckCircle2, 
@@ -19,6 +20,7 @@ import {
   Calendar,
   Building2,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function PublicVisitScheduleClient() {
@@ -26,12 +28,29 @@ export default function PublicVisitScheduleClient() {
   const token = params?.token as string;
 
   const [schedule, setSchedule] = useState<VisitSchedule | null>(null);
+  const [savedScheduleSnapshot, setSavedScheduleSnapshot] = useState<VisitSchedule | null>(null);
   const [docId, setDocId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'form' | 'print'>('form');
+
+  const serializeSchedule = (s: VisitSchedule | null) => {
+    if (!s) return '';
+    const { updatedAt, ...rest } = s;
+    return JSON.stringify(rest);
+  };
+
+  const hasChanges = useMemo(
+    () =>
+      Boolean(
+        schedule &&
+          savedScheduleSnapshot &&
+          serializeSchedule(schedule) !== serializeSchedule(savedScheduleSnapshot)
+      ),
+    [schedule, savedScheduleSnapshot]
+  );
 
   // Parâmetros legíveis na URL para identificação imediata
   const [urlCongName, setUrlCongName] = useState<string>('');
@@ -80,7 +99,9 @@ export default function PublicVisitScheduleClient() {
           });
           const docFound = sortedDocs[0];
           setDocId(docFound.id);
-          setSchedule(normalizeVisitSchedule(docFound.data() as VisitSchedule));
+          const loaded = normalizeVisitSchedule(docFound.data() as VisitSchedule);
+          setSchedule(loaded);
+          setSavedScheduleSnapshot(JSON.parse(JSON.stringify(loaded)));
         }
       } catch (err: any) {
         console.error('Erro ao buscar programação pública:', err);
@@ -100,6 +121,11 @@ export default function PublicVisitScheduleClient() {
     setErrorMsg(null);
     try {
       const docRef = doc(db, 'visit_schedules', docId);
+      const updatedSchedule: VisitSchedule = {
+        ...schedule,
+        status: 'preenchido',
+        updatedAt: new Date().toISOString(),
+      };
       await updateDoc(docRef, {
         fieldService: schedule.fieldService,
         studiesAndVisits: schedule.studiesAndVisits,
@@ -109,8 +135,10 @@ export default function PublicVisitScheduleClient() {
         meals: schedule.meals,
         shepherding: schedule.shepherding,
         status: 'preenchido',
-        updatedAt: new Date().toISOString(),
+        updatedAt: updatedSchedule.updatedAt,
       });
+      setSchedule(updatedSchedule);
+      setSavedScheduleSnapshot(JSON.parse(JSON.stringify(updatedSchedule)));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 5000);
     } catch (err: any) {
@@ -298,21 +326,65 @@ export default function PublicVisitScheduleClient() {
         />
       </div>
 
-      {/* BOTÃO FLUTUANTE DE SALVAR SUSPENSO (MÓVEL E DESKTOP) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2.5 bg-primary-200 hover:bg-primary-300 text-white px-6 py-3.5 rounded-full font-black text-xs sm:text-sm shadow-xl border-2 border-white/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
-        >
-          {saving ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Save size={18} />
-          )}
-          <span>{saving ? 'Salvando...' : 'Salvar Alterações'}</span>
-        </button>
-      </div>
+      {/* BARRA FLUTUANTE SUSPENSA PARA SALVAR (quando houver alterações não salvas) */}
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md print:hidden"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-typography-900 truncate">
+                  Alterações não salvas
+                </span>
+                <span className="text-[10px] text-typography-400 font-mono truncate hidden sm:inline">
+                  {schedule.congregationName || 'Semana da Visita'}
+                  {schedule.visitPeriod ? ` • ${schedule.visitPeriod}` : ''}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (savedScheduleSnapshot) {
+                    setSchedule(JSON.parse(JSON.stringify(savedScheduleSnapshot)));
+                  }
+                }}
+                disabled={saving}
+                className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Descartar
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                {saving ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin shrink-0" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={13} className="shrink-0" />
+                    <span>Salvar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

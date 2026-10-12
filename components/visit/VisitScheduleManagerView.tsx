@@ -59,11 +59,28 @@ export default function VisitScheduleManagerView({
   onBack,
 }: VisitScheduleManagerViewProps) {
   const [schedule, setSchedule] = useState<VisitSchedule | null>(null);
+  const [savedScheduleSnapshot, setSavedScheduleSnapshot] = useState<VisitSchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'form' | 'preview' | 'permissions'>('form');
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
+
+  const serializeSchedule = (s: VisitSchedule | null) => {
+    if (!s) return '';
+    const { updatedAt, ...rest } = s;
+    return JSON.stringify(rest);
+  };
+
+  const hasChanges = useMemo(
+    () =>
+      Boolean(
+        schedule &&
+          savedScheduleSnapshot &&
+          serializeSchedule(schedule) !== serializeSchedule(savedScheduleSnapshot)
+      ),
+    [schedule, savedScheduleSnapshot]
+  );
 
   // Estados para replicação de dados entre semanas
   const [isReplicateModalOpen, setIsReplicateModalOpen] = useState(false);
@@ -122,6 +139,7 @@ export default function VisitScheduleManagerView({
         updatedAt: new Date().toISOString(),
       };
       await setDoc(docRef, dataToSave, { merge: true });
+      setSavedScheduleSnapshot(JSON.parse(JSON.stringify(dataToSave)));
       if (!silent) {
         setFeedbackMsg({ type: 'success', text: 'Programação salva com sucesso!' });
         setTimeout(() => setFeedbackMsg(null), 3000);
@@ -202,6 +220,7 @@ export default function VisitScheduleManagerView({
 
     // Redefinir estados locais ao trocar de congregação/visita para garantir isolamento e unicidade total
     setSchedule(null);
+    setSavedScheduleSnapshot(null);
     setLoading(true);
     setCopied(false);
     setFeedbackMsg(null);
@@ -217,6 +236,7 @@ export default function VisitScheduleManagerView({
           // Documento já existe com token persistido
           const loadedData = normalizeVisitSchedule(primarySnap.data() as VisitSchedule);
           setSchedule(loadedData);
+          setSavedScheduleSnapshot(JSON.parse(JSON.stringify(loadedData)));
         } else {
           // Documento ainda não existe no Firestore
           // Verificar compatibilidade retroativa com chave antiga legada (visit_${userId}_${congregationId})
@@ -255,6 +275,7 @@ export default function VisitScheduleManagerView({
           await setDoc(primaryDocRef, newSchedule, { merge: true });
           if (!isCancelled) {
             setSchedule(newSchedule);
+            setSavedScheduleSnapshot(JSON.parse(JSON.stringify(newSchedule)));
           }
         }
 
@@ -264,7 +285,9 @@ export default function VisitScheduleManagerView({
         // Assinar atualizações em tempo real para sincronização com preenchimentos dos anciãos
         unsubscribe = onSnapshot(primaryDocRef, (snap) => {
           if (snap.exists() && !isCancelled) {
-            setSchedule(normalizeVisitSchedule(snap.data() as VisitSchedule));
+            const incoming = normalizeVisitSchedule(snap.data() as VisitSchedule);
+            setSchedule(incoming);
+            setSavedScheduleSnapshot(JSON.parse(JSON.stringify(incoming)));
           }
         }, (error) => {
           console.error("Erro no listener em tempo real da visita:", error);
@@ -288,6 +311,7 @@ export default function VisitScheduleManagerView({
             updatedAt: new Date().toISOString(),
           });
           setSchedule(fallbackSchedule);
+          setSavedScheduleSnapshot(JSON.parse(JSON.stringify(fallbackSchedule)));
           setFeedbackMsg({ type: 'error', text: 'Não foi possível inicializar a persistência. Verifique a conexão.' });
           setLoading(false);
         }
@@ -948,35 +972,65 @@ export default function VisitScheduleManagerView({
         />
       </div>
 
-      {/* BARRA FLUTUANTE SUSPENSA PARA SALVAR (DESKTOP E MOBILE) */}
-      <div className="fixed bottom-4 sm:bottom-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none print:hidden">
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="pointer-events-auto bg-surface-100/95 dark:bg-surface-800/95 backdrop-blur-xl text-typography-800 dark:text-typography-100 border border-surface-300 dark:border-surface-600 shadow-2xl rounded-2xl sm:rounded-full px-3.5 sm:px-4 py-2 flex items-center gap-2.5 sm:gap-3 transition-all hover:shadow-primary-200/20"
-        >
-          <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-typography-600 dark:text-typography-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="truncate max-w-[140px]">{schedule.congregationName || 'Semana da Visita'}</span>
-          </div>
-
-          <div className="hidden sm:block w-px h-4 bg-surface-300 dark:bg-surface-600" />
-
-          <button
-            type="button"
-            onClick={() => handleSave()}
-            disabled={saving}
-            className="flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white py-2 px-5 rounded-xl sm:rounded-full font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+      {/* BARRA FLUTUANTE SUSPENSA PARA SALVAR (quando houver alterações não salvas) */}
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md print:hidden"
           >
-            {saving ? (
-              <RefreshCw size={15} className="animate-spin" />
-            ) : (
-              <Save size={15} />
-            )}
-            <span>{saving ? 'Salvando alterações...' : 'Salvar Alterações'}</span>
-          </button>
-        </motion.div>
-      </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-typography-900 truncate">
+                  Alterações não salvas
+                </span>
+                <span className="text-[10px] text-typography-400 font-mono truncate hidden sm:inline">
+                  {schedule.congregationName || 'Semana da Visita'}
+                  {schedule.visitPeriod ? ` • ${schedule.visitPeriod}` : ''}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (savedScheduleSnapshot) {
+                    setSchedule(JSON.parse(JSON.stringify(savedScheduleSnapshot)));
+                  }
+                }}
+                disabled={saving}
+                className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Descartar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSave()}
+                disabled={saving}
+                className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                {saving ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin shrink-0" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={13} className="shrink-0" />
+                    <span>Salvar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL DE REPLICAÇÃO DE DADOS ENTRE SEMANAS */}
       <AnimatePresence>
