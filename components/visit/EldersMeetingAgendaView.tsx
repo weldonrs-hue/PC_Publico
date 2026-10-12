@@ -32,9 +32,7 @@ import {
   Clock,
   Copy,
   Eye,
-  FileText,
   HelpCircle,
-  Lock,
   Plus,
   Printer,
   Quote,
@@ -46,8 +44,7 @@ import {
   Sparkles,
   Trash2,
   UserCheck,
-  Users,
-  X,
+  X
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
@@ -491,7 +488,6 @@ export default function EldersMeetingAgendaView({
           >
             {/* Topo sutil e cabeçalho clean */}
             <div className="agenda-header">
-              <div className="agenda-header-eyebrow">REUNIÃO TRIMESTRAL / VISITA DO SUPERINTENDENTE DE CIRCUITO</div>
               <h1 className="agenda-header-title">PAUTA DA REUNIÃO DO CORPO DE ANCIÃOS</h1>
             </div>
 
@@ -1403,7 +1399,7 @@ export default function EldersMeetingAgendaView({
           left: -10000px;
           top: 0;
           width: 1px;
-          height: 268mm;
+          height: 252mm;
           visibility: hidden;
           pointer-events: none;
         }
@@ -1424,26 +1420,42 @@ export default function EldersMeetingAgendaView({
             margin: 12mm 14mm;
           }
 
+          html,
           body {
             background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
 
+          body > *:not(.agenda-offscreen-print-container) {
+            display: none !important;
+          }
+
           .agenda-offscreen-print-container {
+            display: block !important;
             position: static !important;
             left: auto !important;
             top: auto !important;
             width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             visibility: visible !important;
             pointer-events: auto !important;
             z-index: auto !important;
           }
 
+          .agenda-a4-print-root {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
           .agenda-a4-print-root .agenda-a4-page {
             width: 100% !important;
             min-width: 0 !important;
-            min-height: calc(var(--agenda-pages, 1) * 268mm) !important;
+            min-height: calc(var(--agenda-pages, 1) * 252mm) !important;
             padding: 0 !important;
             margin: 0 !important;
             border: none !important;
@@ -1451,13 +1463,14 @@ export default function EldersMeetingAgendaView({
             border-radius: 0 !important;
             display: flex !important;
             flex-direction: column !important;
+            box-sizing: border-box !important;
           }
         }
       `}</style>
 
       {/* BARRA SUPERIOR DE AÇÕES */}
       <div className="bg-surface-100 border border-surface-300 rounded-3xl p-4 md:p-5 shadow-sm space-y-4 print:hidden relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-primary-200 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-300 pb-4">
           <div className="flex items-center gap-3">
@@ -1473,12 +1486,12 @@ export default function EldersMeetingAgendaView({
                 <h1 className="text-xl sm:text-2xl font-black text-typography-900 tracking-tight">
                   {agenda.congregationName}
                 </h1>
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-primary-200/10 text-primary-200 border border-primary-200/20 whitespace-nowrap">
                   Pauta da Reunião de Anciãos
                 </span>
               </div>
               <div className="flex items-center gap-1.5 mt-0.5 text-xs text-typography-500 font-medium">
-                <Calendar size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <Calendar size={13} className="text-primary-200 shrink-0" />
                 <span>{agenda.visitPeriod || 'Semana da Visita'}</span>
               </div>
             </div>
@@ -1492,7 +1505,7 @@ export default function EldersMeetingAgendaView({
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-surface-200 hover:bg-surface-300 border border-surface-300 text-typography-800 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-colors whitespace-nowrap cursor-pointer shadow-2xs"
               title="Copiar assuntos e referências de outra semana"
             >
-              <Copy size={15} className="text-indigo-600 dark:text-indigo-400" />
+              <Copy size={15} className="text-primary-200" />
               <span>Replicar de outra semana</span>
             </button>
 
@@ -2150,9 +2163,15 @@ export default function EldersMeetingAgendaView({
         )}
       </div>
 
-      {/* RÉGUA DE ALTURA DE PÁGINA A4 E COMPONENTE EXCLUSIVO PARA IMPRESSÃO / PDF */}
+      {/* RÉGUA DE ALTURA DE PÁGINA A4 E PORTAL EXCLUSIVO PARA IMPRESSÃO / PDF */}
       <div ref={pageRulerRef} className="agenda-page-ruler" aria-hidden="true" />
-      <div className="agenda-offscreen-print-container">{renderA4Sheet(true)}</div>
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div className="agenda-offscreen-print-container">
+            {renderA4Sheet(true)}
+          </div>,
+          document.body
+        )}
 
       {/* BARRA FLUTUANTE DE ALTERAÇÕES NÃO SALVAS */}
       {typeof document !== 'undefined' &&
@@ -2233,7 +2252,7 @@ export default function EldersMeetingAgendaView({
             >
               <div className="p-4 sm:p-5 border-b border-surface-300 flex items-center justify-between sticky top-0 bg-surface-100/95 backdrop-blur-xs z-10">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                  <div className="p-2 rounded-xl bg-primary-200/10 text-primary-200">
                     <Copy size={18} />
                   </div>
                   <div>
