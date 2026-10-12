@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { VisitSchedule, normalizeVisitSchedule } from '@/types/visitSchedule';
 import SemanaVisitaPrint from '@/components/visit/SemanaVisitaPrint';
 import ThemeSwitcher from '@/components/ui/theme-switcher';
@@ -19,13 +19,100 @@ import {
   FileText,
   Smartphone,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
 } from 'lucide-react';
+
+type WeekStatus = 'atual' | 'proxima' | 'anterior' | 'indefinida';
+
+function parseVisitPeriodRange(
+  periodStr?: string
+): { start: Date; end: Date; rawStart: Date } | null {
+  if (!periodStr) return null;
+  const currentYear = new Date().getFullYear();
+
+  const brMatches = [...periodStr.matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g)];
+  if (brMatches.length >= 1) {
+    const first = brMatches[0];
+    const second = brMatches.length >= 2 ? brMatches[1] : brMatches[0];
+
+    const normalizeYear = (y?: string) => {
+      if (!y) return null;
+      const num = parseInt(y, 10);
+      return num < 100 ? 2000 + num : num;
+    };
+
+    const y2 = normalizeYear(second[3]) ?? normalizeYear(first[3]) ?? currentYear;
+    const y1 = normalizeYear(first[3]) ?? y2;
+
+    const d1 = parseInt(first[1], 10);
+    const m1 = parseInt(first[2], 10) - 1;
+    const d2 = parseInt(second[1], 10);
+    const m2 = parseInt(second[2], 10) - 1;
+
+    const rawStart = new Date(y1, m1, d1, 0, 0, 0, 0);
+    const start = new Date(rawStart);
+    // Se a visita começa na terça-feira, já considera a partir da segunda-feira como "Semana Atual"
+    if (start.getDay() === 2) {
+      start.setDate(start.getDate() - 1);
+    }
+    const end = new Date(y2, m2, d2, 23, 59, 59, 999);
+    if (!isNaN(rawStart.getTime()) && !isNaN(end.getTime())) {
+      return { start, end, rawStart };
+    }
+  }
+
+  const isoMatches = [...periodStr.matchAll(/(\d{4})-(\d{2})-(\d{2})/g)];
+  if (isoMatches.length >= 1) {
+    const first = isoMatches[0];
+    const second = isoMatches.length >= 2 ? isoMatches[1] : isoMatches[0];
+    const rawStart = new Date(
+      parseInt(first[1], 10),
+      parseInt(first[2], 10) - 1,
+      parseInt(first[3], 10),
+      0,
+      0,
+      0,
+      0
+    );
+    const start = new Date(rawStart);
+    if (start.getDay() === 2) {
+      start.setDate(start.getDate() - 1);
+    }
+    const end = new Date(
+      parseInt(second[1], 10),
+      parseInt(second[2], 10) - 1,
+      parseInt(second[3], 10),
+      23,
+      59,
+      59,
+      999
+    );
+    if (!isNaN(rawStart.getTime()) && !isNaN(end.getTime())) {
+      return { start, end, rawStart };
+    }
+  }
+
+  return null;
+}
+
+function getScheduleWeekStatus(s: VisitSchedule, now: Date = new Date()): WeekStatus {
+  const range = parseVisitPeriodRange(s.visitPeriod);
+  if (!range) return 'indefinida';
+  if (now >= range.start && now <= range.end) return 'atual';
+  if (range.start > now) return 'proxima';
+  return 'anterior';
+}
 
 export default function EsposasVisitaClient() {
   const params = useParams();
-  const token = params?.token as string;
+  const rawToken = (params?.token as string) || '';
+  const token = decodeURIComponent(rawToken);
+  const isPermanentLink = token.startsWith('fixo_');
 
-  const [schedule, setSchedule] = useState<VisitSchedule | null>(null);
+  const [allSchedules, setAllSchedules] = useState<VisitSchedule[]>([]);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'form' | 'print'>('form');
@@ -44,47 +131,186 @@ export default function EsposasVisitaClient() {
     }
   }, []);
 
+  const schedule = useMemo(() => {
+    if (!allSchedules.length) return null;
+    return allSchedules.find((s) => s.id === selectedScheduleId) || allSchedules[0];
+  }, [allSchedules, selectedScheduleId]);
+
   useEffect(() => {
     const cong = schedule?.congregationName || urlCongName;
     const period = schedule?.visitPeriod || urlPeriod;
     if (cong) {
       document.title = `Programação da Visita — Esposas — Congregação ${cong}${period ? ` (${period})` : ''}`;
     } else {
-      document.title = 'Programação da Semana da Visita — Esposas';
+      document.title = 'Programação Semanal da Visita — Esposas';
     }
   }, [schedule, urlCongName, urlPeriod]);
 
   useEffect(() => {
     if (!token) return;
+    let unsubscribe: (() => void) | undefined;
+    let isCancelled = false;
 
-    const fetchSchedule = async () => {
+    const processDocsAndSelect = (docsData: VisitSchedule[]) => {
+      // Deduplicar por congregação + período mantendo sempre a versão mais recentemente atualizada
+      const dedupMap = new Map<string, VisitSchedule>();
+      docsData.forEach((item) => {
+        const key = `${(item.congregationId || item.congregationName || '').trim().toLowerCase()}__${(item.visitPeriod || '').trim().toLowerCase()}`;
+        const existing = dedupMap.get(key);
+        if (!existing) {
+          dedupMap.set(key, item);
+        } else {
+          const tNew = new Date(item.updatedAt || item.createdAt || 0).getTime();
+          const tOld = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+          if (tNew >= tOld) {
+            dedupMap.set(key, item);
+          }
+        }
+      });
+
+      const uniqueList = Array.from(dedupMap.values());
+
+      // Ordenar cronologicamente pela data de início da visita (ou updatedAt quando não houver data)
+      uniqueList.sort((a, b) => {
+        const rA = parseVisitPeriodRange(a.visitPeriod);
+        const rB = parseVisitPeriodRange(b.visitPeriod);
+        if (rA && rB) {
+          return rA.rawStart.getTime() - rB.rawStart.getTime();
+        }
+        if (rA && !rB) return -1;
+        if (!rA && rB) return 1;
+        const dA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const dB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return dA - dB;
+      });
+
+      setAllSchedules(uniqueList);
+
+      // Definir a semana selecionada automaticamente apenas se ainda não houver uma escolha válida
+      setSelectedScheduleId((prevId) => {
+        if (prevId && uniqueList.some((s) => s.id === prevId)) {
+          return prevId;
+        }
+
+        // Se abriu por um link específico daquela semana (retrocompatibilidade), seleciona ela primeiro
+        if (!isPermanentLink) {
+          const byToken = uniqueList.find((s) => s.shareToken === token);
+          if (byToken?.id) return byToken.id;
+        }
+
+        const now = new Date();
+        // 1. Prioridade máxima: Visita da Semana Atual
+        const currentWeeks = uniqueList.filter((s) => getScheduleWeekStatus(s, now) === 'atual');
+        if (currentWeeks.length > 0) {
+          currentWeeks.sort(
+            (a, b) =>
+              new Date(b.updatedAt || b.createdAt || 0).getTime() -
+              new Date(a.updatedAt || a.createdAt || 0).getTime()
+          );
+          return currentWeeks[0].id || '';
+        }
+
+        // 2. Segunda prioridade: Próxima visita mais próxima (ex.: abrindo no domingo à noite ou segunda-feira)
+        const upcomingWeeks = uniqueList.filter((s) => getScheduleWeekStatus(s, now) === 'proxima');
+        if (upcomingWeeks.length > 0) {
+          return upcomingWeeks[0].id || '';
+        }
+
+        // 3. Fallback: A visita atualizada mais recentemente pelo viajante
+        const byRecent = [...uniqueList].sort(
+          (a, b) =>
+            new Date(b.updatedAt || b.createdAt || 0).getTime() -
+            new Date(a.updatedAt || a.createdAt || 0).getTime()
+        );
+        return byRecent[0]?.id || '';
+      });
+    };
+
+    const initFetch = async () => {
       setLoading(true);
       setErrorMsg(null);
       try {
-        const q = query(collection(db, 'visit_schedules'), where('shareToken', '==', token));
-        const snap = await getDocs(q);
+        let targetUserId = '';
 
-        if (snap.empty) {
-          setErrorMsg('Programação não encontrada ou o link informado é inválido.');
+        if (isPermanentLink) {
+          targetUserId = token.slice(5).trim();
         } else {
-          const sortedDocs = [...snap.docs].sort((a, b) => {
-            const dateA = new Date(a.data().updatedAt || a.data().createdAt || 0).getTime();
-            const dateB = new Date(b.data().updatedAt || b.data().createdAt || 0).getTime();
-            return dateB - dateA;
-          });
-          const docFound = sortedDocs[0];
-          setSchedule(normalizeVisitSchedule(docFound.data() as VisitSchedule));
+          // Link específico por shareToken: descobre o userId da programação para habilitar também o seletor de semanas
+          const qToken = query(collection(db, 'visit_schedules'), where('shareToken', '==', token));
+          const snapToken = await getDocs(qToken);
+          if (snapToken.empty) {
+            if (!isCancelled) {
+              setErrorMsg('Programação não encontrada ou o link informado é inválido.');
+              setLoading(false);
+            }
+            return;
+          }
+          const firstDoc = snapToken.docs[0].data() as VisitSchedule;
+          targetUserId = firstDoc.userId || '';
+
+          if (!targetUserId) {
+            const list = snapToken.docs.map((d) =>
+              normalizeVisitSchedule({ ...(d.data() as VisitSchedule), id: d.id })
+            );
+            if (!isCancelled) {
+              processDocsAndSelect(list);
+              setLoading(false);
+            }
+            return;
+          }
         }
+
+        const qUser = query(collection(db, 'visit_schedules'), where('userId', '==', targetUserId));
+        unsubscribe = onSnapshot(
+          qUser,
+          (snap) => {
+            if (isCancelled) return;
+            if (snap.empty) {
+              setErrorMsg('Nenhuma programação de visita foi encontrada para este link ainda.');
+              setLoading(false);
+              return;
+            }
+            const list = snap.docs.map((d) =>
+              normalizeVisitSchedule({ ...(d.data() as VisitSchedule), id: d.id })
+            );
+            processDocsAndSelect(list);
+            setLoading(false);
+          },
+          (err) => {
+            console.error('Erro ao sincronizar programações das esposas:', err);
+            if (!isCancelled) {
+              setErrorMsg('Erro de conexão ao buscar a programação. Tente recarregar a página.');
+              setLoading(false);
+            }
+          }
+        );
       } catch (err: any) {
         console.error('Erro ao buscar programação para esposas:', err);
-        setErrorMsg('Erro de conexão ao buscar a programação. Tente recarregar a página.');
-      } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setErrorMsg('Erro de conexão ao buscar a programação. Tente recarregar a página.');
+          setLoading(false);
+        }
       }
     };
 
-    fetchSchedule();
-  }, [token]);
+    initFetch();
+
+    return () => {
+      isCancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [token, isPermanentLink]);
+
+  const currentIndex = useMemo(() => {
+    if (!schedule || !allSchedules.length) return -1;
+    return allSchedules.findIndex((s) => s.id === schedule.id);
+  }, [allSchedules, schedule]);
+
+  const currentWeekScheduleId = useMemo(() => {
+    const now = new Date();
+    const found = allSchedules.find((s) => getScheduleWeekStatus(s, now) === 'atual');
+    return found?.id || '';
+  }, [allSchedules]);
 
   if (loading) {
     return (
@@ -120,10 +346,12 @@ export default function EsposasVisitaClient() {
 
   if (!schedule) return null;
 
+  const activeStatus = getScheduleWeekStatus(schedule);
+
   return (
     <div className="min-h-screen bg-surface-200/60 text-typography-900 pb-20 pt-3 px-3 md:px-6 print:bg-white print:p-0">
       {/* CABEÇALHO SUPERIOR CLEAN E PADRONIZADO COM FAIXA GRADIENTE */}
-      <div className="max-w-2xl mx-auto bg-surface-100 border border-surface-300 rounded-2xl p-4 sm:p-5 shadow-xs mb-4 print:hidden space-y-4 relative">
+      <div className="max-w-2xl mx-auto bg-surface-100 border border-surface-300 rounded-2xl p-4 sm:p-5 shadow-xs mb-4 print:hidden space-y-3.5 relative">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent rounded-t-2xl" />
 
         <div className="flex items-start justify-between gap-3">
@@ -137,6 +365,22 @@ export default function EsposasVisitaClient() {
                 <Calendar size={12} className="text-primary-200" />
                 {schedule.visitPeriod}
               </span>
+              {activeStatus === 'atual' && (
+                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Semana Atual
+                </span>
+              )}
+              {activeStatus === 'proxima' && (
+                <span className="text-[10px] font-black uppercase tracking-wider bg-blue-500/15 text-blue-700 border border-blue-500/30 px-2 py-0.5 rounded-full">
+                  Próxima Semana
+                </span>
+              )}
+              {activeStatus === 'anterior' && (
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-surface-200 text-typography-500 border border-surface-300 px-2 py-0.5 rounded-full">
+                  Semana Anterior
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 pt-0.5">
@@ -167,6 +411,74 @@ export default function EsposasVisitaClient() {
             <ThemeSwitcher />
           </div>
         </div>
+
+        {/* SELETOR DE SEMANA INTELIGENTE (PERMITE ALTERNAR ENTRE SEMANA ATUAL, PRÓXIMA E ANTERIORES) */}
+        {allSchedules.length > 1 && (
+          <div className="bg-surface-200/70 border border-surface-300 rounded-xl p-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentIndex > 0) {
+                    setSelectedScheduleId(allSchedules[currentIndex - 1].id || '');
+                  }
+                }}
+                disabled={currentIndex <= 0}
+                className="p-1.5 rounded-lg bg-surface-100 border border-surface-300 text-typography-700 hover:bg-surface-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+                title="Semana anterior"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <select
+                value={schedule.id || ''}
+                onChange={(e) => setSelectedScheduleId(e.target.value)}
+                className="flex-1 min-w-0 bg-surface-100 border border-surface-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-typography-900 focus:outline-none focus:border-primary-200 truncate cursor-pointer"
+                aria-label="Selecionar semana da visita"
+              >
+                {allSchedules.map((item) => {
+                  const st = getScheduleWeekStatus(item);
+                  const prefix =
+                    st === 'atual'
+                      ? '🟢 [Semana Atual] '
+                      : st === 'proxima'
+                      ? '🔵 [Próxima] '
+                      : '⚪ ';
+                  return (
+                    <option key={item.id} value={item.id}>
+                      {prefix}Congregação {item.congregationName} ({item.visitPeriod})
+                    </option>
+                  );
+                })}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentIndex >= 0 && currentIndex < allSchedules.length - 1) {
+                    setSelectedScheduleId(allSchedules[currentIndex + 1].id || '');
+                  }
+                }}
+                disabled={currentIndex < 0 || currentIndex >= allSchedules.length - 1}
+                className="p-1.5 rounded-lg bg-surface-100 border border-surface-300 text-typography-700 hover:bg-surface-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+                title="Próxima semana"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {currentWeekScheduleId && schedule.id !== currentWeekScheduleId && (
+              <button
+                type="button"
+                onClick={() => setSelectedScheduleId(currentWeekScheduleId)}
+                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary-200/10 hover:bg-primary-200/20 text-primary-200 border border-primary-200/25 text-[11px] font-bold transition-colors whitespace-nowrap cursor-pointer shrink-0"
+              >
+                <Sparkles size={12} />
+                Ir para Semana Atual
+              </button>
+            )}
+          </div>
+        )}
 
         {/* SELETOR DE MODO PADRONIZADO: FORMULÁRIO (CELULAR) VS FOLHA A4 COMPLETA */}
         <div className="flex items-center justify-between border-t border-surface-300 pt-2.5 gap-2">

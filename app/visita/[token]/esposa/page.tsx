@@ -19,11 +19,11 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
   const title = cong
     ? `Programação das Esposas — Congregação ${cong}${periodo ? ` (${periodo})` : ''}`
-    : 'Programação da Visita — Esposas';
+    : 'Programação Semanal da Visita — Link Único das Esposas';
 
   const description = cong
     ? `Confira a programação de campo, refeições, estudos bíblicos e reuniões da visita à Congregação ${cong}${periodo ? ` (${periodo})` : ''}.`
-    : 'Confira a programação de campo, refeições, estudos bíblicos e reuniões da Semana da Visita.';
+    : 'Link fixo atualizado automaticamente a cada semana com saídas de campo, estudos bíblicos, reuniões e almoços da visita.';
 
   const ogParams = new URLSearchParams({ tipo: 'esposa' });
   if (cong) ogParams.set('cong', cong);

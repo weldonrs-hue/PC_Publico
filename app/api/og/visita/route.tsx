@@ -40,9 +40,11 @@ export async function GET(request: NextRequest) {
       iconPath: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
     },
     esposa: {
-      badge: 'PROGRAMAÇÃO DA VISITA • ESPOSAS',
-      title: cong ? `Congregação ${cong}` : 'Programação da Semana da Visita',
-      subtitle: periodo ? `Período: ${periodo}` : 'Campo, Estudos Bíblicos, Reuniões e Almoços',
+      badge: cong ? 'PROGRAMAÇÃO DA VISITA • ESPOSAS' : 'LINK ÚNICO PERMANENTE • ESPOSAS',
+      title: cong ? `Congregação ${cong}` : 'Programação Semanal da Visita',
+      subtitle: periodo
+        ? `Período: ${periodo}`
+        : 'Atualizado automaticamente a cada semana • Campo, Estudos, Reuniões e Almoços',
       bgGradient: 'linear-gradient(135deg, #4a154b 0%, #831843 55%, #be185d 100%)',
       accentColor: '#fbcfe8',
       badgeBg: 'rgba(255, 255, 255, 0.16)',

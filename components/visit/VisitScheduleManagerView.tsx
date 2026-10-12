@@ -98,7 +98,12 @@ export default function VisitScheduleManagerView({
 
   const friendlyPublicUrl = getShareUrl('');
   const friendlyCongregacaoUrl = getShareUrl('/congregacao');
-  const friendlyEsposasUrl = getShareUrl('/esposa');
+  // Link único e permanente da esposa: vinculado ao viajante (userId), não muda a cada congregação/semana!
+  const permanentWifeToken = `fixo_${encodeURIComponent(userId || safeUserId)}`;
+  const friendlyEsposasUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/visita/${permanentWifeToken}/esposa`
+      : '';
 
   const [copiedType, setCopiedType] = useState<'anciaos' | 'congregacao' | 'esposas' | null>(null);
 
@@ -137,7 +142,10 @@ export default function VisitScheduleManagerView({
     setCopiedType(type);
     setFeedbackMsg({
       type: 'success',
-      text: `Dados salvos e link para ${label} copiado! (${schedule?.congregationName} • ${schedule?.visitPeriod})`,
+      text:
+        type === 'esposas'
+          ? 'Dados salvos e Link Único Permanente das Esposas copiado!'
+          : `Dados salvos e link para ${label} copiado! (${schedule?.congregationName} • ${schedule?.visitPeriod})`,
     });
     setTimeout(() => setCopiedType(null), 2500);
     setTimeout(() => setFeedbackMsg(null), 3500);
@@ -179,12 +187,11 @@ export default function VisitScheduleManagerView({
     if (!friendlyEsposasUrl || !schedule) return;
     await handleSave(undefined, true);
     const msg = encodeURIComponent(
-      `🌸 *Programação da Semana da Visita — Congregação ${schedule.congregationName}*\n` +
-      `🗓️ *Período:* ${schedule.visitPeriod}\n\n` +
+      `🌸 *Programação Semanal da Visita — Link Único Permanente*\n\n` +
       `Queridas irmãs,\n\n` +
-      `Segue a programação da semana da visita com horários de campo, estudos bíblicos, reuniões e almoços:\n\n` +
+      `Segue o nosso *link fixo* da programação da visita (saídas de campo, estudos bíblicos, reuniões e almoços):\n\n` +
       `👉 ${friendlyEsposasUrl}\n\n` +
-      `_Tenham uma excelente semana edificante!_`
+      `_Você pode salvar ou fixar este link! Ele abre automaticamente na visita da semana atual e também permite consultar a próxima semana ou semanas anteriores._`
     );
     window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
   };
@@ -682,18 +689,23 @@ export default function VisitScheduleManagerView({
             </div>
           </div>
 
-          {/* 3. Link para as Esposas (Sem Pastoreio) */}
+          {/* 3. Link Único Permanente para as Esposas (Sem Pastoreio) */}
           <div className="bg-pink-500/5 border border-pink-500/20 rounded-2xl p-4 flex flex-col justify-between gap-3">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-pink-500" />
-                <h3 className="text-xs font-black uppercase tracking-wide text-pink-700 flex items-center gap-1.5">
-                  <Share2 size={14} />
-                  3. Programação para Esposas
-                </h3>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-pink-500" />
+                  <h3 className="text-xs font-black uppercase tracking-wide text-pink-700 flex items-center gap-1.5">
+                    <Share2 size={14} />
+                    3. Link Único das Esposas
+                  </h3>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-700 border border-pink-500/25">
+                  Link Fixo
+                </span>
               </div>
               <p className="text-xs text-typography-600 leading-snug">
-                Visão completa com estudos do casal, refeições e reuniões, mas <strong>sem</strong> os dados de pastoreio.
+                <strong>Não muda nunca!</strong> Abre automaticamente na visita da semana atual e permite ver a próxima semana ou anteriores (sem pastoreio).
               </p>
               {friendlyEsposasUrl && (
                 <div className="text-[10px] text-typography-500 font-mono truncate bg-surface-100 p-1.5 rounded-lg border border-surface-300">
