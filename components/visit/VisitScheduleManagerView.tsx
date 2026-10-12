@@ -37,7 +37,8 @@ import {
   X
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import SemanaVisitaForm from './SemanaVisitaForm';
 import SemanaVisitaPrint from './SemanaVisitaPrint';
 
@@ -60,6 +61,8 @@ export default function VisitScheduleManagerView({
 }: VisitScheduleManagerViewProps) {
   const [schedule, setSchedule] = useState<VisitSchedule | null>(null);
   const [savedScheduleSnapshot, setSavedScheduleSnapshot] = useState<VisitSchedule | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const isDirtyRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -72,14 +75,21 @@ export default function VisitScheduleManagerView({
     return JSON.stringify(rest);
   };
 
+  const handleScheduleChange = (updated: VisitSchedule) => {
+    setSchedule(updated);
+    setIsDirty(true);
+    isDirtyRef.current = true;
+  };
+
   const hasChanges = useMemo(
     () =>
+      isDirty ||
       Boolean(
         schedule &&
           savedScheduleSnapshot &&
           serializeSchedule(schedule) !== serializeSchedule(savedScheduleSnapshot)
       ),
-    [schedule, savedScheduleSnapshot]
+    [isDirty, schedule, savedScheduleSnapshot]
   );
 
   // Estados para replicação de dados entre semanas
@@ -140,6 +150,8 @@ export default function VisitScheduleManagerView({
       };
       await setDoc(docRef, dataToSave, { merge: true });
       setSavedScheduleSnapshot(JSON.parse(JSON.stringify(dataToSave)));
+      setIsDirty(false);
+      isDirtyRef.current = false;
       if (!silent) {
         setFeedbackMsg({ type: 'success', text: 'Programação salva com sucesso!' });
         setTimeout(() => setFeedbackMsg(null), 3000);
@@ -221,6 +233,8 @@ export default function VisitScheduleManagerView({
     // Redefinir estados locais ao trocar de congregação/visita para garantir isolamento e unicidade total
     setSchedule(null);
     setSavedScheduleSnapshot(null);
+    setIsDirty(false);
+    isDirtyRef.current = false;
     setLoading(true);
     setCopied(false);
     setFeedbackMsg(null);
@@ -284,7 +298,7 @@ export default function VisitScheduleManagerView({
 
         // Assinar atualizações em tempo real para sincronização com preenchimentos dos anciãos
         unsubscribe = onSnapshot(primaryDocRef, (snap) => {
-          if (snap.exists() && !isCancelled) {
+          if (snap.exists() && !isCancelled && !isDirtyRef.current) {
             const incoming = normalizeVisitSchedule(snap.data() as VisitSchedule);
             setSchedule(incoming);
             setSavedScheduleSnapshot(JSON.parse(JSON.stringify(incoming)));
@@ -852,7 +866,7 @@ export default function VisitScheduleManagerView({
 
             <SemanaVisitaForm
               data={schedule}
-              onChange={(updated) => setSchedule(updated)}
+              onChange={handleScheduleChange}
               elderMode={false}
             />
           </div>
@@ -867,7 +881,7 @@ export default function VisitScheduleManagerView({
             <div className="overflow-x-auto pb-6">
               <SemanaVisitaPrint
                 data={schedule}
-                onChange={(updated) => setSchedule(updated)}
+                onChange={handleScheduleChange}
                 isReadOnly={false}
                 elderMode={false}
               />
@@ -935,8 +949,7 @@ export default function VisitScheduleManagerView({
                           [item.key]: !isAllowed,
                         },
                       };
-                      setSchedule(updated);
-                      handleSave(updated);
+                      handleScheduleChange(updated);
                     }}
                     className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-3.5 ${
                       isAllowed
@@ -973,64 +986,72 @@ export default function VisitScheduleManagerView({
       </div>
 
       {/* BARRA FLUTUANTE SUSPENSA PARA SALVAR (quando houver alterações não salvas) */}
-      <AnimatePresence>
-        {hasChanges && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 30 }}
-            className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[1002] bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-[calc(100vw-1.5rem)] max-w-md print:hidden"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-              </span>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-typography-900 truncate">
-                  Alterações não salvas
-                </span>
-                <span className="text-[10px] text-typography-400 font-mono truncate hidden sm:inline">
-                  {schedule.congregationName || 'Semana da Visita'}
-                  {schedule.visitPeriod ? ` • ${schedule.visitPeriod}` : ''}
-                </span>
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {hasChanges && (
+              <div className="fixed bottom-4 sm:bottom-6 left-0 right-0 z-[9999] flex justify-center px-3 pointer-events-none print:hidden">
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 30 }}
+                  className="pointer-events-auto bg-surface-100/95 dark:bg-surface-200/95 text-typography-900 backdrop-blur-md px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl flex items-center justify-between gap-2.5 sm:gap-4 border border-surface-300 w-full max-w-md"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-typography-900 truncate">
+                        Alterações não salvas
+                      </span>
+                      <span className="text-[10px] text-typography-400 font-mono truncate hidden sm:inline">
+                        {schedule.congregationName || 'Semana da Visita'}
+                        {schedule.visitPeriod ? ` • ${schedule.visitPeriod}` : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (savedScheduleSnapshot) {
+                          setSchedule(JSON.parse(JSON.stringify(savedScheduleSnapshot)));
+                        }
+                        setIsDirty(false);
+                        isDirtyRef.current = false;
+                      }}
+                      disabled={saving}
+                      className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      Descartar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSave()}
+                      disabled={saving}
+                      className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {saving ? (
+                        <>
+                          <RefreshCw size={13} className="animate-spin shrink-0" />
+                          <span>Salvando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save size={13} className="shrink-0" />
+                          <span>Salvar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  if (savedScheduleSnapshot) {
-                    setSchedule(JSON.parse(JSON.stringify(savedScheduleSnapshot)));
-                  }
-                }}
-                disabled={saving}
-                className="px-2.5 py-1.5 text-xs font-semibold text-typography-500 hover:text-typography-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Descartar
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                disabled={saving}
-                className="px-3 sm:px-3.5 py-1.5 bg-primary-200 hover:bg-primary-150 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap"
-              >
-                {saving ? (
-                  <>
-                    <RefreshCw size={13} className="animate-spin shrink-0" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={13} className="shrink-0" />
-                    <span>Salvar</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
 
       {/* MODAL DE REPLICAÇÃO DE DADOS ENTRE SEMANAS */}
       <AnimatePresence>
