@@ -164,6 +164,7 @@ export default function VisitScheduleManagerView({
       `Olá, irmãos da comissão de serviço!\n\n` +
       `Segue o link para preenchimento da programação de atividades da congregação (saídas de campo, refeições e pastoreios):\n\n` +
       `👉 ${friendlyPublicUrl}\n\n` +
+      `🔒 *Atenção (Uso Confidencial):* Este link contém informações restritas e permissões de edição exclusivas para os anciãos. Por favor, *não compartilhe este link com outros irmãos* (para a congregação, utilize apenas o link do Mural Público).\n\n` +
       `_Basta abrir pelo celular ou computador. As informações são sincronizadas automaticamente com o viajante._`
     );
     window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');

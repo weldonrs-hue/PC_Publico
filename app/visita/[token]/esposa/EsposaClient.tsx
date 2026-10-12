@@ -7,6 +7,7 @@ import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestor
 import { VisitSchedule, normalizeVisitSchedule } from '@/types/visitSchedule';
 import SemanaVisitaPrint from '@/components/visit/SemanaVisitaPrint';
 import ThemeSwitcher from '@/components/ui/theme-switcher';
+import CustomSelect, { CustomSelectOption } from '@/components/CustomSelect';
 import {
   Calendar,
   Building2,
@@ -430,27 +431,29 @@ export default function EsposasVisitaClient() {
                 <ChevronLeft size={16} />
               </button>
 
-              <select
+              <CustomSelect
                 value={schedule.id || ''}
-                onChange={(e) => setSelectedScheduleId(e.target.value)}
-                className="flex-1 min-w-0 bg-surface-100 border border-surface-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-typography-900 focus:outline-none focus:border-primary-200 truncate cursor-pointer"
-                aria-label="Selecionar semana da visita"
-              >
-                {allSchedules.map((item) => {
+                onChange={(val) => setSelectedScheduleId(val)}
+                className="flex-1 min-w-0"
+                dropdownClassName="w-full max-w-[360px]"
+                size="sm"
+                options={allSchedules.map((item): CustomSelectOption => {
                   const st = getScheduleWeekStatus(item);
-                  const prefix =
-                    st === 'atual'
-                      ? '🟢 [Semana Atual] '
-                      : st === 'proxima'
-                      ? '🔵 [Próxima] '
-                      : '⚪ ';
-                  return (
-                    <option key={item.id} value={item.id}>
-                      {prefix}Congregação {item.congregationName} ({item.visitPeriod})
-                    </option>
-                  );
+                  return {
+                    value: item.id || '',
+                    label: `Congregação ${item.congregationName} (${item.visitPeriod})`,
+                    description: item.coupleNames ? `Casal: ${item.coupleNames}` : undefined,
+                    badge:
+                      st === 'atual'
+                        ? 'Semana Atual'
+                        : st === 'proxima'
+                        ? 'Próxima'
+                        : st === 'anterior'
+                        ? 'Anterior'
+                        : undefined,
+                  };
                 })}
-              </select>
+              />
 
               <button
                 type="button"
