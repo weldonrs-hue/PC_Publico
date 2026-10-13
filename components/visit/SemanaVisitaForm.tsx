@@ -663,13 +663,13 @@ export default function SemanaVisitaForm({
                     />
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="sm:col-span-2 space-y-1">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
-                      Situação / Motivo
+                      Situação / Motivo da Visita
                     </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Encorajamento, luto..."
+                    <textarea
+                      rows={2}
+                      placeholder="Ex: Encorajamento, problema de saúde, luto..."
                       value={row.situation}
                       disabled={!canEdit('shepherding')}
                       onChange={(e) =>
@@ -679,7 +679,7 @@ export default function SemanaVisitaForm({
                           return { ...prev, shepherding: updated };
                         })
                       }
-                      className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
+                      className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all disabled:opacity-60 resize-y"
                     />
                   </div>
                 </div>
@@ -824,13 +824,13 @@ export default function SemanaVisitaForm({
                             />
                           </div>
 
-                          <div className="space-y-1">
+                          <div className="sm:col-span-2 space-y-1">
                             <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
-                              Situação / Motivo
+                              Situação / Motivo da Visita
                             </label>
-                            <input
-                              type="text"
-                              placeholder="Ex: Encorajamento, luto..."
+                            <textarea
+                              rows={2}
+                              placeholder="Ex: Encorajamento, problema de saúde, luto..."
                               value={row.situation}
                               disabled={!canEdit('shepherding')}
                               onChange={(e) =>
@@ -845,7 +845,7 @@ export default function SemanaVisitaForm({
                                   };
                                 })
                               }
-                              className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all disabled:opacity-60"
+                              className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all disabled:opacity-60 resize-y"
                             />
                           </div>
                         </div>
@@ -1807,7 +1807,7 @@ export default function SemanaVisitaForm({
                       Possui visitas de pastoreio designadas para o irmão?
                     </label>
                     <p className="text-[11px] text-typography-500 mt-0.5 ml-6">
-                      Se marcado, gerará a seção de pastoreio na página dele (Página 3).
+                      Se marcado, gerará uma página exclusiva de Pastoreio e Pauta para o acompanhante.
                     </p>
                   </div>
                 </div>
@@ -1840,7 +1840,7 @@ export default function SemanaVisitaForm({
                             </button>
                           )}
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <input
                             type="text"
                             placeholder="Dia e Horário"
@@ -1898,9 +1898,9 @@ export default function SemanaVisitaForm({
                             }
                             className="text-xs p-1.5 bg-surface-200/50 border border-surface-300 rounded-md outline-none"
                           />
-                          <input
-                            type="text"
-                            placeholder="Situação / Motivo"
+                          <textarea
+                            rows={2}
+                            placeholder="Situação / Motivo da Visita"
                             value={row.situation}
                             disabled={!canEdit('shepherding')}
                             onChange={(e) =>
@@ -1915,7 +1915,7 @@ export default function SemanaVisitaForm({
                                 };
                               })
                             }
-                            className="text-xs p-1.5 bg-surface-200/50 border border-surface-300 rounded-md outline-none"
+                            className="sm:col-span-3 text-xs p-1.5 bg-surface-200/50 border border-surface-300 rounded-md outline-none resize-y"
                           />
                         </div>
                       </div>
@@ -1984,7 +1984,7 @@ export default function SemanaVisitaForm({
                       O irmão acompanhante é casado? (Acompanhado pela esposa)
                     </label>
                     <p className="text-[11px] text-typography-500 mt-0.5 ml-6">
-                      Se marcado, gerará uma página exclusiva para ela (Página 4) sem informações de pastoreio.
+                      Se marcado, incluirá os estudos da esposa na folha de programação geral do acompanhante.
                     </p>
                   </div>
                 </div>
