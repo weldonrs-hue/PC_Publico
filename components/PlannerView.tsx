@@ -50,6 +50,8 @@ import { useDialog } from '@/hooks/useDialog';
 import { cn } from '@/lib/utils';
 import PlannerItemModal from './PlannerItemModal';
 import CustomSelect from '@/components/CustomSelect';
+import SyncCircuitEventsModal from '@/components/SyncCircuitEventsModal';
+import { scanCircuitEvents, ScannedCircuitEvent } from '@/services/circuitEventsScanner';
 
 interface PlannerViewProps {
   userId?: string;
@@ -69,6 +71,25 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
   const [itemToEdit, setItemToEdit] = useState<PlannerItem | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid');
+
+  // Estado para Sincronização de Eventos do Circuito
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [scannedEvents, setScannedEvents] = useState<ScannedCircuitEvent[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleOpenSyncModal = async () => {
+    if (!userId) return;
+    setIsSyncModalOpen(true);
+    setIsScanning(true);
+    try {
+      const found = await scanCircuitEvents(userId);
+      setScannedEvents(found);
+    } catch (err) {
+      console.error('Erro ao escanear eventos do circuito:', err);
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -297,16 +318,27 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
             </div>
           </div>
 
-          <button
-            onClick={handleNewClick}
-            className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-primary-200 hover:opacity-90 text-white font-bold rounded-2xl text-xs shadow-lg shadow-primary-200/20 transition-all cursor-pointer active:scale-95 shrink-0"
-          >
-            <Plus size={16} />
-            <span>Novo Item</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenSyncModal}
+              className="hidden sm:flex items-center gap-2 px-3.5 py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-700 hover:text-typography-900 border border-surface-300 font-bold rounded-2xl text-xs transition-all cursor-pointer active:scale-95 shrink-0"
+              title="Buscar e sincronizar eventos marcados em Assembleias, Congresso e Escolas"
+            >
+              <Sparkles size={15} className="text-primary-200" />
+              <span>Sincronizar Eventos</span>
+            </button>
+
+            <button
+              onClick={handleNewClick}
+              className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-primary-200 hover:opacity-90 text-white font-bold rounded-2xl text-xs shadow-lg shadow-primary-200/20 transition-all cursor-pointer active:scale-95 shrink-0"
+            >
+              <Plus size={16} />
+              <span>Novo Item</span>
+            </button>
+          </div>
         </div>
 
-        {/* Barra de Busca e Botão Novo no Mobile */}
+        {/* Barra de Busca e Botões no Mobile */}
         <div className="flex items-center gap-2 pt-1 border-t border-surface-300/60">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-typography-400" size={16} />
@@ -326,6 +358,14 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
               </button>
             )}
           </div>
+
+          <button
+            onClick={handleOpenSyncModal}
+            className="flex sm:hidden items-center justify-center p-2.5 bg-surface-200 text-typography-700 hover:text-typography-900 border border-surface-300 rounded-2xl transition-all cursor-pointer active:scale-95 shrink-0"
+            title="Sincronizar Eventos"
+          >
+            <Sparkles size={18} className="text-primary-200" />
+          </button>
 
           <button
             onClick={handleNewClick}
@@ -943,6 +983,21 @@ export default function PlannerView({ userId, onBack }: PlannerViewProps) {
         onSave={handleSaveItem}
         itemToEdit={itemToEdit}
       />
+
+      {/* Modal de Sincronização de Eventos do Circuito */}
+      {userId && (
+        <SyncCircuitEventsModal
+          isOpen={isSyncModalOpen}
+          onClose={() => setIsSyncModalOpen(false)}
+          userId={userId}
+          scannedEvents={scannedEvents}
+          isLoadingScan={isScanning}
+          onRefreshScan={handleOpenSyncModal}
+          onImportCompleted={() => {
+            showAlert('Eventos selecionados foram adicionados à sua agenda com sucesso!', 'Sucesso');
+          }}
+        />
+      )}
     </div>
   );
 }
