@@ -328,42 +328,89 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
       ...(raw.permissions || {}),
     },
     fieldService: Array.isArray(raw.fieldService)
-      ? raw.fieldService.map((fs: any) => ({
+      ? raw.fieldService.map((fs: any, idx: number) => ({
           ...fs,
+          id: fs.id || `fs_${idx}`,
           day: (fs.day || '').replace(/doming0/gi, 'Domingo').trim(),
+          time: fs.time || '',
+          location: fs.location || '',
         }))
-      : [...INITIAL_VISIT_SCHEDULE.fieldService],
+      : INITIAL_VISIT_SCHEDULE.fieldService.map((fs, idx) => ({ ...fs, id: fs.id || `fs_${idx}` })),
     meals: Array.isArray(raw.meals)
       ? raw.meals.map((m: any, idx: number) => ({
-          id: m.id || Date.now().toString() + '_' + idx,
+          id: m.id || `meal_${idx}`,
           day: (m.day || '').replace(/-feira/gi, '').replace(/doming0/gi, 'Domingo').trim(),
           host: m.isLodging ? (m.host || 'Hospedagem') : (m.host || ''),
           addressPhone: m.isLodging ? (m.addressPhone || 'Almoço na Hospedagem') : (m.addressPhone || ''),
           isLodging: !!m.isLodging,
         }))
-      : [...INITIAL_VISIT_SCHEDULE.meals],
-    shepherding: Array.isArray(raw.shepherding) ? raw.shepherding : [...INITIAL_VISIT_SCHEDULE.shepherding],
+      : INITIAL_VISIT_SCHEDULE.meals.map((m, idx) => ({ ...m, id: m.id || `meal_${idx}` })),
+    shepherding: Array.isArray(raw.shepherding)
+      ? raw.shepherding.map((sh: any, idx: number) => ({
+          id: sh.id || `sh_${idx}`,
+          dateTime: sh.dateTime || '',
+          family: sh.family || '',
+          companion: sh.companion || '',
+          situation: sh.situation || '',
+        }))
+      : INITIAL_VISIT_SCHEDULE.shepherding.map((sh, idx) => ({ ...sh, id: sh.id || `sh_${idx}` })),
     studiesAndVisits: {
       ...INITIAL_VISIT_SCHEDULE.studiesAndVisits,
       ...(raw.studiesAndVisits || {}),
       husbandName: raw.studiesAndVisits?.husbandName || "",
       wifeName: raw.studiesAndVisits?.wifeName || "",
       husbandRows: Array.isArray(raw.studiesAndVisits?.husbandRows)
-        ? raw.studiesAndVisits.husbandRows
-        : [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.husbandRows],
+        ? raw.studiesAndVisits.husbandRows.map((r: any, idx: number) => ({
+            id: r.id || `h_study_${idx}`,
+            day: r.day || '',
+            time: r.time || '',
+            companionPhone: r.companionPhone || '',
+            lesson: r.lesson || '',
+          }))
+        : INITIAL_VISIT_SCHEDULE.studiesAndVisits.husbandRows.map((r, idx) => ({ ...r, id: r.id || `h_study_${idx}` })),
       wifeRows: Array.isArray(raw.studiesAndVisits?.wifeRows)
-        ? raw.studiesAndVisits.wifeRows
-        : [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows],
+        ? raw.studiesAndVisits.wifeRows.map((r: any, idx: number) => ({
+            id: r.id || `w_study_${idx}`,
+            day: r.day || '',
+            time: r.time || '',
+            companionPhone: r.companionPhone || '',
+            lesson: r.lesson || '',
+          }))
+        : INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows.map((r, idx) => ({ ...r, id: r.id || `w_study_${idx}` })),
       companions: Array.isArray(raw.studiesAndVisits?.companions)
-        ? raw.studiesAndVisits.companions.map((c: any) => ({
-            id: c.id || Date.now().toString(),
+        ? raw.studiesAndVisits.companions.map((c: any, cIdx: number) => ({
+            id: c.id || `comp_${cIdx}`,
             name: c.name || '',
-            rows: Array.isArray(c.rows) ? c.rows : [],
+            rows: Array.isArray(c.rows)
+              ? c.rows.map((r: any, rIdx: number) => ({
+                  id: r.id || `comp_${cIdx}_r_${rIdx}`,
+                  day: r.day || '',
+                  time: r.time || '',
+                  companionPhone: r.companionPhone || '',
+                  lesson: r.lesson || '',
+                }))
+              : [],
             hasWife: !!c.hasWife,
             wifeName: c.wifeName || '',
-            wifeRows: Array.isArray(c.wifeRows) ? c.wifeRows : [],
+            wifeRows: Array.isArray(c.wifeRows)
+              ? c.wifeRows.map((r: any, rIdx: number) => ({
+                  id: r.id || `comp_${cIdx}_wr_${rIdx}`,
+                  day: r.day || '',
+                  time: r.time || '',
+                  companionPhone: r.companionPhone || '',
+                  lesson: r.lesson || '',
+                }))
+              : [],
             hasShepherding: !!c.hasShepherding,
-            shepherding: Array.isArray(c.shepherding) ? c.shepherding : [],
+            shepherding: Array.isArray(c.shepherding)
+              ? c.shepherding.map((sh: any, shIdx: number) => ({
+                  id: sh.id || `comp_${cIdx}_sh_${shIdx}`,
+                  dateTime: sh.dateTime || '',
+                  family: sh.family || '',
+                  companion: sh.companion || '',
+                  situation: sh.situation || '',
+                }))
+              : [],
           }))
         : [],
     },
@@ -395,7 +442,7 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
     eldersMeetingInput: {
       suggestedTopics: Array.isArray(raw.eldersMeetingInput?.suggestedTopics)
         ? raw.eldersMeetingInput!.suggestedTopics.map((t: any, idx: number) => ({
-            id: t.id || `sug_${idx}_${Date.now()}`,
+            id: t.id || `sug_${idx}`,
             suggestedBy: t.suggestedBy || '',
             subject: (t.subject || '').toUpperCase(),
             reference: t.reference || '',
@@ -403,7 +450,7 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
         : [],
       recommendations: Array.isArray(raw.eldersMeetingInput?.recommendations)
         ? raw.eldersMeetingInput!.recommendations.map((r: any, idx: number) => ({
-            id: r.id || `rec_${idx}_${Date.now()}`,
+            id: r.id || `rec_${idx}`,
             role: r.role === 'servant' ? 'servant' : 'elder',
             name: r.name || '',
             notes: r.notes || '',
@@ -411,7 +458,7 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
         : [],
       removals: Array.isArray(raw.eldersMeetingInput?.removals)
         ? raw.eldersMeetingInput!.removals.map((rem: any, idx: number) => ({
-            id: rem.id || `rem_${idx}_${Date.now()}`,
+            id: rem.id || `rem_${idx}`,
             role: rem.role === 'servant' ? 'servant' : 'elder',
             name: rem.name || '',
             reason: rem.reason || '',
@@ -419,4 +466,30 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
         : [],
     },
   };
+}
+
+function canonicalizeValue(val: any): any {
+  if (val === null || val === undefined) return undefined;
+  if (Array.isArray(val)) {
+    return val.map(canonicalizeValue);
+  }
+  if (typeof val === 'object') {
+    const sortedKeys = Object.keys(val).sort();
+    const result: Record<string, any> = {};
+    for (const k of sortedKeys) {
+      if (k === 'updatedAt' || k === 'createdAt') continue;
+      const v = canonicalizeValue(val[k]);
+      if (v !== undefined) {
+        result[k] = v;
+      }
+    }
+    return result;
+  }
+  return val;
+}
+
+export function serializeVisitSchedule(s: VisitSchedule | null | undefined): string {
+  if (!s) return '';
+  const normalized = normalizeVisitSchedule(s);
+  return JSON.stringify(canonicalizeValue(normalized));
 }

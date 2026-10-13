@@ -2182,9 +2182,24 @@ export default function SemanaVisitaForm({
                   },
                 }))
               }
-              className="w-full py-3.5 border-2 border-dashed border-amber-500/30 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full bg-surface-100 hover:bg-surface-200/70 border border-surface-300 hover:border-primary-200/40 rounded-2xl p-3.5 shadow-xs flex items-center justify-between gap-3 transition-all cursor-pointer group text-left"
             >
-              <Plus size={16} /> Adicionar Viajante Acompanhante (Visita Acompanhada)
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary-200/10 text-primary-200 group-hover:bg-primary-200 group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                  <Users size={17} />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs font-bold text-typography-900 block truncate">
+                    Visita Acompanhada
+                  </span>
+                  <span className="text-[11px] text-typography-500 block truncate">
+                    Adicionar estudos e pastoreios de outro viajante
+                  </span>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary-200/10 text-primary-200 group-hover:bg-primary-200 group-hover:text-white text-xs font-bold transition-colors shrink-0">
+                <Plus size={14} /> Adicionar
+              </span>
             </button>
           )}
 

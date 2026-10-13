@@ -6,6 +6,7 @@ import {
   generateElderPin,
   generateShareToken,
   normalizeVisitSchedule,
+  serializeVisitSchedule,
   VisitSchedule,
 } from '@/types/visitSchedule';
 import {
@@ -75,12 +76,6 @@ export default function VisitScheduleManagerView({
   const [activeTab, setActiveTab] = useState<'form' | 'preview' | 'permissions'>('form');
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
 
-  const serializeSchedule = (s: VisitSchedule | null) => {
-    if (!s) return '';
-    const { updatedAt, ...rest } = s;
-    return JSON.stringify(rest);
-  };
-
   const handleScheduleChange = (updated: VisitSchedule) => {
     setSchedule(updated);
     setIsDirty(true);
@@ -93,7 +88,7 @@ export default function VisitScheduleManagerView({
       Boolean(
         schedule &&
           savedScheduleSnapshot &&
-          serializeSchedule(schedule) !== serializeSchedule(savedScheduleSnapshot)
+          serializeVisitSchedule(schedule) !== serializeVisitSchedule(savedScheduleSnapshot)
       ),
     [isDirty, schedule, savedScheduleSnapshot]
   );
@@ -149,15 +144,17 @@ export default function VisitScheduleManagerView({
     }
     try {
       const docRef = doc(db, 'visit_schedules', docId);
-      const dataToSave = {
+      const normalizedData = normalizeVisitSchedule({
         ...toSave,
         id: docId,
         updatedAt: new Date().toISOString(),
-      };
-      await setDoc(docRef, dataToSave, { merge: true });
-      setSavedScheduleSnapshot(JSON.parse(JSON.stringify(dataToSave)));
-      setIsDirty(false);
+      });
+      const cleanDataToSave: VisitSchedule = JSON.parse(JSON.stringify(normalizedData));
       isDirtyRef.current = false;
+      setIsDirty(false);
+      setSchedule(cleanDataToSave);
+      setSavedScheduleSnapshot(JSON.parse(JSON.stringify(cleanDataToSave)));
+      await setDoc(docRef, cleanDataToSave, { merge: true });
       if (!silent) {
         setFeedbackMsg({ type: 'success', text: 'Programação salva com sucesso!' });
         setTimeout(() => setFeedbackMsg(null), 3000);
@@ -577,7 +574,39 @@ export default function VisitScheduleManagerView({
             }))
           : schedule.shepherding,
 
-        // 8. DADOS ESPECÍFICOS DA CONGREGAÇÃO ATUAL MANTIDOS RIGOROSAMENTE INTACTOS:
+        // 8. Refeições: replica os dias e se algum dia o almoço é na hospedagem (isLodging), preservando anfitriões locais nos demais dias
+        meals:
+          sourceSchedule.meals && sourceSchedule.meals.length > 0
+            ? sourceSchedule.meals.map((srcMeal, idx) => {
+                const cleanDay = (srcMeal.day || '').replace(/-feira/gi, '').trim();
+                const existingLocalMeal =
+                  (schedule.meals || []).find(
+                    (m) => (m.day || '').replace(/-feira/gi, '').trim().toLowerCase() === cleanDay.toLowerCase()
+                  ) || schedule.meals?.[idx];
+
+                const isLodging = !!srcMeal.isLodging;
+                const localHost =
+                  existingLocalMeal && !existingLocalMeal.isLodging && existingLocalMeal.host !== 'Hospedagem'
+                    ? existingLocalMeal.host
+                    : '';
+                const localAddressPhone =
+                  existingLocalMeal &&
+                  !existingLocalMeal.isLodging &&
+                  existingLocalMeal.addressPhone !== 'Almoço na Hospedagem'
+                    ? existingLocalMeal.addressPhone
+                    : '';
+
+                return {
+                  id: existingLocalMeal?.id || srcMeal.id || `meal_${idx}`,
+                  day: cleanDay,
+                  isLodging,
+                  host: isLodging ? 'Hospedagem' : localHost,
+                  addressPhone: isLodging ? 'Almoço na Hospedagem' : localAddressPhone,
+                };
+              })
+            : schedule.meals,
+
+        // 9. DADOS ESPECÍFICOS DA CONGREGAÇÃO ATUAL MANTIDOS RIGOROSAMENTE INTACTOS:
         id: docId,
         userId: schedule.userId,
         congregationId: schedule.congregationId,
@@ -586,15 +615,13 @@ export default function VisitScheduleManagerView({
         shareToken: schedule.shareToken, // Mantém o token exclusivo da congregação atual
         elderAccessPin: schedule.elderAccessPin,
         isElderLinkLocked: schedule.isElderLinkLocked,
-        meals: schedule.meals, // Mantém as refeições e anfitriões locais
         eldersMeetingInput: schedule.eldersMeetingInput, // Mantém sugestões de pauta e indicações locais
         status: schedule.status,
         updatedAt: new Date().toISOString(),
       };
 
-
-      setSchedule(replicated);
-      await handleSave(replicated);
+      const normalizedReplicated = normalizeVisitSchedule(replicated);
+      await handleSave(normalizedReplicated, true);
       setIsReplicateModalOpen(false);
       setFeedbackMsg({
         type: 'success',
@@ -1285,7 +1312,7 @@ export default function VisitScheduleManagerView({
                           </span>
                           <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
                             <li>Temas e cânticos dos discursos</li>
-                            <li>Horários padrão das reuniões</li>
+                            <li>Horários padrão e dias de hospedagem</li>
                             <li>Nomes do casal e circuito</li>
                             <li>Estudos/revisitas planejados</li>
                             <li>Reuniões de pioneiros e anciãos</li>
@@ -1300,9 +1327,9 @@ export default function VisitScheduleManagerView({
                           <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
                             <li><strong>{schedule.congregationName}</strong> (Nome e ID)</li>
                             <li><strong>{schedule.visitPeriod}</strong> (Período atual)</li>
-                            <li>Link exclusivo dos anciãos</li>
-                            <li>Saídas de campo preenchidas</li>
-                            <li>Almoços e pastoreios locais</li>
+                            <li>Link exclusivo e PIN dos anciãos</li>
+                            <li>Locais de saída de campo</li>
+                            <li>Anfitriões e pastoreios locais</li>
                           </ul>
                         </div>
                       </div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { VisitSchedule, normalizeVisitSchedule } from '@/types/visitSchedule';
+import { VisitSchedule, normalizeVisitSchedule, serializeVisitSchedule } from '@/types/visitSchedule';
 import SemanaVisitaPrint from '@/components/visit/SemanaVisitaPrint';
 import SemanaVisitaForm from '@/components/visit/SemanaVisitaForm';
 import ThemeSwitcher from '@/components/ui/theme-switcher';
@@ -52,18 +52,12 @@ export default function PublicVisitScheduleClient() {
     useRef<HTMLInputElement>(null),
   ];
 
-  const serializeSchedule = (s: VisitSchedule | null) => {
-    if (!s) return '';
-    const { updatedAt, ...rest } = s;
-    return JSON.stringify(rest);
-  };
-
   const hasChanges = useMemo(
     () =>
       Boolean(
         schedule &&
           savedScheduleSnapshot &&
-          serializeSchedule(schedule) !== serializeSchedule(savedScheduleSnapshot)
+          serializeVisitSchedule(schedule) !== serializeVisitSchedule(savedScheduleSnapshot)
       ),
     [schedule, savedScheduleSnapshot]
   );
