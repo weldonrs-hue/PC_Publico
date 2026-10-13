@@ -35,9 +35,10 @@ import {
   SendHorizonal,
   PenLine,
   MailOpen,
-  SidebarOpen,
+  MoreVertical,
+  Users,
   SidebarClose,
-  MoreVertical
+  SidebarOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDialog } from '@/hooks/useDialog';
@@ -112,14 +113,9 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
     }
   }, [personalDataProp]);
   
-  // Set initial sidebar state based on screen size
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      setIsSidebarOpen(true);
-    }
-  }, []);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadedDraftIdRef = useRef<string | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Form State
   const [form, setForm] = useState({
@@ -372,38 +368,47 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
   }, [effectiveUserId, loading, personalData]);
 
   useEffect(() => {
-    if (selectedDraft) {
-      setForm({
-        recipient: selectedDraft.recipient || '',
-        cc: selectedDraft.cc || '',
-        subject: selectedDraft.subject || '',
-        content: selectedDraft.content || '',
-        attachments: selectedDraft.attachments || []
-      });
-      setVolatileAttachments([]);
-      
-      // Auto-adjust textarea height after state update
-      setTimeout(() => {
-        const textarea = document.querySelector('textarea[name="message-body"]') as HTMLTextAreaElement;
-        if (textarea) {
-          textarea.style.height = 'auto';
-          textarea.style.height = textarea.scrollHeight + 'px';
+    if (selectedId) {
+      if (loadedDraftIdRef.current !== selectedId) {
+        if (selectedDraft) {
+          setForm({
+            recipient: selectedDraft.recipient || '',
+            cc: selectedDraft.cc || '',
+            subject: selectedDraft.subject || '',
+            content: selectedDraft.content || '',
+            attachments: selectedDraft.attachments || []
+          });
+          setVolatileAttachments([]);
+          loadedDraftIdRef.current = selectedId;
+          
+          // Auto-adjust textarea height after state update
+          setTimeout(() => {
+            const textarea = document.querySelector('textarea[name="message-body"]') as HTMLTextAreaElement;
+            if (textarea) {
+              textarea.style.height = 'auto';
+              textarea.style.height = textarea.scrollHeight + 'px';
+            }
+          }, 50);
+        } else {
+          setForm({
+            recipient: '',
+            cc: '',
+            subject: '',
+            content: '',
+            attachments: []
+          });
+          setVolatileAttachments([]);
         }
-      }, 50);
-    } else if (selectedId) {
-      // If we have an ID but no draft yet (e.g. just created), reset form to empty
-      setForm({
-        recipient: '',
-        cc: '',
-        subject: '',
-        content: '',
-        attachments: []
-      });
-      setVolatileAttachments([]);
+      }
+    } else {
+      loadedDraftIdRef.current = null;
     }
   }, [selectedId, selectedDraft]);
 
   const handleSelectDraft = (id: string) => {
+    if (id !== selectedId) {
+      loadedDraftIdRef.current = null;
+    }
     setSelectedId(id);
     setActiveMobilePane('editor');
   };
@@ -424,6 +429,7 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
         updatedAt: serverTimestamp()
       });
       setCurrentFolder('drafts');
+      loadedDraftIdRef.current = null;
       setSelectedId(docRef.id);
       setActiveMobilePane('editor');
     } catch (err) {
@@ -452,6 +458,7 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
         updatedAt: serverTimestamp()
       });
       setCurrentFolder('drafts');
+      loadedDraftIdRef.current = null;
       setSelectedId(docRef.id);
       setActiveMobilePane('editor');
       showAlert('Modelo duplicado com sucesso!', 'Sucesso');
@@ -466,12 +473,18 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
   const handleUpdate = async (field: string, value: any) => {
     if (!selectedId) return;
     
-    // Optimistic update
-    setForm(prev => ({ ...prev, [field]: value }));
+    // Automatically convert commas to semicolons for recipient and cc fields
+    let formattedValue = value;
+    if ((field === 'recipient' || field === 'cc') && typeof value === 'string') {
+      formattedValue = value.replace(/,/g, ';');
+    }
+
+    // Optimistic local state update (preserves cursor position)
+    setForm(prev => ({ ...prev, [field]: formattedValue }));
 
     // Handle suggestions
     if (field === 'recipient' || field === 'cc') {
-      const val = value as string;
+      const val = formattedValue as string;
       const lastPart = val.split(/[,;]\s*/).pop() || '';
       
       if (lastPart.length >= 2) {
@@ -495,19 +508,24 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
       }
     }
 
-    try {
-      await updateDoc(doc(db, 'email_drafts', selectedId), {
-        [field]: value,
-        updatedAt: serverTimestamp()
-      });
-    } catch (err: any) {
-      console.error('Error updating draft:', err);
-      if (err.code === 'out-of-range' || err.message?.includes('too large')) {
-        showAlert('O rascunho ficou grande demais para ser salvo. Tente diminuir o texto ou remover anexos salvos.', 'Erro de Tamanho');
-      } else {
-        showAlert('Erro ao sincronizar rascunho com o servidor.', 'Erro');
-      }
+    // Debounce background sync to Firestore to prevent snapshot re-renders resetting caret position
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
+
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        await updateDoc(doc(db, 'email_drafts', selectedId), {
+          [field]: formattedValue,
+          updatedAt: serverTimestamp()
+        });
+      } catch (err: any) {
+        console.error('Error updating draft:', err);
+        if (err.code === 'out-of-range' || err.message?.includes('too large')) {
+          showAlert('O rascunho ficou grande demais para ser salvo. Tente diminuir o texto ou remover anexos salvos.', 'Erro de Tamanho');
+        }
+      }
+    }, 400);
   };
 
   const selectSuggestion = (field: 'recipient' | 'cc', contact: Contact) => {
@@ -515,12 +533,34 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
     const parts = currentVal.split(/[,;]\s*/);
     parts.pop(); // Remove the typed part
     parts.push(contact.email);
-    const newValue = parts.join(', ') + (parts.length > 0 ? ', ' : '');
+    const newValue = parts.join('; ') + (parts.length > 0 ? '; ' : '');
     
     handleUpdate(field, newValue);
     if (field === 'recipient') setRecipientSuggestions([]);
     else setCcSuggestions([]);
     setActiveSuggestionField(null);
+  };
+
+  const handleSelectGroupRecipients = (groupType: 'Secretário' | 'Coordenador' | 'Congregação', targetField: 'recipient' | 'cc' = 'recipient') => {
+    const groupEmails = contacts
+      .filter(c => c.type === groupType && c.email)
+      .map(c => c.email.trim());
+
+    const uniqueEmails = Array.from(new Set(groupEmails));
+
+    if (uniqueEmails.length === 0) {
+      const label = groupType === 'Secretário' ? 'secretários' : groupType === 'Coordenador' ? 'coordenadores' : 'congregações';
+      showAlert(`Nenhum e-mail de ${label} cadastrado nas suas congregações.`, 'Nenhum Contato');
+      return;
+    }
+
+    const currentVal = form[targetField] ? form[targetField].trim() : '';
+    const existingList = currentVal ? currentVal.split(/[,;]\s*/).filter(Boolean) : [];
+    
+    const combinedList = Array.from(new Set([...existingList, ...uniqueEmails]));
+    const combined = combinedList.join('; ') + (combinedList.length > 0 ? '; ' : '');
+    
+    handleUpdate(targetField, combined);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -865,103 +905,9 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
       </div>
 
       {/* ================================================================ */}
-      {/* MAIN BODY — 3 PANES                                               */}
+      {/* MAIN BODY — 2 PANES (List + Editor)                              */}
       {/* ================================================================ */}
       <div className="flex-1 flex gap-3 overflow-hidden min-h-0">
-
-        {/* ============================================================== */}
-        {/* PANE 1: Folder Navigation (Pastas)                              */}
-        {/* ============================================================== */}
-        <AnimatePresence initial={false}>
-          {isSidebarOpen && (
-            <motion.nav
-              key="sidebar"
-              initial={{ opacity: 0, x: -20, width: 0 }}
-              animate={{ opacity: 1, x: 0, width: 'auto' }}
-              exit={{ opacity: 0, x: -20, width: 0 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
-              className="bg-surface-100 rounded-3xl border border-surface-300 shadow-xs flex flex-col overflow-hidden flex-shrink-0 w-56 lg:w-64"
-            >
-              <div className="px-4 pt-4 pb-2 flex items-center justify-between border-b border-surface-300">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-typography-500">Pastas</span>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-1 rounded-lg text-typography-400 hover:text-typography-700 hover:bg-surface-200 transition-colors md:hidden cursor-pointer"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-
-              <div className="flex-1 p-3 space-y-1">
-                {/* Rascunhos */}
-                <button
-                  onClick={() => {
-                    setCurrentFolder('drafts');
-                    setActiveMobilePane('list');
-                    if (window.innerWidth < 768) setIsSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer ${
-                    currentFolder === 'drafts'
-                      ? 'bg-primary-200/10 text-primary-200 border border-primary-200/20'
-                      : 'text-typography-700 hover:bg-surface-200 border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <FileEdit size={15} className={currentFolder === 'drafts' ? 'text-primary-200' : 'text-typography-400'} />
-                    <span>Rascunhos</span>
-                  </div>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-                    currentFolder === 'drafts'
-                      ? 'bg-primary-200 text-white'
-                      : 'bg-surface-300 text-typography-500'
-                  }`}>
-                    {draftsCount}
-                  </span>
-                </button>
-
-                {/* Itens Enviados */}
-                <button
-                  onClick={() => {
-                    setCurrentFolder('sent');
-                    setActiveMobilePane('list');
-                    if (window.innerWidth < 768) setIsSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer ${
-                    currentFolder === 'sent'
-                      ? 'bg-primary-200/10 text-primary-200 border border-primary-200/20'
-                      : 'text-typography-700 hover:bg-surface-200 border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Send size={15} className={currentFolder === 'sent' ? 'text-primary-200' : 'text-typography-400'} />
-                    <span>Enviados</span>
-                  </div>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-                    currentFolder === 'sent'
-                      ? 'bg-primary-200 text-white'
-                      : 'bg-surface-300 text-typography-500'
-                  }`}>
-                    {sentCount}
-                  </span>
-                </button>
-              </div>
-
-              {/* New Draft CTA at bottom of sidebar */}
-              {currentFolder === 'drafts' && (
-                <div className="p-3 border-t border-surface-300">
-                  <button
-                    onClick={handleCreateNew}
-                    disabled={saving}
-                    className="w-full py-2.5 bg-primary-200 hover:bg-primary-200/90 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    <Plus size={14} />
-                    Novo Rascunho
-                  </button>
-                </div>
-              )}
-            </motion.nav>
-          )}
-        </AnimatePresence>
 
         {/* ============================================================== */}
         {/* PANE 2: Drafts List (Lista)                                     */}
@@ -1259,6 +1205,40 @@ export default function InboxView({ userId, user: propUser, personalDataProp, on
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Group Selection Shortcuts (SEC, CCA, CONGS) */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1 pb-0.5 text-[11px] text-typography-600">
+                  <span className="text-[10px] font-bold text-typography-400 uppercase tracking-wider mr-0.5 select-none">
+                    Adicionar grupo:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectGroupRecipients('Secretário', 'recipient')}
+                    className="px-2 py-0.5 rounded-lg bg-surface-200 hover:bg-primary-200/15 hover:text-primary-200 text-typography-700 text-[10px] font-bold transition-colors cursor-pointer border border-surface-300/80 flex items-center gap-1"
+                    title="Adicionar e-mails de todos os Secretários (SEC)"
+                  >
+                    <Users size={11} className="text-primary-200" />
+                    <span>SEC (Secretários)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectGroupRecipients('Coordenador', 'recipient')}
+                    className="px-2 py-0.5 rounded-lg bg-surface-200 hover:bg-primary-200/15 hover:text-primary-200 text-typography-700 text-[10px] font-bold transition-colors cursor-pointer border border-surface-300/80 flex items-center gap-1"
+                    title="Adicionar e-mails de todos os Coordenadores (CCA)"
+                  >
+                    <Users size={11} className="text-primary-200" />
+                    <span>CCA (Coordenadores)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectGroupRecipients('Congregação', 'recipient')}
+                    className="px-2 py-0.5 rounded-lg bg-surface-200 hover:bg-primary-200/15 hover:text-primary-200 text-typography-700 text-[10px] font-bold transition-colors cursor-pointer border border-surface-300/80 flex items-center gap-1"
+                    title="Adicionar e-mails de todas as Congregações (CONGS)"
+                  >
+                    <Users size={11} className="text-primary-200" />
+                    <span>CONGS (Congregações)</span>
+                  </button>
+                </div>
 
                 {/* Subject row */}
                 <div>

@@ -1,18 +1,24 @@
-import { PlannerItem, UrgencyInfo, UrgencySituation, RecurrenceFrequency, RecurrenceUnit } from '@/types/planner';
+import { PlannerItem } from '@/types/planner';
 
-/**
- * Limiares centralizados de urgência em dias.
- * Fáceis de ajustar e reutilizar no sistema.
- */
-export const PLANNER_THRESHOLDS = {
-  URGENT_DAYS: 3,     // Tarefas a 3 dias ou menos do prazo são consideradas Urgentes
-  ATTENTION_DAYS: 7,  // Tarefas a 7 dias ou menos entram em período de Atenção (quando não há data de atenção explícita)
-};
+export interface PlannerItemUrgency {
+  situation:
+    | 'overdue'
+    | 'urgent'
+    | 'attention'
+    | 'approaching'
+    | 'event_today'
+    | 'event_upcoming'
+    | 'event_past'
+    | 'completed'
+    | 'normal';
+  badgeText: string;
+  badgeClass: string;
+  glowColor: string;
+  borderColor: string;
+  daysDiff?: number;
+  daysCompletedEarly?: number;
+}
 
-/**
- * Retorna a data atual no formato YYYY-MM-DD considerando o fuso horário local.
- * Evita bugs clássicos do UTC onde o dia muda horas antes da meia-noite local.
- */
 export function getTodayDateString(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -21,45 +27,22 @@ export function getTodayDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Faz parse seguro de uma string YYYY-MM-DD para Date local ao meio-dia.
- * O horário de 12:00:00 protege contra qualquer variação de horário de verão (DST).
- */
-export function parseLocalDate(dateStr: string): Date {
-  const parts = dateStr.split('-').map(Number);
-  const year = parts[0] || 2026;
-  const month = (parts[1] || 1) - 1;
-  const day = parts[2] || 1;
-  return new Date(year, month, day, 12, 0, 0);
-}
-
-/**
- * Calcula a diferença em dias inteiros entre duas datas no formato YYYY-MM-DD.
- * Retorna positivo se targetDate for futuro em relação a fromDate.
- * Retorna negativo se targetDate já tiver passado.
- */
-export function getDaysDifference(targetDateStr: string, fromDateStr?: string): number {
-  if (!targetDateStr) return 0;
-  const from = parseLocalDate(fromDateStr || getTodayDateString());
-  const target = parseLocalDate(targetDateStr);
-  const diffMs = target.getTime() - from.getTime();
-  return Math.round(diffMs / (1000 * 60 * 60 * 24));
-}
-
-/**
- * Formata YYYY-MM-DD para exibição amigável em pt-BR (DD/MM/AAAA).
- */
 export function formatDisplayDate(dateStr?: string | null): string {
   if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const [year, month, day] = parts;
-  return `${day}/${month}/${year}`;
+  try {
+    const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('pt-BR');
+  } catch {
+    return dateStr;
+  }
 }
 
-/**
- * Formata data e horário para exibição de eventos.
- */
 export function formatDisplayDateTime(dateStr?: string | null, timeStr?: string | null): string {
   if (!dateStr) return '';
   const dateFormatted = formatDisplayDate(dateStr);
@@ -69,22 +52,98 @@ export function formatDisplayDateTime(dateStr?: string | null, timeStr?: string 
   return dateFormatted;
 }
 
-/**
- * Determina a situação de urgência, estilo visual e prioridade de ordenação de um item.
- * Centraliza toda a regra de negócio da aplicação.
- */
-export function getPlannerItemUrgency(item: PlannerItem, todayOverride?: string): UrgencyInfo {
-  const today = todayOverride || getTodayDateString();
+export function formatPlannerDate(dateStr?: string | null): string {
+  return formatDisplayDate(dateStr);
+}
 
-  // 1. TAREFA CONCLUÍDA
-  // Uma tarefa concluída nunca deve continuar aparecendo como urgente ou atrasada.
+export function getRecurrenceLabel(
+  recurrence?: string | null,
+  interval?: number | null,
+  unit?: string | null
+): string {
+  if (!recurrence || recurrence === 'none') return 'Sem repetição';
+  const effectiveInterval = interval && interval > 1 ? interval : 1;
+
+  if (unit) {
+    if (unit === 'days') return effectiveInterval === 1 ? 'Diário' : `A cada ${effectiveInterval} dias`;
+    if (unit === 'weeks') return effectiveInterval === 1 ? 'Semanal' : `A cada ${effectiveInterval} semanas`;
+    if (unit === 'months') return effectiveInterval === 1 ? 'Mensal' : `A cada ${effectiveInterval} meses`;
+    if (unit === 'years') return effectiveInterval === 1 ? 'Anual' : `A cada ${effectiveInterval} anos`;
+  }
+
+  switch (recurrence) {
+    case 'daily':
+      return effectiveInterval === 1 ? 'Diário' : `A cada ${effectiveInterval} dias`;
+    case 'weekly':
+      return effectiveInterval === 1 ? 'Semanal' : `A cada ${effectiveInterval} semanas`;
+    case 'monthly':
+      return effectiveInterval === 1 ? 'Mensal' : `A cada ${effectiveInterval} meses`;
+    case 'yearly':
+      return effectiveInterval === 1 ? 'Anual' : `A cada ${effectiveInterval} anos`;
+    default:
+      return 'Recorrente';
+  }
+}
+
+export function calculateNextRecurrenceDate(
+  baseDateStr: string,
+  recurrence?: string | null,
+  interval?: number | null,
+  unit?: string | null
+): string {
+  if (!baseDateStr) return getTodayDateString();
+  const clean = baseDateStr.includes('T') ? baseDateStr.split('T')[0] : baseDateStr;
+  const parts = clean.split('-').map(Number);
+  const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+
+  const step = interval && interval > 0 ? interval : 1;
+
+  if (unit === 'days' || recurrence === 'daily') {
+    dt.setDate(dt.getDate() + step);
+  } else if (unit === 'weeks' || recurrence === 'weekly') {
+    dt.setDate(dt.getDate() + step * 7);
+  } else if (unit === 'months' || recurrence === 'monthly') {
+    dt.setMonth(dt.getMonth() + step);
+  } else if (unit === 'years' || recurrence === 'yearly') {
+    dt.setFullYear(dt.getFullYear() + step);
+  } else {
+    dt.setDate(dt.getDate() + step * 7);
+  }
+
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function isItemOverdue(item: PlannerItem): boolean {
+  if (item.type !== 'task' || item.status === 'completed' || !item.dueDate) return false;
+  const due = new Date(item.dueDate + (item.dueDate.includes('T') ? '' : 'T00:00:00'));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return due < today;
+}
+
+export function isItemAttention(item: PlannerItem): boolean {
+  if (item.type !== 'task' || item.status === 'completed' || !item.attentionDate) return false;
+  const att = new Date(item.attentionDate + (item.attentionDate.includes('T') ? '' : 'T00:00:00'));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return att <= today;
+}
+
+export function getPlannerItemUrgency(item: PlannerItem, todayDateStr?: string): PlannerItemUrgency {
+  const todayStr = todayDateStr || getTodayDateString();
+  const todayDate = new Date(todayStr + 'T00:00:00');
+
+  // Caso 1: Tarefa Concluída
   if (item.type === 'task' && item.status === 'completed') {
     let daysCompletedEarly: number | undefined;
-
-    if (item.hasDeadline && item.dueDate && item.completedAt) {
-      // Extrai o dia do timestamp de conclusão YYYY-MM-DD
-      const completedDateStr = item.completedAt.substring(0, 10);
-      const diff = getDaysDifference(item.dueDate, completedDateStr);
+    if (item.dueDate && item.completedAt) {
+      const compStr = item.completedAt.substring(0, 10);
+      const dueDate = new Date(item.dueDate + 'T00:00:00');
+      const compDate = new Date(compStr + 'T00:00:00');
+      const diff = Math.round((dueDate.getTime() - compDate.getTime()) / (1000 * 60 * 60 * 24));
       if (diff > 0) {
         daysCompletedEarly = diff;
       }
@@ -92,332 +151,208 @@ export function getPlannerItemUrgency(item: PlannerItem, todayOverride?: string)
 
     return {
       situation: 'completed',
-      label: 'Concluída',
-      badgeText: daysCompletedEarly 
-        ? `Concluída ${daysCompletedEarly} ${daysCompletedEarly === 1 ? 'dia' : 'dias'} antes do prazo`
-        : 'Concluída',
-      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-      borderColor: '#10B981',
-      glowColor: '#10B981',
+      badgeText: daysCompletedEarly ? `Concluída (${daysCompletedEarly}d antes)` : 'Concluída',
+      badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+      glowColor: '#10b981',
+      borderColor: '#10b981',
       daysCompletedEarly,
-      sortWeight: 200,
     };
   }
 
-  // 2. EVENTO
-  if (item.type === 'event') {
-    if (!item.date) {
+  // Caso 2: Tarefa Pendente
+  if (item.type === 'task') {
+    if (!item.hasDeadline || !item.dueDate) {
       return {
-        situation: 'event_upcoming',
-        label: 'Evento',
-        badgeText: 'Evento',
-        badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-        borderColor: '#3B82F6',
-        glowColor: '#3B82F6',
-        sortWeight: 60,
+        situation: 'normal',
+        badgeText: 'Sem Prazo',
+        badgeClass: 'bg-surface-200 text-typography-600 border-surface-300',
+        glowColor: '#94a3b8',
+        borderColor: '#94a3b8',
       };
     }
 
-    const daysUntilEvent = getDaysDifference(item.date, today);
+    const dueDate = new Date(item.dueDate + 'T00:00:00');
+    const daysDiff = Math.round((dueDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (daysUntilEvent === 0) {
-      return {
-        situation: 'event_today',
-        label: 'Hoje',
-        badgeText: 'Evento Hoje',
-        badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
-        borderColor: '#F59E0B',
-        glowColor: '#F59E0B',
-        daysRemaining: 0,
-        sortWeight: 25,
-      };
-    }
-
-    if (daysUntilEvent > 0) {
-      return {
-        situation: 'event_upcoming',
-        label: daysUntilEvent === 1 ? 'Amanhã' : `Em ${daysUntilEvent} dias`,
-        badgeText: daysUntilEvent === 1 ? 'Evento Amanhã' : `Evento em ${daysUntilEvent} dias`,
-        badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-        borderColor: '#3B82F6',
-        glowColor: '#3B82F6',
-        daysRemaining: daysUntilEvent,
-        sortWeight: daysUntilEvent <= 7 ? 35 + daysUntilEvent : 60 + daysUntilEvent,
-      };
-    }
-
-    return {
-      situation: 'event_past',
-      label: 'Passado',
-      badgeText: 'Evento Passado',
-      badgeClass: 'bg-surface-200 text-typography-500 border-surface-300',
-      borderColor: '#94A3B8',
-      glowColor: '#94A3B8',
-      daysRemaining: daysUntilEvent,
-      sortWeight: 100,
-    };
-  }
-
-  // 3. TAREFA COM PRAZO
-  if (item.type === 'task' && item.hasDeadline && item.dueDate) {
-    const daysRemaining = getDaysDifference(item.dueDate, today);
-
-    // 3.1. Atrasada (prazo venceu)
-    if (daysRemaining < 0) {
-      const daysOverdue = Math.abs(daysRemaining);
+    // Atrasada
+    if (daysDiff < 0) {
       return {
         situation: 'overdue',
-        label: `Atrasada (${daysOverdue} ${daysOverdue === 1 ? 'dia' : 'dias'})`,
-        badgeText: `Atrasada há ${daysOverdue} ${daysOverdue === 1 ? 'dia' : 'dias'}`,
-        badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse',
-        borderColor: '#EF4444',
-        glowColor: '#EF4444',
-        daysRemaining,
-        // Mais atrasada = menor sortWeight (fica mais no topo)
-        sortWeight: 10 - Math.min(daysOverdue, 9),
+        badgeText: `Atrasada (${Math.abs(daysDiff)}d)`,
+        badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold',
+        glowColor: '#ef4444',
+        borderColor: '#ef4444',
+        daysDiff,
       };
     }
 
-    // 3.2. Urgente (vence hoje ou nos próximos URGENT_DAYS)
-    if (daysRemaining <= PLANNER_THRESHOLDS.URGENT_DAYS) {
-      let label = 'Urgente';
-      if (daysRemaining === 0) label = 'Vence Hoje';
-      else if (daysRemaining === 1) label = 'Vence Amanhã';
-      else label = `Vence em ${daysRemaining} dias`;
-
+    // Vence Hoje
+    if (daysDiff === 0) {
       return {
         situation: 'urgent',
-        label,
-        badgeText: label,
-        badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/25',
-        borderColor: '#DC2626',
-        glowColor: '#DC2626',
-        daysRemaining,
-        sortWeight: 20 + daysRemaining,
+        badgeText: 'Vence Hoje',
+        badgeClass: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30 font-bold',
+        glowColor: '#f43f5e',
+        borderColor: '#f43f5e',
+        daysDiff: 0,
       };
     }
 
-    // 3.3. Atenção pela data personalizada de início de atenção
-    if (item.attentionDate && today >= item.attentionDate) {
+    // Urgente (1 a 2 dias)
+    if (daysDiff <= 2) {
       return {
-        situation: 'attention',
-        label: 'Em Atenção',
-        badgeText: `Atenção: vence em ${daysRemaining} dias`,
-        badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25',
-        borderColor: '#F59E0B',
-        glowColor: '#F59E0B',
-        daysRemaining,
-        sortWeight: 30 + Math.min(daysRemaining, 10),
+        situation: 'urgent',
+        badgeText: `Vence em ${daysDiff}d`,
+        badgeClass: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30 font-bold',
+        glowColor: '#f97316',
+        borderColor: '#f97316',
+        daysDiff,
       };
     }
 
-    // 3.4. Atenção automática por proximidade padrão (ATTENTION_DAYS)
-    if (daysRemaining <= PLANNER_THRESHOLDS.ATTENTION_DAYS) {
+    // Em Atenção (data de atenção alcançada)
+    if (item.attentionDate) {
+      const attDate = new Date(item.attentionDate + 'T00:00:00');
+      if (todayDate >= attDate) {
+        return {
+          situation: 'attention',
+          badgeText: `Atenção (${daysDiff}d)`,
+          badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold',
+          glowColor: '#f59e0b',
+          borderColor: '#f59e0b',
+          daysDiff,
+        };
+      }
+    }
+
+    // Aproximando do prazo (até 7 dias)
+    if (daysDiff <= 7) {
       return {
         situation: 'approaching',
-        label: `Prazo Próximo (${daysRemaining}d)`,
-        badgeText: `Prazo em ${daysRemaining} dias`,
-        badgeClass: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/25',
-        borderColor: '#F97316',
-        glowColor: '#F97316',
-        daysRemaining,
-        sortWeight: 50 + daysRemaining,
+        badgeText: `Em ${daysDiff} dias`,
+        badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+        glowColor: '#3b82f6',
+        borderColor: '#3b82f6',
+        daysDiff,
       };
     }
 
-    // 3.5. Futura (prazo distante e ainda fora da janela de atenção)
+    // Prazo Normal
     return {
-      situation: 'future',
-      label: `Vence em ${daysRemaining} dias`,
-      badgeText: `Prazo: ${formatDisplayDate(item.dueDate)}`,
-      badgeClass: 'bg-surface-200 text-typography-600 border-surface-300',
-      borderColor: item.priority === 'high' ? '#8B5CF6' : '#10B981',
-      glowColor: '#10B981',
-      daysRemaining,
-      sortWeight: 70 + Math.min(daysRemaining, 30),
+      situation: 'normal',
+      badgeText: `Prazo (${daysDiff}d)`,
+      badgeClass: 'bg-surface-200 text-typography-700 border-surface-300',
+      glowColor: '#64748b',
+      borderColor: '#64748b',
+      daysDiff,
     };
   }
 
-  // 4. TAREFA SEM PRAZO
-  // Organizada estritamente pela prioridade manual escolhida pelo usuário
-  if (item.priority === 'high') {
+  // Caso 3: Evento
+  if (!item.date) {
     return {
-      situation: 'high_priority',
-      label: 'Alta Prioridade',
-      badgeText: 'Prioridade Alta',
-      badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/25',
-      borderColor: '#DC2626',
-      glowColor: '#DC2626',
-      sortWeight: 40,
+      situation: 'normal',
+      badgeText: 'Evento',
+      badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+      glowColor: '#3b82f6',
+      borderColor: '#3b82f6',
     };
   }
 
-  if (item.priority === 'medium') {
+  const evDate = new Date(item.date + 'T00:00:00');
+  const daysDiff = Math.round((evDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (daysDiff === 0) {
     return {
-      situation: 'medium_priority',
-      label: 'Média Prioridade',
-      badgeText: 'Prioridade Média',
-      badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25',
-      borderColor: '#F59E0B',
-      glowColor: '#F59E0B',
-      sortWeight: 80,
+      situation: 'event_today',
+      badgeText: 'Evento Hoje',
+      badgeClass: 'bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/30 font-bold',
+      glowColor: '#3b82f6',
+      borderColor: '#3b82f6',
+      daysDiff: 0,
     };
   }
 
-  // Baixa prioridade
+  if (daysDiff > 0) {
+    return {
+      situation: 'event_upcoming',
+      badgeText: daysDiff === 1 ? 'Amanhã' : `Em ${daysDiff}d`,
+      badgeClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+      glowColor: '#0ea5e9',
+      borderColor: '#0ea5e9',
+      daysDiff,
+    };
+  }
+
   return {
-    situation: 'low_priority',
-    label: 'Baixa Prioridade',
-    badgeText: 'Prioridade Baixa',
-    badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25',
-    borderColor: '#10B981',
-    glowColor: '#10B981',
-    sortWeight: 90,
+    situation: 'event_past',
+    badgeText: `Passado (${Math.abs(daysDiff)}d)`,
+    badgeClass: 'bg-surface-200 text-typography-400 border-surface-300',
+    glowColor: '#94a3b8',
+    borderColor: '#94a3b8',
+    daysDiff,
   };
 }
 
-/**
- * Ordena lista de PlannerItem por urgência e relevância preditiva.
- */
-export function sortPlannerItems(items: PlannerItem[], todayOverride?: string): PlannerItem[] {
-  const today = todayOverride || getTodayDateString();
+export function sortPlannerItems(items: PlannerItem[], todayStr?: string): PlannerItem[] {
+  const today = todayStr || getTodayDateString();
+
+  const getSituationWeight = (item: PlannerItem): number => {
+    if (item.type === 'task' && item.status === 'completed') return 0;
+    const urgency = getPlannerItemUrgency(item, today);
+    switch (urgency.situation) {
+      case 'overdue':
+        return 6;
+      case 'urgent':
+        return 5;
+      case 'event_today':
+        return 5;
+      case 'attention':
+        return 4;
+      case 'approaching':
+        return 3;
+      case 'event_upcoming':
+        return 2;
+      case 'normal':
+        return 1;
+      case 'event_past':
+        return 0;
+      default:
+        return 1;
+    }
+  };
+
+  const getPriorityWeight = (priority: string): number => {
+    switch (priority) {
+      case 'high':
+        return 3;
+      case 'medium':
+        return 2;
+      case 'low':
+        return 1;
+      default:
+        return 0;
+    }
+  };
 
   return [...items].sort((a, b) => {
-    const urgencyA = getPlannerItemUrgency(a, today);
-    const urgencyB = getPlannerItemUrgency(b, today);
+    // 1. Pendentes antes de concluídas
+    if (a.status !== 'completed' && b.status === 'completed') return -1;
+    if (a.status === 'completed' && b.status !== 'completed') return 1;
 
-    // 1. Compara pesos de ordenação primários
-    if (urgencyA.sortWeight !== urgencyB.sortWeight) {
-      return urgencyA.sortWeight - urgencyB.sortWeight;
-    }
+    // 2. Situação de urgência / atraso
+    const sitA = getSituationWeight(a);
+    const sitB = getSituationWeight(b);
+    if (sitA !== sitB) return sitB - sitA;
 
-    // 2. Se ambos forem concluídos, o mais recentemente concluído vem primeiro
-    if (a.status === 'completed' && b.status === 'completed') {
-      const dateA = a.completedAt || a.updatedAt || '';
-      const dateB = b.completedAt || b.updatedAt || '';
-      return dateB.localeCompare(dateA);
-    }
+    // 3. Prioridade (Alta > Média > Baixa)
+    const prioA = getPriorityWeight(a.priority);
+    const prioB = getPriorityWeight(b.priority);
+    if (prioA !== prioB) return prioB - prioA;
 
-    // 3. Critério de desempate por data mais próxima
-    const dateA = a.dueDate || a.date || '';
-    const dateB = b.dueDate || b.date || '';
-    if (dateA && dateB && dateA !== dateB) {
-      return dateA.localeCompare(dateB);
-    }
-
-    // 4. Critério por título
-    return a.title.localeCompare(b.title);
+    // 4. Data de vencimento / evento
+    const dateA = a.dueDate || a.date || a.createdAt;
+    const dateB = b.dueDate || b.date || b.createdAt;
+    return new Date(dateA).getTime() - new Date(dateB).getTime();
   });
 }
-
-/**
- * Adiciona meses a uma data YYYY-MM-DD de forma segura sem estourar o mês.
- * Exemplo: 31/01 + 1 mês = 28/02 (ou 29/02 em ano bissexto).
- * Exemplo: 31/03 + 3 meses = 30/06.
- */
-export function addMonthsSafe(dateStr: string, monthsToAdd: number): string {
-  const [yearStr, monthStr, dayStr] = dateStr.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10) - 1; // 0-indexed
-  const day = parseInt(dayStr, 10);
-
-  const targetMonthIndex = month + monthsToAdd;
-  const targetYear = year + Math.floor(targetMonthIndex / 12);
-  const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
-
-  // Último dia do mês alvo
-  const daysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-  const targetDay = Math.min(day, daysInTargetMonth);
-
-  const y = targetYear.toString().padStart(4, '0');
-  const m = (targetMonth + 1).toString().padStart(2, '0');
-  const d = targetDay.toString().padStart(2, '0');
-
-  return `${y}-${m}-${d}`;
-}
-
-/**
- * Adiciona dias a uma data YYYY-MM-DD de forma segura.
- */
-export function addDaysSafe(dateStr: string, daysToAdd: number): string {
-  const d = parseLocalDate(dateStr);
-  d.setDate(d.getDate() + daysToAdd);
-  const y = d.getFullYear().toString().padStart(4, '0');
-  const m = (d.getMonth() + 1).toString().padStart(2, '0');
-  const day = d.getDate().toString().padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-/**
- * Calcula a próxima data de ocorrência com base na regra de recorrência.
- */
-export function calculateNextRecurrenceDate(
-  baseDateStr: string,
-  frequency: RecurrenceFrequency,
-  interval: number = 1,
-  unit: RecurrenceUnit = 'months'
-): string {
-  switch (frequency) {
-    case 'weekly':
-      return addDaysSafe(baseDateStr, 7);
-    case 'biweekly':
-      return addDaysSafe(baseDateStr, 14);
-    case 'monthly':
-      return addMonthsSafe(baseDateStr, 1);
-    case 'every_2_months':
-      return addMonthsSafe(baseDateStr, 2);
-    case 'every_3_months':
-      return addMonthsSafe(baseDateStr, 3);
-    case 'every_6_months':
-      return addMonthsSafe(baseDateStr, 6);
-    case 'yearly':
-      return addMonthsSafe(baseDateStr, 12);
-    case 'custom': {
-      const count = Math.max(1, interval || 1);
-      if (unit === 'days') return addDaysSafe(baseDateStr, count);
-      if (unit === 'weeks') return addDaysSafe(baseDateStr, count * 7);
-      if (unit === 'months') return addMonthsSafe(baseDateStr, count);
-      if (unit === 'years') return addMonthsSafe(baseDateStr, count * 12);
-      return addMonthsSafe(baseDateStr, count);
-    }
-    default:
-      return baseDateStr;
-  }
-}
-
-/**
- * Retorna o rótulo legível em português da regra de recorrência.
- */
-export function getRecurrenceLabel(
-  frequency?: RecurrenceFrequency | null,
-  interval?: number | null,
-  unit?: RecurrenceUnit | null
-): string {
-  if (!frequency || frequency === 'none') return '';
-  switch (frequency) {
-    case 'weekly':
-      return 'Semanal';
-    case 'biweekly':
-      return 'Quinzenal';
-    case 'monthly':
-      return 'A cada mês';
-    case 'every_2_months':
-      return 'A cada 2 meses';
-    case 'every_3_months':
-      return 'A cada 3 meses';
-    case 'every_6_months':
-      return 'A cada 6 meses';
-    case 'yearly':
-      return 'A cada 1 ano';
-    case 'custom': {
-      const count = interval || 1;
-      if (unit === 'days') return `A cada ${count} ${count === 1 ? 'dia' : 'dias'}`;
-      if (unit === 'weeks') return `A cada ${count} ${count === 1 ? 'semana' : 'semanas'}`;
-      if (unit === 'years') return `A cada ${count} ${count === 1 ? 'ano' : 'anos'}`;
-      return `A cada ${count} ${count === 1 ? 'mês' : 'meses'}`;
-    }
-    default:
-      return '';
-  }
-}
-

@@ -11,6 +11,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Circle,
+  ClipboardList,
   Edit2,
   FileDown,
   FileText,
@@ -31,6 +32,7 @@ import ActivityAnalysisView from './ActivityAnalysisView';
 import AppointmentLetterView from './AppointmentLetterView';
 import S302NoticeView from './S302NoticeView';
 import S303ReportView from './S303ReportView';
+import EldersMeetingAgendaView from './visit/EldersMeetingAgendaView';
 import VisitScheduleManagerView from './visit/VisitScheduleManagerView';
 
 import { useDialog } from '@/hooks/useDialog';
@@ -571,17 +573,19 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   const [showAppointmentLetter, setShowAppointmentLetter] = useState(false);
   const [appointmentLetterParams, setAppointmentLetterParams] = useState<{congregacao: Congregation, data: string} | null>(null);
   const [showVisitSchedule, setShowVisitSchedule] = useState(false);
-  const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string} | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'list'>('table');
-
-  useEffect(() => {
+  const [visitScheduleParams, setVisitScheduleParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string, visitId?: string} | null>(null);
+  const [showEldersAgenda, setShowEldersAgenda] = useState(false);
+  const [eldersAgendaParams, setEldersAgendaParams] = useState<{congregacaoId: string, congregacaoNome: string, periodo: string, visitId?: string} | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'list'>(() => {
     if (typeof window !== 'undefined') {
       const savedMode = localStorage.getItem('progcir_itineraries_view_mode') as 'table' | 'list' | null;
       if (savedMode === 'table' || savedMode === 'list') {
-        setViewMode(savedMode);
+        return savedMode;
       }
+      return window.innerWidth < 768 ? 'list' : 'table';
     }
-  }, []);
+    return 'table';
+  });
 
   const handleViewModeChange = (mode: 'table' | 'list') => {
     setViewMode(mode);
@@ -1460,19 +1464,47 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
   };
 
   const handleVisitScheduleClick = () => {
-    if (selectedItem && (selectedItem.congregacaoId || selectedItem.congregacao)) {
-      let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
-      if (!cong && selectedItem.congregacao) {
-        cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
-      }
-      setVisitScheduleParams({
-        congregacaoId: cong?.id || selectedItem.congregacaoId || 'cong_temp',
-        congregacaoNome: cong?.nome || selectedItem.congregacao || 'Congregação',
-        periodo: selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita'
-      });
-      setShowVisitSchedule(true);
-      setModalMode(null);
+    if (!selectedItem) return;
+    let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+    if (!cong && selectedItem.congregacao) {
+      cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
     }
+    const safeCongId = cong?.id || selectedItem.congregacaoId || (selectedItem.id ? `item_${selectedItem.id}` : 'cong_temp');
+    const safeCongNome = cong?.nome || selectedItem.congregacao || selectedItem.evento || 'Congregação';
+    const safePeriodo = selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita';
+
+    const visitId = selectedItem.id ? String(selectedItem.id) : undefined;
+
+    setVisitScheduleParams({
+      congregacaoId: safeCongId,
+      congregacaoNome: safeCongNome,
+      periodo: safePeriodo,
+      visitId,
+    });
+    setShowVisitSchedule(true);
+    setModalMode(null);
+  };
+
+  const handleEldersAgendaClick = () => {
+    if (!selectedItem) return;
+    let cong = congregations.find(c => c.id === selectedItem.congregacaoId);
+    if (!cong && selectedItem.congregacao) {
+      cong = congregations.find(c => c.nome.trim().toLowerCase() === selectedItem.congregacao!.trim().toLowerCase());
+    }
+    const safeCongId = cong?.id || selectedItem.congregacaoId || (selectedItem.id ? `item_${selectedItem.id}` : 'cong_temp');
+    const safeCongNome = cong?.nome || selectedItem.congregacao || selectedItem.evento || 'Congregação';
+    const safePeriodo = selectedItem.dataEvento || selectedItem.semana || 'Semana da Visita';
+
+    const visitId = selectedItem.id ? String(selectedItem.id) : undefined;
+
+    setEldersAgendaParams({
+      congregacaoId: safeCongId,
+      congregacaoNome: safeCongNome,
+      periodo: safePeriodo,
+      visitId,
+    });
+    setShowEldersAgenda(true);
+    setModalMode(null);
   };
 
   const handleEditClick = () => {
@@ -1781,7 +1813,21 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
         congregationId={visitScheduleParams.congregacaoId}
         congregationName={visitScheduleParams.congregacaoNome}
         visitPeriod={visitScheduleParams.periodo}
+        visitId={visitScheduleParams.visitId}
         onBack={() => setShowVisitSchedule(false)}
+      />
+    );
+  }
+
+  if (showEldersAgenda && eldersAgendaParams) {
+    return (
+      <EldersMeetingAgendaView
+        userId={userId}
+        congregationId={eldersAgendaParams.congregacaoId}
+        congregationName={eldersAgendaParams.congregacaoNome}
+        visitPeriod={eldersAgendaParams.periodo}
+        visitId={eldersAgendaParams.visitId}
+        onBack={() => setShowEldersAgenda(false)}
       />
     );
   }
@@ -1849,7 +1895,7 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
             Itinerários do Circuito
           </h2>
           <p className="text-xs sm:text-sm text-typography-500 truncate mt-0.5">
-            Cronograma semanal, visitas a congregações e relatórios oficiais
+            Programação semanal de visitas a congregações, Eventos e relatórios.
           </p>
         </div>
       </div>
@@ -2196,10 +2242,10 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                     <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider border-r border-surface-300 bg-surface-200/80">
                       Observações
                     </th>
-                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider border-r border-surface-300 w-36 text-center bg-surface-200/80">
+                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider border-r border-surface-300 w-24 text-center bg-surface-200/80">
                       Notificado
                     </th>
-                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider w-20 text-center bg-surface-200/80 print:hidden">
+                    <th className="p-3 text-xs font-bold text-typography-700 uppercase tracking-wider w-16 text-center bg-surface-200/80 print:hidden">
                       Ações
                     </th>
                   </tr>
@@ -2296,20 +2342,20 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             )}
                           </div>
                         </td>
-                        <td className="p-2.5 border-r border-surface-300 text-center">
+                        <td className="p-1.5 sm:p-2 border-r border-surface-300 text-center w-24">
                           {canNotify ? (
                             <>
-                              {/* Interativo na Tela: Visual Clean e Discreto */}
-                              <div className="flex justify-center items-center gap-1.5 print:hidden">
+                              {/* Interativo na Tela: Versão Compacta Otimizada */}
+                              <div className="flex justify-center items-center gap-1 print:hidden">
                                 <button 
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleChange(item.id!, 'escritorioNotificado', !item.escritorioNotificado);
                                   }}
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] border transition-all cursor-pointer active:scale-95 ${
+                                  className={`inline-flex items-center justify-center gap-0.5 px-1.5 py-1 rounded-md text-[10px] border transition-all cursor-pointer active:scale-95 ${
                                     item.escritorioNotificado 
-                                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-semibold' 
+                                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-bold' 
                                       : 'bg-surface-200/40 hover:bg-surface-200 text-typography-500 hover:text-typography-800 border-surface-300/70 font-medium'
                                   }`}
                                   title={item.escritorioNotificado ? "Escritório: Notificado (Clique para desmarcar)" : "Escritório: Pendente (Clique para confirmar)"}
@@ -2317,9 +2363,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                   {item.escritorioNotificado ? (
                                     <Check size={11} strokeWidth={2.5} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                                   ) : (
-                                    <Circle size={11} className="text-typography-400 shrink-0" />
+                                    <Circle size={10} className="text-typography-400 shrink-0" />
                                   )}
-                                  <span>Escritório</span>
+                                  <span>Escr</span>
                                 </button>
 
                                 <button 
@@ -2328,9 +2374,9 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                     e.stopPropagation();
                                     handleChange(item.id!, 'congregacaoNotificada', !item.congregacaoNotificada);
                                   }}
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] border transition-all cursor-pointer active:scale-95 ${
+                                  className={`inline-flex items-center justify-center gap-0.5 px-1.5 py-1 rounded-md text-[10px] border transition-all cursor-pointer active:scale-95 ${
                                     item.congregacaoNotificada 
-                                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-semibold' 
+                                      ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-bold' 
                                       : 'bg-surface-200/40 hover:bg-surface-200 text-typography-500 hover:text-typography-800 border-surface-300/70 font-medium'
                                   }`}
                                   title={item.congregacaoNotificada ? "Congregação: Notificada (Clique para desmarcar)" : "Congregação: Pendente (Clique para confirmar)"}
@@ -2338,28 +2384,28 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                                   {item.congregacaoNotificada ? (
                                     <Check size={11} strokeWidth={2.5} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                                   ) : (
-                                    <Circle size={11} className="text-typography-400 shrink-0" />
+                                    <Circle size={10} className="text-typography-400 shrink-0" />
                                   )}
-                                  <span>Congr.</span>
+                                  <span>Cong</span>
                                 </button>
                               </div>
 
-                              {/* Exibição para Impressão e PDF: Clean e Legível */}
-                              <div className="hidden print:flex flex-col items-center justify-center gap-0.5 text-[9px] leading-tight py-0.5">
-                                <div className="flex items-center justify-between w-full max-w-[110px] px-1">
-                                  <span className="font-semibold text-gray-700 uppercase text-[8.5px]">Escritório:</span>
+                              {/* Exibição para Impressão e PDF: Clean e Ultra-compacta */}
+                              <div className="hidden print:flex flex-col items-center justify-center gap-0.5 text-[8.5px] leading-tight py-0.5">
+                                <div className="flex items-center justify-between w-full max-w-[85px] px-0.5">
+                                  <span className="font-semibold text-gray-700 uppercase text-[8px]">Escr:</span>
                                   {item.escritorioNotificado ? (
-                                    <span className="font-bold text-emerald-800 text-[9.5px]">✓</span>
+                                    <span className="font-bold text-emerald-800 text-[9px]">✓</span>
                                   ) : (
-                                    <span className="text-gray-400 text-[9.5px]">—</span>
+                                    <span className="text-gray-400 text-[9px]">—</span>
                                   )}
                                 </div>
-                                <div className="flex items-center justify-between w-full max-w-[110px] px-1">
-                                  <span className="font-semibold text-gray-700 uppercase text-[8.5px]">Congr.:</span>
+                                <div className="flex items-center justify-between w-full max-w-[85px] px-0.5">
+                                  <span className="font-semibold text-gray-700 uppercase text-[8px]">Cong:</span>
                                   {item.congregacaoNotificada ? (
-                                    <span className="font-bold text-emerald-800 text-[9.5px]">✓</span>
+                                    <span className="font-bold text-emerald-800 text-[9px]">✓</span>
                                   ) : (
-                                    <span className="text-gray-400 text-[9.5px]">—</span>
+                                    <span className="text-gray-400 text-[9px]">—</span>
                                   )}
                                 </div>
                               </div>
@@ -2509,8 +2555,22 @@ export default function ItinerariesView({ userId, user, onBack }: ItinerariesVie
                             <Calendar size={16} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="font-bold text-sm text-typography-900">Semana da Visita</div>
-                            <div className="text-[11px] text-typography-500 truncate">Programação de atividades com link para os anciãos</div>
+                            <div className="font-bold text-sm text-typography-900">Programação de Atividades</div>
+                            <div className="text-[11px] text-typography-500 truncate">Atividades da semana da visita e links de compartilhamento</div>
+                          </div>
+                        </button>
+
+                        <button 
+                          type="button"
+                          onClick={handleEldersAgendaClick}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-surface-300 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all text-left group cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <ClipboardList size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-typography-900">Pauta da Reunião de Anciãos</div>
+                            <div className="text-[11px] text-typography-500 truncate">Assuntos, referências e recomendações para o corpo</div>
                           </div>
                         </button>
 

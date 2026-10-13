@@ -35,11 +35,23 @@ export default function ThemeSwitcher({
     }
   }, [open])
 
+  const [alignLeft, setAlignLeft] = useState(false)
+
+  const handleToggle = () => {
+    if (!open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      // Se o botão estiver na metade esquerda da tela (ou com menos de 210px até a borda esquerda),
+      // abre o menu alinhado à esquerda (left-0) para não cortar no celular
+      setAlignLeft(rect.right < 220)
+    }
+    setOpen((prev) => !prev)
+  }
+
   return (
     <div ref={containerRef} className={cn('relative inline-block text-left', className)}>
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={handleToggle}
         className="flex items-center gap-2 p-2.5 rounded-xl border border-surface-300 bg-surface-100 text-typography-800 shadow-xs hover:bg-surface-200 transition-all focus:outline-none focus:ring-2 focus:ring-primary-200 cursor-pointer active:scale-95"
         title="Escolher Tema"
         aria-label="Escolher Tema"
@@ -55,7 +67,12 @@ export default function ThemeSwitcher({
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-surface-100 p-2 shadow-xl border border-surface-300 z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className={cn(
+            'absolute mt-2 w-52 max-w-[calc(100vw-2rem)] rounded-2xl bg-surface-100 p-2 shadow-xl border border-surface-300 z-50 animate-in fade-in zoom-in-95 duration-150',
+            alignLeft ? 'left-0' : 'right-0'
+          )}
+        >
           <div className="text-[10px] font-bold uppercase tracking-wider text-typography-500 mb-1.5 px-2">
             Escolher Tema
           </div>

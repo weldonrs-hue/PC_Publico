@@ -13,46 +13,39 @@ import SpecialPioneerMeetingView from '@/components/SpecialPioneerMeetingView';
 import DashboardCards from '@/components/DashboardCards';
 import SecondarySection from '@/components/SecondarySection';
 import AuthForm from '@/components/AuthForm';
-const PersonalDataView = dynamic(() => import('@/components/PersonalDataView'), { ssr: false });
-const CongregationsView = dynamic(() => import('@/components/CongregationsView'), { ssr: false });
-const SubstitutesView = dynamic(() => import('@/components/SubstitutesView'), { ssr: false });
-const ItinerariesView = dynamic(() => import('@/components/ItinerariesView'), { ssr: false });
-const SettingsView = dynamic(() => import('@/components/SettingsView'), { ssr: false });
-const UsersView = dynamic(() => import('@/components/UsersView'), { ssr: false });
-const TjSecAccountsView = dynamic(() => import('@/components/TjSecAccountsView'), { ssr: false });
-const CircuitStatisticsView = dynamic(() => import('@/components/CircuitStatisticsView'), { ssr: false });
-const SchoolsView = dynamic(() => import('@/components/SchoolsView'), { ssr: false });
-const PioneerSchoolView = dynamic(() => import('@/components/PioneerSchoolView'), { ssr: false });
-const CongregationStatisticsView = dynamic(() => import('@/components/CongregationStatisticsView'), { ssr: false });
-const MiscView = dynamic(() => import('@/components/MiscView'), { 
-  ssr: false,
-  loading: () => (
-    <div className="flex flex-col items-center justify-center p-20 space-y-4">
-      <div className="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
-      <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Carregando Módulo Diversos...</p>
-    </div>
-  )
-});
-const FieldServiceReportView = dynamic(() => import('@/components/FieldServiceReportView'), { ssr: false });
-const WeeklyExpensesReceipt = dynamic(() => import('@/components/WeeklyExpensesReceipt'), { ssr: false });
-const FileViewer = dynamic(() => import('@/components/FileViewer'), { ssr: false });
-const CartasDashboard = dynamic(() => import('@/components/CartasDashboard'), { ssr: false });
-const CartasESPView = dynamic(() => import('@/components/CartasESPView'), { ssr: false });
-const CartasCongressoView = dynamic(() => import('@/components/CartasCongressoView'), { ssr: false });
-const CartasAssembleiasView = dynamic(() => import('@/components/CartasAssembleiasView'), { ssr: false });
-const CartasEMRView = dynamic(() => import('@/components/CartasEMRView'), { ssr: false });
-const CartasSeletorView = dynamic(() => import('@/components/CartasSeletorView'), { ssr: false });
-const GlobalS302View = dynamic(() => import('@/components/S302GlobalView'), { ssr: false });
-const RoleSelectionModal = dynamic(() => import('@/components/RoleSelectionModal'), { ssr: false });
-const FloatingStopwatch = dynamic(() => import('@/components/FloatingStopwatch'), { ssr: false });
-const DonationView = dynamic(() => import('@/components/DonationView'), { ssr: false });
-const InboxView = dynamic(() => import('@/components/InboxView'), { ssr: false });
-const PlannerView = dynamic(() => import('@/components/PlannerView'), { ssr: false });
-const EMRView = dynamic(() => import('@/components/EMRView'), { ssr: false });
-const EMRServosView = dynamic(() => import('@/components/EMRServosView'), { ssr: false });
+import SchoolsView from '@/components/SchoolsView';
+import PersonalDataView from '@/components/PersonalDataView';
+import CongregationsView from '@/components/CongregationsView';
+import SubstitutesView from '@/components/SubstitutesView';
+import ItinerariesView from '@/components/ItinerariesView';
+import SettingsView from '@/components/SettingsView';
+import UsersView from '@/components/UsersView';
+import TjSecAccountsView from '@/components/TjSecAccountsView';
+import CircuitStatisticsView from '@/components/CircuitStatisticsView';
+import PioneerSchoolView from '@/components/PioneerSchoolView';
+import CongregationStatisticsView from '@/components/CongregationStatisticsView';
+import MiscView from '@/components/MiscView';
+import FieldServiceReportView from '@/components/FieldServiceReportView';
+import WeeklyExpensesReceipt from '@/components/WeeklyExpensesReceipt';
+import FileViewer from '@/components/FileViewer';
+import CartasDashboard from '@/components/CartasDashboard';
+import CartasESPView from '@/components/CartasESPView';
+import CartasCongressoView from '@/components/CartasCongressoView';
+import CartasAssembleiasView from '@/components/CartasAssembleiasView';
+import CartasEMRView from '@/components/CartasEMRView';
+import CartasSeletorView from '@/components/CartasSeletorView';
+import GlobalS302View from '@/components/S302GlobalView';
+import RoleSelectionModal from '@/components/RoleSelectionModal';
+import FloatingStopwatch from '@/components/FloatingStopwatch';
+import DonationView from '@/components/DonationView';
+import InboxView from '@/components/InboxView';
+import PlannerView from '@/components/PlannerView';
+import EMRView from '@/components/EMRView';
+import EMRServosView from '@/components/EMRServosView';
 import ImageCropper from '@/components/ImageCropper';
 import TermsAndPrivacy from '@/components/TermsAndPrivacy';
 import ThemeSwitcher from '@/components/ui/theme-switcher';
+const WhatsAppNewsCardModal = dynamic(() => import('@/components/WhatsAppNewsCardModal'), { ssr: false });
 
 import { auth, db } from '@/lib/firebase';
 import { useDialog } from '@/hooks/useDialog';
@@ -72,7 +65,7 @@ import {
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType, isQuotaExceeded, setQuotaExceededGlobal, clearQuotaExceeded } from '@/utils/firestore';
-import { Camera, User, ArrowLeft, AlertCircle, X, Coffee, Send, FileText, Sparkles, Check } from 'lucide-react';
+import { Camera, User, ArrowLeft, AlertCircle, X, Coffee, Send, FileText, Sparkles, Check, MessageCircle } from 'lucide-react';
 
 const STORAGE_KEY = 'progcir_personal_data';
 const CONG_STORAGE_KEY = 'progcir_congregations';
@@ -904,6 +897,7 @@ export default function Home() {
   };
 
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showWhatsAppCard, setShowWhatsAppCard] = useState(false);
   const [newsContent, setNewsContent] = useState<any>(null);
 
   // Fetch News and Config
@@ -1068,25 +1062,49 @@ export default function Home() {
               </div>
 
               {/* Sticky Footer Bar - ALWAYS visible and accessible */}
-              <div className="p-3.5 sm:p-4 bg-surface-200/40 border-t border-surface-300 flex items-center justify-end gap-2.5 shrink-0">
-                <button
-                  onClick={closeNews}
-                  className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
-                >
-                  Fechar
-                </button>
-                <button
-                  onClick={closeNews}
-                  className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Check size={16} strokeWidth={3} />
-                  <span>Entendido</span>
-                </button>
+              <div className="p-3.5 sm:p-4 bg-surface-200/40 border-t border-surface-300 flex items-center justify-between gap-2.5 shrink-0 flex-wrap">
+                {isAdminUser && (
+                  <button
+                    type="button"
+                    onClick={() => setShowWhatsAppCard(true)}
+                    className="px-4 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    title="Gerar card e mensagem formatada para o WhatsApp"
+                  >
+                    <MessageCircle size={15} />
+                    <span>Card WhatsApp</span>
+                  </button>
+                )}
+                <div className={`flex items-center gap-2 ${!isAdminUser ? "ml-auto" : ""}`}>
+
+                  <button
+                    onClick={closeNews}
+                    className="px-4 py-2.5 sm:py-3 bg-surface-200 hover:bg-surface-300 active:scale-95 text-typography-700 font-bold text-xs uppercase tracking-wider rounded-xl border border-surface-300 transition-all cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    onClick={closeNews}
+                    className="flex-1 sm:flex-initial px-6 py-2.5 sm:py-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Check size={16} strokeWidth={3} />
+                    <span>Entendido</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {isAdminUser && (
+        <WhatsAppNewsCardModal 
+          isOpen={showWhatsAppCard}
+          onClose={() => setShowWhatsAppCard(false)}
+          customTitle={newsContent?.title}
+          customContent={newsContent?.content}
+          version={newsContent?.version || 'v2.0'}
+        />
+      )}
 
       <div className="print:hidden">
         <Sidebar 
@@ -1154,7 +1172,7 @@ export default function Home() {
         />
       </div>
       
-      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 
+      <main className="flex-1 min-h-screen flex flex-col transition-all duration-500 w-full max-w-full min-w-0 overflow-x-hidden
         landscape:ml-20 landscape:sm:ml-28 landscape:lg:ml-64
         portrait:md:ml-20 portrait:lg:ml-64 
         portrait:mb-16 portrait:md:mb-0 
@@ -1202,7 +1220,7 @@ export default function Home() {
             </button>
           </motion.div>
         )}
-        <div className={`${currentView === 'inbox' ? 'p-1 sm:p-3 md:p-6' : 'p-4 md:p-6'} space-y-4 md:space-y-6 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none print:space-y-0`}>
+        <div className={`${currentView === 'inbox' ? 'p-1 sm:p-3 md:p-6' : 'p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto'} w-full max-w-full min-w-0 overflow-x-hidden print:p-0 print:m-0 print:max-w-none print:space-y-0`}>
           {currentView === 'dashboard' && (
             <>
               {/* Welcome Section */}

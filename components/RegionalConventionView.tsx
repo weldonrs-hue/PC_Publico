@@ -12,33 +12,32 @@ import {
   Calendar,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
-  ChevronUp,
   Circle,
   Clock,
   Edit3,
   FileDown, FileText,
   Info,
   Landmark,
-  LayoutGrid,
   LayoutList,
   Loader2,
-  Table as TableIcon,
   MapPin,
   Maximize2,
   Music,
   Plus,
   Printer,
   Save,
+  Table as TableIcon,
   Trash2,
   User,
   UserCheck,
+  X,
   ZoomIn, ZoomOut
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import PizZip from 'pizzip';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { autoSyncCircuitEventToPlanner } from '@/services/circuitEventsScanner';
 
 interface RegionalConventionViewProps {
   userId: string;
@@ -555,6 +554,23 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
       setInitialSpeakers(speakers);
       setInitialConfirmedSpeakers(confirmedSpeakers);
       setInitialDetails(details);
+
+      // Auto-sincronizar eventos na agenda (planner_items) em segundo plano
+      if (userId) {
+        if (details.eventDate) {
+          autoSyncCircuitEventToPlanner(userId, 'regional_convention_event', {
+            rawDate: details.eventDate,
+            location: details.eventLocation,
+          }).catch(() => {});
+        }
+        if (details.trainingDate) {
+          autoSyncCircuitEventToPlanner(userId, 'regional_convention_training', {
+            rawDate: details.trainingDate,
+            location: details.trainingLocation,
+          }).catch(() => {});
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Error saving speakers:', error);
@@ -1020,6 +1036,15 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
           </div>
 
           <button
+            onClick={() => setShowDetails(true)}
+            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl shadow-xs border border-amber-500/20 transition-all cursor-pointer"
+            title="Editar dados do congresso (tema, data, local, treinamento e assistentes)"
+          >
+            <CalendarDays size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="font-bold text-xs uppercase tracking-wider">Dados do Evento</span>
+          </button>
+
+          <button
             onClick={handlePrint}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-surface-200 hover:bg-surface-300 text-typography-700 rounded-xl shadow-xs border border-surface-300 transition-all cursor-pointer"
             title="Imprimir Folha A4 Oficial"
@@ -1111,11 +1136,11 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                 </span>
 
                 <button
-                  onClick={() => setShowDetails(!showDetails)}
-                  className="text-xs font-bold text-typography-700 hover:text-typography-900 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-200 hover:bg-surface-300 transition-colors cursor-pointer border border-surface-300"
+                  onClick={() => setShowDetails(true)}
+                  className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 transition-colors cursor-pointer border border-amber-500/20"
                 >
-                  {showDetails ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                  <span>{showDetails ? 'Ocultar Detalhes' : 'Editar Dados do Evento'}</span>
+                  <CalendarDays size={13} className="text-amber-600 dark:text-amber-400" />
+                  <span>Editar Dados do Evento</span>
                 </button>
               </div>
 
@@ -1223,7 +1248,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
           </div>
 
           {/* Abas de Navegação entre Sessões (Manhã / Tarde) */}
-          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto">
+          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto no-scrollbar">
             {currentDay.sessions.map((session, sIdx) => {
               const isActive = activeSessionTab === sIdx;
               return (
@@ -1516,57 +1541,126 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
 
 
 
-      {/* Convention General Info Inputs (disponível quando showDetails estiver ativo em ambos os modos) */}
+      {/* Modal de Detalhes do Evento do Congresso Regional (Padrão Assembleia de Circuito) */}
       <AnimatePresence>
         {showDetails && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0, marginTop: 0 }}
-            animate={{ opacity: 1, height: 'auto', marginTop: 0 }}
-            exit={{ opacity: 0, height: 0, marginTop: 0 }}
-            className="overflow-hidden no-print"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
-              <div className="bg-surface-100 p-6 rounded-3xl border border-surface-300 shadow-sm space-y-4">
-                <h3 className="text-sm font-black text-primary-200 uppercase tracking-widest flex items-center gap-2">
-                  <Landmark size={18} />
-                  Dados do Congresso
-                </h3>
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Tema do Congresso</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: 'Felicidade Eterna'"
-                      value={details.conventionTheme}
-                      disabled={isGuest}
-                      onChange={(e) => setDetails(prev => ({ ...prev, conventionTheme: e.target.value }))}
-                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
-                    />
+          <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md no-print">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-surface-300 relative text-typography-900"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-transparent" />
+              <div className="p-5 sm:p-6 bg-surface-200/40 border-b border-surface-300 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400">
+                    <CalendarDays size={20} />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Data do Evento</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: 12-14 de Junho, 2026"
-                      value={details.eventDate}
-                      disabled={isGuest}
-                      onChange={(e) => setDetails(prev => ({ ...prev, eventDate: e.target.value }))}
-                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
-                    />
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-typography-900 uppercase tracking-tight">Detalhes do Congresso</h3>
+                    <p className="text-xs text-typography-500 font-medium">Informações do congresso, treinamento e assistentes.</p>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Local (Endereço)</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: Ginásio do Ibirapuera, São Paulo"
-                      value={details.eventLocation}
-                      disabled={isGuest}
-                      onChange={(e) => setDetails(prev => ({ ...prev, eventLocation: e.target.value }))}
-                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
-                    />
+                </div>
+                <button 
+                  onClick={() => setShowDetails(false)} 
+                  className="p-2 text-typography-400 hover:text-typography-900 hover:bg-surface-200 rounded-xl transition-all cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex flex-col max-h-[calc(100dvh-140px)] sm:max-h-[85vh]">
+                <div className="flex-1 p-5 sm:p-6 space-y-5 overflow-y-auto no-scrollbar scroll-smooth">
+                  {/* Sessão 1: Dados do Congresso */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                      <Landmark size={15} />
+                      Dados Gerais do Evento
+                    </h4>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Tema do Congresso</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: 'Felicidade Eterna'"
+                        value={details.conventionTheme}
+                        disabled={isGuest}
+                        onChange={(e) => setDetails(prev => ({ ...prev, conventionTheme: e.target.value }))}
+                        className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Data do Evento</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ex: 12-14 de Junho, 2026"
+                          value={details.eventDate}
+                          disabled={isGuest}
+                          onChange={(e) => setDetails(prev => ({ ...prev, eventDate: e.target.value }))}
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Local (Endereço)</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ex: Ginásio do Ibirapuera, São Paulo"
+                          value={details.eventLocation}
+                          disabled={isGuest}
+                          onChange={(e) => setDetails(prev => ({ ...prev, eventLocation: e.target.value }))}
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Assistente(s) do Presidente do congresso</label>
+
+                  {/* Sessão 2: Treinamento / Ensaio */}
+                  <div className="space-y-4 pt-3 border-t border-surface-300">
+                    <h4 className="text-xs font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest flex items-center gap-2">
+                      <BookOpen size={15} />
+                      Treinamento / Reunião Preparatória
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Data do Treinamento</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ex: 15 de Maio, 2026"
+                          value={details.trainingDate}
+                          disabled={isGuest}
+                          onChange={(e) => setDetails(prev => ({ ...prev, trainingDate: e.target.value }))}
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Local do Treinamento</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ex: Salão do Reino Central"
+                          value={details.trainingLocation}
+                          disabled={isGuest}
+                          onChange={(e) => setDetails(prev => ({ ...prev, trainingLocation: e.target.value }))}
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sessão 3: Assistentes */}
+                  <div className="space-y-3 pt-3 border-t border-surface-300">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-typography-600 dark:text-typography-400 uppercase tracking-widest flex items-center gap-2">
+                        <UserCheck size={15} className="text-primary-200" />
+                        Assistente(s) do Presidente do Congresso
+                      </label>
+                    </div>
+
                     <div className="space-y-2">
                       {((details.congressAssistants && details.congressAssistants.length > 0) ? details.congressAssistants : [details.congressAssistant || '']).map((asst, index) => (
                         <div key={index} className="flex gap-2 items-center">
@@ -1593,7 +1687,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                                 congressAssistant: formattedString
                               }));
                             }}
-                            className="flex-1 px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
+                            className="flex-1 px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
                           />
                           {!isGuest && (
                             <button
@@ -1622,14 +1716,15 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                                   }));
                                 }
                               }}
-                              className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-2xl transition-all cursor-pointer"
-                              title="Remover"
+                              className="p-3 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-2xl transition-all cursor-pointer"
+                              title="Remover assistente"
                             >
                               <Trash2 size={16} />
                             </button>
                           )}
                         </div>
                       ))}
+
                       {!isGuest && (
                         <button
                           type="button"
@@ -1640,7 +1735,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                               congressAssistants: [...currentList, '']
                             }));
                           }}
-                          className="w-full py-2.5 bg-primary-200/10 text-primary-200 hover:bg-primary-200/20 text-xs font-black uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2 border border-dashed border-primary-200/30 cursor-pointer"
+                          className="w-full py-2.5 bg-surface-200/70 hover:bg-surface-200 text-primary-200 text-xs font-bold uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2 border border-dashed border-primary-200/30 cursor-pointer"
                         >
                           <Plus size={14} />
                           Adicionar Novo Assistente
@@ -1649,40 +1744,31 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="bg-surface-100 p-6 rounded-3xl border border-surface-300 shadow-sm space-y-4">
-                <h3 className="text-sm font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest flex items-center gap-2">
-                  <BookOpen size={18} />
-                  Treinamento
-                </h3>
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Data do Treinamento</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: 15 de Maio, 2026"
-                      value={details.trainingDate}
-                      disabled={isGuest}
-                      onChange={(e) => setDetails(prev => ({ ...prev, trainingDate: e.target.value }))}
-                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-typography-400 uppercase tracking-widest ml-1">Local do Treinamento</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: Salão do Reino Central"
-                      value={details.trainingLocation}
-                      disabled={isGuest}
-                      onChange={(e) => setDetails(prev => ({ ...prev, trainingLocation: e.target.value }))}
-                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 outline-none transition-all placeholder:text-typography-400 disabled:opacity-60"
-                    />
-                  </div>
+                <div className="p-4 sm:p-5 bg-surface-200/40 border-t border-surface-300 flex flex-col sm:flex-row gap-3">
+                  {!isGuest && (
+                    <button 
+                      onClick={async () => {
+                        const ok = await handleSave();
+                        if (ok) setShowDetails(false);
+                      }}
+                      disabled={isSaving}
+                      className="flex-1 py-3 bg-primary-200 hover:bg-primary-150 text-white font-bold rounded-2xl shadow-md shadow-primary-200/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span>Salvar Alterações</span>
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setShowDetails(false)}
+                    className="flex-1 py-3 bg-surface-200 hover:bg-surface-300 text-typography-700 font-bold rounded-2xl border border-surface-300 transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    Fechar
+                  </button>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

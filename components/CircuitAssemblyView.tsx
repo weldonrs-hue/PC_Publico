@@ -6,11 +6,12 @@ import CustomSelect from '@/components/CustomSelect';
 import { db } from '@/lib/firebase';
 import Docxtemplater from 'docxtemplater';
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { AlertTriangle, BookOpen, Calendar, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, Clock, Edit3, FileDown, FileText, Info, LayoutGrid, LayoutList, Loader2, Mail, MapPin, Maximize2, Music, Plus, Printer, RefreshCw, Save, Search, Table as TableIcon, Trash2, User, UserCheck, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, BookOpen, Calendar, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, Clock, Edit3, FileDown, FileText, Info, LayoutGrid, LayoutList, Loader2, Mail, MapPin, Maximize2, Minimize2, Minus, Music, Plus, Printer, RefreshCw, Save, Search, Table as TableIcon, Trash2, User, UserCheck, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import PizZip from 'pizzip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { autoSyncCircuitEventToPlanner } from '@/services/circuitEventsScanner';
 
 interface CircuitAssemblyViewProps {
   userId: string;
@@ -683,33 +684,80 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
-  // Modo de visualização: 'responsive' (Cards interativos modernos) ou 'a4' (Folha Oficial impressa)
+  // Modo de visualização: 'responsive' (Cards interativos modernos em telas pequenas) ou 'a4' (Folha Oficial impressa em telas grandes)
   const [viewMode, setViewMode] = useState<'responsive' | 'a4'>(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      return 'responsive';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('progcir_assembly_view_mode') as 'responsive' | 'a4' | null;
+      if (saved === 'responsive' || saved === 'a4') return saved;
+      return window.innerWidth < 1024 ? 'responsive' : 'a4';
     }
-    return 'responsive';
+    return 'a4';
   });
   const [activeSessionTab, setActiveSessionTab] = useState<number>(0);
 
-  // Digital A4 Portrait Zoom & Viewport controls
+  // Digital A4 Portrait Zoom & Viewport controls (padrão S-303)
+  const [autoFit, setAutoFit] = useState(true);
+  const [showZoomMenu, setShowZoomMenu] = useState(false);
   const [zoom, setZoom] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('circuit_assembly_a4_zoom');
-      if (saved) return parseInt(saved, 10);
+      const isMobile = window.innerWidth < 1024;
+      const approxWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+      const approxAvailable = Math.max(240, approxWidth - 32);
+      return Math.max(35, Math.round((approxAvailable / 793.7) * 100));
     }
-    return 80;
+    return 85;
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  const handleFitToScreen = () => {
-    if (!containerRef.current) return;
-    const containerWidth = containerRef.current.clientWidth - 32;
-    // Virtual A4 portrait width is 793.7px (210mm @ 96dpi)
-    const a4PortraitWidthPx = 793.7;
-    const fitScale = Math.max(35, Math.min(125, Math.floor((containerWidth / a4PortraitWidthPx) * 100)));
-    setZoom(fitScale);
+  const ZOOM_STEPS = [35, 50, 65, 75, 85, 100, 115, 125, 150, 175, 200];
+
+  const calculateAutoFitZoom = useCallback(() => {
+    let containerWidth = containerRef.current?.clientWidth || 0;
+    if (!containerWidth && typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 1024;
+      containerWidth = isMobile ? window.innerWidth : Math.max(300, window.innerWidth - 280);
+    }
+    const availableWidth = Math.max(240, containerWidth - 32);
+    const a4WidthPx = 793.7;
+    const calculated = Math.round((availableWidth / a4WidthPx) * 100);
+    return Math.max(35, calculated);
+  }, []);
+
+  const handleZoomIn = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const next = ZOOM_STEPS.find(s => s > prev + 4);
+      return next ? next : Math.min(200, prev + 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleZoomOut = () => {
+    setAutoFit(false);
+    setZoom(prev => {
+      const prevStep = [...ZOOM_STEPS].reverse().find(s => s < prev - 4);
+      return prevStep ? prevStep : Math.max(35, prev - 15);
+    });
+    setShowZoomMenu(false);
+  };
+
+  const handleSetZoom = (newZoom: number) => {
+    setAutoFit(false);
+    setZoom(newZoom);
+    setShowZoomMenu(false);
+  };
+
+  const handleToggleAutoFit = () => {
+    if (autoFit) {
+      setAutoFit(false);
+      setZoom(100);
+    } else {
+      setAutoFit(true);
+      const fitZoom = calculateAutoFitZoom();
+      setZoom(fitZoom);
+    }
+    setShowZoomMenu(false);
   };
 
   useEffect(() => {
@@ -718,12 +766,35 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
     }
   }, [zoom]);
 
-  // Initial zoom calculation on mount: standardized at 80% for identical mobile-like view on all screens
+  // Observer de auto-ajuste ao redimensionar a tela
   useEffect(() => {
-    if (!containerRef.current) return;
-    if (sessionStorage.getItem('circuit_assembly_a4_zoom')) return;
-    setZoom(80);
-  }, [isLoading]);
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      if (autoFit && viewMode === 'a4') {
+        const fitZoom = calculateAutoFitZoom();
+        setZoom(fitZoom);
+      }
+    };
+
+    const observer = new ResizeObserver(handleResize);
+    if (containerRef.current) observer.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    handleResize();
+    const rafId = requestAnimationFrame(handleResize);
+    const timer50 = setTimeout(handleResize, 50);
+    const timer150 = setTimeout(handleResize, 150);
+    const timer300 = setTimeout(handleResize, 300);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(rafId);
+      clearTimeout(timer50);
+      clearTimeout(timer150);
+      clearTimeout(timer300);
+    };
+  }, [autoFit, viewMode, calculateAutoFitZoom]);
 
   // Pinch-to-zoom touch gesture listener
   useEffect(() => {
@@ -1132,6 +1203,32 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         year: selectedYear
       }, { merge: true });
       setInitialPartsData(JSON.stringify(cleanParts));
+
+      // Auto-sincronizar com itens importados na agenda (planner_items) em segundo plano
+      if (userId) {
+        Object.keys(cleanParts).forEach((pIdx) => {
+          const idx = parseInt(pIdx, 10);
+          const p = cleanParts[idx];
+          if (p?.details) {
+            const prefix = type === 'supt' ? 'assembly_supt' : 'assembly_branch';
+            if (p.details.eventDate) {
+              autoSyncCircuitEventToPlanner(userId, `${prefix}_part_${idx}_event`, {
+                rawDate: p.details.eventDate,
+                location: p.details.eventLocation,
+                fallbackYear: selectedYear.split('-')[0] || undefined,
+              }).catch(() => {});
+            }
+            if (p.details.rehearsalDate) {
+              autoSyncCircuitEventToPlanner(userId, `${prefix}_part_${idx}_rehearsal`, {
+                rawDate: p.details.rehearsalDate,
+                location: p.details.rehearsalLocation,
+                fallbackYear: selectedYear.split('-')[0] || undefined,
+              }).catch(() => {});
+            }
+          }
+        });
+      }
+
       if (showNotification) {
         await showAlert('Alterações salvas com sucesso!', 'Sucesso');
       }
@@ -1913,7 +2010,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
   }
 
   return (
-    <div id="circuit-assembly-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0">
+    <div id="circuit-assembly-print-content" className="space-y-6 pb-16 print:p-0 print:m-0 print:space-y-0 w-full max-w-full min-w-0 overflow-x-hidden">
       <style jsx global>{`
         @media screen {
           .print-only {
@@ -2055,9 +2152,9 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       `}</style>
 
       {/* Screen Header & Top Controls (no-print) */}
-      <div className="space-y-3 no-print">
+      <div className="space-y-3 no-print w-full max-w-full min-w-0">
         {/* Top bar: Back, Title & Action Bar */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs relative overflow-hidden">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap bg-surface-100 p-3 sm:p-4 rounded-3xl border border-surface-300 shadow-xs relative overflow-hidden w-full max-w-full min-w-0">
           <div 
             className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r opacity-90"
             style={{ 
@@ -2217,62 +2314,6 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           </div>
         </div>
 
-        {/* Zoom Toolbar (Apenas no Modo Folha A4) */}
-        {viewMode === 'a4' && (
-          <div className="flex items-center justify-end gap-2 p-2 bg-slate-900 text-white rounded-2xl shadow-md flex-wrap">
-            <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-wrap">
-              {/* Zoom Out */}
-              <button
-                onClick={() => setZoom(prev => Math.max(35, prev - 10))}
-                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-                title="Reduzir zoom (-10%)"
-                aria-label="Reduzir zoom"
-              >
-                <ZoomOut size={16} />
-              </button>
-
-              {/* Direct Zoom Presets */}
-              <div className="flex items-center bg-slate-800 rounded-lg p-0.5">
-                {[60, 80, 100, 125].map(preset => (
-                  <button
-                    key={preset}
-                    onClick={() => setZoom(preset)}
-                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                      zoom === preset ? 'bg-primary-200 text-white shadow-xs' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {preset}%
-                  </button>
-                ))}
-              </div>
-
-              {/* Zoom In */}
-              <button
-                onClick={() => setZoom(prev => Math.min(200, prev + 10))}
-                className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
-                title="Aumentar zoom (+10%)"
-                aria-label="Aumentar zoom"
-              >
-                <ZoomIn size={16} />
-              </button>
-
-              {/* Fit to screen */}
-              <button
-                onClick={handleFitToScreen}
-                className="px-2.5 py-1 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                title="Ajustar documento à largura da tela"
-              >
-                <Maximize2 size={13} />
-                <span className="hidden sm:inline">Ajustar</span>
-              </button>
-
-              {/* Current Zoom Level */}
-              <span className="text-xs font-bold text-slate-400 min-w-[40px] text-center">
-                {zoom}%
-              </span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* MODO DE VISUALIZAÇÃO RESPONSIVO (CARDS MODERNOS SEM SCROLL LATERAL) */}
@@ -2408,7 +2449,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           </div>
 
           {/* Abas de Navegação entre Sessões */}
-          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto">
+          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto no-scrollbar">
             {assemblyProgram.sessions.map((session: any, sIdx: number) => {
               const isActive = activeSessionTab === sIdx;
               return (
@@ -2698,7 +2739,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       {/* A4 Document Viewport Container (Apenas no Modo Folha A4 na tela, mas SEMPRE presente no print) */}
       <div 
         ref={containerRef}
-        className={`circuit-assembly-viewport w-full overflow-x-auto overflow-y-auto bg-slate-200/80 dark:bg-slate-900/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex-col items-center gap-8 shadow-inner custom-scrollbar relative border border-slate-300/80 dark:border-slate-800 ${
+        className={`circuit-assembly-viewport w-full max-w-full min-w-0 overflow-x-auto overflow-y-auto bg-slate-200/80 dark:bg-slate-900/80 rounded-3xl p-3 sm:p-6 lg:p-8 flex-col shadow-inner custom-scrollbar relative border border-slate-300/80 dark:border-slate-800 ${
           viewMode === 'a4' ? 'flex' : 'hidden print:flex'
         }`}
         style={{
@@ -2706,6 +2747,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           touchAction: 'pan-x pan-y',
         }}
       >
+        <div className="min-w-full w-max flex flex-col items-center gap-8 mx-auto">
         {/* Render 2 Physical A4 Pages: Page 1 = Manhã, Page 2 = Tarde */}
         {assemblyProgram.sessions.map((session: any, pageIdx: number) => {
           const pageNum = pageIdx + 1;
@@ -3102,6 +3144,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
             </div>
           );
         })}
+        </div>
 
         {/* Orphaned Parts / Revisions Section (Below A4 Sheet) */}
         {Object.keys(currentPart.orphanedParts || {}).length > 0 && (
@@ -3186,29 +3229,157 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         )}
       </div>
 
+      {/* Barra Flutuante Suspensa - Estilo Leitor de PDF integrada ao Tema (Padrão S-303) */}
+      {viewMode === 'a4' && (
+        <div className="fixed bottom-4 sm:bottom-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none print:hidden">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pointer-events-auto bg-surface-100/95 dark:bg-surface-800/95 backdrop-blur-xl text-typography-800 dark:text-typography-100 border border-surface-300 dark:border-surface-600 shadow-2xl rounded-full px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1 sm:gap-2 transition-all hover:shadow-primary-200/10"
+          >
+            {/* Indicador de Documento / Página */}
+            <div className="flex items-center gap-1.5 px-2 py-1 text-typography-600 dark:text-typography-300 text-xs font-medium select-none">
+              <FileText size={14} className="text-primary-200" />
+              <span className="hidden sm:inline font-semibold">Folha A4</span>
+              <span className="text-[11px] text-typography-500 font-mono">1/{assemblyProgram.sessions?.length || 2}</span>
+            </div>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Zoom Out (-) */}
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= 35}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Diminuir Zoom (-)"
+            >
+              <Minus size={15} />
+            </button>
+
+            {/* Seletor / Indicador de Porcentagem de Zoom */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowZoomMenu(!showZoomMenu)}
+                className="px-2 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 rounded-lg text-xs font-bold font-mono text-typography-800 dark:text-typography-100 transition-all flex items-center gap-1 cursor-pointer"
+                title="Opções de visualização de Zoom"
+              >
+                <span className="min-w-[40px] text-center">{Math.round(zoom)}%</span>
+                <ChevronDown size={12} className="text-typography-500" />
+              </button>
+
+              {showZoomMenu && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface-100 dark:bg-surface-800 backdrop-blur-xl border border-surface-300 dark:border-surface-600 rounded-2xl shadow-2xl py-1.5 min-w-[200px] z-40 divide-y divide-surface-200 dark:divide-surface-700 text-xs text-typography-800 dark:text-typography-100">
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-typography-500">
+                    Nível de Zoom
+                  </div>
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      onClick={handleToggleAutoFit}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        autoFit ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Maximize2 size={13} className={autoFit ? 'text-primary-200' : 'text-typography-500'} />
+                        Ajustar à Tela (Automático)
+                      </span>
+                      {autoFit && <Check size={13} className="text-primary-200" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetZoom(100)}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                        !autoFit && Math.round(zoom) === 100 ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-200'
+                      }`}
+                    >
+                      <span>100% (Tamanho Real)</span>
+                      {!autoFit && Math.round(zoom) === 100 && <Check size={13} className="text-primary-200" />}
+                    </button>
+                  </div>
+                  <div className="py-1">
+                    {[50, 65, 75, 85, 125, 150].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => handleSetZoom(s)}
+                        className={`w-full text-left px-3 py-1 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all flex items-center justify-between cursor-pointer ${
+                          !autoFit && Math.round(zoom) === s ? 'text-primary-200 font-bold bg-primary-50/50 dark:bg-primary-200/10' : 'text-typography-700 dark:text-typography-300'
+                        }`}
+                      >
+                        <span>{s}%</span>
+                        {!autoFit && Math.round(zoom) === s && <Check size={13} className="text-primary-200" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botão Zoom In (+) */}
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= 200}
+              className="p-1.5 hover:bg-surface-200 dark:hover:bg-surface-700 active:scale-95 rounded-full text-typography-700 dark:text-typography-200 hover:text-primary-200 dark:hover:text-primary-100 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              title="Aumentar Zoom (+)"
+            >
+              <Plus size={15} />
+            </button>
+
+            <div className="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-0.5" />
+
+            {/* Botão Ajustar à Tela (Alterna entre Automático ou Não) */}
+            <button
+              type="button"
+              onClick={handleToggleAutoFit}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                autoFit 
+                  ? 'bg-primary-200 hover:bg-primary-150 text-white shadow-primary-200/30' 
+                  : 'bg-surface-200 hover:bg-surface-300 dark:bg-surface-700 dark:hover:bg-surface-600 text-typography-700 dark:text-typography-200'
+              }`}
+              title={autoFit ? 'Ajuste à tela está ATIVO (automático). Clique para tamanho real (100%)' : 'Clique para ajustar automaticamente à tela'}
+            >
+              {autoFit ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              <span className="hidden sm:inline">
+                {autoFit ? 'Ajustado' : 'Ajustar à tela'}
+              </span>
+              <span className="sm:hidden">
+                {autoFit ? 'Auto' : 'Ajustar'}
+              </span>
+              {autoFit && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              )}
+            </button>
+          </motion.div>
+        </div>
+      )}
+
       {/* Discard Changes Modal */}
       {/* Modals e overlays */}
       <AnimatePresence>
         {nextSeasonPreview && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm no-print">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-surface-300 text-typography-900"
             >
               <div className="p-6">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  <Search size={24} className="text-blue-600" />
+                <div className="w-12 h-12 bg-primary-200/10 border border-primary-200/20 rounded-xl flex items-center justify-center mb-4">
+                  <Search size={24} className="text-primary-200" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">🆕 Nova programação encontrada!</h3>
-                <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+                <h3 className="text-xl font-bold text-typography-900 mb-2">🆕 Nova programação encontrada!</h3>
+                <p className="text-typography-500 text-sm mb-6 leading-relaxed">
                   A programação da temporada <strong>{nextSeasonPreview.year}</strong> foi localizada no JW.org e está pronta para ser adicionada ao seu sistema.
                 </p>
 
-                <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-100 overflow-hidden">
+                <div className="bg-surface-200/60 rounded-2xl p-4 mb-6 border border-surface-300 overflow-hidden">
                   {nextSeasonPreview.headerImage && (
-                    <div className="relative h-28 w-full rounded-lg overflow-hidden mb-3 border border-gray-200">
+                    <div className="relative h-28 w-full rounded-xl overflow-hidden mb-3 border border-surface-300">
                       <Image 
                         src={nextSeasonPreview.headerImage} 
                         alt="Tema da Assembleia" 
@@ -3221,16 +3392,16 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   )}
                   <div className="flex flex-col gap-3">
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Temporada</span>
-                      <p className="font-bold text-gray-800">{nextSeasonPreview.year}</p>
+                      <span className="text-[10px] font-black uppercase text-typography-400 tracking-wider">Temporada</span>
+                      <p className="font-bold text-typography-900">{nextSeasonPreview.year}</p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tema Encontrado</span>
-                      <p className="font-medium text-gray-800 italic">“{nextSeasonPreview.theme}”</p>
+                      <span className="text-[10px] font-black uppercase text-typography-400 tracking-wider">Tema Encontrado</span>
+                      <p className="font-medium text-typography-800 italic">“{nextSeasonPreview.theme}”</p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Partes Detectadas</span>
-                      <p className="font-bold text-gray-800">{nextSeasonPreview.itemCount} itens na programação</p>
+                      <span className="text-[10px] font-black uppercase text-typography-400 tracking-wider">Partes Detectadas</span>
+                      <p className="font-bold text-typography-900">{nextSeasonPreview.itemCount} itens na programação</p>
                     </div>
                   </div>
                 </div>
@@ -3270,27 +3441,27 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               </div>
 
               {/* Orphan Info */}
-              <div className="p-6 bg-amber-50/30 border-b border-amber-100/50">
-                <div className="text-[10px] font-black uppercase text-amber-600 mb-2">Dados Preservados</div>
+              <div className="p-6 bg-amber-500/10 border-b border-amber-500/20">
+                <div className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 mb-2">Dados Preservados</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                      <User size={16} className="text-indigo-500" />
+                    <div className="flex items-center gap-2 text-sm font-bold text-typography-900">
+                      <User size={16} className="text-primary-200" />
                       {reassigningOrphan.data.speaker}
                     </div>
                     {reassigningOrphan.data.congregation && (
-                      <div className="flex items-center gap-2 text-xs text-gray-500 ml-6">
+                      <div className="flex items-center gap-2 text-xs text-typography-500 ml-6">
                         <MapPin size={12} />
                         {reassigningOrphan.data.congregation}
                       </div>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500 bg-white/50 p-2 rounded-xl border border-amber-100">
+                  <div className="text-xs text-typography-600 bg-surface-100/80 p-2 rounded-xl border border-amber-500/20">
                     <span className="font-bold">Parte Anterior:</span> {reassigningOrphan.data.originalTitle} ({reassigningOrphan.data.originalTime})
                   </div>
                 </div>
                 {reassigningOrphan.data.notes && (
-                  <div className="mt-3 text-xs italic text-gray-600 bg-white/50 p-2 rounded-xl border border-amber-100 flex gap-2">
+                  <div className="mt-3 text-xs italic text-typography-600 bg-surface-100/80 p-2 rounded-xl border border-amber-500/20 flex gap-2">
                     <FileText size={14} className="shrink-0" />
                     "{reassigningOrphan.data.notes}"
                   </div>
@@ -3298,10 +3469,10 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               </div>
 
               {/* Target Selection */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6">
                 {assemblyProgram.sessions.map((session: any, sIdx: number) => (
                   <div key={`modal-session-${session.period || sIdx}-${sIdx}`} className="space-y-3">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <h4 className="text-xs font-black text-typography-400 uppercase tracking-widest flex items-center gap-2">
                       <Clock size={12} />
                       Sessão da {session.period}
                     </h4>
@@ -3317,21 +3488,21 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                             <button
                               key={`modal-item-${item.id || itemIdx}-${itemIdx}`}
                               onClick={() => handleConfirmReassign(item.id)}
-                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ${
+                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group cursor-pointer ${
                                 replaceConfirm?.targetId === item.id 
-                                  ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200' 
-                                  : 'border-gray-100 hover:border-indigo-300 hover:bg-indigo-50'
+                                  ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20' 
+                                  : 'border-surface-300 bg-surface-200/40 hover:border-primary-200/50 hover:bg-primary-200/5'
                               }`}
                             >
                               <div className="flex items-center gap-3">
-                                <div className="text-xs font-bold text-indigo-600 w-10">{item.time}</div>
+                                <div className="text-xs font-bold text-primary-200 w-10">{item.time}</div>
                                 <div>
-                                  <div className="text-sm font-bold text-gray-800">{item.title}</div>
-                                  <div className="text-[10px] text-gray-400 font-mono">{item.id}</div>
+                                  <div className="text-sm font-bold text-typography-900">{item.title}</div>
+                                  <div className="text-[10px] text-typography-400 font-mono">{item.id}</div>
                                 </div>
                               </div>
                               {hasData && (
-                                <div className="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-lg uppercase">
+                                <div className="px-2 py-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-lg uppercase">
                                   Já preenchido
                                 </div>
                               )}
@@ -3351,24 +3522,24 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                             <button
                               key={`modal-sub-${sub.id || subIdx}-${itemIdx}-${subIdx}`}
                               onClick={() => handleConfirmReassign(sub.id)}
-                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ml-4 border-l-4 ${
+                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ml-4 border-l-4 cursor-pointer ${
                                 replaceConfirm?.targetId === sub.id 
-                                  ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200' 
-                                  : 'border-gray-100 hover:border-indigo-300 hover:bg-indigo-50'
+                                  ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20' 
+                                  : 'border-surface-300 bg-surface-200/40 hover:border-primary-200/50 hover:bg-primary-200/5'
                               }`}
-                              style={{ borderLeftColor: replaceConfirm?.targetId === sub.id ? '#F59E0B' : '#E5E7EB' }}
+                              style={{ borderLeftColor: replaceConfirm?.targetId === sub.id ? '#F59E0B' : 'var(--surface-300)' }}
                             >
                               <div className="flex items-center gap-3">
-                                <div className="text-[10px] font-bold text-gray-400 w-10">
+                                <div className="text-[10px] font-bold text-typography-400 w-10">
                                   {sub.time || partsData[selectedPart].userTimes?.[sub.id] || 'SUB'}
                                 </div>
                                 <div>
-                                  <div className="text-sm font-bold text-gray-800 line-clamp-1">{sub.title}</div>
-                                  <div className="text-[10px] text-gray-400 font-mono">{sub.id}</div>
+                                  <div className="text-sm font-bold text-typography-900 line-clamp-1">{sub.title}</div>
+                                  <div className="text-[10px] text-typography-400 font-mono">{sub.id}</div>
                                 </div>
                               </div>
                               {hasData && (
-                                <div className="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-lg uppercase">
+                                <div className="px-2 py-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-lg uppercase">
                                   Já preenchido
                                 </div>
                               )}
@@ -3381,28 +3552,28 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               </div>
 
               {/* Footer / Confirmations */}
-              <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-col gap-3">
+              <div className="p-6 border-t border-surface-300 bg-surface-200/40 flex flex-col gap-3">
                 {replaceConfirm && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }} 
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-amber-100 rounded-2xl border border-amber-200 mb-2"
+                    className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 mb-2"
                   >
                     <div className="flex gap-3">
-                      <AlertTriangle className="text-amber-600 shrink-0" size={20} />
+                      <AlertTriangle className="text-amber-500 shrink-0" size={20} />
                       <div>
-                        <p className="text-sm font-bold text-amber-900">Esta parte já possui uma designação.</p>
-                        <p className="text-xs text-amber-700">Deseja substituir os dados existentes pelos dados deste item órfão?</p>
+                        <p className="text-sm font-bold text-typography-900">Esta parte já possui uma designação.</p>
+                        <p className="text-xs text-typography-600">Deseja substituir os dados existentes pelos dados deste item órfão?</p>
                         <div className="flex gap-3 mt-3">
                           <button 
                             onClick={() => handleConfirmReassign(replaceConfirm.targetId, true)}
-                            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700"
+                            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 cursor-pointer"
                           >
                             Substituir e reatribuir
                           </button>
                           <button 
                             onClick={() => setReplaceConfirm(null)}
-                            className="px-4 py-2 bg-white text-amber-700 text-xs font-bold rounded-lg border border-amber-200"
+                            className="px-4 py-2 bg-surface-100 text-typography-700 text-xs font-bold rounded-lg border border-surface-300 cursor-pointer"
                           >
                             Cancelar
                           </button>
@@ -3419,11 +3590,11 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       setReassigningOrphan(null);
                       setReplaceConfirm(null);
                     }}
-                    className="px-6 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+                    className="px-6 py-3 text-typography-600 font-bold hover:bg-surface-200 rounded-xl transition-colors cursor-pointer"
                   >
                     Fechar
                   </button>
-                  <div className="text-xs text-gray-400 italic">Selecione uma parte da lista acima</div>
+                  <div className="text-xs text-typography-400 italic">Selecione uma parte da lista acima</div>
                 </div>
               </div>
             </motion.div>
@@ -3439,14 +3610,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-surface-300 relative text-typography-900"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
-              <div className="p-6 bg-surface-200/40 border-b border-surface-300 flex items-center justify-between">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+              <div className="p-5 sm:p-6 bg-surface-200/40 border-b border-surface-300 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500">
+                  <div className="p-2.5 bg-primary-200/10 border border-primary-200/20 rounded-xl text-primary-200">
                     <CalendarDays size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-typography-900 uppercase tracking-tight">Detalhes do Evento</h3>
+                    <h3 className="text-base sm:text-lg font-black text-typography-900 uppercase tracking-tight">Detalhes do Evento</h3>
                     <p className="text-xs text-typography-500 font-medium">Informações que aparecem no cabeçalho da folha.</p>
                   </div>
                 </div>
@@ -3455,329 +3626,329 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                 </button>
               </div>
 
-              <div className="flex flex-col max-h-[calc(100vh-140px)] sm:max-h-[85vh]">
-                <div className="flex-1 p-6 space-y-5 overflow-y-auto custom-scrollbar scroll-smooth">
+              <div className="flex flex-col max-h-[calc(100dvh-140px)] sm:max-h-[85vh]">
+                <div className="flex-1 p-5 sm:p-6 space-y-5 overflow-y-auto no-scrollbar scroll-smooth">
                   <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Tema da Assembleia</label>
-                      <input 
-                        type="text" 
-                        value={details.assemblyTheme} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, assemblyTheme: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: 'Encontre a Mais Plena Alegria em Jeová'"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Data do Evento</label>
-                      <input 
-                        type="text" 
-                        value={details.eventDate} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, eventDate: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: 15 de Outubro"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Local</label>
-                      <input 
-                        type="text" 
-                        value={details.eventLocation} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, eventLocation: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: Salão de Assembleias"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Data do Ensaio</label>
-                      <input 
-                        type="text" 
-                        value={details.rehearsalDate} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, rehearsalDate: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: Sábado, 14:00"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Local do Ensaio</label>
-                      <input 
-                        type="text" 
-                        value={details.rehearsalLocation} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, rehearsalLocation: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: Congregação Central"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Assistente(s) da Assembleia */}
-                  <div className="space-y-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <UserCheck size={15} className="text-amber-600" />
-                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">
-                          Assistente(s) da Assembleia ({type === 'supt' ? 'CAco' : 'CAbr'})
-                        </label>
-                      </div>
-                      <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        Convite .docx
-                      </span>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || '']).map((asst, index) => {
-                        const cong = details.assistantCongregations?.[index] || '';
-                        return (
-                          <div key={index} className="p-3 bg-gray-50 border border-gray-100 rounded-2xl space-y-2">
-                            <div className="flex gap-2 items-center">
-                              <input 
-                                type="text" 
-                                placeholder={`Nome do Assistente ${index + 1}`}
-                                value={asst}
-                                disabled={isGuest}
-                                onChange={(e) => {
-                                  const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
-                                  currentList[index] = e.target.value;
-                                  
-                                  const filteredList = currentList.filter(n => n.trim() !== '');
-                                  let formattedString = '';
-                                  if (filteredList.length === 1) formattedString = filteredList[0];
-                                  else if (filteredList.length > 1) {
-                                    const allButLast = filteredList.slice(0, -1).join(', ');
-                                    formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
-                                  }
-
-                                  setPartsData(prev => ({
-                                    ...prev,
-                                    [selectedPart]: {
-                                      ...prev[selectedPart],
-                                      details: {
-                                        ...prev[selectedPart].details,
-                                        assemblyAssistants: currentList,
-                                        assemblyAssistant: formattedString
-                                      }
-                                    }
-                                  }));
-                                }}
-                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
-                              />
-
-                              <input 
-                                type="text" 
-                                placeholder="Congregação (opcional)"
-                                value={cong}
-                                disabled={isGuest}
-                                onChange={(e) => {
-                                  const currentCongs = { ...(details.assistantCongregations || {}) };
-                                  currentCongs[index] = e.target.value;
-
-                                  setPartsData(prev => ({
-                                    ...prev,
-                                    [selectedPart]: {
-                                      ...prev[selectedPart],
-                                      details: {
-                                        ...prev[selectedPart].details,
-                                        assistantCongregations: currentCongs
-                                      }
-                                    }
-                                  }));
-                                }}
-                                className="w-32 sm:w-40 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
-                              />
-
-                              {!isGuest && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
-                                    const currentCongs = { ...(details.assistantCongregations || {}) };
-                                    
-                                    if (currentList.length <= 1) {
-                                      setPartsData(prev => ({
-                                        ...prev,
-                                        [selectedPart]: {
-                                          ...prev[selectedPart],
-                                          details: {
-                                            ...prev[selectedPart].details,
-                                            assemblyAssistants: [''],
-                                            assemblyAssistant: '',
-                                            assistantCongregations: {}
-                                          }
-                                        }
-                                      }));
-                                    } else {
-                                      const newList = currentList.filter((_, i) => i !== index);
-                                      const newCongs: Record<number, string> = {};
-                                      let newIdx = 0;
-                                      for (let i = 0; i < currentList.length; i++) {
-                                        if (i !== index) {
-                                          if (currentCongs[i]) newCongs[newIdx] = currentCongs[i];
-                                          newIdx++;
-                                        }
-                                      }
-
-                                      const filteredList = newList.filter(n => n.trim() !== '');
-                                      let formattedString = '';
-                                      if (filteredList.length === 1) formattedString = filteredList[0];
-                                      else if (filteredList.length > 1) {
-                                        const allButLast = filteredList.slice(0, -1).join(', ');
-                                        formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
-                                      }
-
-                                      setPartsData(prev => ({
-                                        ...prev,
-                                        [selectedPart]: {
-                                          ...prev[selectedPart],
-                                          details: {
-                                            ...prev[selectedPart].details,
-                                            assemblyAssistants: newList,
-                                            assemblyAssistant: formattedString,
-                                            assistantCongregations: newCongs
-                                          }
-                                        }
-                                      }));
-                                    }
-                                  }}
-                                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                  title="Remover assistente"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              )}
-                            </div>
-
-                            {asst.trim() && (
-                              <div className="flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => generateAssistantDocument(asst, cong)}
-                                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
-                                  title={`Gerar convite .docx para ${asst}`}
-                                >
-                                  <FileDown size={13} />
-                                  <span>Gerar Convite (.docx)</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {!isGuest && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
-                            setPartsData(prev => ({
-                              ...prev,
-                              [selectedPart]: {
-                                ...prev[selectedPart],
-                                details: {
-                                  ...prev[selectedPart].details,
-                                  assemblyAssistants: [...currentList, '']
-                                }
-                              }
-                            }));
-                          }}
-                          className="w-full py-2.5 bg-amber-50 hover:bg-amber-100/80 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-dashed border-amber-300"
-                        >
-                          <Plus size={14} />
-                          Adicionar Assistente
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Imagem de Capa / Arte Oficial */}
-                  <div className="space-y-2 pt-2 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Imagem do Cabeçalho (URL)</label>
-                      {details.customHeaderImage && (
-                        <button
-                          type="button"
-                          onClick={() => setPartsData(prev => ({ 
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Tema da Assembleia</label>
+                        <input 
+                          type="text" 
+                          value={details.assemblyTheme} 
+                          onChange={e => setPartsData(prev => ({ 
                             ...prev, 
                             [selectedPart]: { 
                               ...prev[selectedPart], 
-                              details: { ...prev[selectedPart].details, customHeaderImage: '' } 
+                              details: { ...prev[selectedPart].details, assemblyTheme: e.target.value } 
                             } 
                           }))}
-                          className="text-[10px] font-bold text-amber-600 hover:text-amber-800 hover:underline"
-                        >
-                          Restaurar Imagem Oficial
-                        </button>
+                          placeholder="Ex: 'Encontre a Mais Plena Alegria em Jeová'"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Data do Evento</label>
+                        <input 
+                          type="text" 
+                          value={details.eventDate} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, eventDate: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: 15 de Outubro"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Local</label>
+                        <input 
+                          type="text" 
+                          value={details.eventLocation} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, eventLocation: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: Salão de Assembleias"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Data do Ensaio</label>
+                        <input 
+                          type="text" 
+                          value={details.rehearsalDate} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, rehearsalDate: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: Sábado, 14:00"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Local do Ensaio</label>
+                        <input 
+                          type="text" 
+                          value={details.rehearsalLocation} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, rehearsalLocation: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: Congregação Central"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Assistente(s) da Assembleia */}
+                    <div className="space-y-3 pt-3 border-t border-surface-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <UserCheck size={15} className="text-primary-200" />
+                          <label className="text-[10px] font-black uppercase text-typography-500 tracking-wider">
+                            Assistente(s) da Assembleia ({type === 'supt' ? 'CAco' : 'CAbr'})
+                          </label>
+                        </div>
+                        <span className="text-[10px] text-primary-200 font-bold bg-primary-200/10 px-2.5 py-0.5 rounded-full border border-primary-200/20">
+                          Convite .docx
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || '']).map((asst, index) => {
+                          const cong = details.assistantCongregations?.[index] || '';
+                          return (
+                            <div key={index} className="p-3 bg-surface-200/50 border border-surface-300 rounded-2xl space-y-2">
+                              <div className="flex gap-2 items-center">
+                                <input 
+                                  type="text" 
+                                  placeholder={`Nome do Assistente ${index + 1}`}
+                                  value={asst}
+                                  disabled={isGuest}
+                                  onChange={(e) => {
+                                    const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                                    currentList[index] = e.target.value;
+                                    
+                                    const filteredList = currentList.filter(n => n.trim() !== '');
+                                    let formattedString = '';
+                                    if (filteredList.length === 1) formattedString = filteredList[0];
+                                    else if (filteredList.length > 1) {
+                                      const allButLast = filteredList.slice(0, -1).join(', ');
+                                      formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                                    }
+
+                                    setPartsData(prev => ({
+                                      ...prev,
+                                      [selectedPart]: {
+                                        ...prev[selectedPart],
+                                        details: {
+                                          ...prev[selectedPart].details,
+                                          assemblyAssistants: currentList,
+                                          assemblyAssistant: formattedString
+                                        }
+                                      }
+                                    }));
+                                  }}
+                                  className="flex-1 min-w-0 px-3 py-2 bg-surface-100 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
+                                />
+
+                                <input 
+                                  type="text" 
+                                  placeholder="Congregação (opcional)"
+                                  value={cong}
+                                  disabled={isGuest}
+                                  onChange={(e) => {
+                                    const currentCongs = { ...(details.assistantCongregations || {}) };
+                                    currentCongs[index] = e.target.value;
+
+                                    setPartsData(prev => ({
+                                      ...prev,
+                                      [selectedPart]: {
+                                        ...prev[selectedPart],
+                                        details: {
+                                          ...prev[selectedPart].details,
+                                          assistantCongregations: currentCongs
+                                        }
+                                      }
+                                    }));
+                                  }}
+                                  className="w-32 sm:w-40 px-3 py-2 bg-surface-100 border border-surface-300 rounded-xl text-xs font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
+                                />
+
+                                {!isGuest && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                                      const currentCongs = { ...(details.assistantCongregations || {}) };
+                                      
+                                      if (currentList.length <= 1) {
+                                        setPartsData(prev => ({
+                                          ...prev,
+                                          [selectedPart]: {
+                                            ...prev[selectedPart],
+                                            details: {
+                                              ...prev[selectedPart].details,
+                                              assemblyAssistants: [''],
+                                              assemblyAssistant: '',
+                                              assistantCongregations: {}
+                                            }
+                                          }
+                                        }));
+                                      } else {
+                                        const newList = currentList.filter((_, i) => i !== index);
+                                        const newCongs: Record<number, string> = {};
+                                        let newIdx = 0;
+                                        for (let i = 0; i < currentList.length; i++) {
+                                          if (i !== index) {
+                                            if (currentCongs[i]) newCongs[newIdx] = currentCongs[i];
+                                            newIdx++;
+                                          }
+                                        }
+
+                                        const filteredList = newList.filter(n => n.trim() !== '');
+                                        let formattedString = '';
+                                        if (filteredList.length === 1) formattedString = filteredList[0];
+                                        else if (filteredList.length > 1) {
+                                          const allButLast = filteredList.slice(0, -1).join(', ');
+                                          formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                                        }
+
+                                        setPartsData(prev => ({
+                                          ...prev,
+                                          [selectedPart]: {
+                                            ...prev[selectedPart],
+                                            details: {
+                                              ...prev[selectedPart].details,
+                                              assemblyAssistants: newList,
+                                              assemblyAssistant: formattedString,
+                                              assistantCongregations: newCongs
+                                            }
+                                          }
+                                        }));
+                                      }
+                                    }}
+                                    className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
+                                    title="Remover assistente"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </div>
+
+                              {asst.trim() && (
+                                <div className="flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => generateAssistantDocument(asst, cong)}
+                                    className="px-3 py-1.5 bg-primary-200 hover:bg-primary-150 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+                                    title={`Gerar convite .docx para ${asst}`}
+                                  >
+                                    <FileDown size={13} />
+                                    <span>Gerar Convite (.docx)</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {!isGuest && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                              setPartsData(prev => ({
+                                ...prev,
+                                [selectedPart]: {
+                                  ...prev[selectedPart],
+                                  details: {
+                                    ...prev[selectedPart].details,
+                                    assemblyAssistants: [...currentList, '']
+                                  }
+                                }
+                              }));
+                            }}
+                            className="w-full py-2.5 bg-surface-200/70 hover:bg-surface-200 text-primary-200 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-dashed border-primary-200/40 cursor-pointer"
+                          >
+                            <Plus size={14} />
+                            Adicionar Assistente
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Imagem de Capa / Arte Oficial */}
+                    <div className="space-y-2 pt-2 border-t border-surface-300">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Imagem do Cabeçalho (URL)</label>
+                        {details.customHeaderImage && (
+                          <button
+                            type="button"
+                            onClick={() => setPartsData(prev => ({ 
+                              ...prev, 
+                              [selectedPart]: { 
+                                ...prev[selectedPart], 
+                                details: { ...prev[selectedPart].details, customHeaderImage: '' } 
+                              } 
+                            }))}
+                            className="text-[10px] font-bold text-primary-200 hover:underline cursor-pointer"
+                          >
+                            Restaurar Imagem Oficial
+                          </button>
+                        )}
+                      </div>
+                      <input 
+                        type="text" 
+                        value={details.customHeaderImage || ''} 
+                        onChange={e => setPartsData(prev => ({ 
+                          ...prev, 
+                          [selectedPart]: { 
+                            ...prev[selectedPart], 
+                            details: { ...prev[selectedPart].details, customHeaderImage: e.target.value } 
+                          } 
+                        }))}
+                        placeholder={assemblyProgram.headerImage || 'https://...'}
+                        className="w-full px-4 py-2.5 bg-surface-200 border border-surface-300 rounded-2xl text-xs font-mono text-typography-700 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                      />
+                      {(details.customHeaderImage || assemblyProgram.headerImage) && (
+                        <div className="relative h-16 w-full rounded-xl overflow-hidden border border-surface-300 mt-1">
+                          <Image
+                            src={details.customHeaderImage || assemblyProgram.headerImage}
+                            alt="Pré-visualização da Capa"
+                            fill
+                            className="object-cover object-center opacity-85"
+                            unoptimized
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
+                            <span className="text-[9px] text-white font-bold tracking-wide">Pré-visualização da imagem</span>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <input 
-                      type="text" 
-                      value={details.customHeaderImage || ''} 
-                      onChange={e => setPartsData(prev => ({ 
-                        ...prev, 
-                        [selectedPart]: { 
-                          ...prev[selectedPart], 
-                          details: { ...prev[selectedPart].details, customHeaderImage: e.target.value } 
-                        } 
-                      }))}
-                      placeholder={assemblyProgram.headerImage || 'https://...'}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-mono text-gray-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                    />
-                    {(details.customHeaderImage || assemblyProgram.headerImage) && (
-                      <div className="relative h-16 w-full rounded-xl overflow-hidden border border-gray-200 mt-1">
-                        <Image
-                          src={details.customHeaderImage || assemblyProgram.headerImage}
-                          alt="Pré-visualização da Capa"
-                          fill
-                          className="object-cover object-center opacity-85"
-                          unoptimized
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
-                          <span className="text-[9px] text-white font-bold tracking-wide">Pré-visualização da imagem</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                </div>
-                <div className="p-4 sm:p-6 bg-amber-50/50 border-t border-amber-100 flex flex-col sm:flex-row gap-3">
+                <div className="p-4 sm:p-5 bg-surface-200/40 border-t border-surface-300 flex flex-col sm:flex-row gap-3">
                   {!isGuest && (
                     <button 
                       onClick={async () => {
@@ -3785,7 +3956,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                         if (ok) setShowEditDetailsModal(false);
                       }}
                       disabled={isSaving}
-                      className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="flex-1 py-3 bg-primary-200 hover:bg-primary-150 text-white font-bold rounded-2xl shadow-md shadow-primary-200/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                       <span>Salvar Alterações</span>
@@ -3793,7 +3964,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   )}
                   <button 
                     onClick={() => setShowEditDetailsModal(false)}
-                    className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-all active:scale-[0.98] cursor-pointer"
+                    className="flex-1 py-3 bg-surface-200 hover:bg-surface-300 text-typography-700 font-bold rounded-2xl border border-surface-300 transition-all active:scale-[0.98] cursor-pointer"
                   >
                     Fechar
                   </button>

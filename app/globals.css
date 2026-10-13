@@ -2,7 +2,7 @@
 @plugin "@tailwindcss/typography";
 @import "leaflet/dist/leaflet.css";
 
-@custom-variant dark (&:where(.theme-dark, .theme-dark *));
+@custom-variant dark (&:where(.theme-dark, .theme-dark *, .theme-shafhy, .theme-shafhy *));
 
 /* Force CSS Rebuild - 2026-10-05 */
 
@@ -161,6 +161,50 @@
   --sidebar-footer-bg: rgba(0, 0, 0, 0.1);
 }
 
+
+/* Tema Abdelrahman Shafhy (Magnific App UI Design - Dark Charcoal & Vibrant Warm Amber/Orange) */
+.theme-shafhy {
+  /* Primárias - Laranja / Âmbar Vibrante com iluminação de botão flutuante */
+  --color-primary-50: #2a1d13;
+  --color-primary-100: #fed7aa;
+  --color-primary-150: #fb923c;
+  --color-primary-200: #f97316;
+
+  /* Secundárias - Tons quentes discretos e escuros */
+  --color-secondary-100: #1c1917;
+  --color-secondary-200: #292524;
+
+  /* Texto - Alto contraste noturno: branco brilhante, cinza claro e detalhes âmbar */
+  --color-typography-100: #ffffff;
+  --color-typography-200: #f5f5f4;
+  --color-typography-300: #e7e5e4;
+  --color-typography-400: #a8a29e;
+  --color-typography-500: #78716c;
+  --color-typography-600: #a8a29e;
+  --color-typography-700: #d6d3d1;
+  --color-typography-800: #f5f5f4;
+  --color-typography-900: #ffffff;
+
+  /* Fundos - Grafite e Carvão Matte Ultra-Moderno (#1f2226 / #17191c / #282c32) */
+  --color-surface-100: #22262c;
+  --color-surface-200: #181b1f;
+  --color-surface-300: #2d323a;
+
+  /* Sidebar - Grafite Profundo com realces em Laranja / Âmbar Glow */
+  --sidebar-from: #1c1f24;
+  --sidebar-via: #181b1f;
+  --sidebar-to: #131518;
+  --sidebar-border: rgba(249, 115, 22, 0.18);
+  --sidebar-active-bg: linear-gradient(135deg, rgba(249, 115, 22, 0.28) 0%, rgba(234, 88, 12, 0.18) 100%);
+  --sidebar-active-border: rgba(249, 115, 22, 0.5);
+  --sidebar-active-text: #ffffff;
+  --sidebar-text: #a8b2c1;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-indicator: #f97316;
+  --sidebar-header-bg: rgba(249, 115, 22, 0.05);
+  --sidebar-footer-bg: rgba(0, 0, 0, 0.35);
+}
+
 .theme-dark {
   /* Primárias Dark - Roxo Noturno Profundo */
   --color-primary-50: #1c142b;
@@ -245,21 +289,63 @@
   background: rgba(76, 175, 80, 0.5);
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-hide::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar,
+.custom-scrollbar-hide::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.scrollbar-hide,
+.no-scrollbar,
+.scrollbar-none,
+.custom-scrollbar-hide {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+  -webkit-overflow-scrolling: touch;
+  user-select: none;
+}
+
+.no-scrollbar[data-dragging='true'],
+.scrollbar-hide[data-dragging='true'],
+.scrollbar-none[data-dragging='true'],
+.custom-scrollbar-hide[data-dragging='true'] {
+  cursor: grabbing !important;
+}
+
+/* Fade suave nas pontas quando houver mais opções para os lados (sem precisar de setas) */
+.no-scrollbar[data-scroll-fade='right'],
+.scrollbar-hide[data-scroll-fade='right'],
+.scrollbar-none[data-scroll-fade='right'],
+.custom-scrollbar-hide[data-scroll-fade='right'] {
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 24px), transparent 100%);
+}
+
+.no-scrollbar[data-scroll-fade='left'],
+.scrollbar-hide[data-scroll-fade='left'],
+.scrollbar-none[data-scroll-fade='left'],
+.custom-scrollbar-hide[data-scroll-fade='left'] {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 100%);
+}
+
+.no-scrollbar[data-scroll-fade='both'],
+.scrollbar-hide[data-scroll-fade='both'],
+.scrollbar-none[data-scroll-fade='both'],
+.custom-scrollbar-hide[data-scroll-fade='both'] {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
 }
 
 @media print {
   /* UI elements that should always be hidden in print */
   nav, 
   aside, 
-  header, 
-  footer, 
+  header:not(#s303-report-container header):not(.print-preserve):not(.s303-report-header),
+  footer:not(#s303-report-container footer):not(.print-preserve):not(.s303-report-footer), 
   button, 
   .no-print,
   .print\:hidden,
@@ -267,6 +353,15 @@
   [class*="toolbar"],
   [class*="sidebar"] {
     display: none !important;
+  }
+
+    /* Elementos de relatorios oficiais que devem ser exibidos na impressao */
+  #s303-report-container header,
+  #s303-report-container footer,
+  #s303-report-container .s303-report-header,
+  #s303-report-container .s303-report-footer {
+    display: block !important;
+    visibility: visible !important;
   }
 
   /* Show only desired content */
@@ -377,4 +472,41 @@
   display: flex;
   flex-wrap: wrap;
   margin: 1em 0;
+}
+
+
+/* Regras de visualização responsiva para contêiner A4 udoc-viewer-container */
+.udoc-viewer-container {
+  width: 100% !important;
+  max-width: 100vw !important;
+  box-sizing: border-box !important;
+}
+
+/* Evitar transbordamento lateral em dispositivos móveis e manter proporção */
+@media (max-width: 768px) {
+  .udoc-viewer-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .udoc-viewer-container .udoc-pages,
+  .udoc-viewer-container .udoc-viewer-content,
+  .udoc-viewer-container [class*="pages"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  .udoc-viewer-container .udoc-page,
+  .udoc-viewer-container [class*="page"] {
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 210 / 297;
+    box-sizing: border-box !important;
+    object-fit: contain;
+  }
 }
