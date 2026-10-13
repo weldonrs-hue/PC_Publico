@@ -96,11 +96,16 @@ export default function EldersMeetingAgendaView({
 
   const printBodyRef = useRef<HTMLDivElement>(null);
   const printFooterRef = useRef<HTMLDivElement>(null);
+  const previewBodyRef = useRef<HTMLDivElement>(null);
+  const previewFooterRef = useRef<HTMLDivElement>(null);
   const pageRulerRef = useRef<HTMLDivElement>(null);
   const [pageCount, setPageCount] = useState<number>(1);
   const [densityMode, setDensityMode] = useState<'auto' | 'normal' | 'compact'>('auto');
   const [effectiveDensity, setEffectiveDensity] = useState<'normal' | 'compact'>('normal');
   const [pushLastBlockToNextPage, setPushLastBlockToNextPage] = useState<boolean>(false);
+  const [pushedUnitId, setPushedUnitId] = useState<string | null>(null);
+  const [printPushSpacerPx, setPrintPushSpacerPx] = useState<number>(0);
+  const [previewPushSpacerPx, setPreviewPushSpacerPx] = useState<number>(0);
   const [pageOccupancyPct, setPageOccupancyPct] = useState<number>(0);
 
   // Estados para replicação de pauta de outra semana
@@ -151,98 +156,219 @@ export default function EldersMeetingAgendaView({
   useEffect(() => {
     if (!agenda) return;
     const recalculatePages = () => {
-      const bodyEl = printBodyRef.current;
-      const footerEl = printFooterRef.current;
+      const printBodyEl = printBodyRef.current;
+      const printFooterEl = printFooterRef.current;
+      const previewBodyEl = previewBodyRef.current;
+      const previewFooterEl = previewFooterRef.current;
       const rulerEl = pageRulerRef.current;
-      if (!bodyEl || !rulerEl) return;
+      if (!printBodyEl || !rulerEl) return;
 
-      const onePagePx = rulerEl.offsetHeight || 952;
-      const footerHeightPx = footerEl ? footerEl.offsetHeight + 18 : 0;
+      const printPageEl = printBodyEl.closest('.agenda-a4-page') as HTMLElement | null;
+      const previewPageEl = previewBodyEl?.closest('.agenda-a4-page') as HTMLElement | null;
 
-      // Medimos primeiro sem o empurrão artificial para saber a altura real do conteúdo
-      const prevPush = bodyEl.getAttribute('data-push-last');
-      if (prevPush === 'true') {
-        bodyEl.setAttribute('data-push-last', 'false');
-      }
+      const onePagePx = rulerEl.offsetHeight || 930;
+
+      const resetPushAttributes = (dens: 'normal' | 'compact') => {
+        printBodyEl.setAttribute('data-density', dens);
+        printPageEl?.setAttribute('data-density', dens);
+        printBodyEl.setAttribute('data-push-last', 'false');
+        printPageEl?.setAttribute('data-push-last', 'false');
+        printBodyEl.style.setProperty('--agenda-push-spacer', '0px');
+        printPageEl?.style.setProperty('--agenda-push-spacer', '0px');
+        printBodyEl
+          .querySelectorAll('[data-pushed-active="true"]')
+          .forEach((el) => el.removeAttribute('data-pushed-active'));
+
+        if (previewBodyEl) {
+          previewBodyEl.setAttribute('data-density', dens);
+          previewPageEl?.setAttribute('data-density', dens);
+          previewBodyEl.setAttribute('data-push-last', 'false');
+          previewPageEl?.setAttribute('data-push-last', 'false');
+          previewBodyEl.style.setProperty('--agenda-push-spacer', '0px');
+          previewPageEl?.style.setProperty('--agenda-push-spacer', '0px');
+          previewBodyEl
+            .querySelectorAll('[data-pushed-active="true"]')
+            .forEach((el) => el.removeAttribute('data-pushed-active'));
+        }
+      };
+
+      const applyFinalAttributes = (res: {
+        dens: 'normal' | 'compact';
+        pages: number;
+        shouldPushLastBlock: boolean;
+        targetId: string | null;
+        printSpacerPx: number;
+        previewSpacerPx: number;
+        occupancyPct: number;
+      }) => {
+        setEffectiveDensity(res.dens);
+        setPageCount(res.pages);
+        setPushLastBlockToNextPage(res.shouldPushLastBlock);
+        setPushedUnitId(res.targetId);
+        setPrintPushSpacerPx(res.printSpacerPx);
+        setPreviewPushSpacerPx(res.previewSpacerPx);
+        setPageOccupancyPct(res.occupancyPct);
+
+        printBodyEl.setAttribute('data-density', res.dens);
+        printPageEl?.setAttribute('data-density', res.dens);
+        printBodyEl.setAttribute('data-push-last', res.shouldPushLastBlock ? 'true' : 'false');
+        printPageEl?.setAttribute('data-push-last', res.shouldPushLastBlock ? 'true' : 'false');
+        printBodyEl.style.setProperty('--agenda-push-spacer', `${res.printSpacerPx}px`);
+        printPageEl?.style.setProperty('--agenda-push-spacer', `${res.printSpacerPx}px`);
+
+        if (res.shouldPushLastBlock && res.targetId && !res.targetId.startsWith('topic-')) {
+          printBodyEl
+            .querySelector(`[data-movable-id="${res.targetId}"]`)
+            ?.setAttribute('data-pushed-active', 'true');
+        }
+
+        if (previewBodyEl) {
+          previewBodyEl.setAttribute('data-density', res.dens);
+          previewPageEl?.setAttribute('data-density', res.dens);
+          previewBodyEl.setAttribute('data-push-last', res.shouldPushLastBlock ? 'true' : 'false');
+          previewPageEl?.setAttribute('data-push-last', res.shouldPushLastBlock ? 'true' : 'false');
+          previewBodyEl.style.setProperty('--agenda-push-spacer', `${res.previewSpacerPx}px`);
+          previewPageEl?.style.setProperty('--agenda-push-spacer', `${res.previewSpacerPx}px`);
+
+          if (res.shouldPushLastBlock && res.targetId && !res.targetId.startsWith('topic-')) {
+            previewBodyEl
+              .querySelector(`[data-movable-id="${res.targetId}"]`)
+              ?.setAttribute('data-pushed-active', 'true');
+          }
+        }
+      };
+
+      const measureForDensity = (dens: 'normal' | 'compact') => {
+        resetPushAttributes(dens);
+
+        const printFooterHeightPx = printFooterEl ? printFooterEl.offsetHeight + 22 : 52;
+        const printBodyPx = printBodyEl.offsetHeight || 0;
+        const printTotalPx = printBodyPx + printFooterHeightPx;
+
+        // Na pré-visualização em tela, desconsidera o banner vazio de recomendações (que é oculto na impressão)
+        const emptyRecsSection = previewBodyEl
+          ?.querySelector('.agenda-empty-recs-banner')
+          ?.closest('.agenda-section') as HTMLElement | null;
+        const emptyRecsHeightPx = emptyRecsSection ? emptyRecsSection.offsetHeight + 18 : 0;
+        const previewFooterHeightPx = previewFooterEl ? previewFooterEl.offsetHeight + 22 : 52;
+        const previewBodyPx = previewBodyEl
+          ? Math.max(0, previewBodyEl.offsetHeight - emptyRecsHeightPx)
+          : printBodyPx;
+        const previewTotalPx = previewBodyPx + previewFooterHeightPx;
+
+        const printPages = Math.max(1, Math.ceil(printTotalPx / onePagePx));
+        const previewPages = Math.max(1, Math.ceil(previewTotalPx / (onePagePx * 1.03)));
+        const pages = Math.max(printPages, previewPages);
+
+        if (pages <= 1) {
+          const usedPx = Math.max(printTotalPx, previewTotalPx * 0.92);
+          return {
+            dens,
+            pages: 1,
+            shouldPushLastBlock: false,
+            targetId: null as string | null,
+            printSpacerPx: 0,
+            previewSpacerPx: 0,
+            occupancyPct: Math.min(100, Math.max(5, Math.round((usedPx / onePagePx) * 100))),
+          };
+        }
+
+        const prevPagesCapacityPx = (pages - 1) * onePagePx;
+
+        // Identifica os blocos móveis candidatos na ordem do documento
+        const printBodyRect = printBodyEl.getBoundingClientRect();
+        const printCandidates = Array.from(
+          printBodyEl.querySelectorAll('[data-movable-id]')
+        ) as HTMLElement[];
+
+        const previewBodyRect = previewBodyEl?.getBoundingClientRect();
+        let chosenId: string | null = null;
+        let chosenPrintTopPx = 0;
+        let chosenPreviewTopPx = 0;
+
+        for (const el of printCandidates) {
+          const id = el.getAttribute('data-movable-id');
+          if (!id) continue;
+          const pTop = Math.max(0, el.getBoundingClientRect().top - printBodyRect.top);
+          const prevEl = previewBodyEl?.querySelector(
+            `[data-movable-id="${id}"]`
+          ) as HTMLElement | null;
+          const vTop =
+            prevEl && previewBodyRect
+              ? Math.max(0, prevEl.getBoundingClientRect().top - previewBodyRect.top)
+              : pTop;
+
+          // Considera candidatos que começaram antes da quebra para a última página
+          if (pTop > 70 && (pTop < prevPagesCapacityPx || vTop < prevPagesCapacityPx * 1.03)) {
+            chosenId = id;
+            chosenPrintTopPx = pTop;
+            chosenPreviewTopPx = vTop;
+          }
+        }
+
+        const printOverflowPx = Math.max(0, printTotalPx - prevPagesCapacityPx);
+        const previewOverflowPx = Math.max(0, previewTotalPx - prevPagesCapacityPx);
+        const maxOverflowPx = Math.max(printOverflowPx, previewOverflowPx);
+        const printRemainingFromCandidatePx = printTotalPx - chosenPrintTopPx;
+
+        // Empurra o bloco candidato para o início da última página sempre que a última página
+        // estiver com pouco conteúdo (ex: apenas o rodapé bíblico ou parte do último bloco)
+        // e o bloco candidato + rodapé couberem juntos na última página
+        const shouldPushLastBlock = Boolean(
+          chosenId &&
+            chosenPrintTopPx > 70 &&
+            printRemainingFromCandidatePx <= onePagePx - 20 &&
+            maxOverflowPx <= onePagePx * 0.55
+        );
+
+        // Na pré-visualização em tela, a linha tracejada fica exatamente a `prevPagesCapacityPx` do topo do body
+        const previewSpacerPx = shouldPushLastBlock
+          ? Math.max(24, Math.ceil(prevPagesCapacityPx - chosenPreviewTopPx + 26))
+          : 0;
+
+        // Na impressão A4 (@page margin 12mm), a altura útil real da Página 1 é ~273mm (enquanto a régua segura tem 246mm)
+        const printPageBreakPx = prevPagesCapacityPx * (276 / 246);
+        const printSpacerPx = shouldPushLastBlock
+          ? Math.max(24, Math.ceil(printPageBreakPx - chosenPrintTopPx))
+          : 0;
+
+        const effectivePrintTotalPx = printTotalPx + (shouldPushLastBlock ? printSpacerPx : 0);
+        const lastPageUsedPx = Math.max(
+          40,
+          effectivePrintTotalPx - (pages - 1) * onePagePx
+        );
+
+        return {
+          dens,
+          pages,
+          shouldPushLastBlock,
+          targetId: shouldPushLastBlock ? chosenId : null,
+          printSpacerPx,
+          previewSpacerPx,
+          occupancyPct: Math.min(100, Math.max(8, Math.round((lastPageUsedPx / onePagePx) * 100))),
+        };
+      };
 
       if (densityMode === 'normal' || densityMode === 'compact') {
-        bodyEl.setAttribute('data-density', densityMode);
-        const bodyHeightPx = bodyEl.offsetHeight || 0;
-        const totalNaturalPx = bodyHeightPx + footerHeightPx;
-        const pages = Math.max(1, Math.ceil(totalNaturalPx / onePagePx));
-
-        // Verifica se a frase do rodapé ficou órfã sozinha na página seguinte
-        // (ou seja, bodyHeightPx cabia nas páginas anteriores, mas bodyHeightPx + footerHeightPx virou de página)
-        const bodyOnlyPages = Math.max(1, Math.ceil(bodyHeightPx / onePagePx));
-        const isFooterOrphaned = pages > 1 && pages > bodyOnlyPages;
-
-        setEffectiveDensity(densityMode);
-        setPushLastBlockToNextPage(isFooterOrphaned);
-        bodyEl.setAttribute('data-push-last', isFooterOrphaned ? 'true' : 'false');
-        setPageCount(pages);
-        const lastPageUsedPx =
-          pages === 1
-            ? totalNaturalPx
-            : totalNaturalPx - (pages - 1) * onePagePx;
-        setPageOccupancyPct(
-          Math.min(100, Math.max(5, Math.round((lastPageUsedPx / onePagePx) * 100)))
-        );
+        const res = measureForDensity(densityMode);
+        applyFinalAttributes(res);
         return;
       }
 
       // Modo AUTO:
-      // 1. Mede em modo normal
-      bodyEl.setAttribute('data-density', 'normal');
-      const normalBodyPx = bodyEl.offsetHeight || 0;
-      const normalTotalPx = normalBodyPx + footerHeightPx;
-      const normalPages = Math.max(1, Math.ceil(normalTotalPx / onePagePx));
-
-      if (normalPages === 1) {
-        setEffectiveDensity('normal');
-        setPushLastBlockToNextPage(false);
-        bodyEl.setAttribute('data-push-last', 'false');
-        setPageCount(1);
-        setPageOccupancyPct(
-          Math.min(100, Math.max(5, Math.round((normalTotalPx / onePagePx) * 100)))
-        );
+      const normalRes = measureForDensity('normal');
+      if (normalRes.pages === 1) {
+        applyFinalAttributes(normalRes);
         return;
       }
 
-      // 2. Se passou de 1 página no modo normal, testa o modo compacto para ver se economiza 1 página!
-      bodyEl.setAttribute('data-density', 'compact');
-      const compactBodyPx = bodyEl.offsetHeight || 0;
-      const compactTotalPx = compactBodyPx + footerHeightPx;
-      const compactPages = Math.max(1, Math.ceil(compactTotalPx / onePagePx));
-
-      if (compactPages < normalPages) {
-        // O modo compacto salvou uma folha inteira (ex: coube tudo em 1 página)!
-        const compactBodyOnlyPages = Math.max(1, Math.ceil(compactBodyPx / onePagePx));
-        const isFooterOrphaned = compactPages > 1 && compactPages > compactBodyOnlyPages;
-        setEffectiveDensity('compact');
-        setPushLastBlockToNextPage(isFooterOrphaned);
-        bodyEl.setAttribute('data-push-last', isFooterOrphaned ? 'true' : 'false');
-        setPageCount(compactPages);
-        const lastPageUsedPx =
-          compactPages === 1
-            ? compactTotalPx
-            : compactTotalPx - (compactPages - 1) * onePagePx;
-        setPageOccupancyPct(
-          Math.min(100, Math.max(5, Math.round((lastPageUsedPx / onePagePx) * 100)))
-        );
+      const compactRes = measureForDensity('compact');
+      if (compactRes.pages < normalRes.pages) {
+        applyFinalAttributes(compactRes);
       } else {
-        // Mesmo compactando continua precisando do mesmo número de páginas -> mantém o modo normal mais confortável
-        bodyEl.setAttribute('data-density', 'normal');
-        const normalBodyOnlyPages = Math.max(1, Math.ceil(normalBodyPx / onePagePx));
-        const isFooterOrphaned = normalPages > 1 && normalPages > normalBodyOnlyPages;
-        setEffectiveDensity('normal');
-        setPushLastBlockToNextPage(isFooterOrphaned);
-        bodyEl.setAttribute('data-push-last', isFooterOrphaned ? 'true' : 'false');
-        setPageCount(normalPages);
-        const lastPageUsedPx =
-          normalTotalPx - (normalPages - 1) * onePagePx;
-        setPageOccupancyPct(
-          Math.min(100, Math.max(5, Math.round((lastPageUsedPx / onePagePx) * 100)))
-        );
+        // Reaplica a medição normal para garantir atributos DOM consistentes
+        const finalNormalRes = measureForDensity('normal');
+        applyFinalAttributes(finalNormalRes);
       }
     };
 
@@ -255,7 +381,7 @@ export default function EldersMeetingAgendaView({
       window.removeEventListener('resize', recalculatePages);
       window.removeEventListener('beforeprint', recalculatePages);
     };
-  }, [agenda, densityMode]);
+  }, [agenda, densityMode, openExcerptIds]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -860,6 +986,7 @@ export default function EldersMeetingAgendaView({
     const hasServantRecs = (agenda.servantRecommendations?.length || 0) > 0;
     const hasRemovals = (agenda.removals?.length || 0) > 0;
     const hasAnyRecs = hasElderRecs || hasServantRecs || hasRemovals;
+    const activeSpacerPx = isPrintOnly ? printPushSpacerPx : previewPushSpacerPx;
 
     return (
       <div className={isPrintOnly ? 'agenda-a4-print-root' : 'agenda-a4-preview-wrapper'}>
@@ -867,7 +994,10 @@ export default function EldersMeetingAgendaView({
           className="agenda-a4-page"
           data-density={effectiveDensity}
           data-push-last={pushLastBlockToNextPage ? 'true' : 'false'}
-          style={{ ['--agenda-pages' as any]: pageCount }}
+          style={{
+            ['--agenda-pages' as any]: pageCount,
+            ['--agenda-push-spacer' as any]: `${activeSpacerPx}px`,
+          }}
         >
           {!isPrintOnly && pageCount > 1 && (
             <div className="agenda-page-break-guide print:hidden" aria-hidden="true">
@@ -875,10 +1005,13 @@ export default function EldersMeetingAgendaView({
             </div>
           )}
           <div
-            ref={isPrintOnly ? printBodyRef : undefined}
+            ref={isPrintOnly ? printBodyRef : previewBodyRef}
             className="agenda-body-content"
             data-density={effectiveDensity}
             data-push-last={pushLastBlockToNextPage ? 'true' : 'false'}
+            style={{
+              ['--agenda-push-spacer' as any]: `${activeSpacerPx}px`,
+            }}
           >
             {/* Topo sutil e cabeçalho clean */}
             <div className="agenda-header">
@@ -994,17 +1127,23 @@ export default function EldersMeetingAgendaView({
                     const showExcerptRow = isPrintOnly
                       ? hasExcerpt
                       : hasExcerpt || Boolean(openExcerptIds[topicKey]);
-                    const isLastTopicAndNoRecs =
-                      idx === agenda.topics.length - 1 && !hasAnyRecs;
+                    const topicMovableId = idx > 0 ? `topic-${idx}` : undefined;
+                    const isTopicPushed = Boolean(
+                      topicMovableId &&
+                        pushedUnitId === topicMovableId &&
+                        pushLastBlockToNextPage
+                    );
 
                     return (
                       <Fragment key={topicKey}>
+                        {isTopicPushed && (
+                          <tr className="agenda-topic-push-spacer" aria-hidden="true">
+                            <td colSpan={isPrintOnly ? 3 : 4} />
+                          </tr>
+                        )}
                         <tr
-                          className={
-                            isLastTopicAndNoRecs && pushLastBlockToNextPage
-                              ? 'agenda-force-next-page-row'
-                              : ''
-                          }
+                          data-movable-id={topicMovableId}
+                          className={isTopicPushed ? 'agenda-force-next-page-row' : ''}
                         >
                           <td className="agenda-num-cell">{idx + 1}</td>
                           <td>
@@ -1167,7 +1306,14 @@ export default function EldersMeetingAgendaView({
 
           {/* SEÇÃO 2: RECOMENDAÇÕES E REMOÇÕES (DINÂMICA CONFORME NECESSIDADE) */}
           {(hasAnyRecs || !isPrintOnly) && (
-            <div className={`agenda-section ${!hasAnyRecs ? 'print:hidden' : ''}`}>
+            <div
+              data-movable-id={hasAnyRecs ? 'recs-section' : undefined}
+              className={`agenda-section ${!hasAnyRecs ? 'print:hidden' : ''} ${
+                pushedUnitId === 'recs-section' && pushLastBlockToNextPage
+                  ? 'agenda-force-next-page-block'
+                  : ''
+              }`}
+            >
               <div className="agenda-section-header">
                 <h2 className="agenda-section-title">Recomendações</h2>
                 {!isPrintOnly && (
@@ -1204,15 +1350,9 @@ export default function EldersMeetingAgendaView({
               )}
 
               <div className="agenda-recs-columns">
-                {/* Sub-bloco: Anciãos */}
+                {/* Sub-bloco: Anciãos (sempre acompanha o título "Recomendações" via recs-section) */}
                 {hasElderRecs && (
-                  <div
-                    className={`agenda-rec-block ${
-                      pushLastBlockToNextPage && !hasServantRecs && !hasRemovals
-                        ? 'agenda-force-next-page-block'
-                        : ''
-                    }`}
-                  >
+                  <div className="agenda-rec-block">
                     <div className="agenda-rec-subtitle-bar">
                       <span>Anciãos</span>
                       <span className="agenda-rec-count">
@@ -1299,8 +1439,9 @@ export default function EldersMeetingAgendaView({
                 {/* Sub-bloco: Servos Ministeriais */}
                 {hasServantRecs && (
                   <div
+                    data-movable-id={hasElderRecs ? 'rec-servant' : undefined}
                     className={`agenda-rec-block ${
-                      pushLastBlockToNextPage && !hasRemovals
+                      pushedUnitId === 'rec-servant' && pushLastBlockToNextPage
                         ? 'agenda-force-next-page-block'
                         : ''
                     }`}
@@ -1391,8 +1532,13 @@ export default function EldersMeetingAgendaView({
                 {/* Sub-bloco: Remoções ou Renúncias */}
                 {hasRemovals && (
                   <div
+                    data-movable-id={
+                      hasElderRecs || hasServantRecs ? 'rec-removal' : undefined
+                    }
                     className={`agenda-rec-block ${
-                      pushLastBlockToNextPage ? 'agenda-force-next-page-block' : ''
+                      pushedUnitId === 'rec-removal' && pushLastBlockToNextPage
+                        ? 'agenda-force-next-page-block'
+                        : ''
                     }`}
                   >
                     <div className="agenda-rec-subtitle-bar">
@@ -1494,7 +1640,7 @@ export default function EldersMeetingAgendaView({
           {/* RODAPÉ COM LEMBRETE BÍBLICO (SEMPRE NO PÉ DA ÚLTIMA PÁGINA) */}
           {agenda.footerNote && (
             <div
-              ref={isPrintOnly ? printFooterRef : undefined}
+              ref={isPrintOnly ? printFooterRef : previewFooterRef}
               className="agenda-footer-note"
             >
               {isPrintOnly ? (
@@ -2002,48 +2148,58 @@ export default function EldersMeetingAgendaView({
           gap: 11px;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-header {
+        .agenda-a4-page[data-density='compact'] .agenda-header,
+        .agenda-body-content[data-density='compact'] .agenda-header {
           padding-bottom: 7px;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-header-title {
+        .agenda-a4-page[data-density='compact'] .agenda-header-title,
+        .agenda-body-content[data-density='compact'] .agenda-header-title {
           font-size: 16px;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-meta-grid {
+        .agenda-a4-page[data-density='compact'] .agenda-meta-grid,
+        .agenda-body-content[data-density='compact'] .agenda-meta-grid {
           padding: 8px 12px;
           gap: 6px 18px;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-section {
+        .agenda-a4-page[data-density='compact'] .agenda-section,
+        .agenda-body-content[data-density='compact'] .agenda-section {
           gap: 5px;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-table th {
+        .agenda-a4-page[data-density='compact'] .agenda-table th,
+        .agenda-body-content[data-density='compact'] .agenda-table th {
           padding: 5px 8px;
           font-size: 10px;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-table td {
+        .agenda-a4-page[data-density='compact'] .agenda-table td,
+        .agenda-body-content[data-density='compact'] .agenda-table td {
           padding: 4.5px 8px;
           font-size: 11px;
           line-height: 1.3;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-excerpt-cell {
+        .agenda-a4-page[data-density='compact'] .agenda-excerpt-cell,
+        .agenda-body-content[data-density='compact'] .agenda-excerpt-cell {
           padding: 4px 8px 6px !important;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-excerpt-box {
+        .agenda-a4-page[data-density='compact'] .agenda-excerpt-box,
+        .agenda-body-content[data-density='compact'] .agenda-excerpt-box {
           padding: 4px 8px;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-excerpt-text {
+        .agenda-a4-page[data-density='compact'] .agenda-excerpt-text,
+        .agenda-body-content[data-density='compact'] .agenda-excerpt-text {
           font-size: 10.5px;
           line-height: 1.32;
         }
 
-        .agenda-a4-page[data-density='compact'] .agenda-recs-columns {
+        .agenda-a4-page[data-density='compact'] .agenda-recs-columns,
+        .agenda-body-content[data-density='compact'] .agenda-recs-columns {
           gap: 8px;
         }
 
@@ -2052,13 +2208,31 @@ export default function EldersMeetingAgendaView({
           font-size: 10.5px;
         }
 
-        /* PREVENÇÃO DE FRASE ÓRFÃ: EMPURRA O ÚLTIMO ITEM JUNTO COM O RODAPÉ PARA A PRÓXIMA PÁGINA */
-        .agenda-a4-page[data-push-last='true'] .agenda-force-next-page-row,
+        /* PREVENÇÃO DE FRASE ÓRFÃ: EMPURRA O ÚLTIMO BLOCO/ITEM JUNTO COM O RODAPÉ PARA A PÁGINA 2 */
         .agenda-a4-page[data-push-last='true'] .agenda-force-next-page-block,
-        .agenda-body-content[data-push-last='true'] .agenda-force-next-page-row,
-        .agenda-body-content[data-push-last='true'] .agenda-force-next-page-block {
-          break-before: page;
-          page-break-before: always;
+        .agenda-body-content[data-push-last='true'] .agenda-force-next-page-block,
+        .agenda-a4-page[data-push-last='true'] [data-pushed-active='true'],
+        .agenda-body-content[data-push-last='true'] [data-pushed-active='true'] {
+          margin-top: var(--agenda-push-spacer, 0px) !important;
+        }
+
+        .agenda-a4-page[data-push-last='false'] .agenda-force-next-page-block,
+        .agenda-body-content[data-push-last='false'] .agenda-force-next-page-block,
+        .agenda-a4-page[data-push-last='false'] [data-pushed-active='true'],
+        .agenda-body-content[data-push-last='false'] [data-pushed-active='true'] {
+          margin-top: 0px !important;
+        }
+
+        .agenda-topic-push-spacer td {
+          height: var(--agenda-push-spacer, 0px);
+          padding: 0 !important;
+          border: none !important;
+          background: #ffffff !important;
+        }
+
+        .agenda-a4-page[data-push-last='false'] .agenda-topic-push-spacer,
+        .agenda-body-content[data-push-last='false'] .agenda-topic-push-spacer {
+          display: none !important;
         }
 
         /* GUIA VISUAL DE DIVISÃO DE PÁGINA NA PRÉ-VISUALIZAÇÃO */
@@ -2070,7 +2244,7 @@ export default function EldersMeetingAgendaView({
           position: absolute;
           left: 0;
           right: 0;
-          top: 268mm;
+          top: 262mm;
           border-top: 1.5px dashed #94a3b8;
           display: flex;
           justify-content: center;
@@ -2096,7 +2270,7 @@ export default function EldersMeetingAgendaView({
           left: -10000px;
           top: 0;
           width: 1px;
-          height: 252mm;
+          height: 246mm;
           visibility: hidden;
           pointer-events: none;
         }
@@ -2152,7 +2326,7 @@ export default function EldersMeetingAgendaView({
           .agenda-a4-print-root .agenda-a4-page {
             width: 100% !important;
             min-width: 0 !important;
-            min-height: calc(var(--agenda-pages, 1) * 252mm) !important;
+            min-height: calc(var(--agenda-pages, 1) * 264mm) !important;
             padding: 0 !important;
             margin: 0 !important;
             border: none !important;
