@@ -98,6 +98,10 @@ export default function EldersMeetingAgendaView({
   const printFooterRef = useRef<HTMLDivElement>(null);
   const pageRulerRef = useRef<HTMLDivElement>(null);
   const [pageCount, setPageCount] = useState<number>(1);
+  const [densityMode, setDensityMode] = useState<'auto' | 'normal' | 'compact'>('auto');
+  const [effectiveDensity, setEffectiveDensity] = useState<'normal' | 'compact'>('normal');
+  const [pushLastBlockToNextPage, setPushLastBlockToNextPage] = useState<boolean>(false);
+  const [pageOccupancyPct, setPageOccupancyPct] = useState<number>(0);
 
   // Estados para replicação de pauta de outra semana
   const [isReplicateModalOpen, setIsReplicateModalOpen] = useState(false);
@@ -152,14 +156,93 @@ export default function EldersMeetingAgendaView({
       const rulerEl = pageRulerRef.current;
       if (!bodyEl || !rulerEl) return;
 
-      const onePagePx = rulerEl.offsetHeight || 1012;
-      const bodyHeightPx = bodyEl.offsetHeight || 0;
-      const footerHeightPx = footerEl ? footerEl.offsetHeight + 20 : 0;
-      const totalNaturalPx = bodyHeightPx + footerHeightPx;
+      const onePagePx = rulerEl.offsetHeight || 952;
+      const footerHeightPx = footerEl ? footerEl.offsetHeight + 18 : 0;
 
-      if (totalNaturalPx > 0 && onePagePx > 0) {
+      // Medimos primeiro sem o empurrão artificial para saber a altura real do conteúdo
+      const prevPush = bodyEl.getAttribute('data-push-last');
+      if (prevPush === 'true') {
+        bodyEl.setAttribute('data-push-last', 'false');
+      }
+
+      if (densityMode === 'normal' || densityMode === 'compact') {
+        bodyEl.setAttribute('data-density', densityMode);
+        const bodyHeightPx = bodyEl.offsetHeight || 0;
+        const totalNaturalPx = bodyHeightPx + footerHeightPx;
         const pages = Math.max(1, Math.ceil(totalNaturalPx / onePagePx));
+
+        // Verifica se a frase do rodapé ficou órfã sozinha na página seguinte
+        // (ou seja, bodyHeightPx cabia nas páginas anteriores, mas bodyHeightPx + footerHeightPx virou de página)
+        const bodyOnlyPages = Math.max(1, Math.ceil(bodyHeightPx / onePagePx));
+        const isFooterOrphaned = pages > 1 && pages > bodyOnlyPages;
+
+        setEffectiveDensity(densityMode);
+        setPushLastBlockToNextPage(isFooterOrphaned);
+        bodyEl.setAttribute('data-push-last', isFooterOrphaned ? 'true' : 'false');
         setPageCount(pages);
+        const lastPageUsedPx =
+          pages === 1
+            ? totalNaturalPx
+            : totalNaturalPx - (pages - 1) * onePagePx;
+        setPageOccupancyPct(
+          Math.min(100, Math.max(5, Math.round((lastPageUsedPx / onePagePx) * 100)))
+        );
+        return;
+      }
+
+      // Modo AUTO:
+      // 1. Mede em modo normal
+      bodyEl.setAttribute('data-density', 'normal');
+      const normalBodyPx = bodyEl.offsetHeight || 0;
+      const normalTotalPx = normalBodyPx + footerHeightPx;
+      const normalPages = Math.max(1, Math.ceil(normalTotalPx / onePagePx));
+
+      if (normalPages === 1) {
+        setEffectiveDensity('normal');
+        setPushLastBlockToNextPage(false);
+        bodyEl.setAttribute('data-push-last', 'false');
+        setPageCount(1);
+        setPageOccupancyPct(
+          Math.min(100, Math.max(5, Math.round((normalTotalPx / onePagePx) * 100)))
+        );
+        return;
+      }
+
+      // 2. Se passou de 1 página no modo normal, testa o modo compacto para ver se economiza 1 página!
+      bodyEl.setAttribute('data-density', 'compact');
+      const compactBodyPx = bodyEl.offsetHeight || 0;
+      const compactTotalPx = compactBodyPx + footerHeightPx;
+      const compactPages = Math.max(1, Math.ceil(compactTotalPx / onePagePx));
+
+      if (compactPages < normalPages) {
+        // O modo compacto salvou uma folha inteira (ex: coube tudo em 1 página)!
+        const compactBodyOnlyPages = Math.max(1, Math.ceil(compactBodyPx / onePagePx));
+        const isFooterOrphaned = compactPages > 1 && compactPages > compactBodyOnlyPages;
+        setEffectiveDensity('compact');
+        setPushLastBlockToNextPage(isFooterOrphaned);
+        bodyEl.setAttribute('data-push-last', isFooterOrphaned ? 'true' : 'false');
+        setPageCount(compactPages);
+        const lastPageUsedPx =
+          compactPages === 1
+            ? compactTotalPx
+            : compactTotalPx - (compactPages - 1) * onePagePx;
+        setPageOccupancyPct(
+          Math.min(100, Math.max(5, Math.round((lastPageUsedPx / onePagePx) * 100)))
+        );
+      } else {
+        // Mesmo compactando continua precisando do mesmo número de páginas -> mantém o modo normal mais confortável
+        bodyEl.setAttribute('data-density', 'normal');
+        const normalBodyOnlyPages = Math.max(1, Math.ceil(normalBodyPx / onePagePx));
+        const isFooterOrphaned = normalPages > 1 && normalPages > normalBodyOnlyPages;
+        setEffectiveDensity('normal');
+        setPushLastBlockToNextPage(isFooterOrphaned);
+        bodyEl.setAttribute('data-push-last', isFooterOrphaned ? 'true' : 'false');
+        setPageCount(normalPages);
+        const lastPageUsedPx =
+          normalTotalPx - (normalPages - 1) * onePagePx;
+        setPageOccupancyPct(
+          Math.min(100, Math.max(5, Math.round((lastPageUsedPx / onePagePx) * 100)))
+        );
       }
     };
 
@@ -172,7 +255,7 @@ export default function EldersMeetingAgendaView({
       window.removeEventListener('resize', recalculatePages);
       window.removeEventListener('beforeprint', recalculatePages);
     };
-  }, [agenda]);
+  }, [agenda, densityMode]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -782,11 +865,20 @@ export default function EldersMeetingAgendaView({
       <div className={isPrintOnly ? 'agenda-a4-print-root' : 'agenda-a4-preview-wrapper'}>
         <div
           className="agenda-a4-page"
+          data-density={effectiveDensity}
+          data-push-last={pushLastBlockToNextPage ? 'true' : 'false'}
           style={{ ['--agenda-pages' as any]: pageCount }}
         >
+          {!isPrintOnly && pageCount > 1 && (
+            <div className="agenda-page-break-guide print:hidden" aria-hidden="true">
+              <span>Fim da Página 1 • Início da Página 2</span>
+            </div>
+          )}
           <div
             ref={isPrintOnly ? printBodyRef : undefined}
             className="agenda-body-content"
+            data-density={effectiveDensity}
+            data-push-last={pushLastBlockToNextPage ? 'true' : 'false'}
           >
             {/* Topo sutil e cabeçalho clean */}
             <div className="agenda-header">
@@ -902,10 +994,18 @@ export default function EldersMeetingAgendaView({
                     const showExcerptRow = isPrintOnly
                       ? hasExcerpt
                       : hasExcerpt || Boolean(openExcerptIds[topicKey]);
+                    const isLastTopicAndNoRecs =
+                      idx === agenda.topics.length - 1 && !hasAnyRecs;
 
                     return (
                       <Fragment key={topicKey}>
-                        <tr>
+                        <tr
+                          className={
+                            isLastTopicAndNoRecs && pushLastBlockToNextPage
+                              ? 'agenda-force-next-page-row'
+                              : ''
+                          }
+                        >
                           <td className="agenda-num-cell">{idx + 1}</td>
                           <td>
                             {isPrintOnly ? (
@@ -1106,7 +1206,13 @@ export default function EldersMeetingAgendaView({
               <div className="agenda-recs-columns">
                 {/* Sub-bloco: Anciãos */}
                 {hasElderRecs && (
-                  <div className="agenda-rec-block">
+                  <div
+                    className={`agenda-rec-block ${
+                      pushLastBlockToNextPage && !hasServantRecs && !hasRemovals
+                        ? 'agenda-force-next-page-block'
+                        : ''
+                    }`}
+                  >
                     <div className="agenda-rec-subtitle-bar">
                       <span>Anciãos</span>
                       <span className="agenda-rec-count">
@@ -1192,7 +1298,13 @@ export default function EldersMeetingAgendaView({
 
                 {/* Sub-bloco: Servos Ministeriais */}
                 {hasServantRecs && (
-                  <div className="agenda-rec-block">
+                  <div
+                    className={`agenda-rec-block ${
+                      pushLastBlockToNextPage && !hasRemovals
+                        ? 'agenda-force-next-page-block'
+                        : ''
+                    }`}
+                  >
                     <div className="agenda-rec-subtitle-bar">
                       <span>Servos Ministeriais</span>
                       <span className="agenda-rec-count">
@@ -1278,7 +1390,11 @@ export default function EldersMeetingAgendaView({
 
                 {/* Sub-bloco: Remoções ou Renúncias */}
                 {hasRemovals && (
-                  <div className="agenda-rec-block">
+                  <div
+                    className={`agenda-rec-block ${
+                      pushLastBlockToNextPage ? 'agenda-force-next-page-block' : ''
+                    }`}
+                  >
                     <div className="agenda-rec-subtitle-bar">
                       <span>Remoções ou Renúncias</span>
                       <span className="agenda-rec-count">
@@ -1878,6 +1994,101 @@ export default function EldersMeetingAgendaView({
           outline: none;
           font-family: inherit;
           line-height: 1.45;
+        }
+
+        /* MODO COMPACTO (AUTO-COMPACTAÇÃO OU MANUAL) */
+        .agenda-a4-page[data-density='compact'],
+        .agenda-body-content[data-density='compact'] {
+          gap: 11px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-header {
+          padding-bottom: 7px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-header-title {
+          font-size: 16px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-meta-grid {
+          padding: 8px 12px;
+          gap: 6px 18px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-section {
+          gap: 5px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-table th {
+          padding: 5px 8px;
+          font-size: 10px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-table td {
+          padding: 4.5px 8px;
+          font-size: 11px;
+          line-height: 1.3;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-excerpt-cell {
+          padding: 4px 8px 6px !important;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-excerpt-box {
+          padding: 4px 8px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-excerpt-text {
+          font-size: 10.5px;
+          line-height: 1.32;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-recs-columns {
+          gap: 8px;
+        }
+
+        .agenda-a4-page[data-density='compact'] .agenda-footer-note {
+          padding-top: 8px;
+          font-size: 10.5px;
+        }
+
+        /* PREVENÇÃO DE FRASE ÓRFÃ: EMPURRA O ÚLTIMO ITEM JUNTO COM O RODAPÉ PARA A PRÓXIMA PÁGINA */
+        .agenda-a4-page[data-push-last='true'] .agenda-force-next-page-row,
+        .agenda-a4-page[data-push-last='true'] .agenda-force-next-page-block,
+        .agenda-body-content[data-push-last='true'] .agenda-force-next-page-row,
+        .agenda-body-content[data-push-last='true'] .agenda-force-next-page-block {
+          break-before: page;
+          page-break-before: always;
+        }
+
+        /* GUIA VISUAL DE DIVISÃO DE PÁGINA NA PRÉ-VISUALIZAÇÃO */
+        .agenda-a4-page {
+          position: relative;
+        }
+
+        .agenda-page-break-guide {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 268mm;
+          border-top: 1.5px dashed #94a3b8;
+          display: flex;
+          justify-content: center;
+          pointer-events: none;
+          z-index: 5;
+        }
+
+        .agenda-page-break-guide span {
+          background: #f1f5f9;
+          color: #475569;
+          border: 1px solid #cbd5e1;
+          font-size: 9.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          padding: 1px 8px;
+          border-radius: 999px;
+          transform: translateY(-50%);
         }
 
         .agenda-page-ruler {
@@ -2986,6 +3197,53 @@ export default function EldersMeetingAgendaView({
           </div>
         ) : (
           <div className="space-y-3">
+            {/* BARRA DE CONTROLE DE AJUSTE DE PÁGINA E DENSIDADE */}
+            <div className="max-w-[210mm] mx-auto bg-surface-100 border border-surface-300 rounded-2xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black text-primary-200 bg-primary-200/10 border border-primary-200/20 px-2.5 py-1 rounded-xl">
+                  📄 {pageCount} {pageCount === 1 ? 'página' : 'páginas'} ({pageOccupancyPct}% da folha)
+                </span>
+                {densityMode === 'auto' && effectiveDensity === 'compact' && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
+                    <Sparkles size={12} />
+                    Auto-compactado para caber em {pageCount} {pageCount === 1 ? 'página' : 'páginas'}
+                  </span>
+                )}
+                {pushLastBlockToNextPage && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-lg">
+                    <ShieldCheck size={12} />
+                    Último bloco levado junto p/ não deixar o rodapé sozinho na pág. {pageCount}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[11px] font-bold text-typography-500 mr-1">
+                  Espaçamento:
+                </span>
+                {(
+                  [
+                    { id: 'auto', label: 'Automático' },
+                    { id: 'normal', label: 'Normal' },
+                    { id: 'compact', label: 'Compacto' },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setDensityMode(opt.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                      densityMode === opt.id
+                        ? 'bg-primary-200 text-white shadow-2xs'
+                        : 'bg-surface-200 text-typography-600 hover:bg-surface-300'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="text-center text-xs text-typography-500">
               💡 <em>Você também pode clicar e editar diretamente na folha A4 abaixo.</em>
             </div>
