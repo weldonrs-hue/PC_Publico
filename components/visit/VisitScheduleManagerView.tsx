@@ -1201,173 +1201,198 @@ export default function VisitScheduleManagerView({
         )}
 
       {/* MODAL DE REPLICAÇÃO DE DADOS ENTRE SEMANAS */}
-      <AnimatePresence>
-        {isReplicateModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-surface-100 border border-surface-300 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col relative"
-            >
-              {/* Header do Modal */}
-              <div className="p-4 sm:p-5 border-b border-surface-300 flex items-center justify-between sticky top-0 bg-surface-100/95 backdrop-blur-xs z-10">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-primary-200/10 text-primary-200">
-                    <Copy size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-typography-900 tracking-tight">
-                      Replicar Dados de Outra Semana
-                    </h3>
-                    <p className="text-xs text-typography-500">
-                      Importe seus temas de discursos, horários padrão e rotina fixa
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsReplicateModalOpen(false)}
-                  className="p-1.5 rounded-lg text-typography-400 hover:text-typography-900 hover:bg-surface-200 transition-colors cursor-pointer"
-                  title="Fechar"
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {isReplicateModalOpen && (
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs print:hidden">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  className="bg-surface-100 border border-surface-300 rounded-3xl w-full max-w-xl max-h-[84dvh] sm:max-h-[88vh] overflow-hidden shadow-2xl flex flex-col relative"
                 >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Corpo do Modal */}
-              <div className="p-4 sm:p-6 space-y-5 flex-1">
-                {loadingPreviousSchedules ? (
-                  <div className="py-12 flex flex-col items-center justify-center space-y-3">
-                    <div className="w-7 h-7 border-3 border-primary-200 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-xs text-typography-500 font-medium">Buscando semanas anteriores...</p>
+                  {/* Header do Modal (Fixo no topo) */}
+                  <div className="p-4 sm:p-5 border-b border-surface-300 flex items-center justify-between shrink-0 bg-surface-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-primary-200/10 text-primary-200">
+                        <Copy size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-typography-900 tracking-tight">
+                          Replicar Dados de Outra Semana
+                        </h3>
+                        <p className="text-xs text-typography-500">
+                          Importe seus temas de discursos, horários padrão e rotina fixa
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsReplicateModalOpen(false)}
+                      className="p-1.5 rounded-lg text-typography-400 hover:text-typography-900 hover:bg-surface-200 transition-colors cursor-pointer"
+                      title="Fechar"
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
-                ) : previousSchedules.length === 0 ? (
-                  <div className="py-8 text-center space-y-3 bg-surface-200/50 rounded-2xl p-6 border border-surface-300">
-                    <div className="w-12 h-12 bg-primary-200/10 text-primary-200 rounded-2xl flex items-center justify-center mx-auto">
-                      <HelpCircle size={24} />
-                    </div>
-                    <h4 className="text-sm font-bold text-typography-900">Nenhuma outra visita encontrada</h4>
-                    <p className="text-xs text-typography-500 max-w-md mx-auto leading-relaxed">
-                      Quando você cadastrar e salvar a programação de outras semanas no itinerário, poderá copiá-las aqui com 1 clique para preencher instantaneamente as próximas congregações!
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Botão Rápido: Copiar da Última Visita */}
-                    {previousSchedules[0] && (
-                      <div className="bg-primary-200/5 border border-primary-200/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary-200 block mb-0.5">
-                            Opção Mais Rápida
-                          </span>
-                          <h4 className="text-xs font-bold text-typography-900 truncate">
-                            {previousSchedules[0].congregationName}
-                          </h4>
-                          <span className="text-[11px] text-typography-500">
-                            {previousSchedules[0].visitPeriod}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => executeReplication(previousSchedules[0])}
-                          disabled={replicating}
-                          className="flex items-center justify-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-3.5 py-2 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 shrink-0 cursor-pointer"
-                        >
-                          <Sparkles size={14} />
-                          Copiar da Última Visita
-                        </button>
+
+                  {/* Corpo do Modal (Rolável) */}
+                  <div className="p-4 sm:p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
+                    {loadingPreviousSchedules ? (
+                      <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                        <div className="w-7 h-7 border-3 border-primary-200 border-t-transparent rounded-full animate-spin" />
+                        <p className="text-xs text-typography-500 font-medium">Buscando semanas anteriores...</p>
                       </div>
-                    )}
-
-                    {/* Ou Selecionar Visita Específica */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-typography-800 block">
-                        Ou selecione outra semana do histórico:
-                      </label>
-                      <CustomSelect
-                        value={selectedSourceId}
-                        onChange={(val) => setSelectedSourceId(val)}
-                        options={previousSchedules.map((p): CustomSelectOption => ({
-                          value: p.id || '',
-                          label: `${p.congregationName} — ${p.visitPeriod}`,
-                          description: p.coupleNames ? `Casal: ${p.coupleNames}` : undefined,
-                        }))}
-                        placeholder="Escolha a visita de origem..."
-                        size="md"
-                        searchable={previousSchedules.length > 4}
-                      />
-                    </div>
-
-                    {/* Card Informativo com o que é copiado vs preservado */}
-                    <div className="bg-surface-200/60 rounded-2xl p-4 border border-surface-300 text-xs space-y-3">
-                      <div className="font-bold text-typography-900 flex items-center gap-1.5">
-                        <ShieldCheck size={15} className="text-primary-200" />
-                        O que acontece ao replicar?
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
-                        <div className="bg-surface-100 p-2.5 rounded-xl border border-surface-300 space-y-1">
-                          <span className="font-bold text-emerald-700 flex items-center gap-1">
-                            <Check size={12} /> Copiado do Viajante:
-                          </span>
-                          <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
-                            <li>Temas e cânticos dos discursos</li>
-                            <li>Horários padrão e dias de hospedagem</li>
-                            <li>Nomes do casal e circuito</li>
-                            <li>Estudos/revisitas planejados</li>
-                            <li>Reuniões de pioneiros e anciãos</li>
-                            <li>Dias ativos e permissões</li>
-                          </ul>
+                    ) : previousSchedules.length === 0 ? (
+                      <div className="py-8 text-center space-y-3 bg-surface-200/50 rounded-2xl p-6 border border-surface-300">
+                        <div className="w-12 h-12 bg-primary-200/10 text-primary-200 rounded-2xl flex items-center justify-center mx-auto">
+                          <HelpCircle size={24} />
                         </div>
-
-                        <div className="bg-surface-100 p-2.5 rounded-xl border border-surface-300 space-y-1">
-                          <span className="font-bold text-primary-200 flex items-center gap-1">
-                            <Lock size={12} /> Mantido Intacto (Atual):
-                          </span>
-                          <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
-                            <li><strong>{schedule.congregationName}</strong> (Nome e ID)</li>
-                            <li><strong>{schedule.visitPeriod}</strong> (Período atual)</li>
-                            <li>Link exclusivo e PIN dos anciãos</li>
-                            <li>Locais de saída de campo</li>
-                            <li>Anfitriões e pastoreios locais</li>
-                          </ul>
-                        </div>
+                        <h4 className="text-sm font-bold text-typography-900">Nenhuma outra visita encontrada</h4>
+                        <p className="text-xs text-typography-500 max-w-md mx-auto leading-relaxed">
+                          Quando você cadastrar e salvar a programação de outras semanas no itinerário, poderá copiá-las aqui com 1 clique para preencher instantaneamente as próximas congregações!
+                        </p>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Rodapé do Modal */}
-              <div className="p-4 sm:p-5 border-t border-surface-300 flex items-center justify-end gap-2 bg-surface-100 sticky bottom-0 z-10">
-                <button
-                  type="button"
-                  onClick={() => setIsReplicateModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-surface-300 text-typography-700 hover:bg-surface-200 font-bold text-xs transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-
-                {previousSchedules.length > 0 && selectedSourceSchedule && (
-                  <button
-                    type="button"
-                    onClick={() => executeReplication(selectedSourceSchedule)}
-                    disabled={replicating}
-                    className="flex items-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    {replicating ? (
-                      <RefreshCw size={14} className="animate-spin" />
                     ) : (
-                      <CheckCircle2 size={14} />
+                      <>
+                        {/* Botão Rápido: Copiar da Última Visita */}
+                        {previousSchedules[0] && (
+                          <div className="bg-primary-200/5 border border-primary-200/20 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-primary-200 block mb-0.5">
+                                Opção Mais Rápida (Última Atualizada)
+                              </span>
+                              <h4 className="text-xs font-bold text-typography-900 truncate">
+                                {previousSchedules[0].congregationName}
+                              </h4>
+                              <span className="text-[11px] text-typography-500">
+                                {previousSchedules[0].visitPeriod}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => executeReplication(previousSchedules[0])}
+                              disabled={replicating}
+                              className="flex items-center justify-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-3.5 py-2 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                            >
+                              <Sparkles size={14} />
+                              Copiar da Última Visita
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Ou Selecionar Visita Específica */}
+                        <div className="bg-surface-200/40 border border-surface-300 rounded-2xl p-3.5 sm:p-4 space-y-3">
+                          <label className="text-xs font-bold text-typography-800 block">
+                            Ou selecione outra semana do histórico:
+                          </label>
+                          <CustomSelect
+                            className="w-full"
+                            value={selectedSourceId}
+                            onChange={(val) => setSelectedSourceId(val)}
+                            options={previousSchedules.map((p): CustomSelectOption => ({
+                              value: p.id || '',
+                              label: `${p.congregationName} — ${p.visitPeriod}`,
+                              description: p.coupleNames ? `Casal: ${p.coupleNames}` : undefined,
+                            }))}
+                            placeholder="Escolha a visita de origem..."
+                            size="md"
+                            searchable={previousSchedules.length > 4}
+                          />
+
+                          {selectedSourceSchedule && (
+                            <button
+                              type="button"
+                              onClick={() => executeReplication(selectedSourceSchedule)}
+                              disabled={replicating}
+                              className="w-full flex items-center justify-center gap-2 bg-primary-200 hover:bg-primary-300 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                              {replicating ? (
+                                <RefreshCw size={14} className="animate-spin shrink-0" />
+                              ) : (
+                                <CheckCircle2 size={14} className="shrink-0" />
+                              )}
+                              <span className="truncate">
+                                {replicating
+                                  ? 'Replicando...'
+                                  : `Replicar de: ${selectedSourceSchedule.congregationName}`}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Card Informativo com o que é copiado vs preservado */}
+                        <div className="bg-surface-200/60 rounded-2xl p-4 border border-surface-300 text-xs space-y-3">
+                          <div className="font-bold text-typography-900 flex items-center gap-1.5">
+                            <ShieldCheck size={15} className="text-primary-200" />
+                            O que acontece ao replicar?
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                            <div className="bg-surface-100 p-2.5 rounded-xl border border-surface-300 space-y-1">
+                              <span className="font-bold text-emerald-700 flex items-center gap-1">
+                                <Check size={12} /> Copiado do Viajante:
+                              </span>
+                              <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
+                                <li>Temas e cânticos dos discursos</li>
+                                <li>Horários padrão e dias de hospedagem</li>
+                                <li>Nomes do casal e circuito</li>
+                                <li>Estudos/revisitas planejados</li>
+                                <li>Reuniões de pioneiros e anciãos</li>
+                                <li>Dias ativos e permissões</li>
+                              </ul>
+                            </div>
+
+                            <div className="bg-surface-100 p-2.5 rounded-xl border border-surface-300 space-y-1">
+                              <span className="font-bold text-primary-200 flex items-center gap-1">
+                                <Lock size={12} /> Mantido Intacto (Atual):
+                              </span>
+                              <ul className="text-typography-600 space-y-0.5 list-disc list-inside">
+                                <li><strong>{schedule.congregationName}</strong> (Nome e ID)</li>
+                                <li><strong>{schedule.visitPeriod}</strong> (Período atual)</li>
+                                <li>Link exclusivo e PIN dos anciãos</li>
+                                <li>Locais de saída de campo</li>
+                                <li>Anfitriões e pastoreios locais</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     )}
-                    {replicating ? 'Replicando...' : 'Replicar da Visita Selecionada'}
-                  </button>
-                )}
+                  </div>
+
+                  {/* Rodapé do Modal (Sempre visível e fixo na base) */}
+                  <div className="p-3.5 sm:p-4 border-t border-surface-300 flex items-center justify-end gap-2 bg-surface-100 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsReplicateModalOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-surface-300 text-typography-700 hover:bg-surface-200 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+
+                    {previousSchedules.length > 0 && selectedSourceSchedule && (
+                      <button
+                        type="button"
+                        onClick={() => executeReplication(selectedSourceSchedule)}
+                        disabled={replicating}
+                        className="flex items-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {replicating ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : (
+                          <CheckCircle2 size={14} />
+                        )}
+                        {replicating ? 'Replicando...' : 'Replicar Semana Selecionada'}
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
               </div>
-            </motion.div>
-          </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </div>
   );
 }
