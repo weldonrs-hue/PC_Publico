@@ -16,6 +16,7 @@ import { useDialog } from '@/hooks/useDialog';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { cleanPSSMetadata, formatDocxError } from '@/lib/docxUtils';
+import { autoSyncCircuitEventToPlanner } from '@/services/circuitEventsScanner';
 
 interface SpecialPioneerMeetingViewProps {
   userId: string;
@@ -711,6 +712,31 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       }, { merge: true });
       
       setInitialPartsData(JSON.stringify(partsData));
+
+      // Auto-sincronizar reuniões de pioneiros na agenda (planner_items) em segundo plano
+      if (userId) {
+        Object.keys(partsData).forEach((pIdx) => {
+          const idx = parseInt(pIdx, 10);
+          const p = partsData[idx];
+          if (p?.details) {
+            if (p.details.eventDate) {
+              autoSyncCircuitEventToPlanner(userId, `special_pioneer_part_${idx}_event`, {
+                rawDate: p.details.eventDate,
+                location: p.details.eventLocation,
+                fallbackYear: selectedYear.split('-')[0] || undefined,
+              }).catch(() => {});
+            }
+            if (p.details.rehearsalDate) {
+              autoSyncCircuitEventToPlanner(userId, `special_pioneer_part_${idx}_rehearsal`, {
+                rawDate: p.details.rehearsalDate,
+                location: p.details.rehearsalLocation,
+                fallbackYear: selectedYear.split('-')[0] || undefined,
+              }).catch(() => {});
+            }
+          }
+        });
+      }
+
       if (showNotification) {
         await showAlert('Designações e dados salvos com sucesso!', 'Sucesso');
       }

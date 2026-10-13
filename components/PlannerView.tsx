@@ -1,57 +1,50 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ChevronLeft, 
-  Plus, 
-  Search, 
-  Filter, 
-  Calendar, 
-  CheckSquare, 
-  Clock, 
-  MapPin, 
-  AlertCircle, 
-  CheckCircle2, 
-  AlertTriangle, 
-  RotateCcw, 
-  Pencil, 
-  Trash2, 
-  Sparkles, 
-  FileText, 
-  Flag,
-  CalendarCheck,
-  Check,
-  X,
-  Layers,
-  ArrowUpDown,
-  Bell,
-  LayoutGrid,
-  List,
-  Repeat
-} from 'lucide-react';
-import { PlannerItem, PlannerItemType, PriorityLevel, TaskStatus } from '@/types/planner';
-import { 
-  subscribePlannerItems, 
-  createPlannerItem, 
-  updatePlannerItem, 
-  toggleCompleteTask, 
-  deletePlannerItem 
-} from '@/services/plannerService';
-import { 
-  getPlannerItemUrgency, 
-  sortPlannerItems, 
-  formatDisplayDate, 
-  formatDisplayDateTime,
-  getTodayDateString,
-  getRecurrenceLabel
-} from '@/utils/planner';
-import { useDialog } from '@/hooks/useDialog';
-import { cn } from '@/lib/utils';
-import PlannerItemModal from './PlannerItemModal';
 import CustomSelect from '@/components/CustomSelect';
 import SyncCircuitEventsModal from '@/components/SyncCircuitEventsModal';
+import { useDialog } from '@/hooks/useDialog';
+import { cn } from '@/lib/utils';
 import { scanCircuitEvents, ScannedCircuitEvent } from '@/services/circuitEventsScanner';
+import {
+  createPlannerItem,
+  deletePlannerItem,
+  subscribePlannerItems,
+  toggleCompleteTask,
+  updatePlannerItem
+} from '@/services/plannerService';
+import { PlannerItem } from '@/types/planner';
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+  getPlannerItemUrgency,
+  getRecurrenceLabel,
+  getTodayDateString,
+  sortPlannerItems
+} from '@/utils/planner';
+import {
+  AlertTriangle,
+  Bell,
+  Calendar,
+  CalendarCheck,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  Clock,
+  LayoutGrid,
+  List,
+  MapPin,
+  Pencil,
+  Plus,
+  Repeat,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Trash2,
+  X
+} from 'lucide-react';
+import { motion } from 'motion/react';
+import { useEffect, useMemo, useState } from 'react';
+import PlannerItemModal from './PlannerItemModal';
 
 interface PlannerViewProps {
   userId?: string;

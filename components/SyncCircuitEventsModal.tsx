@@ -1,28 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Check, 
-  Sparkles, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle2, 
-  Info, 
-  CalendarCheck,
-  Building,
-  GraduationCap,
-  Users,
-  Landmark,
-  CheckSquare,
-  Square
-} from 'lucide-react';
 import { ScannedCircuitEvent } from '@/services/circuitEventsScanner';
-import { createPlannerItem } from '@/services/plannerService';
+import { createPlannerItem, updatePlannerItem } from '@/services/plannerService';
+import {
+  Building,
+  Calendar,
+  CalendarCheck,
+  Check,
+  CheckCircle2,
+  Clock,
+  GraduationCap,
+  Landmark,
+  Loader2,
+  MapPin,
+  RefreshCw,
+  Sparkles,
+  Users,
+  X
+} from 'lucide-react';
+import { motion } from 'motion/react';
+import React, { useState } from 'react';
 
 interface SyncCircuitEventsModalProps {
   isOpen: boolean;
@@ -92,41 +89,53 @@ export default function SyncCircuitEventsModal({
 
   const handleSelectAll = (select: boolean) => {
     setEvents(prev => prev.map(ev => {
-      if (ev.alreadyImported) return ev;
+      if (ev.alreadyImported && !ev.hasChanged) return ev;
       return { ...ev, selected: select && Boolean(ev.date) };
     }));
   };
 
-  const selectedCount = events.filter(e => e.selected && !e.alreadyImported).length;
+  const selectedCount = events.filter(e => e.selected && (!e.alreadyImported || e.hasChanged)).length;
 
   const handleConfirmImport = async () => {
-    const toImport = events.filter(e => e.selected && !e.alreadyImported && e.date);
-    if (toImport.length === 0) return;
+    const toProcess = events.filter(e => e.selected && (!e.alreadyImported || e.hasChanged) && e.date);
+    if (toProcess.length === 0) return;
 
     setIsImporting(true);
     try {
-      for (const ev of toImport) {
+      for (const ev of toProcess) {
         const originTag = `[origem:${ev.key}]`;
         const notesWithOrigin = ev.notes ? `${ev.notes}\n${originTag}` : originTag;
 
-        await createPlannerItem(userId, {
-          type: 'event',
-          title: ev.title,
-          description: `${ev.categoryLabel} • ${ev.subtitle || 'Evento'}\nData informada: "${ev.rawDate}"`,
-          date: ev.date,
-          time: ev.time || null,
-          location: ev.location || null,
-          notes: notesWithOrigin,
-          priority: 'medium',
-          status: 'pending',
-          hasDeadline: false,
-        });
+        if (ev.hasChanged && ev.plannerItemId) {
+          // Atualiza o item existente
+          await updatePlannerItem(ev.plannerItemId, {
+            title: ev.title,
+            description: `${ev.categoryLabel} • ${ev.subtitle || 'Evento'}\nData informada: "${ev.rawDate}"`,
+            date: ev.date,
+            time: ev.time || null,
+            location: ev.location || null,
+          });
+        } else {
+          // Cria novo item
+          await createPlannerItem(userId, {
+            type: 'event',
+            title: ev.title,
+            description: `${ev.categoryLabel} • ${ev.subtitle || 'Evento'}\nData informada: "${ev.rawDate}"`,
+            date: ev.date,
+            time: ev.time || null,
+            location: ev.location || null,
+            notes: notesWithOrigin,
+            priority: 'medium',
+            status: 'pending',
+            hasDeadline: false,
+          });
+        }
       }
 
       onImportCompleted();
       onClose();
     } catch (err) {
-      console.error('Erro ao importar eventos selecionados:', err);
+      console.error('Erro ao sincronizar eventos selecionados:', err);
     } finally {
       setIsImporting(false);
     }
@@ -150,10 +159,13 @@ export default function SyncCircuitEventsModal({
 
   const filteredEvents = events.filter(ev => {
     if (filterType === 'all') return true;
-    if (filterType === 'pending') return !ev.alreadyImported;
-    if (filterType === 'imported') return ev.alreadyImported;
+    if (filterType === 'pending') return !ev.alreadyImported || Boolean(ev.hasChanged);
+    if (filterType === 'changed') return Boolean(ev.hasChanged);
+    if (filterType === 'imported') return ev.alreadyImported && !ev.hasChanged;
     return ev.category === filterType;
   });
+
+  const changedCount = events.filter(e => e.hasChanged).length;
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md no-print">
@@ -176,7 +188,7 @@ export default function SyncCircuitEventsModal({
                 Sincronizar Eventos do Circuito
               </h3>
               <p className="text-xs text-typography-500 font-medium">
-                Detectamos datas cadastradas em Assembleias, Congresso e Escolas. Confira e confirme a importação para sua agenda.
+                Detectamos datas cadastradas em Assembleias, Congresso e Escolas. Confira e confirme a importação ou atualização na sua agenda.
               </p>
             </div>
           </div>
@@ -209,8 +221,21 @@ export default function SyncCircuitEventsModal({
                   : 'bg-surface-200 text-typography-600 hover:text-typography-900'
               }`}
             >
-              Não Importados ({events.filter(e => !e.alreadyImported).length})
+              Pendentes ({events.filter(e => !e.alreadyImported || e.hasChanged).length})
             </button>
+            {changedCount > 0 && (
+              <button
+                onClick={() => setFilterType('changed')}
+                className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  filterType === 'changed'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                }`}
+              >
+                <RefreshCw size={11} className={filterType === 'changed' ? 'animate-spin' : ''} />
+                Alterados ({changedCount})
+              </button>
+            )}
             <button
               onClick={() => setFilterType('imported')}
               className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
@@ -219,7 +244,7 @@ export default function SyncCircuitEventsModal({
                   : 'bg-surface-200 text-typography-600 hover:text-typography-900'
               }`}
             >
-              Já na Agenda ({events.filter(e => e.alreadyImported).length})
+              Já na Agenda ({events.filter(e => e.alreadyImported && !e.hasChanged).length})
             </button>
           </div>
 
@@ -264,14 +289,17 @@ export default function SyncCircuitEventsModal({
             </div>
           ) : (
             filteredEvents.map((ev) => {
-              const isChecked = ev.selected && !ev.alreadyImported;
+              const isInactive = ev.alreadyImported && !ev.hasChanged;
+              const isChecked = ev.selected && !isInactive;
 
               return (
                 <div
                   key={ev.key}
                   className={`p-4 rounded-2xl border transition-all ${
-                    ev.alreadyImported
+                    isInactive
                       ? 'bg-surface-200/40 border-surface-300 opacity-60'
+                      : ev.hasChanged
+                      ? 'bg-amber-500/5 border-amber-500/40 ring-1 ring-amber-500/20 shadow-xs'
                       : isChecked
                       ? 'bg-primary-200/5 border-primary-200 ring-1 ring-primary-200/30 shadow-xs'
                       : 'bg-surface-100 border-surface-300 hover:border-surface-400'
@@ -281,17 +309,19 @@ export default function SyncCircuitEventsModal({
                     {/* Checkbox */}
                     <button
                       type="button"
-                      disabled={ev.alreadyImported}
+                      disabled={isInactive}
                       onClick={() => handleToggleSelect(ev.key)}
                       className={`mt-1 w-5 h-5 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
-                        ev.alreadyImported
+                        isInactive
                           ? 'border-surface-400 bg-surface-300 text-surface-500 cursor-not-allowed'
                           : isChecked
-                          ? 'bg-primary-200 border-primary-200 text-white shadow-xs'
+                          ? ev.hasChanged
+                            ? 'bg-amber-500 border-amber-500 text-white shadow-xs'
+                            : 'bg-primary-200 border-primary-200 text-white shadow-xs'
                           : 'border-surface-400 bg-surface-200 hover:border-primary-200'
                       }`}
                     >
-                      {ev.alreadyImported ? <Check size={12} /> : isChecked ? <Check size={13} strokeWidth={3} /> : null}
+                      {isInactive ? <Check size={12} /> : isChecked ? <Check size={13} strokeWidth={3} /> : null}
                     </button>
 
                     {/* Main Content */}
@@ -312,12 +342,17 @@ export default function SyncCircuitEventsModal({
                           )}
                         </div>
 
-                        {ev.alreadyImported && (
+                        {ev.hasChanged ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            <RefreshCw size={11} className="animate-spin" />
+                            Data alterada na folha (Agenda: {ev.plannerDate ? ev.plannerDate.split('-').reverse().join('/') : 'sem data'})
+                          </span>
+                        ) : ev.alreadyImported ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             <CheckCircle2 size={12} />
                             Já importado na Agenda
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       {/* Title & Original string preview */}
@@ -344,7 +379,7 @@ export default function SyncCircuitEventsModal({
                             className="relative cursor-pointer"
                             onClick={(e) => {
                               const input = e.currentTarget.querySelector('input');
-                              if (input && !ev.alreadyImported) {
+                              if (input && !isInactive) {
                                 if ('showPicker' in HTMLInputElement.prototype) {
                                   try { (input as any).showPicker(); } catch { input.focus(); }
                                 } else {
@@ -357,7 +392,7 @@ export default function SyncCircuitEventsModal({
                             <input
                               type="date"
                               value={ev.date}
-                              disabled={ev.alreadyImported}
+                              disabled={isInactive}
                               onChange={(e) => handleDateChange(ev.key, e.target.value)}
                               className="w-full pl-9 pr-3 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all disabled:opacity-60 cursor-pointer"
                             />
@@ -373,7 +408,7 @@ export default function SyncCircuitEventsModal({
                             className="relative cursor-pointer"
                             onClick={(e) => {
                               const input = e.currentTarget.querySelector('input');
-                              if (input && !ev.alreadyImported) {
+                              if (input && !isInactive) {
                                 if ('showPicker' in HTMLInputElement.prototype) {
                                   try { (input as any).showPicker(); } catch { input.focus(); }
                                 } else {
@@ -386,7 +421,7 @@ export default function SyncCircuitEventsModal({
                             <input
                               type="time"
                               value={ev.time}
-                              disabled={ev.alreadyImported}
+                              disabled={isInactive}
                               onChange={(e) => handleTimeChange(ev.key, e.target.value)}
                               className="w-full pl-9 pr-3 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all disabled:opacity-60 cursor-pointer"
                             />
@@ -404,7 +439,7 @@ export default function SyncCircuitEventsModal({
                               type="text"
                               placeholder="Local não informado"
                               value={ev.location}
-                              disabled={ev.alreadyImported}
+                              disabled={isInactive}
                               onChange={(e) => handleLocationChange(ev.key, e.target.value)}
                               className="w-full pl-9 pr-3 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
                             />
@@ -450,12 +485,12 @@ export default function SyncCircuitEventsModal({
               {isImporting ? (
                 <>
                   <Loader2 size={15} className="animate-spin" />
-                  <span>Importando...</span>
+                  <span>Sincronizando...</span>
                 </>
               ) : (
                 <>
                   <CalendarCheck size={15} />
-                  <span>Importar Selecionados ({selectedCount})</span>
+                  <span>Sincronizar Selecionados ({selectedCount})</span>
                 </>
               )}
             </button>

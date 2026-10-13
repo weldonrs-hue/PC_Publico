@@ -15,6 +15,19 @@ export interface ScannedCircuitEvent {
   notes?: string;          // Informações adicionais
   alreadyImported: boolean;// Se já existe evento idêntico em planner_items
   selected: boolean;       // Marcado para importação
+  plannerItemId?: string;  // ID no planner_items caso já tenha sido importado
+  plannerDate?: string;    // Data atualmente salva no planner_items
+  plannerTime?: string;    // Horário atualmente salvo no planner_items
+  hasChanged?: boolean;    // Se a data/horário na folha divergem do que está na agenda
+}
+
+interface PlannerExistingInfo {
+  id: string;
+  date?: string | null;
+  time?: string | null;
+  location?: string | null;
+  title?: string | null;
+  notes?: string | null;
 }
 
 /**
@@ -26,20 +39,32 @@ export async function scanCircuitEvents(userId: string): Promise<ScannedCircuitE
 
   const foundEvents: ScannedCircuitEvent[] = [];
 
-  // 0. Buscar itens já existentes em planner_items para saber se já foi importado
-  const existingKeys = new Set<string>();
+  // 0. Buscar itens já existentes em planner_items para saber se já foi importado e detectar alterações
+  const originMap = new Map<string, PlannerExistingInfo>();
+  const titleDateMap = new Map<string, PlannerExistingInfo>();
+
   try {
     const qPlanner = query(collection(db, 'planner_items'), where('userId', '==', userId));
     const plannerSnap = await getDocs(qPlanner);
     plannerSnap.forEach((d) => {
       const data = d.data();
+      const info: PlannerExistingInfo = {
+        id: d.id,
+        date: data.date || null,
+        time: data.time || null,
+        location: data.location || null,
+        title: data.title || null,
+        notes: data.notes || null,
+      };
+
       if (data.notes && typeof data.notes === 'string') {
         const match = data.notes.match(/\[origem:([^\]]+)\]/);
-        if (match) existingKeys.add(match[1]);
+        if (match) {
+          originMap.set(match[1], info);
+        }
       }
-      // Também verifica combinação de título + data
       if (data.title && data.date) {
-        existingKeys.add(`${data.title.toLowerCase().trim()}_${data.date}`);
+        titleDateMap.set(`${data.title.toLowerCase().trim()}_${data.date}`, info);
       }
     });
   } catch (err) {
@@ -62,7 +87,38 @@ export async function scanCircuitEvents(userId: string): Promise<ScannedCircuitE
 
     const parsed = parsePortugueseDateTime(rawDate, fallbackYear);
     const dateKey = `${title.toLowerCase().trim()}_${parsed.date}`;
-    const alreadyImported = existingKeys.has(key) || (parsed.date ? existingKeys.has(dateKey) : false);
+
+    const existingByOrigin = originMap.get(key);
+    const existingByTitleDate = parsed.date ? titleDateMap.get(dateKey) : undefined;
+    const existingInfo = existingByOrigin || existingByTitleDate;
+
+    let alreadyImported = false;
+    let hasChanged = false;
+    let plannerItemId: string | undefined = undefined;
+    let plannerDate: string | undefined = undefined;
+    let plannerTime: string | undefined = undefined;
+
+    if (existingInfo) {
+      plannerItemId = existingInfo.id;
+      plannerDate = existingInfo.date || undefined;
+      plannerTime = existingInfo.time || undefined;
+
+      // Se encontrado por chave de origem, verificar se a data/hora mudou
+      if (existingByOrigin) {
+        const dateDiffers = Boolean(parsed.date && existingInfo.date && parsed.date !== existingInfo.date);
+        const timeDiffers = Boolean(parsed.time && existingInfo.time && parsed.time !== existingInfo.time);
+
+        if (dateDiffers || timeDiffers) {
+          hasChanged = true;
+          alreadyImported = false; // Permite re-selecionar para atualizar
+        } else {
+          alreadyImported = true;
+        }
+      } else {
+        // Encontrado por título + data idêntica
+        alreadyImported = true;
+      }
+    }
 
     foundEvents.push({
       key,
@@ -76,7 +132,11 @@ export async function scanCircuitEvents(userId: string): Promise<ScannedCircuitE
       location: (location || '').trim(),
       notes,
       alreadyImported,
-      selected: !alreadyImported && Boolean(parsed.date),
+      selected: (hasChanged || !alreadyImported) && Boolean(parsed.date),
+      plannerItemId,
+      plannerDate,
+      plannerTime,
+      hasChanged,
     });
   };
 
@@ -317,3 +377,76 @@ export async function scanCircuitEvents(userId: string): Promise<ScannedCircuitE
 
   return foundEvents;
 }
+
+/**
+ * Procura um item na agenda (planner_items) pela tag de origem [origem:key].
+ * Se existir e a nova data/horário/local tiver mudado, atualiza o item automaticamente.
+ */
+export async function autoSyncCircuitEventToPlanner(
+  userId: string,
+  eventKey: string,
+  data: {
+    title?: string;
+    rawDate?: string;
+    location?: string;
+    fallbackYear?: number | string;
+    notes?: string;
+  }
+): Promise<boolean> {
+  if (!userId || !eventKey) return false;
+
+  try {
+    const qPlanner = query(collection(db, 'planner_items'), where('userId', '==', userId));
+    const plannerSnap = await getDocs(qPlanner);
+
+    let targetDocId: string | null = null;
+    let existingItemData: any = null;
+
+    const targetOriginTag = `[origem:${eventKey}]`;
+
+    plannerSnap.forEach((d) => {
+      const item = d.data();
+      if (item.notes && typeof item.notes === 'string' && item.notes.includes(targetOriginTag)) {
+        targetDocId = d.id;
+        existingItemData = item;
+      }
+    });
+
+    if (!targetDocId || !existingItemData) {
+      // O evento ainda não foi importado para a agenda do usuário
+      return false;
+    }
+
+    // Se temos rawDate, parseamos para data e hora
+    const parsed = data.rawDate ? parsePortugueseDateTime(data.rawDate, data.fallbackYear) : { date: '', time: '' };
+    const newDate = parsed.date || existingItemData.date;
+    const newTime = parsed.time || existingItemData.time;
+    const newLocation = data.location !== undefined ? data.location.trim() : existingItemData.location;
+
+    // Verificar se houve alteração real
+    const hasChanged = 
+      newDate !== existingItemData.date ||
+      newTime !== existingItemData.time ||
+      (newLocation && newLocation !== existingItemData.location);
+
+    if (hasChanged) {
+      const updates: Record<string, any> = {
+        updatedAt: new Date().toISOString(),
+      };
+      if (newDate) updates.date = newDate;
+      if (newTime !== undefined) updates.time = newTime || null;
+      if (newLocation !== undefined) updates.location = newLocation || null;
+
+      const itemRef = doc(db, 'planner_items', targetDocId);
+      const { updateDoc } = await import('firebase/firestore');
+      await updateDoc(itemRef, updates);
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.error(`Erro ao auto-sincronizar evento ${eventKey} no planner:`, err);
+    return false;
+  }
+}
+

@@ -12,25 +12,22 @@ import {
   Calendar,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
-  ChevronUp,
   Circle,
   Clock,
   Edit3,
   FileDown, FileText,
   Info,
   Landmark,
-  LayoutGrid,
   LayoutList,
   Loader2,
-  Table as TableIcon,
   MapPin,
   Maximize2,
   Music,
   Plus,
   Printer,
   Save,
+  Table as TableIcon,
   Trash2,
   User,
   UserCheck,
@@ -40,6 +37,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import PizZip from 'pizzip';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { autoSyncCircuitEventToPlanner } from '@/services/circuitEventsScanner';
 
 interface RegionalConventionViewProps {
   userId: string;
@@ -556,6 +554,23 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
       setInitialSpeakers(speakers);
       setInitialConfirmedSpeakers(confirmedSpeakers);
       setInitialDetails(details);
+
+      // Auto-sincronizar eventos na agenda (planner_items) em segundo plano
+      if (userId) {
+        if (details.eventDate) {
+          autoSyncCircuitEventToPlanner(userId, 'regional_convention_event', {
+            rawDate: details.eventDate,
+            location: details.eventLocation,
+          }).catch(() => {});
+        }
+        if (details.trainingDate) {
+          autoSyncCircuitEventToPlanner(userId, 'regional_convention_training', {
+            rawDate: details.trainingDate,
+            location: details.trainingLocation,
+          }).catch(() => {});
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Error saving speakers:', error);

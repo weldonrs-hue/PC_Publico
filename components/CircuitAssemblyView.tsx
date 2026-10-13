@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import Image from 'next/image';
 import PizZip from 'pizzip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { autoSyncCircuitEventToPlanner } from '@/services/circuitEventsScanner';
 
 interface CircuitAssemblyViewProps {
   userId: string;
@@ -1202,6 +1203,32 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
         year: selectedYear
       }, { merge: true });
       setInitialPartsData(JSON.stringify(cleanParts));
+
+      // Auto-sincronizar com itens importados na agenda (planner_items) em segundo plano
+      if (userId) {
+        Object.keys(cleanParts).forEach((pIdx) => {
+          const idx = parseInt(pIdx, 10);
+          const p = cleanParts[idx];
+          if (p?.details) {
+            const prefix = type === 'supt' ? 'assembly_supt' : 'assembly_branch';
+            if (p.details.eventDate) {
+              autoSyncCircuitEventToPlanner(userId, `${prefix}_part_${idx}_event`, {
+                rawDate: p.details.eventDate,
+                location: p.details.eventLocation,
+                fallbackYear: selectedYear.split('-')[0] || undefined,
+              }).catch(() => {});
+            }
+            if (p.details.rehearsalDate) {
+              autoSyncCircuitEventToPlanner(userId, `${prefix}_part_${idx}_rehearsal`, {
+                rawDate: p.details.rehearsalDate,
+                location: p.details.rehearsalLocation,
+                fallbackYear: selectedYear.split('-')[0] || undefined,
+              }).catch(() => {});
+            }
+          }
+        });
+      }
+
       if (showNotification) {
         await showAlert('Alterações salvas com sucesso!', 'Sucesso');
       }
