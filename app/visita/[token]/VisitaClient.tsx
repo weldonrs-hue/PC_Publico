@@ -134,6 +134,7 @@ export default function PublicVisitScheduleClient() {
         mealsHeaderTime: schedule.mealsHeaderTime,
         meals: schedule.meals,
         shepherding: schedule.shepherding,
+        eldersMeetingInput: schedule.eldersMeetingInput,
         status: 'preenchido',
         updatedAt: updatedSchedule.updatedAt,
       });

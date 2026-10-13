@@ -250,23 +250,100 @@ export default function EldersMeetingAgendaView({
   }, [docId, userId, congregationId, congregationName, visitPeriod, visitId]);
 
   useEffect(() => {
+    let fallbackUnsub: (() => void) | undefined;
     const visitRef = doc(db, 'visit_schedules', visitDocId);
+
     const unsubscribe = onSnapshot(
       visitRef,
-      (snap) => {
+      async (snap) => {
         if (snap.exists()) {
           const normalized = normalizeVisitSchedule(snap.data() as VisitSchedule);
-          setEldersInput(normalized.eldersMeetingInput || null);
-        } else {
-          setEldersInput(null);
+          const input = normalized.eldersMeetingInput;
+          const hasData =
+            (input?.suggestedTopics?.length || 0) > 0 ||
+            (input?.recommendations?.length || 0) > 0 ||
+            (input?.removals?.length || 0) > 0;
+
+          if (hasData) {
+            setEldersInput(input || null);
+            return;
+          }
+        }
+
+        // Fallback: caso o documento da visita tenha sido salvo com outro sufixo de período/chave
+        try {
+          const q = query(
+            collection(db, 'visit_schedules'),
+            where('userId', '==', userId)
+          );
+          const qSnap = await getDocs(q);
+          const matchingDocs = qSnap.docs
+            .map((d) => ({ id: d.id, ...(d.data() as VisitSchedule) }))
+            .filter((item) => {
+              const sameCongId =
+                congregationId &&
+                item.congregationId &&
+                item.congregationId === congregationId;
+              const sameCongName =
+                congregationName &&
+                item.congregationName &&
+                item.congregationName.trim().toLowerCase() ===
+                  congregationName.trim().toLowerCase();
+              return sameCongId || sameCongName;
+            })
+            .sort((a, b) => {
+              const tA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+              const tB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+              return tB - tA;
+            });
+
+          const docWithInput =
+            matchingDocs.find((d) => {
+              const norm = normalizeVisitSchedule(d);
+              const inp = norm.eldersMeetingInput;
+              return (
+                (inp?.suggestedTopics?.length || 0) > 0 ||
+                (inp?.recommendations?.length || 0) > 0 ||
+                (inp?.removals?.length || 0) > 0
+              );
+            }) || matchingDocs[0];
+
+          if (docWithInput) {
+            const norm = normalizeVisitSchedule(docWithInput);
+            setEldersInput(norm.eldersMeetingInput || null);
+            if (docWithInput.id && docWithInput.id !== visitDocId && !fallbackUnsub) {
+              fallbackUnsub = onSnapshot(
+                doc(db, 'visit_schedules', docWithInput.id),
+                (fSnap) => {
+                  if (fSnap.exists()) {
+                    const fNorm = normalizeVisitSchedule(fSnap.data() as VisitSchedule);
+                    setEldersInput(fNorm.eldersMeetingInput || null);
+                  }
+                }
+              );
+            }
+          } else if (snap.exists()) {
+            const normalized = normalizeVisitSchedule(snap.data() as VisitSchedule);
+            setEldersInput(normalized.eldersMeetingInput || null);
+          } else {
+            setEldersInput(null);
+          }
+        } catch {
+          if (snap.exists()) {
+            const normalized = normalizeVisitSchedule(snap.data() as VisitSchedule);
+            setEldersInput(normalized.eldersMeetingInput || null);
+          }
         }
       },
       (err) => {
         console.error('Erro ao escutar sugestões dos anciãos:', err);
       }
     );
-    return () => unsubscribe();
-  }, [visitDocId, congregationName, visitPeriod]);
+    return () => {
+      unsubscribe();
+      if (fallbackUnsub) fallbackUnsub();
+    };
+  }, [visitDocId, userId, congregationId, congregationName, visitPeriod]);
 
   const handleSave = async (customAgenda?: EldersMeetingAgenda) => {
     const toSave = customAgenda || agenda;
