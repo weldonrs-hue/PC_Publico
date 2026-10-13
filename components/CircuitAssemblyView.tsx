@@ -3334,25 +3334,25 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
       {/* Modals e overlays */}
       <AnimatePresence>
         {nextSeasonPreview && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm no-print">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
+              className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-surface-300 text-typography-900"
             >
               <div className="p-6">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  <Search size={24} className="text-blue-600" />
+                <div className="w-12 h-12 bg-primary-200/10 border border-primary-200/20 rounded-xl flex items-center justify-center mb-4">
+                  <Search size={24} className="text-primary-200" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">🆕 Nova programação encontrada!</h3>
-                <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+                <h3 className="text-xl font-bold text-typography-900 mb-2">🆕 Nova programação encontrada!</h3>
+                <p className="text-typography-500 text-sm mb-6 leading-relaxed">
                   A programação da temporada <strong>{nextSeasonPreview.year}</strong> foi localizada no JW.org e está pronta para ser adicionada ao seu sistema.
                 </p>
 
-                <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-100 overflow-hidden">
+                <div className="bg-surface-200/60 rounded-2xl p-4 mb-6 border border-surface-300 overflow-hidden">
                   {nextSeasonPreview.headerImage && (
-                    <div className="relative h-28 w-full rounded-lg overflow-hidden mb-3 border border-gray-200">
+                    <div className="relative h-28 w-full rounded-xl overflow-hidden mb-3 border border-surface-300">
                       <Image 
                         src={nextSeasonPreview.headerImage} 
                         alt="Tema da Assembleia" 
@@ -3365,16 +3365,16 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   )}
                   <div className="flex flex-col gap-3">
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Temporada</span>
-                      <p className="font-bold text-gray-800">{nextSeasonPreview.year}</p>
+                      <span className="text-[10px] font-black uppercase text-typography-400 tracking-wider">Temporada</span>
+                      <p className="font-bold text-typography-900">{nextSeasonPreview.year}</p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Tema Encontrado</span>
-                      <p className="font-medium text-gray-800 italic">“{nextSeasonPreview.theme}”</p>
+                      <span className="text-[10px] font-black uppercase text-typography-400 tracking-wider">Tema Encontrado</span>
+                      <p className="font-medium text-typography-800 italic">“{nextSeasonPreview.theme}”</p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Partes Detectadas</span>
-                      <p className="font-bold text-gray-800">{nextSeasonPreview.itemCount} itens na programação</p>
+                      <span className="text-[10px] font-black uppercase text-typography-400 tracking-wider">Partes Detectadas</span>
+                      <p className="font-bold text-typography-900">{nextSeasonPreview.itemCount} itens na programação</p>
                     </div>
                   </div>
                 </div>
@@ -3414,27 +3414,27 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               </div>
 
               {/* Orphan Info */}
-              <div className="p-6 bg-amber-50/30 border-b border-amber-100/50">
-                <div className="text-[10px] font-black uppercase text-amber-600 mb-2">Dados Preservados</div>
+              <div className="p-6 bg-amber-500/10 border-b border-amber-500/20">
+                <div className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 mb-2">Dados Preservados</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                      <User size={16} className="text-indigo-500" />
+                    <div className="flex items-center gap-2 text-sm font-bold text-typography-900">
+                      <User size={16} className="text-primary-200" />
                       {reassigningOrphan.data.speaker}
                     </div>
                     {reassigningOrphan.data.congregation && (
-                      <div className="flex items-center gap-2 text-xs text-gray-500 ml-6">
+                      <div className="flex items-center gap-2 text-xs text-typography-500 ml-6">
                         <MapPin size={12} />
                         {reassigningOrphan.data.congregation}
                       </div>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500 bg-white/50 p-2 rounded-xl border border-amber-100">
+                  <div className="text-xs text-typography-600 bg-surface-100/80 p-2 rounded-xl border border-amber-500/20">
                     <span className="font-bold">Parte Anterior:</span> {reassigningOrphan.data.originalTitle} ({reassigningOrphan.data.originalTime})
                   </div>
                 </div>
                 {reassigningOrphan.data.notes && (
-                  <div className="mt-3 text-xs italic text-gray-600 bg-white/50 p-2 rounded-xl border border-amber-100 flex gap-2">
+                  <div className="mt-3 text-xs italic text-typography-600 bg-surface-100/80 p-2 rounded-xl border border-amber-500/20 flex gap-2">
                     <FileText size={14} className="shrink-0" />
                     "{reassigningOrphan.data.notes}"
                   </div>
@@ -3442,10 +3442,10 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               </div>
 
               {/* Target Selection */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6">
                 {assemblyProgram.sessions.map((session: any, sIdx: number) => (
                   <div key={`modal-session-${session.period || sIdx}-${sIdx}`} className="space-y-3">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <h4 className="text-xs font-black text-typography-400 uppercase tracking-widest flex items-center gap-2">
                       <Clock size={12} />
                       Sessão da {session.period}
                     </h4>
@@ -3461,21 +3461,21 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                             <button
                               key={`modal-item-${item.id || itemIdx}-${itemIdx}`}
                               onClick={() => handleConfirmReassign(item.id)}
-                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ${
+                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group cursor-pointer ${
                                 replaceConfirm?.targetId === item.id 
-                                  ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200' 
-                                  : 'border-gray-100 hover:border-indigo-300 hover:bg-indigo-50'
+                                  ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20' 
+                                  : 'border-surface-300 bg-surface-200/40 hover:border-primary-200/50 hover:bg-primary-200/5'
                               }`}
                             >
                               <div className="flex items-center gap-3">
-                                <div className="text-xs font-bold text-indigo-600 w-10">{item.time}</div>
+                                <div className="text-xs font-bold text-primary-200 w-10">{item.time}</div>
                                 <div>
-                                  <div className="text-sm font-bold text-gray-800">{item.title}</div>
-                                  <div className="text-[10px] text-gray-400 font-mono">{item.id}</div>
+                                  <div className="text-sm font-bold text-typography-900">{item.title}</div>
+                                  <div className="text-[10px] text-typography-400 font-mono">{item.id}</div>
                                 </div>
                               </div>
                               {hasData && (
-                                <div className="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-lg uppercase">
+                                <div className="px-2 py-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-lg uppercase">
                                   Já preenchido
                                 </div>
                               )}
@@ -3495,24 +3495,24 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                             <button
                               key={`modal-sub-${sub.id || subIdx}-${itemIdx}-${subIdx}`}
                               onClick={() => handleConfirmReassign(sub.id)}
-                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ml-4 border-l-4 ${
+                              className={`text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ml-4 border-l-4 cursor-pointer ${
                                 replaceConfirm?.targetId === sub.id 
-                                  ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200' 
-                                  : 'border-gray-100 hover:border-indigo-300 hover:bg-indigo-50'
+                                  ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20' 
+                                  : 'border-surface-300 bg-surface-200/40 hover:border-primary-200/50 hover:bg-primary-200/5'
                               }`}
-                              style={{ borderLeftColor: replaceConfirm?.targetId === sub.id ? '#F59E0B' : '#E5E7EB' }}
+                              style={{ borderLeftColor: replaceConfirm?.targetId === sub.id ? '#F59E0B' : 'var(--surface-300)' }}
                             >
                               <div className="flex items-center gap-3">
-                                <div className="text-[10px] font-bold text-gray-400 w-10">
+                                <div className="text-[10px] font-bold text-typography-400 w-10">
                                   {sub.time || partsData[selectedPart].userTimes?.[sub.id] || 'SUB'}
                                 </div>
                                 <div>
-                                  <div className="text-sm font-bold text-gray-800 line-clamp-1">{sub.title}</div>
-                                  <div className="text-[10px] text-gray-400 font-mono">{sub.id}</div>
+                                  <div className="text-sm font-bold text-typography-900 line-clamp-1">{sub.title}</div>
+                                  <div className="text-[10px] text-typography-400 font-mono">{sub.id}</div>
                                 </div>
                               </div>
                               {hasData && (
-                                <div className="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-lg uppercase">
+                                <div className="px-2 py-1 bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded-lg uppercase">
                                   Já preenchido
                                 </div>
                               )}
@@ -3525,28 +3525,28 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               </div>
 
               {/* Footer / Confirmations */}
-              <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-col gap-3">
+              <div className="p-6 border-t border-surface-300 bg-surface-200/40 flex flex-col gap-3">
                 {replaceConfirm && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }} 
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-amber-100 rounded-2xl border border-amber-200 mb-2"
+                    className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 mb-2"
                   >
                     <div className="flex gap-3">
-                      <AlertTriangle className="text-amber-600 shrink-0" size={20} />
+                      <AlertTriangle className="text-amber-500 shrink-0" size={20} />
                       <div>
-                        <p className="text-sm font-bold text-amber-900">Esta parte já possui uma designação.</p>
-                        <p className="text-xs text-amber-700">Deseja substituir os dados existentes pelos dados deste item órfão?</p>
+                        <p className="text-sm font-bold text-typography-900">Esta parte já possui uma designação.</p>
+                        <p className="text-xs text-typography-600">Deseja substituir os dados existentes pelos dados deste item órfão?</p>
                         <div className="flex gap-3 mt-3">
                           <button 
                             onClick={() => handleConfirmReassign(replaceConfirm.targetId, true)}
-                            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700"
+                            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 cursor-pointer"
                           >
                             Substituir e reatribuir
                           </button>
                           <button 
                             onClick={() => setReplaceConfirm(null)}
-                            className="px-4 py-2 bg-white text-amber-700 text-xs font-bold rounded-lg border border-amber-200"
+                            className="px-4 py-2 bg-surface-100 text-typography-700 text-xs font-bold rounded-lg border border-surface-300 cursor-pointer"
                           >
                             Cancelar
                           </button>
@@ -3563,11 +3563,11 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                       setReassigningOrphan(null);
                       setReplaceConfirm(null);
                     }}
-                    className="px-6 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+                    className="px-6 py-3 text-typography-600 font-bold hover:bg-surface-200 rounded-xl transition-colors cursor-pointer"
                   >
                     Fechar
                   </button>
-                  <div className="text-xs text-gray-400 italic">Selecione uma parte da lista acima</div>
+                  <div className="text-xs text-typography-400 italic">Selecione uma parte da lista acima</div>
                 </div>
               </div>
             </motion.div>
@@ -3583,14 +3583,14 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-surface-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-surface-300 relative text-typography-900"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
-              <div className="p-6 bg-surface-200/40 border-b border-surface-300 flex items-center justify-between">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+              <div className="p-5 sm:p-6 bg-surface-200/40 border-b border-surface-300 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500">
+                  <div className="p-2.5 bg-primary-200/10 border border-primary-200/20 rounded-xl text-primary-200">
                     <CalendarDays size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-typography-900 uppercase tracking-tight">Detalhes do Evento</h3>
+                    <h3 className="text-base sm:text-lg font-black text-typography-900 uppercase tracking-tight">Detalhes do Evento</h3>
                     <p className="text-xs text-typography-500 font-medium">Informações que aparecem no cabeçalho da folha.</p>
                   </div>
                 </div>
@@ -3599,329 +3599,329 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                 </button>
               </div>
 
-              <div className="flex flex-col max-h-[calc(100vh-140px)] sm:max-h-[85vh]">
-                <div className="flex-1 p-6 space-y-5 overflow-y-auto custom-scrollbar scroll-smooth">
+              <div className="flex flex-col max-h-[calc(100dvh-140px)] sm:max-h-[85vh]">
+                <div className="flex-1 p-5 sm:p-6 space-y-5 overflow-y-auto no-scrollbar scroll-smooth">
                   <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Tema da Assembleia</label>
-                      <input 
-                        type="text" 
-                        value={details.assemblyTheme} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, assemblyTheme: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: 'Encontre a Mais Plena Alegria em Jeová'"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Data do Evento</label>
-                      <input 
-                        type="text" 
-                        value={details.eventDate} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, eventDate: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: 15 de Outubro"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Local</label>
-                      <input 
-                        type="text" 
-                        value={details.eventLocation} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, eventLocation: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: Salão de Assembleias"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Data do Ensaio</label>
-                      <input 
-                        type="text" 
-                        value={details.rehearsalDate} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, rehearsalDate: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: Sábado, 14:00"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Local do Ensaio</label>
-                      <input 
-                        type="text" 
-                        value={details.rehearsalLocation} 
-                        onChange={e => setPartsData(prev => ({ 
-                          ...prev, 
-                          [selectedPart]: { 
-                            ...prev[selectedPart], 
-                            details: { ...prev[selectedPart].details, rehearsalLocation: e.target.value } 
-                          } 
-                        }))}
-                        placeholder="Ex: Congregação Central"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Assistente(s) da Assembleia */}
-                  <div className="space-y-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <UserCheck size={15} className="text-amber-600" />
-                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-wider">
-                          Assistente(s) da Assembleia ({type === 'supt' ? 'CAco' : 'CAbr'})
-                        </label>
-                      </div>
-                      <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        Convite .docx
-                      </span>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || '']).map((asst, index) => {
-                        const cong = details.assistantCongregations?.[index] || '';
-                        return (
-                          <div key={index} className="p-3 bg-gray-50 border border-gray-100 rounded-2xl space-y-2">
-                            <div className="flex gap-2 items-center">
-                              <input 
-                                type="text" 
-                                placeholder={`Nome do Assistente ${index + 1}`}
-                                value={asst}
-                                disabled={isGuest}
-                                onChange={(e) => {
-                                  const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
-                                  currentList[index] = e.target.value;
-                                  
-                                  const filteredList = currentList.filter(n => n.trim() !== '');
-                                  let formattedString = '';
-                                  if (filteredList.length === 1) formattedString = filteredList[0];
-                                  else if (filteredList.length > 1) {
-                                    const allButLast = filteredList.slice(0, -1).join(', ');
-                                    formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
-                                  }
-
-                                  setPartsData(prev => ({
-                                    ...prev,
-                                    [selectedPart]: {
-                                      ...prev[selectedPart],
-                                      details: {
-                                        ...prev[selectedPart].details,
-                                        assemblyAssistants: currentList,
-                                        assemblyAssistant: formattedString
-                                      }
-                                    }
-                                  }));
-                                }}
-                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
-                              />
-
-                              <input 
-                                type="text" 
-                                placeholder="Congregação (opcional)"
-                                value={cong}
-                                disabled={isGuest}
-                                onChange={(e) => {
-                                  const currentCongs = { ...(details.assistantCongregations || {}) };
-                                  currentCongs[index] = e.target.value;
-
-                                  setPartsData(prev => ({
-                                    ...prev,
-                                    [selectedPart]: {
-                                      ...prev[selectedPart],
-                                      details: {
-                                        ...prev[selectedPart].details,
-                                        assistantCongregations: currentCongs
-                                      }
-                                    }
-                                  }));
-                                }}
-                                className="w-32 sm:w-40 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all placeholder:text-gray-300 disabled:opacity-60"
-                              />
-
-                              {!isGuest && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
-                                    const currentCongs = { ...(details.assistantCongregations || {}) };
-                                    
-                                    if (currentList.length <= 1) {
-                                      setPartsData(prev => ({
-                                        ...prev,
-                                        [selectedPart]: {
-                                          ...prev[selectedPart],
-                                          details: {
-                                            ...prev[selectedPart].details,
-                                            assemblyAssistants: [''],
-                                            assemblyAssistant: '',
-                                            assistantCongregations: {}
-                                          }
-                                        }
-                                      }));
-                                    } else {
-                                      const newList = currentList.filter((_, i) => i !== index);
-                                      const newCongs: Record<number, string> = {};
-                                      let newIdx = 0;
-                                      for (let i = 0; i < currentList.length; i++) {
-                                        if (i !== index) {
-                                          if (currentCongs[i]) newCongs[newIdx] = currentCongs[i];
-                                          newIdx++;
-                                        }
-                                      }
-
-                                      const filteredList = newList.filter(n => n.trim() !== '');
-                                      let formattedString = '';
-                                      if (filteredList.length === 1) formattedString = filteredList[0];
-                                      else if (filteredList.length > 1) {
-                                        const allButLast = filteredList.slice(0, -1).join(', ');
-                                        formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
-                                      }
-
-                                      setPartsData(prev => ({
-                                        ...prev,
-                                        [selectedPart]: {
-                                          ...prev[selectedPart],
-                                          details: {
-                                            ...prev[selectedPart].details,
-                                            assemblyAssistants: newList,
-                                            assemblyAssistant: formattedString,
-                                            assistantCongregations: newCongs
-                                          }
-                                        }
-                                      }));
-                                    }
-                                  }}
-                                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                  title="Remover assistente"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              )}
-                            </div>
-
-                            {asst.trim() && (
-                              <div className="flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => generateAssistantDocument(asst, cong)}
-                                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98]"
-                                  title={`Gerar convite .docx para ${asst}`}
-                                >
-                                  <FileDown size={13} />
-                                  <span>Gerar Convite (.docx)</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {!isGuest && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
-                            setPartsData(prev => ({
-                              ...prev,
-                              [selectedPart]: {
-                                ...prev[selectedPart],
-                                details: {
-                                  ...prev[selectedPart].details,
-                                  assemblyAssistants: [...currentList, '']
-                                }
-                              }
-                            }));
-                          }}
-                          className="w-full py-2.5 bg-amber-50 hover:bg-amber-100/80 text-amber-700 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-dashed border-amber-300"
-                        >
-                          <Plus size={14} />
-                          Adicionar Assistente
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Imagem de Capa / Arte Oficial */}
-                  <div className="space-y-2 pt-2 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Imagem do Cabeçalho (URL)</label>
-                      {details.customHeaderImage && (
-                        <button
-                          type="button"
-                          onClick={() => setPartsData(prev => ({ 
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Tema da Assembleia</label>
+                        <input 
+                          type="text" 
+                          value={details.assemblyTheme} 
+                          onChange={e => setPartsData(prev => ({ 
                             ...prev, 
                             [selectedPart]: { 
                               ...prev[selectedPart], 
-                              details: { ...prev[selectedPart].details, customHeaderImage: '' } 
+                              details: { ...prev[selectedPart].details, assemblyTheme: e.target.value } 
                             } 
                           }))}
-                          className="text-[10px] font-bold text-amber-600 hover:text-amber-800 hover:underline"
-                        >
-                          Restaurar Imagem Oficial
-                        </button>
+                          placeholder="Ex: 'Encontre a Mais Plena Alegria em Jeová'"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Data do Evento</label>
+                        <input 
+                          type="text" 
+                          value={details.eventDate} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, eventDate: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: 15 de Outubro"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Local</label>
+                        <input 
+                          type="text" 
+                          value={details.eventLocation} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, eventLocation: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: Salão de Assembleias"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Data do Ensaio</label>
+                        <input 
+                          type="text" 
+                          value={details.rehearsalDate} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, rehearsalDate: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: Sábado, 14:00"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Local do Ensaio</label>
+                        <input 
+                          type="text" 
+                          value={details.rehearsalLocation} 
+                          onChange={e => setPartsData(prev => ({ 
+                            ...prev, 
+                            [selectedPart]: { 
+                              ...prev[selectedPart], 
+                              details: { ...prev[selectedPart].details, rehearsalLocation: e.target.value } 
+                            } 
+                          }))}
+                          placeholder="Ex: Congregação Central"
+                          className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Assistente(s) da Assembleia */}
+                    <div className="space-y-3 pt-3 border-t border-surface-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <UserCheck size={15} className="text-primary-200" />
+                          <label className="text-[10px] font-black uppercase text-typography-500 tracking-wider">
+                            Assistente(s) da Assembleia ({type === 'supt' ? 'CAco' : 'CAbr'})
+                          </label>
+                        </div>
+                        <span className="text-[10px] text-primary-200 font-bold bg-primary-200/10 px-2.5 py-0.5 rounded-full border border-primary-200/20">
+                          Convite .docx
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || '']).map((asst, index) => {
+                          const cong = details.assistantCongregations?.[index] || '';
+                          return (
+                            <div key={index} className="p-3 bg-surface-200/50 border border-surface-300 rounded-2xl space-y-2">
+                              <div className="flex gap-2 items-center">
+                                <input 
+                                  type="text" 
+                                  placeholder={`Nome do Assistente ${index + 1}`}
+                                  value={asst}
+                                  disabled={isGuest}
+                                  onChange={(e) => {
+                                    const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                                    currentList[index] = e.target.value;
+                                    
+                                    const filteredList = currentList.filter(n => n.trim() !== '');
+                                    let formattedString = '';
+                                    if (filteredList.length === 1) formattedString = filteredList[0];
+                                    else if (filteredList.length > 1) {
+                                      const allButLast = filteredList.slice(0, -1).join(', ');
+                                      formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                                    }
+
+                                    setPartsData(prev => ({
+                                      ...prev,
+                                      [selectedPart]: {
+                                        ...prev[selectedPart],
+                                        details: {
+                                          ...prev[selectedPart].details,
+                                          assemblyAssistants: currentList,
+                                          assemblyAssistant: formattedString
+                                        }
+                                      }
+                                    }));
+                                  }}
+                                  className="flex-1 min-w-0 px-3 py-2 bg-surface-100 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
+                                />
+
+                                <input 
+                                  type="text" 
+                                  placeholder="Congregação (opcional)"
+                                  value={cong}
+                                  disabled={isGuest}
+                                  onChange={(e) => {
+                                    const currentCongs = { ...(details.assistantCongregations || {}) };
+                                    currentCongs[index] = e.target.value;
+
+                                    setPartsData(prev => ({
+                                      ...prev,
+                                      [selectedPart]: {
+                                        ...prev[selectedPart],
+                                        details: {
+                                          ...prev[selectedPart].details,
+                                          assistantCongregations: currentCongs
+                                        }
+                                      }
+                                    }));
+                                  }}
+                                  className="w-32 sm:w-40 px-3 py-2 bg-surface-100 border border-surface-300 rounded-xl text-xs font-medium text-typography-900 placeholder:text-typography-400 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
+                                />
+
+                                {!isGuest && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                                      const currentCongs = { ...(details.assistantCongregations || {}) };
+                                      
+                                      if (currentList.length <= 1) {
+                                        setPartsData(prev => ({
+                                          ...prev,
+                                          [selectedPart]: {
+                                            ...prev[selectedPart],
+                                            details: {
+                                              ...prev[selectedPart].details,
+                                              assemblyAssistants: [''],
+                                              assemblyAssistant: '',
+                                              assistantCongregations: {}
+                                            }
+                                          }
+                                        }));
+                                      } else {
+                                        const newList = currentList.filter((_, i) => i !== index);
+                                        const newCongs: Record<number, string> = {};
+                                        let newIdx = 0;
+                                        for (let i = 0; i < currentList.length; i++) {
+                                          if (i !== index) {
+                                            if (currentCongs[i]) newCongs[newIdx] = currentCongs[i];
+                                            newIdx++;
+                                          }
+                                        }
+
+                                        const filteredList = newList.filter(n => n.trim() !== '');
+                                        let formattedString = '';
+                                        if (filteredList.length === 1) formattedString = filteredList[0];
+                                        else if (filteredList.length > 1) {
+                                          const allButLast = filteredList.slice(0, -1).join(', ');
+                                          formattedString = `${allButLast} e ${filteredList[filteredList.length - 1]}`;
+                                        }
+
+                                        setPartsData(prev => ({
+                                          ...prev,
+                                          [selectedPart]: {
+                                            ...prev[selectedPart],
+                                            details: {
+                                              ...prev[selectedPart].details,
+                                              assemblyAssistants: newList,
+                                              assemblyAssistant: formattedString,
+                                              assistantCongregations: newCongs
+                                            }
+                                          }
+                                        }));
+                                      }
+                                    }}
+                                    className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
+                                    title="Remover assistente"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </div>
+
+                              {asst.trim() && (
+                                <div className="flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => generateAssistantDocument(asst, cong)}
+                                    className="px-3 py-1.5 bg-primary-200 hover:bg-primary-150 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+                                    title={`Gerar convite .docx para ${asst}`}
+                                  >
+                                    <FileDown size={13} />
+                                    <span>Gerar Convite (.docx)</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {!isGuest && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentList = [...((details.assemblyAssistants && details.assemblyAssistants.length > 0) ? details.assemblyAssistants : [details.assemblyAssistant || ''])];
+                              setPartsData(prev => ({
+                                ...prev,
+                                [selectedPart]: {
+                                  ...prev[selectedPart],
+                                  details: {
+                                    ...prev[selectedPart].details,
+                                    assemblyAssistants: [...currentList, '']
+                                  }
+                                }
+                              }));
+                            }}
+                            className="w-full py-2.5 bg-surface-200/70 hover:bg-surface-200 text-primary-200 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-dashed border-primary-200/40 cursor-pointer"
+                          >
+                            <Plus size={14} />
+                            Adicionar Assistente
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Imagem de Capa / Arte Oficial */}
+                    <div className="space-y-2 pt-2 border-t border-surface-300">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Imagem do Cabeçalho (URL)</label>
+                        {details.customHeaderImage && (
+                          <button
+                            type="button"
+                            onClick={() => setPartsData(prev => ({ 
+                              ...prev, 
+                              [selectedPart]: { 
+                                ...prev[selectedPart], 
+                                details: { ...prev[selectedPart].details, customHeaderImage: '' } 
+                              } 
+                            }))}
+                            className="text-[10px] font-bold text-primary-200 hover:underline cursor-pointer"
+                          >
+                            Restaurar Imagem Oficial
+                          </button>
+                        )}
+                      </div>
+                      <input 
+                        type="text" 
+                        value={details.customHeaderImage || ''} 
+                        onChange={e => setPartsData(prev => ({ 
+                          ...prev, 
+                          [selectedPart]: { 
+                            ...prev[selectedPart], 
+                            details: { ...prev[selectedPart].details, customHeaderImage: e.target.value } 
+                          } 
+                        }))}
+                        placeholder={assemblyProgram.headerImage || 'https://...'}
+                        className="w-full px-4 py-2.5 bg-surface-200 border border-surface-300 rounded-2xl text-xs font-mono text-typography-700 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                      />
+                      {(details.customHeaderImage || assemblyProgram.headerImage) && (
+                        <div className="relative h-16 w-full rounded-xl overflow-hidden border border-surface-300 mt-1">
+                          <Image
+                            src={details.customHeaderImage || assemblyProgram.headerImage}
+                            alt="Pré-visualização da Capa"
+                            fill
+                            className="object-cover object-center opacity-85"
+                            unoptimized
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
+                            <span className="text-[9px] text-white font-bold tracking-wide">Pré-visualização da imagem</span>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <input 
-                      type="text" 
-                      value={details.customHeaderImage || ''} 
-                      onChange={e => setPartsData(prev => ({ 
-                        ...prev, 
-                        [selectedPart]: { 
-                          ...prev[selectedPart], 
-                          details: { ...prev[selectedPart].details, customHeaderImage: e.target.value } 
-                        } 
-                      }))}
-                      placeholder={assemblyProgram.headerImage || 'https://...'}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-mono text-gray-700 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
-                    />
-                    {(details.customHeaderImage || assemblyProgram.headerImage) && (
-                      <div className="relative h-16 w-full rounded-xl overflow-hidden border border-gray-200 mt-1">
-                        <Image
-                          src={details.customHeaderImage || assemblyProgram.headerImage}
-                          alt="Pré-visualização da Capa"
-                          fill
-                          className="object-cover object-center opacity-85"
-                          unoptimized
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
-                          <span className="text-[9px] text-white font-bold tracking-wide">Pré-visualização da imagem</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                </div>
-                <div className="p-4 sm:p-6 bg-amber-50/50 border-t border-amber-100 flex flex-col sm:flex-row gap-3">
+                <div className="p-4 sm:p-5 bg-surface-200/40 border-t border-surface-300 flex flex-col sm:flex-row gap-3">
                   {!isGuest && (
                     <button 
                       onClick={async () => {
@@ -3929,7 +3929,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                         if (ok) setShowEditDetailsModal(false);
                       }}
                       disabled={isSaving}
-                      className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="flex-1 py-3 bg-primary-200 hover:bg-primary-150 text-white font-bold rounded-2xl shadow-md shadow-primary-200/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                       <span>Salvar Alterações</span>
@@ -3937,7 +3937,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
                   )}
                   <button 
                     onClick={() => setShowEditDetailsModal(false)}
-                    className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-all active:scale-[0.98] cursor-pointer"
+                    className="flex-1 py-3 bg-surface-200 hover:bg-surface-300 text-typography-700 font-bold rounded-2xl border border-surface-300 transition-all active:scale-[0.98] cursor-pointer"
                   >
                     Fechar
                   </button>

@@ -2691,129 +2691,137 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       {/* MODAL: EDITAR DADOS DO EVENTO */}
       <AnimatePresence>
         {showEditDetailsModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2 text-violet-900">
-                  <CalendarDays size={20} className="text-violet-600" />
-                  <h3 className="text-base font-black uppercase tracking-tight">Dados do Evento • Parte {['A', 'B', 'C', 'D'][selectedPart]}</h3>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md no-print">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-surface-100 rounded-3xl max-w-xl w-full shadow-2xl border border-surface-300 overflow-hidden relative text-typography-900">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+              <div className="p-5 sm:p-6 bg-surface-200/40 border-b border-surface-300 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-primary-200/10 border border-primary-200/20 rounded-xl text-primary-200">
+                    <CalendarDays size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-typography-900 uppercase tracking-tight">Dados do Evento • Parte {['A', 'B', 'C', 'D'][selectedPart]}</h3>
+                    <p className="text-xs text-typography-500 font-medium">Informações que aparecem no cabeçalho da folha.</p>
+                  </div>
                 </div>
-                <button onClick={() => setShowEditDetailsModal(false)} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
-                  <X size={18} />
+                <button onClick={() => setShowEditDetailsModal(false)} className="p-2 hover:bg-surface-200 rounded-xl text-typography-400 hover:text-typography-900 transition-colors cursor-pointer">
+                  <X size={20} />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Tema da Reunião Especial</label>
-                  <input
-                    type="text"
-                    value={details.assemblyTheme || ''}
-                    onChange={e => updateDetails(d => ({ ...d, assemblyTheme: e.target.value }))}
-                    placeholder="Ex: “Estabeleça alvos para enriquecer seu ministério!” — Prov. 4:25"
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Horário de Início</label>
-                    <input
-                      type="time"
-                      value={details.startTime || '09:00'}
-                      onChange={e => updateDetails(d => ({ ...d, startTime: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Data do Evento</label>
+              <div className="flex flex-col max-h-[calc(100dvh-140px)] sm:max-h-[85vh]">
+                <div className="flex-1 p-5 sm:p-6 space-y-4 overflow-y-auto no-scrollbar">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Tema da Reunião Especial</label>
                     <input
                       type="text"
-                      value={details.eventDate || ''}
-                      onChange={e => updateDetails(d => ({ ...d, eventDate: e.target.value }))}
-                      placeholder="Ex: 15 de Outubro de 2026"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
+                      value={details.assemblyTheme || ''}
+                      onChange={e => updateDetails(d => ({ ...d, assemblyTheme: e.target.value }))}
+                      placeholder="Ex: “Estabeleça alvos para enriquecer seu ministério!” — Prov. 4:25"
+                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Local do Evento</label>
-                  <input
-                    type="text"
-                    value={details.eventLocation || ''}
-                    onChange={e => updateDetails(d => ({ ...d, eventLocation: e.target.value }))}
-                    placeholder="Ex: Salão de Assembleias de Vargem Grande Paulista"
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
-                  />
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Horário de Início</label>
+                      <input
+                        type="time"
+                        value={details.startTime || '09:00'}
+                        onChange={e => updateDetails(d => ({ ...d, startTime: e.target.value }))}
+                        className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Data do Evento</label>
+                      <input
+                        type="text"
+                        value={details.eventDate || ''}
+                        onChange={e => updateDetails(d => ({ ...d, eventDate: e.target.value }))}
+                        placeholder="Ex: 15 de Outubro de 2026"
+                        className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Data do Ensaio</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Local do Evento</label>
                     <input
                       type="text"
-                      value={details.rehearsalDate || ''}
-                      onChange={e => updateDetails(d => ({ ...d, rehearsalDate: e.target.value }))}
-                      placeholder="Ex: 10 de Outubro às 19:30"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
+                      value={details.eventLocation || ''}
+                      onChange={e => updateDetails(d => ({ ...d, eventLocation: e.target.value }))}
+                      placeholder="Ex: Salão de Assembleias de Vargem Grande Paulista"
+                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Local do Ensaio</label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-surface-300">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Data do Ensaio</label>
+                      <input
+                        type="text"
+                        value={details.rehearsalDate || ''}
+                        onChange={e => updateDetails(d => ({ ...d, rehearsalDate: e.target.value }))}
+                        placeholder="Ex: 10 de Outubro às 19:30"
+                        className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Local do Ensaio</label>
+                      <input
+                        type="text"
+                        value={details.rehearsalLocation || ''}
+                        onChange={e => updateDetails(d => ({ ...d, rehearsalLocation: e.target.value }))}
+                        placeholder="Ex: Salão do Reino / Zoom"
+                        className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-sm font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-2 border-t border-surface-300">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">URL da Imagem do Cabeçalho (Opcional)</label>
                     <input
                       type="text"
-                      value={details.rehearsalLocation || ''}
-                      onChange={e => updateDetails(d => ({ ...d, rehearsalLocation: e.target.value }))}
-                      placeholder="Ex: Salão do Reino / Zoom"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
+                      value={details.customHeaderImage || ''}
+                      onChange={e => updateDetails(d => ({ ...d, customHeaderImage: e.target.value }))}
+                      placeholder="Ex: https://... (opcional, deixe em branco para gradiente)"
+                      className="w-full px-4 py-2.5 bg-surface-200 border border-surface-300 rounded-2xl text-xs font-mono text-typography-700 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Material Necessário para a Reunião</label>
+                    <textarea
+                      rows={2}
+                      value={details.material || ''}
+                      onChange={e => updateDetails(d => ({ ...d, material: e.target.value }))}
+                      placeholder="Ex: Formulários S-312, folhas de metas, canetas..."
+                      className="w-full px-4 py-3 bg-surface-200 border border-surface-300 rounded-2xl text-xs font-bold text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/25 focus:border-primary-200 outline-none resize-none transition-all"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1 pt-2 border-t border-gray-100">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">URL da Imagem do Cabeçalho (Opcional)</label>
-                  <input
-                    type="text"
-                    value={details.customHeaderImage || ''}
-                    onChange={e => updateDetails(d => ({ ...d, customHeaderImage: e.target.value }))}
-                    placeholder="Ex: https://... (opcional, deixe em branco para gradiente)"
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Material Necessário para a Reunião</label>
-                  <textarea
-                    rows={2}
-                    value={details.material || ''}
-                    onChange={e => updateDetails(d => ({ ...d, material: e.target.value }))}
-                    placeholder="Ex: Formulários S-312, folhas de metas, canetas..."
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:border-violet-500 outline-none resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3 border-t border-gray-100 pt-5">
-                {!isGuest && (
+                <div className="p-4 sm:p-5 bg-surface-200/40 border-t border-surface-300 flex flex-col sm:flex-row gap-3">
+                  {!isGuest && (
+                    <button
+                      onClick={async () => {
+                        const ok = await handleSave();
+                        if (ok) setShowEditDetailsModal(false);
+                      }}
+                      disabled={isSaving}
+                      className="flex-1 py-3 bg-primary-200 hover:bg-primary-150 text-white rounded-2xl text-sm font-bold cursor-pointer transition-all shadow-md shadow-primary-200/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span>Salvar Parte {['A', 'B', 'C', 'D'][selectedPart]}</span>
+                    </button>
+                  )}
                   <button
-                    onClick={async () => {
-                      const ok = await handleSave();
-                      if (ok) setShowEditDetailsModal(false);
-                    }}
-                    disabled={isSaving}
-                    className="flex-[2] flex items-center justify-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-all shadow-lg shadow-violet-100 active:scale-[0.98] disabled:opacity-50"
+                    onClick={() => setShowEditDetailsModal(false)}
+                    className="flex-1 py-3 bg-surface-200 hover:bg-surface-300 text-typography-700 rounded-2xl text-sm font-bold border border-surface-300 cursor-pointer transition-all active:scale-[0.98]"
                   >
-                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    <span>Salvar Parte {['A', 'B', 'C', 'D'][selectedPart]}</span>
+                    Fechar
                   </button>
-                )}
-                <button
-                  onClick={() => setShowEditDetailsModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-colors"
-                >
-                  Fechar
-                </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -2823,53 +2831,53 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       {/* MODAL: ATUALIZAR PROGRAMAÇÃO (COLAR) */}
       <AnimatePresence>
         {showUpdateModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2 text-violet-900">
-                  <RefreshCw size={20} className="text-violet-600" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md no-print">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-surface-100 rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-surface-300 max-h-[90vh] overflow-y-auto no-scrollbar text-typography-900">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-surface-300">
+                <div className="flex items-center gap-2 text-typography-900">
+                  <RefreshCw size={20} className="text-primary-200" />
                   <h3 className="text-base font-black uppercase tracking-tight">Atualizar Programação ({selectedYear})</h3>
                 </div>
-                <button onClick={() => setShowUpdateModal(false)} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+                <button onClick={() => setShowUpdateModal(false)} className="p-1.5 hover:bg-surface-200 rounded-xl text-typography-400 hover:text-typography-900 transition-colors cursor-pointer">
                   <X size={18} />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-typography-500">
                   Cole abaixo o texto copiado do programa oficial da Reunião Especial com os Pioneiros (S-312). O sistema extrairá automaticamente títulos, temas, séries de discursos e tempos.
                 </p>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Título do Evento</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Título do Evento</label>
                   <input
                     type="text"
                     value={updateTitle}
                     onChange={e => setUpdateTitle(e.target.value)}
                     placeholder="Programa para a Reunião Especial com os Pioneiros e Missionários de 2027"
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:bg-white focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 outline-none focus:bg-surface-100 focus:border-primary-200"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Tema da Reunião</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Tema da Reunião</label>
                   <input
                     type="text"
                     value={updateTheme}
                     onChange={e => setUpdateTheme(e.target.value)}
                     placeholder="“Estabeleça alvos para enriquecer seu ministério!” — Prov. 4:25"
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:bg-white focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 outline-none focus:bg-surface-100 focus:border-primary-200"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Colar Texto do Programa</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Colar Texto do Programa</label>
                   <textarea
                     rows={8}
                     value={updatePastedText}
                     onChange={e => setUpdatePastedText(e.target.value)}
                     placeholder="Cole aqui o texto da programação..."
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-gray-900 outline-none focus:bg-white focus:border-violet-500 resize-y"
+                    className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-xs font-mono text-typography-900 placeholder:text-typography-400 outline-none focus:bg-surface-100 focus:border-primary-200 resize-y"
                   />
                 </div>
               </div>
@@ -2877,13 +2885,13 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
               <div className="mt-6 flex justify-end gap-2">
                 <button
                   onClick={() => setShowUpdateModal(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-colors"
+                  className="px-4 py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-700 border border-surface-300 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSaveUpdateProgram}
-                  className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-colors shadow-md shadow-violet-200"
+                  className="px-4 py-2.5 bg-primary-200 hover:bg-primary-150 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors shadow-md shadow-primary-200/20"
                 >
                   Salvar Programação
                 </button>
@@ -2896,65 +2904,65 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
       {/* MODAL: ADICIONAR PRÓXIMA TEMPORADA (COLAR) */}
       <AnimatePresence>
         {showAddNextModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2 text-blue-900">
-                  <Plus size={20} className="text-blue-600" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md no-print">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-surface-100 rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-surface-300 max-h-[90vh] overflow-y-auto no-scrollbar text-typography-900">
+              <div className="flex items-center justify-between pb-3 mb-4 border-b border-surface-300">
+                <div className="flex items-center gap-2 text-typography-900">
+                  <Plus size={20} className="text-primary-200" />
                   <h3 className="text-base font-black uppercase tracking-tight">Adicionar Próxima Temporada</h3>
                 </div>
-                <button onClick={() => setShowAddNextModal(false)} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+                <button onClick={() => setShowAddNextModal(false)} className="p-1.5 hover:bg-surface-200 rounded-xl text-typography-400 hover:text-typography-900 transition-colors cursor-pointer">
                   <X size={18} />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-typography-500">
                   Informe o ano de serviço da nova temporada e cole o texto do programa correspondente para disponibilizá-lo para preenchimento.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1 sm:col-span-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Ano / Temporada</label>
+                  <div className="space-y-1.5 sm:col-span-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Ano / Temporada</label>
                     <input
                       type="text"
                       value={newSeasonYear}
                       onChange={e => setNewSeasonYear(e.target.value)}
                       placeholder="Ex: 2027-2028"
-                      className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:bg-white focus:border-blue-500"
+                      className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 outline-none focus:bg-surface-100 focus:border-primary-200"
                     />
                   </div>
-                  <div className="space-y-1 sm:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Título do Evento</label>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Título do Evento</label>
                     <input
                       type="text"
                       value={addNextTitle}
                       onChange={e => setAddNextTitle(e.target.value)}
                       placeholder="Programa para a Reunião Especial com os Pioneiros e Missionários de 2028"
-                      className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:bg-white focus:border-blue-500"
+                      className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 outline-none focus:bg-surface-100 focus:border-primary-200"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Tema da Reunião</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Tema da Reunião</label>
                   <input
                     type="text"
                     value={addNextTheme}
                     onChange={e => setAddNextTheme(e.target.value)}
                     placeholder="Informe o tema oficial da nova temporada..."
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:bg-white focus:border-blue-500"
+                    className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 placeholder:text-typography-400 outline-none focus:bg-surface-100 focus:border-primary-200"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Colar Texto da Programação</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1">Colar Texto da Programação</label>
                   <textarea
                     rows={8}
                     value={addNextPastedText}
                     onChange={e => setAddNextPastedText(e.target.value)}
                     placeholder="Cole aqui o texto da nova programação..."
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-gray-900 outline-none focus:bg-white focus:border-blue-500 resize-y"
+                    className="w-full px-3.5 py-2.5 bg-surface-200 border border-surface-300 rounded-xl text-xs font-mono text-typography-900 placeholder:text-typography-400 outline-none focus:bg-surface-100 focus:border-primary-200 resize-y"
                   />
                 </div>
               </div>
@@ -2962,13 +2970,13 @@ export default function SpecialPioneerMeetingView({ userId, isGuest = false, onB
               <div className="mt-6 flex justify-end gap-2">
                 <button
                   onClick={() => setShowAddNextModal(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-colors"
+                  className="px-4 py-2.5 bg-surface-200 hover:bg-surface-300 text-typography-700 border border-surface-300 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSaveAddNextProgram}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer transition-colors shadow-md shadow-blue-200"
+                  className="px-4 py-2.5 bg-primary-200 hover:bg-primary-150 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors shadow-md shadow-primary-200/20"
                 >
                   Criar e Ativar Temporada
                 </button>
