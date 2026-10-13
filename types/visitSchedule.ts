@@ -148,6 +148,8 @@ export interface VisitSchedule {
   meals: MealRow[];
   shepherding: ShepherdingRow[];
   eldersMeetingInput?: EldersMeetingInput;
+  elderAccessPin?: string;
+  isElderLinkLocked?: boolean;
   status?: 'rascunho' | 'preenchido' | 'confirmado';
   createdAt?: string;
   updatedAt?: string;
@@ -260,13 +262,36 @@ export function generateShareToken(): string {
   return Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 8);
 }
 
+export function generateElderPin(): string {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const arr = new Uint16Array(1);
+    crypto.getRandomValues(arr);
+    return String(1000 + (arr[0] % 9000));
+  }
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+export function derivePinFromToken(token?: string): string {
+  if (!token) return generateElderPin();
+  let hash = 2166136261;
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const num = 1000 + (Math.abs(hash) % 9000);
+  return String(num);
+}
+
 export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): VisitSchedule {
   if (!raw) {
+    const token = generateShareToken();
     return {
       ...INITIAL_VISIT_SCHEDULE,
       congregationName: "",
       visitPeriod: "Semana da Visita",
-      shareToken: generateShareToken(),
+      shareToken: token,
+      elderAccessPin: derivePinFromToken(token),
+      isElderLinkLocked: false,
       fieldService: [...INITIAL_VISIT_SCHEDULE.fieldService],
       meals: [...INITIAL_VISIT_SCHEDULE.meals],
       shepherding: [...INITIAL_VISIT_SCHEDULE.shepherding],
@@ -283,12 +308,17 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
     };
   }
 
+  const resolvedToken = raw.shareToken || generateShareToken();
+  const cleanPin = (raw.elderAccessPin || '').replace(/\D/g, '').slice(0, 4);
+
   return {
     ...INITIAL_VISIT_SCHEDULE,
     ...raw,
     congregationName: raw.congregationName || "",
     visitPeriod: raw.visitPeriod || "Semana da Visita",
-    shareToken: raw.shareToken || generateShareToken(),
+    shareToken: resolvedToken,
+    elderAccessPin: cleanPin.length === 4 ? cleanPin : derivePinFromToken(resolvedToken),
+    isElderLinkLocked: Boolean(raw.isElderLinkLocked),
     activeDays: {
       ...INITIAL_VISIT_SCHEDULE.activeDays,
       ...(raw.activeDays || {}),

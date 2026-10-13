@@ -2,7 +2,12 @@
 
 import CustomSelect, { CustomSelectOption } from '@/components/CustomSelect';
 import { db } from '@/lib/firebase';
-import { generateShareToken, normalizeVisitSchedule, VisitSchedule } from '@/types/visitSchedule';
+import {
+  generateElderPin,
+  generateShareToken,
+  normalizeVisitSchedule,
+  VisitSchedule,
+} from '@/types/visitSchedule';
 import {
   collection,
   doc,
@@ -23,6 +28,7 @@ import {
   ExternalLink,
   Eye,
   HelpCircle,
+  KeyRound,
   Lock,
   MessageCircle,
   Printer,
@@ -175,27 +181,84 @@ export default function VisitScheduleManagerView({
       text:
         type === 'esposas'
           ? 'Dados salvos e Link Único Permanente da Esposa copiado!'
+          : type === 'anciaos'
+          ? `Link dos Anciãos copiado! (PIN de acesso: ${schedule?.elderAccessPin || '----'})`
           : `Dados salvos e link para ${label} copiado! (${schedule?.congregationName} • ${schedule?.visitPeriod})`,
     });
     setTimeout(() => setCopiedType(null), 2500);
-    setTimeout(() => setFeedbackMsg(null), 3500);
+    setTimeout(() => setFeedbackMsg(null), 4000);
     // Salva automaticamente no Firestore para garantir que quem abrir o link veja exatamente o que está na tela
     await handleSave(undefined, true);
   };
 
   const handleCopyLink = () => handleCopyTargetLink(friendlyPublicUrl, 'anciaos', 'os Anciãos');
 
+  const handleRegeneratePin = async () => {
+    if (!schedule) return;
+    let nextPin = generateElderPin();
+    while (nextPin === schedule.elderAccessPin) {
+      nextPin = generateElderPin();
+    }
+    const updated: VisitSchedule = {
+      ...schedule,
+      elderAccessPin: nextPin,
+    };
+    setSchedule(updated);
+    await handleSave(updated, true);
+    setFeedbackMsg({
+      type: 'info',
+      text: `Novo PIN dos Anciãos gerado e salvo: ${nextPin}`,
+    });
+    setTimeout(() => setFeedbackMsg(null), 4000);
+  };
+
+  const handleCustomPinChange = async (rawVal: string) => {
+    if (!schedule) return;
+    const digits = rawVal.replace(/\D/g, '').slice(0, 4);
+    const updated: VisitSchedule = {
+      ...schedule,
+      elderAccessPin: digits,
+    };
+    setSchedule(updated);
+    if (digits.length === 4) {
+      await handleSave(updated, true);
+    } else {
+      setIsDirty(true);
+      isDirtyRef.current = true;
+    }
+  };
+
+  const handleToggleElderLinkLock = async () => {
+    if (!schedule) return;
+    const nextLocked = !schedule.isElderLinkLocked;
+    const updated: VisitSchedule = {
+      ...schedule,
+      isElderLinkLocked: nextLocked,
+    };
+    setSchedule(updated);
+    await handleSave(updated, true);
+    setFeedbackMsg({
+      type: nextLocked ? 'info' : 'success',
+      text: nextLocked
+        ? 'Link dos Anciãos bloqueado! Ninguém conseguirá acessar até você desbloquear.'
+        : 'Link dos Anciãos liberado novamente para acesso com PIN.',
+    });
+    setTimeout(() => setFeedbackMsg(null), 4000);
+  };
+
   const handleWhatsAppShare = async () => {
     if (!friendlyPublicUrl || !schedule) return;
     await handleSave(undefined, true);
+    const pinText = schedule.elderAccessPin ? `\n🔑 *Código PIN de Acesso:* *${schedule.elderAccessPin}*\n` : '';
     const msg = encodeURIComponent(
       `🏛️ *Semana da Visita — Congregação ${schedule.congregationName}*\n` +
       `🗓️ *Período:* ${schedule.visitPeriod}\n\n` +
       `Olá, irmãos da comissão de serviço!\n\n` +
-      `Segue o link para preenchimento da programação de atividades da congregação (saídas de campo, refeições e pastoreios):\n\n` +
-      `👉 ${friendlyPublicUrl}\n\n` +
-      `🔒 *Atenção (Uso Confidencial):* Este link contém informações restritas e permissões de edição exclusivas para os anciãos. Por favor, *não compartilhe este link com outros irmãos* (para a congregação, utilize apenas o link do Mural Público).\n\n` +
-      `_Basta abrir pelo celular ou computador. As informações são sincronizadas automaticamente com o viajante._`
+      `Segue o link para preenchimento da programação de atividades da congregação e envio de informações para a reunião de anciãos:\n\n` +
+      `👉 ${friendlyPublicUrl}\n` +
+      pinText +
+      `\n🔒 *Atenção (Uso Confidencial):* Esta página é protegida por PIN e contém informações restritas ao corpo de anciãos. Por favor, *não compartilhe este link ou o PIN com outros irmãos* (para a congregação, utilize apenas o link do Mural Público).\n\n` +
+      `_Basta abrir pelo celular ou computador e digitar o PIN acima. As informações são sincronizadas automaticamente com o viajante._`
     );
     window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
   };
@@ -521,6 +584,8 @@ export default function VisitScheduleManagerView({
         congregationName: schedule.congregationName,
         visitPeriod: schedule.visitPeriod,
         shareToken: schedule.shareToken, // Mantém o token exclusivo da congregação atual
+        elderAccessPin: schedule.elderAccessPin,
+        isElderLinkLocked: schedule.isElderLinkLocked,
         meals: schedule.meals, // Mantém as refeições e anfitriões locais
         eldersMeetingInput: schedule.eldersMeetingInput, // Mantém sugestões de pauta e indicações locais
         status: schedule.status,
@@ -624,17 +689,66 @@ export default function VisitScheduleManagerView({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* 1. Link para os Anciãos (Edição / Preenchimento) */}
           <div className="bg-primary-200/5 border border-primary-200/20 rounded-2xl p-4 flex flex-col justify-between gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary-200" />
-                <h3 className="text-xs font-black uppercase tracking-wide text-primary-200 flex items-center gap-1.5">
-                  <Share2 size={14} />
-                  1. Link dos Anciãos
-                </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary-200" />
+                  <h3 className="text-xs font-black uppercase tracking-wide text-primary-200 flex items-center gap-1.5">
+                    <Share2 size={14} />
+                    1. Link dos Anciãos
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleElderLinkLock}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
+                    schedule.isElderLinkLocked
+                      ? 'bg-red-500/15 text-red-700 border-red-500/30 hover:bg-red-500/25'
+                      : 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/25'
+                  }`}
+                  title={
+                    schedule.isElderLinkLocked
+                      ? 'Clique para liberar o acesso dos anciãos'
+                      : 'Clique para bloquear o acesso a este link'
+                  }
+                >
+                  {schedule.isElderLinkLocked ? <Lock size={11} /> : <Unlock size={11} />}
+                  {schedule.isElderLinkLocked ? 'Bloqueado' : 'Acesso Ativo'}
+                </button>
               </div>
               <p className="text-xs text-typography-600 leading-snug">
-                Para a comissão de serviço preencher locais de campo, almoços e pastoreio sem login.
+                Protegido por <strong>PIN de 4 dígitos</strong>. Usado pelos anciãos para preencher programação, recomendações e pauta.
               </p>
+
+              {/* Controle do Código PIN */}
+              <div className="flex items-center justify-between gap-2 bg-surface-100 px-2.5 py-1.5 rounded-xl border border-surface-300">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <KeyRound size={13} className="text-primary-200 shrink-0" />
+                  <span className="text-[11px] font-bold text-typography-700 whitespace-nowrap">
+                    PIN de Acesso:
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={schedule.elderAccessPin || ''}
+                    onChange={(e) => handleCustomPinChange(e.target.value)}
+                    placeholder="0000"
+                    className="w-14 text-center font-mono text-xs font-black tracking-widest text-primary-200 bg-primary-200/10 border border-primary-200/30 rounded-lg py-0.5 focus:outline-none focus:border-primary-200"
+                    title="Você pode digitar um PIN personalizado de 4 números"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRegeneratePin}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-typography-500 hover:text-primary-200 px-1.5 py-0.5 rounded-md hover:bg-surface-200 transition-colors cursor-pointer shrink-0"
+                  title="Gerar um novo código PIN de 4 dígitos"
+                >
+                  <RefreshCw size={11} />
+                  <span>Trocar PIN</span>
+                </button>
+              </div>
+
               {friendlyPublicUrl && (
                 <div className="text-[10px] text-typography-500 font-mono truncate bg-surface-100 p-1.5 rounded-lg border border-surface-300">
                   {friendlyPublicUrl}
@@ -655,7 +769,7 @@ export default function VisitScheduleManagerView({
               <button
                 onClick={handleWhatsAppShare}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-                title="Compartilhar no WhatsApp com Anciãos"
+                title="Compartilhar Link + PIN no WhatsApp com Anciãos"
               >
                 <MessageCircle size={13} />
                 WhatsApp

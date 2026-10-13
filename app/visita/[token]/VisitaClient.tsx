@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -21,6 +21,8 @@ import {
   Building2,
   Users,
   RefreshCw,
+  Lock,
+  KeyRound,
 } from 'lucide-react';
 
 export default function PublicVisitScheduleClient() {
@@ -35,6 +37,20 @@ export default function PublicVisitScheduleClient() {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'form' | 'print'>('form');
+
+  // Estados de segurança por PIN (protege a página inteira)
+  const [isPinUnlocked, setIsPinUnlocked] = useState<boolean>(false);
+  const [pinDigits, setPinDigits] = useState<string[]>(['', '', '', '']);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  const [cooldownUntil, setCooldownUntil] = useState<number>(0);
+  const [cooldownRemainingSec, setCooldownRemainingSec] = useState<number>(0);
+  const pinInputRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
 
   const serializeSchedule = (s: VisitSchedule | null) => {
     if (!s) return '';
@@ -102,6 +118,15 @@ export default function PublicVisitScheduleClient() {
           const loaded = normalizeVisitSchedule(docFound.data() as VisitSchedule);
           setSchedule(loaded);
           setSavedScheduleSnapshot(JSON.parse(JSON.stringify(loaded)));
+
+          if (typeof window !== 'undefined') {
+            const savedPin = sessionStorage.getItem(`elder_pin_unlocked_${token}`);
+            if (savedPin && savedPin === loaded.elderAccessPin) {
+              setIsPinUnlocked(true);
+            } else {
+              setIsPinUnlocked(false);
+            }
+          }
         }
       } catch (err: any) {
         console.error('Erro ao buscar programação pública:', err);
@@ -113,6 +138,107 @@ export default function PublicVisitScheduleClient() {
 
     fetchSchedule();
   }, [token]);
+
+  // Contador regressivo para bloqueio temporário contra tentativas excessivas de PIN
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const tick = () => {
+      const rem = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+      setCooldownRemainingSec(rem);
+      if (rem <= 0) {
+        setCooldownUntil(0);
+        setPinError(null);
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 500);
+    return () => clearInterval(timer);
+  }, [cooldownUntil]);
+
+  const verifyPinAttempt = (candidatePin: string) => {
+    if (!schedule) return;
+    if (cooldownUntil > Date.now()) return;
+
+    const expectedPin = (schedule.elderAccessPin || '').trim();
+    if (candidatePin === expectedPin) {
+      setIsPinUnlocked(true);
+      setPinError(null);
+      setFailedAttempts(0);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`elder_pin_unlocked_${token}`, expectedPin);
+      }
+    } else {
+      const nextFailures = failedAttempts + 1;
+      setFailedAttempts(nextFailures);
+      setPinDigits(['', '', '', '']);
+      setTimeout(() => pinInputRefs[0].current?.focus(), 30);
+
+      if (nextFailures >= 5) {
+        const until = Date.now() + 30000;
+        setCooldownUntil(until);
+        setPinError('Muitas tentativas incorretas. Aguarde 30 segundos para tentar novamente.');
+      } else {
+        setPinError('Código PIN incorreto. Verifique o código de 4 dígitos enviado pelo viajante.');
+      }
+    }
+  };
+
+  const handleDigitChange = (index: number, rawValue: string) => {
+    if (cooldownUntil > Date.now()) return;
+    const digitsOnly = rawValue.replace(/\D/g, '');
+
+    // Suporte a colar os 4 dígitos de uma vez
+    if (digitsOnly.length > 1) {
+      const sliced = digitsOnly.slice(0, 4).split('');
+      const nextDigits = ['', '', '', ''];
+      for (let i = 0; i < 4; i++) {
+        nextDigits[i] = sliced[i] || '';
+      }
+      setPinDigits(nextDigits);
+      setPinError(null);
+      const joined = nextDigits.join('');
+      if (joined.length === 4) {
+        verifyPinAttempt(joined);
+      } else {
+        pinInputRefs[Math.min(3, joined.length)].current?.focus();
+      }
+      return;
+    }
+
+    const digit = digitsOnly.slice(-1);
+    const nextDigits = [...pinDigits];
+    nextDigits[index] = digit;
+    setPinDigits(nextDigits);
+    setPinError(null);
+
+    if (digit && index < 3) {
+      pinInputRefs[index + 1].current?.focus();
+    }
+
+    const joined = nextDigits.join('');
+    if (joined.length === 4 && nextDigits.every((d) => d.length === 1)) {
+      verifyPinAttempt(joined);
+    }
+  };
+
+  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !pinDigits[index] && index > 0) {
+      pinInputRefs[index - 1].current?.focus();
+    } else if (e.key === 'Enter') {
+      const joined = pinDigits.join('');
+      if (joined.length === 4) {
+        verifyPinAttempt(joined);
+      }
+    }
+  };
+
+  const handleLockScreen = () => {
+    setIsPinUnlocked(false);
+    setPinDigits(['', '', '', '']);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(`elder_pin_unlocked_${token}`);
+    }
+  };
 
   const handleSave = async () => {
     if (!docId || !schedule) return;
@@ -195,6 +321,120 @@ export default function PublicVisitScheduleClient() {
 
   if (!schedule) return null;
 
+  // TELA 1: LINK BLOQUEADO / ENCERRADO PELO SUPERINTENDENTE DE CIRCUITO
+  if (schedule.isElderLinkLocked) {
+    return (
+      <div className="min-h-screen bg-surface-200 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-surface-100 rounded-3xl p-8 text-center shadow-xl border border-surface-300 space-y-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+          <div className="w-14 h-14 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto">
+            <Lock size={28} />
+          </div>
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-primary-200/10 text-primary-200 border border-primary-200/20">
+              Congregação {schedule.congregationName}
+            </span>
+            <h2 className="text-lg font-black text-typography-900 pt-1">
+              Acesso Encerrado pelo Viajante
+            </h2>
+          </div>
+          <p className="text-xs text-typography-600 leading-relaxed">
+            O preenchimento desta página da visita (<strong>{schedule.visitPeriod}</strong>) foi concluído ou temporariamente bloqueado pelo superintendente de circuito.
+          </p>
+          <p className="text-[11px] text-typography-400">
+            Caso precise fazer alguma alteração de última hora, entre em contato diretamente com o superintendente de circuito para liberar o acesso.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // TELA 2: PORTÃO DE SEGURANÇA POR PIN DE 4 DÍGITOS (PROTEGE A PÁGINA INTEIRA)
+  if (!isPinUnlocked) {
+    const isCoolingDown = cooldownUntil > Date.now();
+    return (
+      <div className="min-h-screen bg-surface-200 flex items-center justify-center p-4 sm:p-6">
+        <div className="max-w-md w-full bg-surface-100 rounded-3xl p-6 sm:p-8 text-center shadow-xl border border-surface-300 space-y-5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-150 to-transparent" />
+
+          <div className="flex justify-end">
+            <ThemeSwitcher />
+          </div>
+
+          <div className="w-14 h-14 bg-primary-200/10 text-primary-200 border border-primary-200/20 rounded-2xl flex items-center justify-center mx-auto -mt-4">
+            <KeyRound size={28} />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <span className="text-[11px] font-black uppercase tracking-wider bg-primary-200/10 text-primary-200 border border-primary-200/25 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1">
+                <Building2 size={12} />
+                Congregação {schedule.congregationName}
+              </span>
+              {schedule.visitPeriod && (
+                <span className="text-[11px] font-bold text-typography-600 bg-surface-200 px-2 py-0.5 rounded-lg border border-surface-300 inline-flex items-center gap-1">
+                  <Calendar size={11} className="text-primary-200" />
+                  {schedule.visitPeriod}
+                </span>
+              )}
+            </div>
+            <h1 className="text-lg sm:text-xl font-black text-typography-900 tracking-tight pt-1">
+              Acesso Restrito aos Anciãos
+            </h1>
+            <p className="text-xs text-typography-600 leading-relaxed">
+              Esta página contém informações confidenciais da visita. Digite o <strong>código PIN de 4 dígitos</strong> enviado pelo superintendente de circuito.
+            </p>
+          </div>
+
+          {/* Caixas de 4 dígitos */}
+          <div className="flex items-center justify-center gap-2.5 sm:gap-3 py-1">
+            {[0, 1, 2, 3].map((idx) => (
+              <input
+                key={idx}
+                ref={pinInputRefs[idx]}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
+                disabled={isCoolingDown}
+                value={pinDigits[idx]}
+                onChange={(e) => handleDigitChange(idx, e.target.value)}
+                onKeyDown={(e) => handleDigitKeyDown(idx, e)}
+                autoFocus={idx === 0}
+                className="w-13 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-black font-mono text-typography-900 bg-surface-200/70 border-2 border-surface-300 rounded-2xl focus:outline-none focus:border-primary-200 focus:bg-surface-100 transition-all disabled:opacity-50"
+              />
+            ))}
+          </div>
+
+          {pinError && (
+            <div className="bg-red-500/10 border border-red-500/25 text-red-600 dark:text-red-400 p-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+              <AlertCircle size={15} className="shrink-0" />
+              <span>
+                {isCoolingDown
+                  ? `Muitas tentativas. Aguarde ${cooldownRemainingSec}s para tentar novamente.`
+                  : pinError}
+              </span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={isCoolingDown || pinDigits.join('').length < 4}
+            onClick={() => verifyPinAttempt(pinDigits.join(''))}
+            className="w-full py-3 bg-primary-200 hover:bg-primary-300 disabled:opacity-50 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <ShieldCheck size={16} />
+            Desbloquear Página dos Anciãos
+          </button>
+
+          <p className="text-[11px] text-typography-400 leading-normal">
+            🔒 O código PIN garante que apenas os irmãos designados possam visualizar ou editar os dados desta visita.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-surface-200/60 pb-24 md:pb-12 pt-3 px-3 md:px-6">
       {/* CABEÇALHO SUPERIOR DESTACADO E IDENTIFICÁVEL */}
@@ -247,6 +487,15 @@ export default function PublicVisitScheduleClient() {
             >
               <Printer size={16} />
               <span className="hidden sm:inline">Imprimir</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLockScreen}
+              className="p-2.5 bg-surface-200 hover:bg-surface-300 border border-surface-300 text-typography-700 rounded-xl transition-colors cursor-pointer"
+              title="Bloquear tela novamente com PIN"
+            >
+              <Lock size={15} />
             </button>
 
             <ThemeSwitcher />
