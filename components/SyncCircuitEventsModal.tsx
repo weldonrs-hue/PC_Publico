@@ -340,14 +340,26 @@ export default function SyncCircuitEventsModal({
                           <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1 block mb-1">
                             Data Confirmada
                           </label>
-                          <div className="relative">
-                            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" />
+                          <div 
+                            className="relative cursor-pointer"
+                            onClick={(e) => {
+                              const input = e.currentTarget.querySelector('input');
+                              if (input && !ev.alreadyImported) {
+                                if ('showPicker' in HTMLInputElement.prototype) {
+                                  try { (input as any).showPicker(); } catch { input.focus(); }
+                                } else {
+                                  input.focus();
+                                }
+                              }
+                            }}
+                          >
+                            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400 pointer-events-none" />
                             <input
                               type="date"
                               value={ev.date}
                               disabled={ev.alreadyImported}
                               onChange={(e) => handleDateChange(ev.key, e.target.value)}
-                              className="w-full pl-9 pr-3 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
+                              className="w-full pl-9 pr-3 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all disabled:opacity-60 cursor-pointer"
                             />
                           </div>
                         </div>
@@ -357,14 +369,26 @@ export default function SyncCircuitEventsModal({
                           <label className="text-[10px] font-black uppercase tracking-wider text-typography-400 ml-1 block mb-1">
                             Horário (Opcional)
                           </label>
-                          <div className="relative">
-                            <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400" />
+                          <div 
+                            className="relative cursor-pointer"
+                            onClick={(e) => {
+                              const input = e.currentTarget.querySelector('input');
+                              if (input && !ev.alreadyImported) {
+                                if ('showPicker' in HTMLInputElement.prototype) {
+                                  try { (input as any).showPicker(); } catch { input.focus(); }
+                                } else {
+                                  input.focus();
+                                }
+                              }
+                            }}
+                          >
+                            <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-typography-400 pointer-events-none" />
                             <input
                               type="time"
                               value={ev.time}
                               disabled={ev.alreadyImported}
                               onChange={(e) => handleTimeChange(ev.key, e.target.value)}
-                              className="w-full pl-9 pr-3 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all disabled:opacity-60"
+                              className="w-full pl-9 pr-3 py-2 bg-surface-200 border border-surface-300 rounded-xl text-xs font-bold text-typography-900 focus:bg-surface-100 focus:border-primary-200 outline-none transition-all disabled:opacity-60 cursor-pointer"
                             />
                           </div>
                         </div>
@@ -441,3 +465,4 @@ export default function SyncCircuitEventsModal({
     </div>
   );
 }
+
