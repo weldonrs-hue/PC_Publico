@@ -181,8 +181,10 @@ export default function SemanaVisitaForm({
                 Saídas de Serviço de Campo
               </h3>
               <p className="text-xs text-typography-500">
-                {canEdit('fieldService') 
-                  ? 'Preencha os horários e locais de saída de campo para cada dia.' 
+                {canEdit('fieldService')
+                  ? elderMode
+                    ? 'Preencha o local de saída de campo para cada dia.'
+                    : 'Preencha os horários e locais de saída de campo para cada dia.'
                   : 'Definido pelo viajante.'}
               </p>
             </div>

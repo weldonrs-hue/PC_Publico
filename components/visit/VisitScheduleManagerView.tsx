@@ -1045,8 +1045,8 @@ export default function VisitScheduleManagerView({
               {[
                 {
                   key: 'allowFieldServiceEdit',
-                  label: 'Locais e Horários do Serviço de Campo',
-                  desc: 'Permite que definam onde será a saída de campo e os horários.',
+                  label: 'Locais do Serviço de Campo',
+                  desc: 'Permite que definam o local de cada saída de campo (os horários são definidos pelo viajante).',
                 },
                 {
                   key: 'allowMealsEdit',
