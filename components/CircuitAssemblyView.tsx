@@ -2422,7 +2422,7 @@ export default function CircuitAssemblyView({ userId, isGuest = false, onBack, t
           </div>
 
           {/* Abas de Navegação entre Sessões */}
-          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto">
+          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto no-scrollbar">
             {assemblyProgram.sessions.map((session: any, sIdx: number) => {
               const isActive = activeSessionTab === sIdx;
               return (

@@ -1461,7 +1461,7 @@ export default function EMRView({
           {/* Barra de Filtro e Busca Rápida */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Tabs de Sessões */}
-            <div className="flex items-center gap-1 bg-surface-100 p-1 rounded-2xl border border-surface-300 shadow-2xs overflow-x-auto">
+            <div className="flex items-center gap-1 bg-surface-100 p-1 rounded-2xl border border-surface-300 shadow-2xs overflow-x-auto no-scrollbar">
               <button
                 onClick={() => setActiveSessionTab(-1)}
                 className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${

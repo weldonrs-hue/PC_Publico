@@ -1057,7 +1057,7 @@ export default function CongregationsView({
                   </button>
                 </div>
               </div>
-              <div className="flex flex-row gap-2 w-full md:w-auto items-center overflow-x-auto pb-1 sm:pb-0">
+              <div className="flex flex-row gap-2 w-full md:w-auto items-center overflow-x-auto no-scrollbar pb-1 sm:pb-0">
                 <a 
                   href="https://hub.jw.org/meetings/pt?q=%7B%22meetingType%22:%22meetings%22,%22location%22:%22Sua%20localiza%C3%A7%C3%A3o%22%7D"
                   target="_blank"

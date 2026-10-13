@@ -289,13 +289,55 @@
   background: rgba(76, 175, 80, 0.5);
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-hide::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar,
+.custom-scrollbar-hide::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.scrollbar-hide,
+.no-scrollbar,
+.scrollbar-none,
+.custom-scrollbar-hide {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+  -webkit-overflow-scrolling: touch;
+  user-select: none;
+}
+
+.no-scrollbar[data-dragging='true'],
+.scrollbar-hide[data-dragging='true'],
+.scrollbar-none[data-dragging='true'],
+.custom-scrollbar-hide[data-dragging='true'] {
+  cursor: grabbing !important;
+}
+
+/* Fade suave nas pontas quando houver mais opções para os lados (sem precisar de setas) */
+.no-scrollbar[data-scroll-fade='right'],
+.scrollbar-hide[data-scroll-fade='right'],
+.scrollbar-none[data-scroll-fade='right'],
+.custom-scrollbar-hide[data-scroll-fade='right'] {
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 24px), transparent 100%);
+}
+
+.no-scrollbar[data-scroll-fade='left'],
+.scrollbar-hide[data-scroll-fade='left'],
+.scrollbar-none[data-scroll-fade='left'],
+.custom-scrollbar-hide[data-scroll-fade='left'] {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 100%);
+}
+
+.no-scrollbar[data-scroll-fade='both'],
+.scrollbar-hide[data-scroll-fade='both'],
+.scrollbar-none[data-scroll-fade='both'],
+.custom-scrollbar-hide[data-scroll-fade='both'] {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
 }
 
 @media print {

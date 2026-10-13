@@ -1223,7 +1223,7 @@ export default function RegionalConventionView({ userId, isGuest = false, onBack
           </div>
 
           {/* Abas de Navegação entre Sessões (Manhã / Tarde) */}
-          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto">
+          <div className="flex items-center gap-2 p-1.5 bg-surface-100 rounded-2xl border border-surface-300 overflow-x-auto no-scrollbar">
             {currentDay.sessions.map((session, sIdx) => {
               const isActive = activeSessionTab === sIdx;
               return (

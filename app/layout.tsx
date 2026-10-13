@@ -3,6 +3,7 @@ import { Inter, Manrope, Libre_Baskerville, Dancing_Script, Playfair_Display, Pa
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LGPDConsent from '@/components/LGPDConsent';
+import HorizontalScrollEnhancer from '@/components/ui/HorizontalScrollEnhancer';
 import { DialogProvider } from '@/hooks/useDialog';
 import { ThemeProvider } from '@/context/ThemeContext';
 
@@ -94,6 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ErrorBoundary>
           <ThemeProvider>
             <DialogProvider>
+              <HorizontalScrollEnhancer />
               {children}
               <LGPDConsent />
             </DialogProvider>
