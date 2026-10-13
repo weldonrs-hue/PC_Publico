@@ -49,6 +49,34 @@ export interface VisitPermissions {
   allowShepherdingEdit?: boolean;
   allowStudiesEdit?: boolean;
   allowAdditionalMeetingsEdit?: boolean;
+  allowEldersAgendaInputEdit?: boolean;
+}
+
+export interface ElderSuggestedTopic {
+  id: string;
+  suggestedBy: string;
+  subject: string;
+  reference?: string;
+}
+
+export interface ElderSubmittedRecommendation {
+  id: string;
+  role: 'elder' | 'servant';
+  name: string;
+  notes?: string;
+}
+
+export interface ElderSubmittedRemoval {
+  id: string;
+  role: 'elder' | 'servant';
+  name: string;
+  reason: string;
+}
+
+export interface EldersMeetingInput {
+  suggestedTopics: ElderSuggestedTopic[];
+  recommendations: ElderSubmittedRecommendation[];
+  removals: ElderSubmittedRemoval[];
 }
 
 export interface CompanionStudyGroup {
@@ -119,6 +147,7 @@ export interface VisitSchedule {
   mealsHeaderTime?: string;
   meals: MealRow[];
   shepherding: ShepherdingRow[];
+  eldersMeetingInput?: EldersMeetingInput;
   status?: 'rascunho' | 'preenchido' | 'confirmado';
   createdAt?: string;
   updatedAt?: string;
@@ -143,6 +172,7 @@ export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'congregationId'
     allowShepherdingEdit: true,
     allowStudiesEdit: true,
     allowAdditionalMeetingsEdit: true,
+    allowEldersAgendaInputEdit: true,
   },
   fieldService: [
     { day: 'Terça-feira', time: '09:00', location: 'Salão do Reino' },
@@ -208,6 +238,11 @@ export const INITIAL_VISIT_SCHEDULE: Omit<VisitSchedule, 'id' | 'congregationId'
     { dateTime: 'Sexta 15:00', family: '', companion: '', situation: '' },
     { dateTime: 'Sábado 15:00', family: '', companion: '', situation: '' },
   ],
+  eldersMeetingInput: {
+    suggestedTopics: [],
+    recommendations: [],
+    removals: [],
+  },
   status: 'rascunho',
 };
 
@@ -239,6 +274,11 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
         ...INITIAL_VISIT_SCHEDULE.studiesAndVisits,
         husbandRows: [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.husbandRows],
         wifeRows: [...INITIAL_VISIT_SCHEDULE.studiesAndVisits.wifeRows],
+      },
+      eldersMeetingInput: {
+        suggestedTopics: [],
+        recommendations: [],
+        removals: [],
       },
     };
   }
@@ -321,6 +361,32 @@ export function normalizeVisitSchedule(raw?: Partial<VisitSchedule> | null): Vis
         ...INITIAL_VISIT_SCHEDULE.additionalMeetings.eldersAndServants,
         ...(raw.additionalMeetings?.eldersAndServants || {}),
       },
+    },
+    eldersMeetingInput: {
+      suggestedTopics: Array.isArray(raw.eldersMeetingInput?.suggestedTopics)
+        ? raw.eldersMeetingInput!.suggestedTopics.map((t: any, idx: number) => ({
+            id: t.id || `sug_${idx}_${Date.now()}`,
+            suggestedBy: t.suggestedBy || '',
+            subject: (t.subject || '').toUpperCase(),
+            reference: t.reference || '',
+          }))
+        : [],
+      recommendations: Array.isArray(raw.eldersMeetingInput?.recommendations)
+        ? raw.eldersMeetingInput!.recommendations.map((r: any, idx: number) => ({
+            id: r.id || `rec_${idx}_${Date.now()}`,
+            role: r.role === 'servant' ? 'servant' : 'elder',
+            name: r.name || '',
+            notes: r.notes || '',
+          }))
+        : [],
+      removals: Array.isArray(raw.eldersMeetingInput?.removals)
+        ? raw.eldersMeetingInput!.removals.map((rem: any, idx: number) => ({
+            id: rem.id || `rem_${idx}_${Date.now()}`,
+            role: rem.role === 'servant' ? 'servant' : 'elder',
+            name: rem.name || '',
+            reason: rem.reason || '',
+          }))
+        : [],
     },
   };
 }

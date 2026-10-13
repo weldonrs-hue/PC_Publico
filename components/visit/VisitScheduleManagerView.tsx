@@ -522,6 +522,7 @@ export default function VisitScheduleManagerView({
         visitPeriod: schedule.visitPeriod,
         shareToken: schedule.shareToken, // Mantém o token exclusivo da congregação atual
         meals: schedule.meals, // Mantém as refeições e anfitriões locais
+        eldersMeetingInput: schedule.eldersMeetingInput, // Mantém sugestões de pauta e indicações locais
         status: schedule.status,
         updatedAt: new Date().toISOString(),
       };
@@ -935,6 +936,11 @@ export default function VisitScheduleManagerView({
                   key: 'allowAdditionalMeetingsEdit',
                   label: 'Reuniões Adicionais (Pioneiros / Anciãos)',
                   desc: 'Permite que alterem os dias e horários das reuniões especiais.',
+                },
+                {
+                  key: 'allowEldersAgendaInputEdit',
+                  label: 'Sugestões de Pauta, Recomendações e Remoções',
+                  desc: 'Permite que os anciãos enviem sugestões de assuntos para a pauta, recomendações e remoções.',
                 },
               ].map((item) => {
                 const isAllowed = !!(schedule.permissions as any)?.[item.key];

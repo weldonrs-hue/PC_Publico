@@ -6,12 +6,15 @@ import {
 import {
   BookOpen,
   Calendar,
+  ClipboardList,
   Clock,
   Heart,
   Lock,
   MapPin,
   Plus,
   Trash2,
+  UserCheck,
+  UserMinus,
   Users,
   Utensils
 } from 'lucide-react';
@@ -39,7 +42,7 @@ export default function SemanaVisitaForm({
     onChange(updater(data));
   };
 
-  const canEdit = (fieldKey: 'midweekMeeting' | 'weekendMeeting' | 'fieldService' | 'meals' | 'shepherding' | 'studies' | 'additionalMeetings' | 'circuitOverseerOnly') => {
+  const canEdit = (fieldKey: 'midweekMeeting' | 'weekendMeeting' | 'fieldService' | 'meals' | 'shepherding' | 'studies' | 'additionalMeetings' | 'eldersAgendaInput' | 'circuitOverseerOnly') => {
     if (isReadOnly) return false;
     if (!elderMode) return true;
     switch (fieldKey) {
@@ -57,6 +60,8 @@ export default function SemanaVisitaForm({
         return data.permissions?.allowStudiesEdit ?? true;
       case 'additionalMeetings':
         return data.permissions?.allowAdditionalMeetingsEdit ?? true;
+      case 'eldersAgendaInput':
+        return data.permissions?.allowEldersAgendaInputEdit ?? true;
       case 'circuitOverseerOnly':
         return false;
       default:
@@ -64,6 +69,10 @@ export default function SemanaVisitaForm({
     }
   };
 
+  const eldersInputCount =
+    (data.eldersMeetingInput?.suggestedTopics?.length || 0) +
+    (data.eldersMeetingInput?.recommendations?.length || 0) +
+    (data.eldersMeetingInput?.removals?.length || 0);
 
   // As abas se adaptam dependendo se é o Viajante, Ancião ou Esposa (readOnly / hidePastoreio)
   const tabs = [
@@ -73,6 +82,7 @@ export default function SemanaVisitaForm({
     ...(!hidePastoreio ? [{ id: 'pastoreio', label: 'Pastoreio', icon: Heart, count: (data.shepherding || []).length }] : []),
     { id: 'reunioes', label: 'Reuniões', icon: Calendar },
     { id: 'estudos', label: 'Estudos', icon: BookOpen },
+    ...(!hidePastoreio ? [{ id: 'pauta_anciaos', label: 'Pauta & Recomendações', icon: ClipboardList, count: eldersInputCount > 0 ? eldersInputCount : undefined }] : []),
   ];
 
   return (
@@ -2178,6 +2188,606 @@ export default function SemanaVisitaForm({
             </button>
           )}
 
+        </div>
+      )}
+
+      {/* 6. PAUTA DA REUNIÃO DE ANCIÃOS, RECOMENDAÇÕES E REMOÇÕES */}
+      {!hidePastoreio && activeSection === 'pauta_anciaos' && (
+        <div className="space-y-5">
+          {/* Card de orientação */}
+          <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-primary-200 flex items-center gap-1.5">
+                <ClipboardList size={16} />
+                Reunião de Anciãos com o Superintendente de Circuito
+              </h3>
+              {!canEdit('eldersAgendaInput') && (
+                <span className="text-[10px] font-semibold text-typography-400 flex items-center gap-1">
+                  <Lock size={11} /> Somente leitura
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-typography-500 leading-relaxed">
+              Informe abaixo as <strong>sugestões de assuntos locais</strong> para a pauta da reunião com o corpo de anciãos, bem como eventuais <strong>recomendações</strong> ou <strong>remoções/renúncias</strong>.
+            </p>
+          </div>
+
+          {/* BLOCO 1: ASSUNTOS LOCAIS SUGERIDOS PELO CORPO DE ANCIÃOS */}
+          <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-surface-300 pb-2.5 gap-2">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-typography-900 flex items-center gap-1.5">
+                  <BookOpen size={14} className="text-primary-200" />
+                  Assuntos Locais Sugeridos para a Pauta
+                </h4>
+                <span className="text-[11px] text-typography-500">
+                  Assuntos que o corpo de anciãos gostaria de considerar na reunião
+                </span>
+              </div>
+              {canEdit('eldersAgendaInput') && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    update((prev) => ({
+                      ...prev,
+                      eldersMeetingInput: {
+                        suggestedTopics: [
+                          ...(prev.eldersMeetingInput?.suggestedTopics || []),
+                          {
+                            id: `sug_${Date.now()}`,
+                            suggestedBy: '',
+                            subject: '',
+                            reference: '',
+                          },
+                        ],
+                        recommendations: prev.eldersMeetingInput?.recommendations || [],
+                        removals: prev.eldersMeetingInput?.removals || [],
+                      },
+                    }))
+                  }
+                  className="shrink-0 flex items-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Sugerir Assunto</span>
+                </button>
+              )}
+            </div>
+
+            {(data.eldersMeetingInput?.suggestedTopics || []).length === 0 ? (
+              <div className="py-5 text-center text-xs text-typography-400 bg-surface-200/40 rounded-xl border border-dashed border-surface-300">
+                Nenhuma sugestão de assunto adicionada até o momento.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(data.eldersMeetingInput?.suggestedTopics || []).map((topic, idx) => (
+                  <div
+                    key={topic.id || idx}
+                    className="p-3.5 bg-surface-200/50 border border-surface-300 rounded-xl space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between border-b border-surface-300 pb-2">
+                      <span className="text-[11px] font-black text-primary-200 bg-primary-200/10 px-2.5 py-0.5 rounded-lg border border-primary-200/20">
+                        Sugestão de Assunto #{idx + 1}
+                      </span>
+                      {canEdit('eldersAgendaInput') && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            update((prev) => ({
+                              ...prev,
+                              eldersMeetingInput: {
+                                suggestedTopics: (
+                                  prev.eldersMeetingInput?.suggestedTopics || []
+                                ).filter((_, i) => i !== idx),
+                                recommendations:
+                                  prev.eldersMeetingInput?.recommendations || [],
+                                removals: prev.eldersMeetingInput?.removals || [],
+                              },
+                            }))
+                          }
+                          className="text-typography-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title="Remover sugestão"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-typography-500">
+                          Quem indicou (Nome do Ancião)
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!canEdit('eldersAgendaInput')}
+                          placeholder="Ex: Alcides"
+                          value={topic.suggestedBy}
+                          onChange={(e) =>
+                            update((prev) => {
+                              const list = [
+                                ...(prev.eldersMeetingInput?.suggestedTopics || []),
+                              ];
+                              list[idx] = { ...list[idx], suggestedBy: e.target.value };
+                              return {
+                                ...prev,
+                                eldersMeetingInput: {
+                                  suggestedTopics: list,
+                                  recommendations:
+                                    prev.eldersMeetingInput?.recommendations || [],
+                                  removals: prev.eldersMeetingInput?.removals || [],
+                                },
+                              };
+                            })
+                          }
+                          className="w-full text-xs font-semibold p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-typography-500">
+                          Fontes de Matéria / Referência (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!canEdit('eldersAgendaInput')}
+                          placeholder="Ex: sfl cap. 12 § 4..."
+                          value={topic.reference || ''}
+                          onChange={(e) =>
+                            update((prev) => {
+                              const list = [
+                                ...(prev.eldersMeetingInput?.suggestedTopics || []),
+                              ];
+                              list[idx] = { ...list[idx], reference: e.target.value };
+                              return {
+                                ...prev,
+                                eldersMeetingInput: {
+                                  suggestedTopics: list,
+                                  recommendations:
+                                    prev.eldersMeetingInput?.recommendations || [],
+                                  removals: prev.eldersMeetingInput?.removals || [],
+                                },
+                              };
+                            })
+                          }
+                          className="w-full text-xs font-medium p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 disabled:opacity-60"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-typography-500">
+                        Assunto / Necessidade Local
+                      </label>
+                      <textarea
+                        rows={2}
+                        disabled={!canEdit('eldersAgendaInput')}
+                        placeholder="DESCREVA O ASSUNTO QUE GOSTARIA DE CONSIDERAR..."
+                        value={(topic.subject || '').toUpperCase()}
+                        onChange={(e) =>
+                          update((prev) => {
+                            const list = [
+                              ...(prev.eldersMeetingInput?.suggestedTopics || []),
+                            ];
+                            list[idx] = {
+                              ...list[idx],
+                              subject: e.target.value.toUpperCase(),
+                            };
+                            return {
+                              ...prev,
+                              eldersMeetingInput: {
+                                suggestedTopics: list,
+                                recommendations:
+                                  prev.eldersMeetingInput?.recommendations || [],
+                                removals: prev.eldersMeetingInput?.removals || [],
+                              },
+                            };
+                          })
+                        }
+                        className="w-full text-xs font-bold uppercase p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 resize-y disabled:opacity-60"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* BLOCO 2: RECOMENDAÇÕES (SIMPLES E DIRETO) */}
+          <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-surface-300 pb-2.5 gap-2">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-typography-900 flex items-center gap-1.5">
+                  <UserCheck size={14} className="text-primary-200" />
+                  Recomendações (Anciãos e Servos Ministeriais)
+                </h4>
+                <span className="text-[11px] text-typography-500">
+                  Adicione apenas o nome e se a recomendação é para Ancião ou Servo Ministerial
+                </span>
+              </div>
+              {canEdit('eldersAgendaInput') && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update((prev) => ({
+                        ...prev,
+                        eldersMeetingInput: {
+                          suggestedTopics:
+                            prev.eldersMeetingInput?.suggestedTopics || [],
+                          recommendations: [
+                            ...(prev.eldersMeetingInput?.recommendations || []),
+                            {
+                              id: `rec_${Date.now()}`,
+                              role: 'elder',
+                              name: '',
+                              notes: '',
+                            },
+                          ],
+                          removals: prev.eldersMeetingInput?.removals || [],
+                        },
+                      }))
+                    }
+                    className="flex items-center gap-1 bg-primary-200/10 hover:bg-primary-200/20 text-primary-200 border border-primary-200/25 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Plus size={13} />
+                    <span>Ancião</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update((prev) => ({
+                        ...prev,
+                        eldersMeetingInput: {
+                          suggestedTopics:
+                            prev.eldersMeetingInput?.suggestedTopics || [],
+                          recommendations: [
+                            ...(prev.eldersMeetingInput?.recommendations || []),
+                            {
+                              id: `rec_${Date.now()}`,
+                              role: 'servant',
+                              name: '',
+                              notes: '',
+                            },
+                          ],
+                          removals: prev.eldersMeetingInput?.removals || [],
+                        },
+                      }))
+                    }
+                    className="flex items-center gap-1 bg-primary-200/10 hover:bg-primary-200/20 text-primary-200 border border-primary-200/25 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Plus size={13} />
+                    <span>Servo Ministerial</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {(data.eldersMeetingInput?.recommendations || []).length === 0 ? (
+              <div className="py-5 text-center text-xs text-typography-400 bg-surface-200/40 rounded-xl border border-dashed border-surface-300">
+                Nenhuma recomendação informada para esta visita.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {(data.eldersMeetingInput?.recommendations || []).map((rec, idx) => (
+                  <div
+                    key={rec.id || idx}
+                    className="p-3.5 bg-surface-200/50 border border-surface-300 rounded-xl space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {(['elder', 'servant'] as const).map((rType) => {
+                          const active = rec.role === rType;
+                          return (
+                            <button
+                              key={rType}
+                              type="button"
+                              disabled={!canEdit('eldersAgendaInput')}
+                              onClick={() =>
+                                update((prev) => {
+                                  const list = [
+                                    ...(prev.eldersMeetingInput?.recommendations || []),
+                                  ];
+                                  list[idx] = { ...list[idx], role: rType };
+                                  return {
+                                    ...prev,
+                                    eldersMeetingInput: {
+                                      suggestedTopics:
+                                        prev.eldersMeetingInput?.suggestedTopics || [],
+                                      recommendations: list,
+                                      removals: prev.eldersMeetingInput?.removals || [],
+                                    },
+                                  };
+                                })
+                              }
+                              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-primary-200 text-white border-primary-200 shadow-2xs'
+                                  : 'bg-surface-100 text-typography-600 border-surface-300 hover:bg-surface-200'
+                              }`}
+                            >
+                              {rType === 'elder' ? 'Ancião' : 'Servo Ministerial'}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {canEdit('eldersAgendaInput') && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            update((prev) => ({
+                              ...prev,
+                              eldersMeetingInput: {
+                                suggestedTopics:
+                                  prev.eldersMeetingInput?.suggestedTopics || [],
+                                recommendations: (
+                                  prev.eldersMeetingInput?.recommendations || []
+                                ).filter((_, i) => i !== idx),
+                                removals: prev.eldersMeetingInput?.removals || [],
+                              },
+                            }))
+                          }
+                          className="text-typography-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title="Remover recomendação"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-typography-500">
+                          Nome Completo do Irmão
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!canEdit('eldersAgendaInput')}
+                          placeholder="Ex: Valdevagner Figueiredo"
+                          value={rec.name}
+                          onChange={(e) =>
+                            update((prev) => {
+                              const list = [
+                                ...(prev.eldersMeetingInput?.recommendations || []),
+                              ];
+                              list[idx] = { ...list[idx], name: e.target.value };
+                              return {
+                                ...prev,
+                                eldersMeetingInput: {
+                                  suggestedTopics:
+                                    prev.eldersMeetingInput?.suggestedTopics || [],
+                                  recommendations: list,
+                                  removals: prev.eldersMeetingInput?.removals || [],
+                                },
+                              };
+                            })
+                          }
+                          className="w-full text-xs font-semibold p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-typography-500">
+                          Observação Breve (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!canEdit('eldersAgendaInput')}
+                          placeholder="Alguma observação relevante se necessário..."
+                          value={rec.notes || ''}
+                          onChange={(e) =>
+                            update((prev) => {
+                              const list = [
+                                ...(prev.eldersMeetingInput?.recommendations || []),
+                              ];
+                              list[idx] = { ...list[idx], notes: e.target.value };
+                              return {
+                                ...prev,
+                                eldersMeetingInput: {
+                                  suggestedTopics:
+                                    prev.eldersMeetingInput?.suggestedTopics || [],
+                                  recommendations: list,
+                                  removals: prev.eldersMeetingInput?.removals || [],
+                                },
+                              };
+                            })
+                          }
+                          className="w-full text-xs font-medium p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 disabled:opacity-60"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* BLOCO 3: REMOÇÕES OU RENÚNCIAS */}
+          <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-surface-300 pb-2.5 gap-2">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-typography-900 flex items-center gap-1.5">
+                  <UserMinus size={14} className="text-red-500" />
+                  Remoções ou Renúncias
+                </h4>
+                <span className="text-[11px] text-typography-500">
+                  Se for mudança de congregação, informe para qual congregação mudou no motivo
+                </span>
+              </div>
+              {canEdit('eldersAgendaInput') && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    update((prev) => ({
+                      ...prev,
+                      eldersMeetingInput: {
+                        suggestedTopics:
+                          prev.eldersMeetingInput?.suggestedTopics || [],
+                        recommendations:
+                          prev.eldersMeetingInput?.recommendations || [],
+                        removals: [
+                          ...(prev.eldersMeetingInput?.removals || []),
+                          {
+                            id: `rem_${Date.now()}`,
+                            role: 'elder',
+                            name: '',
+                            reason: '',
+                          },
+                        ],
+                      },
+                    }))
+                  }
+                  className="shrink-0 flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/25 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Adicionar Remoção / Renúncia</span>
+                </button>
+              )}
+            </div>
+
+            {(data.eldersMeetingInput?.removals || []).length === 0 ? (
+              <div className="py-5 text-center text-xs text-typography-400 bg-surface-200/40 rounded-xl border border-dashed border-surface-300">
+                Nenhuma remoção ou renúncia informada.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {(data.eldersMeetingInput?.removals || []).map((rem, idx) => (
+                  <div
+                    key={rem.id || idx}
+                    className="p-3.5 bg-surface-200/50 border border-surface-300 rounded-xl space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {(['elder', 'servant'] as const).map((rType) => {
+                          const active = rem.role === rType;
+                          return (
+                            <button
+                              key={rType}
+                              type="button"
+                              disabled={!canEdit('eldersAgendaInput')}
+                              onClick={() =>
+                                update((prev) => {
+                                  const list = [
+                                    ...(prev.eldersMeetingInput?.removals || []),
+                                  ];
+                                  list[idx] = { ...list[idx], role: rType };
+                                  return {
+                                    ...prev,
+                                    eldersMeetingInput: {
+                                      suggestedTopics:
+                                        prev.eldersMeetingInput?.suggestedTopics || [],
+                                      recommendations:
+                                        prev.eldersMeetingInput?.recommendations || [],
+                                      removals: list,
+                                    },
+                                  };
+                                })
+                              }
+                              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                                  : 'bg-surface-100 text-typography-600 border-surface-300 hover:bg-surface-200'
+                              }`}
+                            >
+                              {rType === 'elder' ? 'Ancião' : 'Servo Ministerial'}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {canEdit('eldersAgendaInput') && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            update((prev) => ({
+                              ...prev,
+                              eldersMeetingInput: {
+                                suggestedTopics:
+                                  prev.eldersMeetingInput?.suggestedTopics || [],
+                                recommendations:
+                                  prev.eldersMeetingInput?.recommendations || [],
+                                removals: (
+                                  prev.eldersMeetingInput?.removals || []
+                                ).filter((_, i) => i !== idx),
+                              },
+                            }))
+                          }
+                          className="text-typography-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title="Remover item"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-typography-500">
+                          Nome do Irmão
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!canEdit('eldersAgendaInput')}
+                          placeholder="Nome completo"
+                          value={rem.name}
+                          onChange={(e) =>
+                            update((prev) => {
+                              const list = [
+                                ...(prev.eldersMeetingInput?.removals || []),
+                              ];
+                              list[idx] = { ...list[idx], name: e.target.value };
+                              return {
+                                ...prev,
+                                eldersMeetingInput: {
+                                  suggestedTopics:
+                                    prev.eldersMeetingInput?.suggestedTopics || [],
+                                  recommendations:
+                                    prev.eldersMeetingInput?.recommendations || [],
+                                  removals: list,
+                                },
+                              };
+                            })
+                          }
+                          className="w-full text-xs font-semibold p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 disabled:opacity-60"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-typography-500">
+                          Motivo (ou Congregação se mudança)
+                        </label>
+                        <input
+                          type="text"
+                          disabled={!canEdit('eldersAgendaInput')}
+                          placeholder="Ex: Mudou para Congregação Central / Renúncia..."
+                          value={rem.reason}
+                          onChange={(e) =>
+                            update((prev) => {
+                              const list = [
+                                ...(prev.eldersMeetingInput?.removals || []),
+                              ];
+                              list[idx] = { ...list[idx], reason: e.target.value };
+                              return {
+                                ...prev,
+                                eldersMeetingInput: {
+                                  suggestedTopics:
+                                    prev.eldersMeetingInput?.suggestedTopics || [],
+                                  recommendations:
+                                    prev.eldersMeetingInput?.recommendations || [],
+                                  removals: list,
+                                },
+                              };
+                            })
+                          }
+                          className="w-full text-xs font-medium p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200 disabled:opacity-60"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -4,16 +4,26 @@ import CustomSelect, { CustomSelectOption } from '@/components/CustomSelect';
 import { db } from '@/lib/firebase';
 import {
   AgendaRecommendationItem,
+  AgendaRemovalItem,
   AgendaTopicItem,
   DEFAULT_AGENDA_FOOTER_NOTE,
   EldersMeetingAgenda,
   normalizeEldersMeetingAgenda,
 } from '@/types/eldersMeetingAgenda';
 import {
+  EldersMeetingInput,
+  ElderSubmittedRecommendation,
+  ElderSubmittedRemoval,
+  ElderSuggestedTopic,
+  normalizeVisitSchedule,
+  VisitSchedule,
+} from '@/types/visitSchedule';
+import {
   collection,
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   setDoc,
   where,
@@ -33,6 +43,7 @@ import {
   Copy,
   Eye,
   HelpCircle,
+  Inbox,
   Plus,
   Printer,
   Quote,
@@ -44,6 +55,7 @@ import {
   Sparkles,
   Trash2,
   UserCheck,
+  UserMinus,
   X
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -76,6 +88,7 @@ export default function EldersMeetingAgendaView({
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
   const [mobileSection, setMobileSection] = useState<'geral' | 'assuntos' | 'recomendacoes'>('assuntos');
   const [openExcerptIds, setOpenExcerptIds] = useState<Record<string, boolean>>({});
+  const [eldersInput, setEldersInput] = useState<EldersMeetingInput | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
@@ -102,6 +115,7 @@ export default function EldersMeetingAgendaView({
     .slice(0, 32);
 
   const docId = `agenda_${safeUserId}_${safeCongId}_${safeVisitKey}`;
+  const visitDocId = `visit_${safeUserId}_${safeCongId}_${safeVisitKey}`;
 
   const serializeAgenda = (a: EldersMeetingAgenda | null) => {
     if (!a) return '';
@@ -235,6 +249,25 @@ export default function EldersMeetingAgendaView({
     };
   }, [docId, userId, congregationId, congregationName, visitPeriod, visitId]);
 
+  useEffect(() => {
+    const visitRef = doc(db, 'visit_schedules', visitDocId);
+    const unsubscribe = onSnapshot(
+      visitRef,
+      (snap) => {
+        if (snap.exists()) {
+          const normalized = normalizeVisitSchedule(snap.data() as VisitSchedule);
+          setEldersInput(normalized.eldersMeetingInput || null);
+        } else {
+          setEldersInput(null);
+        }
+      },
+      (err) => {
+        console.error('Erro ao escutar sugestões dos anciãos:', err);
+      }
+    );
+    return () => unsubscribe();
+  }, [visitDocId, congregationName, visitPeriod]);
+
   const handleSave = async (customAgenda?: EldersMeetingAgenda) => {
     const toSave = customAgenda || agenda;
     if (!toSave) return;
@@ -316,6 +349,7 @@ export default function EldersMeetingAgendaView({
           reference: t.reference || '',
           referenceText: t.referenceText || '',
           duration: t.duration || '',
+          suggestedBy: '',
         })),
         footerNote: source.footerNote || agenda.footerNote,
       };
@@ -362,6 +396,7 @@ export default function EldersMeetingAgendaView({
           reference: '',
           referenceText: '',
           duration: '',
+          suggestedBy: '',
         },
       ],
     }));
@@ -374,6 +409,45 @@ export default function EldersMeetingAgendaView({
       next[idx] = { ...next[idx], [field]: finalValue };
       return { ...prev, topics: next };
     });
+  };
+
+  const approveSuggestedTopic = (sug: ElderSuggestedTopic) => {
+    updateAgenda((prev) => {
+      const alreadyIncluded = prev.topics.some(
+        (t) =>
+          (t.sourceSuggestionId && t.sourceSuggestionId === sug.id) ||
+          (t.subject.trim().toUpperCase() === (sug.subject || '').trim().toUpperCase() &&
+            Boolean(sug.subject?.trim()))
+      );
+      if (alreadyIncluded) return prev;
+
+      const newTopic: AgendaTopicItem = {
+        id: `topic_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        subject: (sug.subject || '').toUpperCase(),
+        reference: sug.reference || '',
+        referenceText: '',
+        duration: '',
+        suggestedBy: sug.suggestedBy || '',
+        sourceSuggestionId: sug.id,
+      };
+
+      // Se houver apenas 1 linha em branco inicial, substitui ela em vez de deixar linha vazia no topo
+      const hasOnlyBlankFirstRow =
+        prev.topics.length === 1 &&
+        !prev.topics[0].subject?.trim() &&
+        !prev.topics[0].reference?.trim() &&
+        !prev.topics[0].referenceText?.trim();
+
+      return {
+        ...prev,
+        topics: hasOnlyBlankFirstRow ? [newTopic] : [...prev.topics, newTopic],
+      };
+    });
+    setFeedbackMsg({
+      type: 'success',
+      text: `Assunto "${(sug.subject || '').toUpperCase()}" aprovado e incluído na pauta!`,
+    });
+    setTimeout(() => setFeedbackMsg(null), 2500);
   };
 
   const handlePasteParagraph = async (idx: number, topicId: string) => {
@@ -427,7 +501,7 @@ export default function EldersMeetingAgendaView({
       ...prev,
       [key]: [
         ...(prev[key] || []),
-        { id: `${type}_${Date.now()}`, name: '', decision: '' },
+        { id: `${type}_${Date.now()}`, name: '', decision: '', notes: '' },
       ],
     }));
   };
@@ -454,6 +528,155 @@ export default function EldersMeetingAgendaView({
     }));
   };
 
+  const importElderRecommendation = (rec: ElderSubmittedRecommendation) => {
+    const key = rec.role === 'elder' ? 'elderRecommendations' : 'servantRecommendations';
+    updateAgenda((prev) => {
+      const list = prev[key] || [];
+      const alreadyExists = list.some(
+        (item) =>
+          (item.sourceSubmissionId && item.sourceSubmissionId === rec.id) ||
+          (item.name.trim().toLowerCase() === (rec.name || '').trim().toLowerCase() &&
+            Boolean(rec.name?.trim()))
+      );
+      if (alreadyExists) return prev;
+
+      return {
+        ...prev,
+        [key]: [
+          ...list,
+          {
+            id: `${rec.role}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            name: rec.name || '',
+            decision: '',
+            notes: rec.notes || '',
+            sourceSubmissionId: rec.id,
+          },
+        ],
+      };
+    });
+    setFeedbackMsg({
+      type: 'success',
+      text: `Recomendação de "${rec.name}" incluída na pauta!`,
+    });
+    setTimeout(() => setFeedbackMsg(null), 2500);
+  };
+
+  // Helpers para manipular Remoções ou Renúncias
+  const addRemoval = (role: 'elder' | 'servant' = 'elder') => {
+    updateAgenda((prev) => ({
+      ...prev,
+      removals: [
+        ...(prev.removals || []),
+        { id: `rem_${Date.now()}`, role, name: '', reason: '' },
+      ],
+    }));
+  };
+
+  const updateRemoval = (idx: number, field: keyof AgendaRemovalItem, value: string) => {
+    updateAgenda((prev) => {
+      const list = [...(prev.removals || [])];
+      list[idx] = { ...list[idx], [field]: value };
+      return { ...prev, removals: list };
+    });
+  };
+
+  const removeRemoval = (idx: number) => {
+    updateAgenda((prev) => ({
+      ...prev,
+      removals: (prev.removals || []).filter((_, i) => i !== idx),
+    }));
+  };
+
+  const importElderRemoval = (rem: ElderSubmittedRemoval) => {
+    updateAgenda((prev) => {
+      const list = prev.removals || [];
+      const alreadyExists = list.some(
+        (item) =>
+          (item.sourceSubmissionId && item.sourceSubmissionId === rem.id) ||
+          (item.name.trim().toLowerCase() === (rem.name || '').trim().toLowerCase() &&
+            Boolean(rem.name?.trim()))
+      );
+      if (alreadyExists) return prev;
+
+      return {
+        ...prev,
+        removals: [
+          ...list,
+          {
+            id: `rem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            role: rem.role === 'servant' ? 'servant' : 'elder',
+            name: rem.name || '',
+            reason: rem.reason || '',
+            sourceSubmissionId: rem.id,
+          },
+        ],
+      };
+    });
+    setFeedbackMsg({
+      type: 'success',
+      text: `Remoção/renúncia de "${rem.name}" incluída na pauta!`,
+    });
+    setTimeout(() => setFeedbackMsg(null), 2500);
+  };
+
+  const importAllEldersRecommendationsAndRemovals = () => {
+    if (!eldersInput) return;
+    updateAgenda((prev) => {
+      const nextElders = [...(prev.elderRecommendations || [])];
+      const nextServants = [...(prev.servantRecommendations || [])];
+      const nextRemovals = [...(prev.removals || [])];
+
+      (eldersInput.recommendations || []).forEach((rec, i) => {
+        if (!rec.name?.trim()) return;
+        const target = rec.role === 'elder' ? nextElders : nextServants;
+        const exists = target.some(
+          (item) =>
+            (item.sourceSubmissionId && item.sourceSubmissionId === rec.id) ||
+            item.name.trim().toLowerCase() === rec.name.trim().toLowerCase()
+        );
+        if (!exists) {
+          target.push({
+            id: `${rec.role}_${Date.now()}_${i}`,
+            name: rec.name,
+            decision: '',
+            notes: rec.notes || '',
+            sourceSubmissionId: rec.id,
+          });
+        }
+      });
+
+      (eldersInput.removals || []).forEach((rem, i) => {
+        if (!rem.name?.trim()) return;
+        const exists = nextRemovals.some(
+          (item) =>
+            (item.sourceSubmissionId && item.sourceSubmissionId === rem.id) ||
+            item.name.trim().toLowerCase() === rem.name.trim().toLowerCase()
+        );
+        if (!exists) {
+          nextRemovals.push({
+            id: `rem_${Date.now()}_${i}`,
+            role: rem.role === 'servant' ? 'servant' : 'elder',
+            name: rem.name,
+            reason: rem.reason || '',
+            sourceSubmissionId: rem.id,
+          });
+        }
+      });
+
+      return {
+        ...prev,
+        elderRecommendations: nextElders,
+        servantRecommendations: nextServants,
+        removals: nextRemovals,
+      };
+    });
+    setFeedbackMsg({
+      type: 'success',
+      text: 'Todas as indicações e remoções dos anciãos foram importadas para a pauta!',
+    });
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-16 space-y-4">
@@ -469,12 +692,14 @@ export default function EldersMeetingAgendaView({
 
   const totalRecommendations =
     (agenda.elderRecommendations?.length || 0) +
-    (agenda.servantRecommendations?.length || 0);
+    (agenda.servantRecommendations?.length || 0) +
+    (agenda.removals?.length || 0);
 
   const renderA4Sheet = (isPrintOnly: boolean = false) => {
     const hasElderRecs = (agenda.elderRecommendations?.length || 0) > 0;
     const hasServantRecs = (agenda.servantRecommendations?.length || 0) > 0;
-    const hasAnyRecs = hasElderRecs || hasServantRecs;
+    const hasRemovals = (agenda.removals?.length || 0) > 0;
+    const hasAnyRecs = hasElderRecs || hasServantRecs || hasRemovals;
 
     return (
       <div className={isPrintOnly ? 'agenda-a4-print-root' : 'agenda-a4-preview-wrapper'}>
@@ -607,35 +832,58 @@ export default function EldersMeetingAgendaView({
                           <td className="agenda-num-cell">{idx + 1}</td>
                           <td>
                             {isPrintOnly ? (
-                              <div className="agenda-subject-print-row">
-                                <span className="agenda-cell-text font-bold uppercase">
-                                  {(topic.subject || '').toUpperCase()}
-                                </span>
-                                {topic.duration?.trim() && (
-                                  <span className="agenda-duration-badge">
-                                    {formatTopicDuration(topic.duration)}
+                              <div className="space-y-1">
+                                <div className="agenda-subject-print-row">
+                                  <span className="agenda-cell-text font-bold uppercase">
+                                    {(topic.subject || '').toUpperCase()}
                                   </span>
+                                  {topic.duration?.trim() && (
+                                    <span className="agenda-duration-badge">
+                                      {formatTopicDuration(topic.duration)}
+                                    </span>
+                                  )}
+                                </div>
+                                {topic.suggestedBy?.trim() && (
+                                  <div className="agenda-suggested-by-tag">
+                                    Indicado por: {topic.suggestedBy.trim()}
+                                  </div>
                                 )}
                               </div>
                             ) : (
-                              <div className="agenda-subject-edit-row">
-                                <textarea
-                                  rows={1}
-                                  value={(topic.subject || '').toUpperCase()}
-                                  onChange={(e) =>
-                                    updateTopic(idx, 'subject', e.target.value.toUpperCase())
-                                  }
-                                  placeholder="DESCREVA O ASSUNTO..."
-                                  className="agenda-table-textarea font-bold uppercase flex-1"
-                                />
-                                <input
-                                  type="text"
-                                  value={topic.duration || ''}
-                                  onChange={(e) => updateTopic(idx, 'duration', e.target.value)}
-                                  placeholder="Tempo"
-                                  title="Tempo designado para este assunto (ex: 10 min)"
-                                  className="agenda-duration-input"
-                                />
+                              <div className="space-y-1.5">
+                                <div className="agenda-subject-edit-row">
+                                  <textarea
+                                    rows={1}
+                                    value={(topic.subject || '').toUpperCase()}
+                                    onChange={(e) =>
+                                      updateTopic(idx, 'subject', e.target.value.toUpperCase())
+                                    }
+                                    placeholder="DESCREVA O ASSUNTO..."
+                                    className="agenda-table-textarea font-bold uppercase flex-1"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={topic.duration || ''}
+                                    onChange={(e) => updateTopic(idx, 'duration', e.target.value)}
+                                    placeholder="Tempo"
+                                    title="Tempo designado para este assunto (ex: 10 min)"
+                                    className="agenda-duration-input"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                                    Indicado por:
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={topic.suggestedBy || ''}
+                                    onChange={(e) =>
+                                      updateTopic(idx, 'suggestedBy', e.target.value)
+                                    }
+                                    placeholder="Opcional (ex: Ir. João)"
+                                    className="agenda-suggested-by-input"
+                                  />
+                                </div>
                               </div>
                             )}
                           </td>
@@ -740,13 +988,13 @@ export default function EldersMeetingAgendaView({
             </table>
           </div>
 
-          {/* SEÇÃO 2: RECOMENDAÇÕES (DINÂMICA CONFORME NECESSIDADE) */}
+          {/* SEÇÃO 2: RECOMENDAÇÕES E REMOÇÕES (DINÂMICA CONFORME NECESSIDADE) */}
           {(hasAnyRecs || !isPrintOnly) && (
             <div className={`agenda-section ${!hasAnyRecs ? 'print:hidden' : ''}`}>
               <div className="agenda-section-header">
                 <h2 className="agenda-section-title">Recomendações</h2>
                 {!isPrintOnly && (
-                  <div className="flex items-center gap-2 print:hidden">
+                  <div className="flex items-center gap-2 flex-wrap print:hidden">
                     <button
                       type="button"
                       onClick={() => addRecommendation('elder')}
@@ -761,13 +1009,20 @@ export default function EldersMeetingAgendaView({
                     >
                       + Servo Ministerial
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => addRemoval('elder')}
+                      className="agenda-add-inline-btn"
+                    >
+                      + Remoção / Renúncia
+                    </button>
                   </div>
                 )}
               </div>
 
               {!hasAnyRecs && !isPrintOnly && (
                 <div className="agenda-empty-recs-banner print:hidden">
-                  Nenhuma recomendação adicionada para esta reunião. (Esta seção não aparecerá na impressão se estiver vazia). Use os botões acima caso queira incluir recomendações de Anciãos ou Servos Ministeriais.
+                  Nenhuma recomendação ou remoção adicionada para esta reunião. (Esta seção não aparecerá na impressão se estiver vazia). Use os botões acima caso queira incluir recomendações ou remoções.
                 </div>
               )}
 
@@ -797,17 +1052,31 @@ export default function EldersMeetingAgendaView({
                             <td className="agenda-num-cell">{idx + 1}</td>
                             <td>
                               {isPrintOnly ? (
-                                <div className="agenda-cell-text font-medium">{rec.name}</div>
+                                <div>
+                                  <div className="agenda-cell-text font-medium">{rec.name}</div>
+                                  {rec.notes?.trim() && (
+                                    <div className="text-[10.5px] text-slate-500 mt-0.5">
+                                      {rec.notes}
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
-                                <input
-                                  type="text"
-                                  value={rec.name}
-                                  onChange={(e) =>
-                                    updateRecommendation('elder', idx, 'name', e.target.value)
-                                  }
-                                  placeholder="Nome completo do irmão"
-                                  className="agenda-table-input font-medium"
-                                />
+                                <div className="space-y-1">
+                                  <input
+                                    type="text"
+                                    value={rec.name}
+                                    onChange={(e) =>
+                                      updateRecommendation('elder', idx, 'name', e.target.value)
+                                    }
+                                    placeholder="Nome completo do irmão"
+                                    className="agenda-table-input font-medium"
+                                  />
+                                  {rec.notes?.trim() && (
+                                    <div className="text-[10px] text-slate-500 italic">
+                                      Obs. dos anciãos: {rec.notes}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td>
@@ -869,17 +1138,31 @@ export default function EldersMeetingAgendaView({
                             <td className="agenda-num-cell">{idx + 1}</td>
                             <td>
                               {isPrintOnly ? (
-                                <div className="agenda-cell-text font-medium">{rec.name}</div>
+                                <div>
+                                  <div className="agenda-cell-text font-medium">{rec.name}</div>
+                                  {rec.notes?.trim() && (
+                                    <div className="text-[10.5px] text-slate-500 mt-0.5">
+                                      {rec.notes}
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
-                                <input
-                                  type="text"
-                                  value={rec.name}
-                                  onChange={(e) =>
-                                    updateRecommendation('servant', idx, 'name', e.target.value)
-                                  }
-                                  placeholder="Nome completo do irmão"
-                                  className="agenda-table-input font-medium"
-                                />
+                                <div className="space-y-1">
+                                  <input
+                                    type="text"
+                                    value={rec.name}
+                                    onChange={(e) =>
+                                      updateRecommendation('servant', idx, 'name', e.target.value)
+                                    }
+                                    placeholder="Nome completo do irmão"
+                                    className="agenda-table-input font-medium"
+                                  />
+                                  {rec.notes?.trim() && (
+                                    <div className="text-[10px] text-slate-500 italic">
+                                      Obs. dos anciãos: {rec.notes}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td>
@@ -904,6 +1187,101 @@ export default function EldersMeetingAgendaView({
                                   onClick={() => removeRecommendation('servant', idx)}
                                   className="agenda-row-delete-btn"
                                   title="Remover recomendação"
+                                >
+                                  ×
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Sub-bloco: Remoções ou Renúncias */}
+                {hasRemovals && (
+                  <div className="agenda-rec-block">
+                    <div className="agenda-rec-subtitle-bar">
+                      <span>Remoções ou Renúncias</span>
+                      <span className="agenda-rec-count">
+                        {agenda.removals.length}{' '}
+                        {agenda.removals.length === 1 ? 'registro' : 'registros'}
+                      </span>
+                    </div>
+                    <table className="agenda-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '36px', textAlign: 'center' }}>#</th>
+                          <th style={{ width: '24%' }}>Privilégio</th>
+                          <th style={{ width: '36%' }}>Nome</th>
+                          <th style={{ width: '40%' }}>Motivo / Congregação (se mudança)</th>
+                          {!isPrintOnly && <th className="print:hidden" style={{ width: '32px' }} />}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agenda.removals.map((rem, idx) => (
+                          <tr key={rem.id || idx}>
+                            <td className="agenda-num-cell">{idx + 1}</td>
+                            <td>
+                              {isPrintOnly ? (
+                                <div className="agenda-cell-text font-semibold">
+                                  {rem.role === 'servant' ? 'Servo Ministerial' : 'Ancião'}
+                                </div>
+                              ) : (
+                                <select
+                                  value={rem.role}
+                                  onChange={(e) =>
+                                    updateRemoval(
+                                      idx,
+                                      'role',
+                                      e.target.value === 'servant' ? 'servant' : 'elder'
+                                    )
+                                  }
+                                  className="agenda-table-input font-semibold bg-transparent cursor-pointer"
+                                >
+                                  <option value="elder">Ancião</option>
+                                  <option value="servant">Servo Ministerial</option>
+                                </select>
+                              )}
+                            </td>
+                            <td>
+                              {isPrintOnly ? (
+                                <div className="agenda-cell-text font-medium">{rem.name}</div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={rem.name}
+                                  onChange={(e) =>
+                                    updateRemoval(idx, 'name', e.target.value)
+                                  }
+                                  placeholder="Nome completo do irmão"
+                                  className="agenda-table-input font-medium"
+                                />
+                              )}
+                            </td>
+                            <td>
+                              {isPrintOnly ? (
+                                <div className="agenda-cell-text">{rem.reason}</div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={rem.reason}
+                                  onChange={(e) =>
+                                    updateRemoval(idx, 'reason', e.target.value)
+                                  }
+                                  placeholder="Motivo ou congregação..."
+                                  className="agenda-table-input"
+                                />
+                              )}
+                            </td>
+                            {!isPrintOnly && (
+                              <td className="print:hidden text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => removeRemoval(idx)}
+                                  className="agenda-row-delete-btn"
+                                  title="Remover registro"
                                 >
                                   ×
                                 </button>
@@ -1205,6 +1583,37 @@ export default function EldersMeetingAgendaView({
         }
 
         .agenda-duration-input:focus {
+          border-style: solid;
+          border-color: #1e3a5f;
+          background: #ffffff;
+        }
+
+        .agenda-suggested-by-tag {
+          display: inline-block;
+          font-size: 10px;
+          font-weight: 700;
+          color: #475569;
+          background: #f1f5f9;
+          border: 1px solid #cbd5e1;
+          border-radius: 4px;
+          padding: 1px 6px;
+        }
+
+        .agenda-suggested-by-input {
+          flex: 1;
+          min-width: 0;
+          font-size: 10.5px;
+          font-weight: 600;
+          color: #334155;
+          background: #f8fafc;
+          border: 1px dashed #cbd5e1;
+          border-radius: 4px;
+          padding: 2px 6px;
+          outline: none;
+          font-family: inherit;
+        }
+
+        .agenda-suggested-by-input:focus {
           border-style: solid;
           border-color: #1e3a5f;
           background: #ffffff;
@@ -1614,7 +2023,7 @@ export default function EldersMeetingAgendaView({
                 }`}
               >
                 <UserCheck size={15} />
-                <span>Recomendações</span>
+                <span>Recomendações & Remoções</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
                     mobileSection === 'recomendacoes'
@@ -1643,6 +2052,79 @@ export default function EldersMeetingAgendaView({
             {/* ABA 1: ASSUNTOS E NECESSIDADES DA CONGREGAÇÃO */}
             {mobileSection === 'assuntos' && (
               <div className="space-y-3">
+                {/* PAINEL DE SUGESTÕES ENVIADAS PELOS ANCIÃOS (SE HOUVER) */}
+                {(eldersInput?.suggestedTopics?.length || 0) > 0 && (
+                  <div className="bg-primary-200/5 border border-primary-200/25 rounded-2xl p-4 shadow-xs space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-primary-200 flex items-center gap-1.5">
+                          <Inbox size={15} />
+                          Sugestões de Assuntos Enviadas pelos Anciãos (
+                          {eldersInput!.suggestedTopics.length})
+                        </h4>
+                        <p className="text-[11px] text-typography-500 mt-0.5">
+                          Aprove com 1 clique os assuntos que deseja incluir na pauta. Ele já entrará com o nome de quem indicou e você poderá ajustar o título ou acrescentar referências.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {eldersInput!.suggestedTopics.map((sug, sIdx) => {
+                        const isApproved = agenda.topics.some(
+                          (t) =>
+                            (t.sourceSuggestionId && t.sourceSuggestionId === sug.id) ||
+                            (t.subject.trim().toUpperCase() ===
+                              (sug.subject || '').trim().toUpperCase() &&
+                              Boolean(sug.subject?.trim()))
+                        );
+
+                        return (
+                          <div
+                            key={sug.id || sIdx}
+                            className="p-3 bg-surface-100 border border-surface-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                          >
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-black uppercase text-typography-900">
+                                  {(sug.subject || 'ASSUNTO SEM TÍTULO').toUpperCase()}
+                                </span>
+                                {sug.suggestedBy?.trim() && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary-200/10 text-primary-200 border border-primary-200/20">
+                                    Indicado por: {sug.suggestedBy.trim()}
+                                  </span>
+                                )}
+                              </div>
+                              {sug.reference?.trim() && (
+                                <p className="text-[11px] text-typography-500">
+                                  Ref. sugerida: {sug.reference}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="shrink-0">
+                              {isApproved ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                                  <Check size={13} />
+                                  Incluído na Pauta
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => approveSuggestedTopic(sug)}
+                                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-bold bg-primary-200 hover:bg-primary-300 text-white px-3 py-1.5 rounded-xl shadow-2xs transition-colors cursor-pointer"
+                                >
+                                  <Plus size={14} />
+                                  <span>Aprovar e Incluir na Pauta</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-xs font-black uppercase tracking-wider text-primary-200 flex items-center gap-1.5">
@@ -1674,7 +2156,7 @@ export default function EldersMeetingAgendaView({
                       className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3"
                     >
                       <div className="flex items-center justify-between border-b border-surface-300 pb-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-black text-primary-200 bg-primary-200/10 px-2.5 py-0.5 rounded-lg border border-primary-200/20">
                             Assunto #{idx + 1}
                           </span>
@@ -1682,6 +2164,11 @@ export default function EldersMeetingAgendaView({
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg bg-surface-200 text-typography-700 border border-surface-300">
                               <Clock size={11} className="text-primary-200" />
                               {formatTopicDuration(topic.duration)}
+                            </span>
+                          )}
+                          {topic.suggestedBy?.trim() && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary-200/10 text-primary-200 border border-primary-200/20">
+                              Indicado por: {topic.suggestedBy.trim()}
                             </span>
                           )}
                         </div>
@@ -1777,32 +2264,47 @@ export default function EldersMeetingAgendaView({
                           </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-2.5">
+                          <div className="space-y-1">
                             <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
-                              Referência Bíblica / Teocrática
+                              Quem Indicou (Opcional)
                             </label>
-                            {!isExcerptOpen && (
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handlePasteParagraph(idx, topicKey)}
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/25 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                                  title="Colar parágrafo copiado do JW Library / WOL"
-                                >
-                                  <ClipboardPaste size={12} />
-                                  <span>Colar parágrafo da referência</span>
-                                </button>
-                              </div>
-                            )}
+                            <input
+                              type="text"
+                              placeholder="Ex: Ir. Carlos"
+                              value={topic.suggestedBy || ''}
+                              onChange={(e) => updateTopic(idx, 'suggestedBy', e.target.value)}
+                              className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all"
+                            />
                           </div>
-                          <textarea
-                            rows={2}
-                            placeholder="Ex: ks cap. 25 §§ 1-4; 1 Ped. 5:2, 3..."
-                            value={topic.reference}
-                            onChange={(e) => updateTopic(idx, 'reference', e.target.value)}
-                            className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
-                          />
+
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <label className="text-[11px] font-bold uppercase tracking-wider text-typography-500">
+                                Referência Bíblica / Teocrática
+                              </label>
+                              {!isExcerptOpen && (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePasteParagraph(idx, topicKey)}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-200 bg-primary-200/10 hover:bg-primary-200/20 border border-primary-200/25 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                                    title="Colar parágrafo copiado do JW Library / WOL"
+                                  >
+                                    <ClipboardPaste size={12} />
+                                    <span>Colar parágrafo da referência</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <textarea
+                              rows={2}
+                              placeholder="Ex: ks cap. 25 §§ 1-4; 1 Ped. 5:2, 3..."
+                              value={topic.reference}
+                              onChange={(e) => updateTopic(idx, 'reference', e.target.value)}
+                              className="w-full text-xs font-medium p-2.5 bg-surface-200/50 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 focus:bg-surface-100 focus:ring-2 focus:ring-primary-200/20 focus:border-primary-200 outline-none transition-all resize-y"
+                            />
+                          </div>
                         </div>
 
                         {isExcerptOpen && (
@@ -1863,13 +2365,149 @@ export default function EldersMeetingAgendaView({
               </div>
             )}
 
-            {/* ABA 2: RECOMENDAÇÕES SOB DEMANDA */}
+            {/* ABA 2: RECOMENDAÇÕES E REMOÇÕES SOB DEMANDA */}
             {mobileSection === 'recomendacoes' && (
               <div className="space-y-5">
+                {/* PAINEL DE INDICAÇÕES E REMOÇÕES ENVIADAS PELOS ANCIÃOS (SE HOUVER) */}
+                {((eldersInput?.recommendations?.length || 0) > 0 ||
+                  (eldersInput?.removals?.length || 0) > 0) && (
+                  <div className="bg-primary-200/5 border border-primary-200/25 rounded-2xl p-4 shadow-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-primary-200 flex items-center gap-1.5">
+                          <Inbox size={15} />
+                          Indicações e Remoções Enviadas pelos Anciãos
+                        </h4>
+                        <p className="text-[11px] text-typography-500 mt-0.5">
+                          Importe com 1 clique os nomes enviados pelos anciãos ou adicione manualmente abaixo.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={importAllEldersRecommendationsAndRemovals}
+                        className="shrink-0 inline-flex items-center justify-center gap-1.5 bg-primary-200 hover:bg-primary-300 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <Sparkles size={13} />
+                        <span>Importar Todos</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(eldersInput?.recommendations || []).map((rec, rIdx) => {
+                        const targetList =
+                          rec.role === 'elder'
+                            ? agenda.elderRecommendations
+                            : agenda.servantRecommendations;
+                        const isIncluded = (targetList || []).some(
+                          (item) =>
+                            (item.sourceSubmissionId && item.sourceSubmissionId === rec.id) ||
+                            (item.name.trim().toLowerCase() ===
+                              (rec.name || '').trim().toLowerCase() &&
+                              Boolean(rec.name?.trim()))
+                        );
+
+                        return (
+                          <div
+                            key={rec.id || rIdx}
+                            className="p-3 bg-surface-100 border border-surface-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                          >
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-primary-200/10 text-primary-200 border border-primary-200/20">
+                                  Recomendação •{' '}
+                                  {rec.role === 'elder' ? 'Ancião' : 'Servo Ministerial'}
+                                </span>
+                                <span className="text-xs font-bold text-typography-900">
+                                  {rec.name || '(Sem nome)'}
+                                </span>
+                              </div>
+                              {rec.notes?.trim() && (
+                                <p className="text-[11px] text-typography-500">
+                                  Obs.: {rec.notes}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="shrink-0">
+                              {isIncluded ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl">
+                                  <Check size={13} />
+                                  Na Pauta
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => importElderRecommendation(rec)}
+                                  className="inline-flex items-center gap-1 text-xs font-bold bg-primary-200/10 hover:bg-primary-200/20 text-primary-200 border border-primary-200/25 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                                >
+                                  <Plus size={13} />
+                                  <span>Usar na Pauta</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {(eldersInput?.removals || []).map((rem, mIdx) => {
+                        const isIncluded = (agenda.removals || []).some(
+                          (item) =>
+                            (item.sourceSubmissionId && item.sourceSubmissionId === rem.id) ||
+                            (item.name.trim().toLowerCase() ===
+                              (rem.name || '').trim().toLowerCase() &&
+                              Boolean(rem.name?.trim()))
+                        );
+
+                        return (
+                          <div
+                            key={rem.id || mIdx}
+                            className="p-3 bg-surface-100 border border-surface-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                          >
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 border border-amber-500/25">
+                                  Remoção/Renúncia •{' '}
+                                  {rem.role === 'elder' ? 'Ancião' : 'Servo Ministerial'}
+                                </span>
+                                <span className="text-xs font-bold text-typography-900">
+                                  {rem.name || '(Sem nome)'}
+                                </span>
+                              </div>
+                              {rem.reason?.trim() && (
+                                <p className="text-[11px] text-typography-500">
+                                  Motivo/Cong.: {rem.reason}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="shrink-0">
+                              {isIncluded ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl">
+                                  <Check size={13} />
+                                  Na Pauta
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => importElderRemoval(rem)}
+                                  className="inline-flex items-center gap-1 text-xs font-bold bg-primary-200/10 hover:bg-primary-200/20 text-primary-200 border border-primary-200/25 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                                >
+                                  <Plus size={13} />
+                                  <span>Usar na Pauta</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-1">
                   <h3 className="text-xs font-black uppercase tracking-wider text-primary-200 flex items-center gap-1.5">
                     <UserCheck size={15} />
-                    Recomendações (Sob Demanda)
+                    Recomendações e Remoções (Sob Demanda)
                   </h3>
                   <p className="text-[11px] text-typography-500 leading-relaxed">
                     Adicione apenas os irmãos que serão considerados nesta visita. Se uma categoria não tiver nenhuma indicação, ela não ocupará espaço na folha impressa.
@@ -1957,6 +2595,12 @@ export default function EldersMeetingAgendaView({
                               />
                             </div>
                           </div>
+
+                          {rec.notes?.trim() && (
+                            <p className="text-[11px] text-typography-500 italic bg-surface-100/70 px-2.5 py-1.5 rounded-lg border border-surface-300">
+                              Observação enviada pelos anciãos: {rec.notes}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -2043,6 +2687,116 @@ export default function EldersMeetingAgendaView({
                                 className="w-full text-xs font-medium p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200"
                               />
                             </div>
+                          </div>
+
+                          {rec.notes?.trim() && (
+                            <p className="text-[11px] text-typography-500 italic bg-surface-100/70 px-2.5 py-1.5 rounded-lg border border-surface-300">
+                              Observação enviada pelos anciãos: {rec.notes}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* BLOCO 3: REMOÇÕES OU RENÚNCIAS */}
+                <div className="bg-surface-100 border border-surface-300 rounded-2xl p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-surface-300 pb-2.5">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-typography-900 flex items-center gap-1.5">
+                        <UserMinus size={14} className="text-primary-200" />
+                        Remoções ou Renúncias
+                      </h4>
+                      <span className="text-[11px] text-typography-500">
+                        {(agenda.removals?.length || 0) === 0
+                          ? 'Nenhum registro adicionado (não aparecerá na folha se vazio)'
+                          : `${agenda.removals.length} ${
+                              agenda.removals.length === 1 ? 'registro listado' : 'registros listados'
+                            }`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addRemoval('elder')}
+                      className="flex items-center gap-1.5 bg-primary-200/10 hover:bg-primary-200/20 text-primary-200 border border-primary-200/25 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      <span>Adicionar</span>
+                    </button>
+                  </div>
+
+                  {(agenda.removals?.length || 0) === 0 ? (
+                    <div className="py-4 text-center text-xs text-typography-400 bg-surface-200/40 rounded-xl border border-dashed border-surface-300">
+                      Nenhuma remoção ou renúncia para esta reunião.
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {agenda.removals.map((rem, idx) => (
+                        <div
+                          key={rem.id || idx}
+                          className="p-3 bg-surface-200/50 border border-surface-300 rounded-xl space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-primary-200">
+                              Remoção / Renúncia #{idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeRemoval(idx)}
+                              className="text-typography-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
+                              title="Remover registro"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-[170px_1fr] gap-2.5">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase text-typography-500">
+                                Privilégio
+                              </label>
+                              <select
+                                value={rem.role}
+                                onChange={(e) =>
+                                  updateRemoval(
+                                    idx,
+                                    'role',
+                                    e.target.value === 'servant' ? 'servant' : 'elder'
+                                  )
+                                }
+                                className="w-full text-xs font-bold p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 outline-none focus:border-primary-200 cursor-pointer"
+                              >
+                                <option value="elder">Ancião</option>
+                                <option value="servant">Servo Ministerial</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold uppercase text-typography-500">
+                                Nome do Irmão
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Nome completo"
+                                value={rem.name}
+                                onChange={(e) => updateRemoval(idx, 'name', e.target.value)}
+                                className="w-full text-xs font-medium p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-typography-500">
+                              Motivo (ou congregação se for mudança)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Mudou-se para a Cong. Central / Renúncia voluntária..."
+                              value={rem.reason}
+                              onChange={(e) => updateRemoval(idx, 'reason', e.target.value)}
+                              className="w-full text-xs font-medium p-2.5 bg-surface-100 border border-surface-300 rounded-xl text-typography-900 placeholder:text-typography-400 outline-none focus:border-primary-200"
+                            />
                           </div>
                         </div>
                       ))}
